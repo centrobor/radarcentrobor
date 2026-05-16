@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
+    <title>Dashboard • Centrobor • Administrador</title>
+    <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQkPTXodjq73nQgq7wMEkkvzv6NkcRiJrRstQ&s">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a5f;
+            --primary-light: #2b4c7a;
+            --primary-soft: #eef3f9;
+            --text-dark: #1a2b3c;
+            --text-soft: #3e4e5e;
+            --text-light: #6b7b8c;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+            --info: #0288d1;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --border-light: rgba(255, 255, 255, 0.9);
+            --shadow-sm: 0 8px 20px rgba(0, 20, 40, 0.06);
+            --shadow-hover: 0 16px 30px -8px rgba(26, 58, 95, 0.2);
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --blur: blur(16px);
+            --footer-bg: #1a2b3c;
+            --footer-text: #cbd5e1;
+            --bottom-bar-height: 62px;
+            --mobile-topbar-height: 56px;
+            --safe-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 24px 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wrapper {
+            max-width: 1600px;
+            width: 100%;
+            flex: 1;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 22px;
+            margin-bottom: 24px;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: 80px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 16px;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .user-avatar {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .greeting {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-dark);
+            white-space: nowrap;
+        }
+        .admin-badge {
+            background: var(--primary);
+            color: white;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 30px;
+            letter-spacing: 0.5px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+        .vendor-selector {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 30px;
+            padding: 8px 18px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            outline: none;
+            transition: 0.2s;
+            margin: 0 8px;
+        }
+        .vendor-selector:hover {
+            border-color: var(--primary);
+        }
+        .dolar-quote {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: var(--text-soft);
+            text-decoration: none;
+            border: 1px solid white;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .current-time {
+            font-size: 0.9rem;
+            color: var(--text-light);
+            font-weight: 500;
+            margin: 0 12px;
+        }
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 255, 255, 0.6);
+            padding: 6px 16px;
+            border-radius: 40px;
+            font-size: 0.75rem;
+            color: var(--text-soft);
+        }
+        .sync-status i {
+            cursor: pointer;
+            color: var(--primary);
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-soft);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: 0.2s;
+            position: relative;
+            padding: 6px;
+            border-radius: 50%;
+        }
+        .icon-btn:hover {
+            color: var(--primary);
+            background: rgba(30, 58, 95, 0.06);
+        }
+        .logout-btn:hover {
+            color: var(--danger);
+            background: rgba(211, 47, 47, 0.06);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -6px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            font-weight: 700;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(211, 47, 47, 0);
+            }
+        }
+        .carousel-section {
+            margin-bottom: 32px;
+            border-radius: 32px;
+            overflow: hidden;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+        .carousel-container {
+            display: flex;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .carousel-slide {
+            min-width: 100%;
+            position: relative;
+            cursor: pointer;
+        }
+        .carousel-slide img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+            display: block;
+        }
+        .carousel-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.7));
+            color: white;
+            padding: 16px 24px;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 12px;
+        }
+        .carousel-controls {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 16px;
+            pointer-events: none;
+        }
+        .carousel-btn {
+            background: rgba(255, 255, 255, 0.85);
+            border: none;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: all;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 12px;
+        }
+        .indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .indicator-dot.active {
+            background: var(--primary);
+            transform: scale(1.4);
+            box-shadow: 0 0 0 4px rgba(30, 58, 95, 0.15);
+        }
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 20px;
+        }
+        .quick-access-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .quick-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 16px 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            text-decoration: none;
+            transition: 0.25s;
+            color: var(--text-dark);
+            box-shadow: var(--shadow-sm);
+        }
+        .quick-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-hover);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .quick-card i {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+        .quick-card span {
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+            margin-bottom: 32px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .kpi-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .kpi-header i {
+            font-size: 1.8rem;
+            color: var(--primary);
+            background: var(--primary-soft);
+            padding: 10px;
+            border-radius: 16px;
+        }
+        .kpi-value {
+            font-size: 1.9rem;
+            font-weight: 700;
+            color: var(--text-dark);
+        }
+        .progress-bar-bg {
+            height: 8px;
+            background: #e0e6ed;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.3s;
+        }
+        .fill-success {
+            background: var(--success);
+        }
+        .fill-warning {
+            background: var(--warning);
+        }
+        .fill-info {
+            background: var(--info);
+        }
+        .insights-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .insight-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            box-shadow: var(--shadow-sm);
+        }
+        .insight-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid rgba(30, 58, 95, 0.15);
+            padding-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .month-selector-small {
+            background: white;
+            border-radius: 20px;
+            padding: 4px 10px;
+            border: 1px solid #ccc;
+            font-size: 0.75rem;
+            margin-left: auto;
+        }
+        .orders-table {
+            width: 100%;
+            font-size: 0.75rem;
+            border-collapse: collapse;
+        }
+        .orders-table th,
+        .orders-table td {
+            padding: 6px 4px;
+            text-align: left;
+            border-bottom: 1px solid #eef2f6;
+        }
+        .status-approved {
+            background: #d4edda;
+            color: #155724;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .status-pending {
+            background: #fff3e0;
+            color: #e67e22;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: bold;
+        }
+        .donut-container {
+            height: 140px;
+            position: relative;
+            margin: 10px 0;
+        }
+        .donut-center-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        .analysis-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .analysis-panel {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            box-shadow: var(--shadow-sm);
+        }
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .month-selector {
+            margin-left: auto;
+            background: white;
+            border-radius: 40px;
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+        }
+        .monthly-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        .progress-circle-container {
+            display: flex;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin: 32px 0;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            height: 350px;
+            position: relative;
+            box-shadow: var(--shadow-sm);
+        }
+        .chart-container {
+            height: calc(100% - 40px);
+            width: 100%;
+        }
+        .floating-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 10px 25px rgba(26, 58, 95, 0.4);
+            font-size: 1.6rem;
+            cursor: pointer;
+            z-index: 990;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .widget-sidebar {
+            position: fixed;
+            top: 0;
+            right: -360px;
+            width: 320px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(24px);
+            box-shadow: -12px 0 32px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s;
+            padding: 28px 20px;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+        .widget-sidebar.open {
+            right: 0;
+        }
+        .widget-item {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid white;
+            padding: 14px 18px;
+            border-radius: 40px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* MODALS */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            width: 80vw;
+            max-width: 1200px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal-close {
+            position: absolute;
+            top: 14px;
+            right: 14px;
+            cursor: pointer;
+            font-size: 1.6rem;
+            color: var(--text-soft);
+            transition: 0.2s;
+            z-index: 2;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover {
+            color: var(--danger);
+        }
+
+        .vendor-detail-modal .detail-donut-container {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+        .vendor-detail-modal .detail-donut-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+        }
+        .vendor-detail-modal .detail-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin: 16px 0;
+        }
+        .vendor-detail-modal .detail-stat {
+            background: #f8fafc;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+        }
+        .vendor-detail-modal .stat-label {
+            font-size: 0.7rem;
+            color: var(--text-light);
+        }
+        .vendor-detail-modal .stat-value {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .notif-card {
+            display: flex;
+            gap: 14px;
+            padding: 14px;
+            border-bottom: 1px solid #e5e7eb;
+            cursor: pointer;
+            transition: 0.2s;
+            align-items: flex-start;
+            border-radius: 12px;
+            margin-bottom: 2px;
+        }
+        .notif-card:hover {
+            background: #f9fafb;
+        }
+        .notif-thumb {
+            width: 80px;
+            height: 60px;
+            border-radius: 12px;
+            object-fit: cover;
+            flex-shrink: 0;
+            background: #e5e7eb;
+        }
+        .notif-body {
+            flex: 1;
+        }
+        .notif-type {
+            font-size: 0.62rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-bottom: 5px;
+            letter-spacing: 0.5px;
+        }
+        .notif-title {
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 3px;
+            color: var(--text-dark);
+        }
+        .notif-meta {
+            font-size: 0.72rem;
+            color: var(--text-soft);
+            margin-bottom: 3px;
+        }
+        .notif-excerpt {
+            font-size: 0.78rem;
+            color: var(--text-soft);
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .btn-mark-all-read {
+            background: var(--primary-soft);
+            border: 1px solid var(--primary-light);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.78rem;
+            transition: 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .btn-mark-all-read:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* FOOTER */
+        .footer {
+            background: var(--footer-bg);
+            color: var(--footer-text);
+            margin-top: 40px;
+            padding: 28px 20px 20px;
+            border-radius: 32px 32px 0 0;
+            width: 100%;
+        }
+        .footer-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        .footer-logo-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .footer-logo-img {
+            width: 150px;
+            height: 100px;
+            border-radius: 12px;
+            object-fit: contain;
+            background: transparent;
+            padding: 4px;
+        }
+        .footer-brand-name {
+            font-weight: 800;
+            font-size: 1.1rem;
+            color: white;
+            letter-spacing: 0.5px;
+        }
+        .footer-tagline {
+            font-size: 0.78rem;
+            color: #94a3b8;
+            max-width: 400px;
+            line-height: 1.5;
+        }
+        .footer-social {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .footer-social a {
+            color: var(--footer-text);
+            font-size: 1.3rem;
+            transition: 0.2s;
+            text-decoration: none;
+        }
+        .footer-social a:hover {
+            color: white;
+            transform: translateY(-2px);
+        }
+        .footer-social .footer-link-text {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #94a3b8;
+            text-decoration: none;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .footer-social .footer-link-text:hover {
+            color: white;
+        }
+        .footer-bottom {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.7rem;
+            color: #64748b;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 14px;
+        }
+
+        /* MINI CARDS */
+        .vendor-goals-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 620px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .fabiano-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .vendor-mini-card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            padding: 14px 16px;
+            box-shadow: 0 4px 12px rgba(0, 20, 40, 0.04);
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-width: 200px;
+            flex: 1;
+        }
+        .vendor-mini-card:hover {
+            box-shadow: 0 8px 20px rgba(26, 58, 95, 0.1);
+            transform: translateY(-1px);
+        }
+        .vendor-mini-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #eef2f6;
+            padding-bottom: 6px;
+        }
+        .vendor-mini-header .vendor-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+        .vendor-mini-header .vendor-category {
+            font-size: 0.65rem;
+            background: #f0f4f8;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .target-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .target-info {
+            font-size: 0.72rem;
+        }
+        .target-info .label {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .progress-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .mini-progress {
+            flex: 1;
+            height: 6px;
+            background: #e9ecf2;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .mini-progress-fill {
+            height: 100%;
+            border-radius: 20px;
+            transition: width 0.4s;
+        }
+        .percent-text {
+            font-weight: 700;
+            font-size: 0.8rem;
+            min-width: 40px;
+            text-align: right;
+        }
+        .status-badge {
+            font-size: 0.65rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .status-em-progresso {
+            background: #fce4e4;
+            color: #b71c1c;
+        }
+        .status-no-ritmo {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .status-atingido {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        option:disabled {
+            color: #aaa !important;
+        }
+
+        @media (max-width: 900px) {
+            .analysis-row,
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            .insights-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* ══════════════ MOBILE TOPBAR ══════════════ */
+        .mobile-topbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            background: #ffffff;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 0 16px;
+            height: var(--mobile-topbar-height);
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        }
+        .mobile-topbar .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mobile-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-soft);
+        }
+        .mobile-topbar .topbar-greeting {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+        .mobile-topbar .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+        .mobile-topbar .hamburger-btn:active {
+            background: rgba(0, 0, 0, 0.05);
+            transform: scale(0.94);
+        }
+
+        /* ══════════════ HAMBURGER OVERLAY & MENU ══════════════ */
+        .hamburger-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .hamburger-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .hamburger-menu {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #ffffff;
+            z-index: 110;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
+            border-radius: 20px 0 0 20px;
+            overflow-y: auto;
+            padding: 24px 20px 100px;
+        }
+        .hamburger-menu.active {
+            right: 0;
+        }
+        .hamburger-menu .menu-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 16px;
+        }
+        .hamburger-menu .menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-soft);
+        }
+        .hamburger-menu .menu-user-info h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .hamburger-menu .menu-user-info span {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .hamburger-menu .menu-section {
+            margin-bottom: 14px;
+        }
+        .hamburger-menu .menu-section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding-left: 4px;
+            font-weight: 700;
+        }
+        .hamburger-menu .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .hamburger-menu .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+        .hamburger-menu .menu-item:active {
+            background: var(--primary-soft);
+            transform: scale(0.97);
+        }
+        .hamburger-menu .menu-item.danger {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-item.danger i {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-close-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.04);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            z-index: 5;
+        }
+        .hamburger-menu .menu-close-btn:active {
+            background: rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+        }
+
+        /* ══════════════ MOBILE BOTTOM BAR (EXPANDIDA) ══════════════ */
+        .mobile-bottom-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            z-index: 25;
+            padding: 4px 8px calc(4px + var(--safe-bottom));
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06);
+            height: var(--bottom-bar-height);
+            gap: 2px;
+            overflow-x: auto;
+        }
+        .mobile-bottom-bar .bb-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 12px;
+            transition: 0.2s;
+            text-decoration: none;
+            color: var(--text-soft);
+            min-width: 48px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            white-space: nowrap;
+        }
+        .mobile-bottom-bar .bb-item i {
+            font-size: 1.15rem;
+            transition: 0.2s;
+        }
+        .mobile-bottom-bar .bb-item span {
+            font-size: 0.55rem;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+        }
+        .mobile-bottom-bar .bb-item.active {
+            color: var(--primary);
+        }
+        .mobile-bottom-bar .bb-item.active i {
+            transform: translateY(-1px);
+        }
+        .mobile-bottom-bar .bb-item:active {
+            transform: scale(0.9);
+            background: rgba(30, 58, 95, 0.06);
+        }
+        .mobile-bottom-bar .bb-badge {
+            position: relative;
+        }
+        .mobile-bottom-bar .bb-badge .badge-dot {
+            position: absolute;
+            top: -2px;
+            right: -2px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* ══════════════ MEDIA QUERIES MOBILE (≤1000px) ══════════════ */
+        @media (max-width: 1000px) {
+            body {
+                padding: 0 0 var(--bottom-bar-height) 0;
+                background: #f5f7fa;
+            }
+            .wrapper {
+                padding: 0 12px;
+            }
+
+            /* Esconde header desktop */
+            .header {
+                display: none !important;
+            }
+
+            /* Mostra topbar mobile */
+            .mobile-topbar {
+                display: flex;
+                margin-bottom: 12px;
+            }
+
+            /* Mostra bottom bar */
+            .mobile-bottom-bar {
+                display: flex;
+            }
+
+            /* Hamburger overlay visível quando ativo */
+            .hamburger-overlay {
+                display: block;
+            }
+
+            /* Oculta seção de Acessos (título + grid) no mobile */
+            .section-title:has(+ .quick-access-grid),
+            .quick-access-grid {
+                display: none !important;
+            }
+
+            /* Carrossel mais imersivo */
+            .carousel-section {
+                border-radius: 20px;
+                margin-bottom: 20px;
+                margin-left: -4px;
+                margin-right: -4px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            .carousel-slide img {
+                height: 220px;
+                object-fit: cover;
+            }
+            .carousel-caption {
+                padding: 14px 16px;
+                font-size: 0.85rem;
+                border-radius: 0 0 20px 20px;
+            }
+            .carousel-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+            .carousel-indicators {
+                padding: 10px;
+                gap: 8px;
+            }
+            .indicator-dot {
+                width: 7px;
+                height: 7px;
+            }
+
+            /* Section title */
+            .section-title {
+                font-size: 1.2rem;
+                margin-bottom: 14px;
+            }
+
+            /* KPI grid */
+            .kpi-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                margin-bottom: 18px;
+            }
+            .kpi-card {
+                padding: 14px;
+                border-radius: 16px;
+            }
+            .kpi-header i {
+                font-size: 1.4rem;
+                padding: 8px;
+                border-radius: 12px;
+            }
+            .kpi-value {
+                font-size: 1.4rem;
+            }
+
+            /* Insights row */
+            .insights-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .insight-card {
+                padding: 14px;
+                border-radius: 18px;
+            }
+            .insight-title {
+                font-size: 0.95rem;
+                margin-bottom: 10px;
+                padding-bottom: 8px;
+            }
+            .orders-table {
+                font-size: 0.7rem;
+            }
+            .orders-table th,
+            .orders-table td {
+                padding: 4px 3px;
+            }
+
+            /* Analysis row */
+            .analysis-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .analysis-panel {
+                padding: 16px;
+                border-radius: 18px;
+            }
+            .panel-title {
+                font-size: 1rem;
+                margin-bottom: 14px;
+            }
+            .monthly-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 12px;
+            }
+            .stat-number {
+                font-size: 1.2rem;
+            }
+
+            /* Charts grid */
+            .charts-grid {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin: 18px 0;
+            }
+            .chart-card {
+                padding: 14px;
+                height: 280px;
+                border-radius: 18px;
+            }
+            .chart-container {
+                height: calc(100% - 30px);
+            }
+
+            /* Vendor goals list */
+            .vendor-goals-list {
+                max-height: none;
+                gap: 8px;
+            }
+            .fabiano-group {
+                flex-direction: column;
+                gap: 8px;
+            }
+            .vendor-mini-card {
+                min-width: auto;
+                padding: 12px;
+                border-radius: 14px;
+                gap: 8px;
+            }
+            .vendor-mini-header .vendor-name {
+                font-size: 0.8rem;
+            }
+
+            /* Donut */
+            .donut-container {
+                height: 120px;
+            }
+
+            /* Progress circle */
+            .progress-circle-container canvas {
+                width: 90px !important;
+                height: 90px !important;
+            }
+
+            /* Modal */
+            .modal-content {
+                width: 94vw;
+                max-width: 94vw;
+                border-radius: 20px;
+                padding: 16px;
+                max-height: 85vh;
+            }
+            .modal-close {
+                top: 8px;
+                right: 8px;
+                font-size: 1.3rem;
+            }
+
+            /* Vendor detail modal */
+            .vendor-detail-modal .detail-donut-container {
+                width: 140px;
+                height: 140px;
+            }
+            .vendor-detail-modal .detail-donut-center {
+                font-size: 1.1rem;
+            }
+            .vendor-detail-modal .detail-stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            /* Notif cards */
+            .notif-card {
+                flex-direction: row;
+                gap: 10px;
+                padding: 10px;
+                border-radius: 10px;
+            }
+            .notif-thumb {
+                width: 60px;
+                height: 50px;
+                border-radius: 10px;
+            }
+            .notif-title {
+                font-size: 0.78rem;
+            }
+            .notif-excerpt {
+                font-size: 0.7rem;
+                -webkit-line-clamp: 2;
+            }
+            .btn-mark-all-read {
+                font-size: 0.7rem;
+                padding: 6px 12px;
+            }
+
+            /* Flutuante */
+            .floating-btn {
+                bottom: 80px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+                font-size: 1.2rem;
+            }
+
+            /* FOOTER mobile – simplificado */
+            .footer {
+                border-radius: 24px 24px 0 0;
+                padding: 20px 16px 100px;
+                margin-top: 28px;
+                text-align: center;
+            }
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            .footer-logo-section {
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+            }
+            .footer-logo-img {
+                width: 100px;
+                height: 70px;
+                border-radius: 10px;
+            }
+            .footer-brand-name {
+                font-size: 0.95rem;
+            }
+            .footer-tagline {
+                display: none;
+            }
+            .footer-social {
+                display: none;
+            }
+            .footer-bottom {
+                font-size: 0.65rem;
+                padding-top: 10px;
+                margin-top: 12px;
+            }
+        }
+
+        /* ══════════════ EXTRA SMALL (≤480px) ══════════════ */
+        @media (max-width: 480px) {
+            .mobile-topbar {
+                padding: 0 10px;
+                height: 50px;
+            }
+            .mobile-topbar .topbar-avatar {
+                width: 30px;
+                height: 30px;
+            }
+            .mobile-topbar .topbar-greeting {
+                font-size: 0.85rem;
+            }
+            .mobile-topbar .hamburger-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 1.2rem;
+            }
+            .carousel-slide img {
+                height: 170px;
+            }
+            .carousel-caption {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+            .kpi-value {
+                font-size: 1.2rem;
+            }
+            .chart-card {
+                height: 240px;
+            }
+            .hamburger-menu {
+                width: 280px;
+                max-width: 90vw;
+                right: -290px;
+                border-radius: 16px 0 0 16px;
+                padding: 18px 14px 90px;
+            }
+            .hamburger-menu .menu-item {
+                padding: 10px 12px;
+                font-size: 0.82rem;
+            }
+            .footer-logo-img {
+                width: 80px;
+                height: 55px;
+            }
+            .mobile-bottom-bar {
+                padding: 3px 4px calc(3px + var(--safe-bottom));
+                height: 56px;
+            }
+            .mobile-bottom-bar .bb-item i {
+                font-size: 1rem;
+            }
+            .mobile-bottom-bar .bb-item span {
+                font-size: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <div class="mobile-topbar" id="mobile-topbar">
+        <div class="topbar-left">
+            <img src="img/perfil.png" alt="Rubens" class="topbar-avatar" id="topbar-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
+            <span class="topbar-greeting" id="topbar-greeting">Rubens</span>
+            <span class="admin-badge">Adm</span>
+        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <div class="hamburger-overlay" id="hamburger-overlay"></div>
+
+    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
+    <nav class="hamburger-menu" id="hamburger-menu">
+        <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="menu-header">
+            <img src="img/perfil.png" alt="Rubens" class="menu-avatar" id="menu-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
+            <div class="menu-user-info">
+                <h4 id="menu-user-name">Rubens Alvarenga</h4>
+                <span>Administrador</span>
+            </div>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Principal</div>
+            <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Início</button>
+            <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
+            <button class="menu-item" id="menu-faturamento"><i class="fas fa-chart-line"></i> Faturamento</button>
+            <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
+            <button class="menu-item" id="menu-vendas"><i class="fas fa-tags"></i> Vendas</button>
+            <button class="menu-item" id="menu-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
+            <button class="menu-item" id="menu-leads"><i class="fas fa-user-plus"></i> Leads</button>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Status</div>
+            <div class="menu-item" style="pointer-events:none;opacity:0.8;">
+                <i class="fas fa-sync-alt"></i>
+                <span id="menu-update-status" style="font-size:0.75rem;">Carregando...</span>
+            </div>
+            <div class="menu-item" id="menu-notifications-side">
+                <i class="fas fa-bell"></i> Alertas
+                <span id="menu-notif-count" style="margin-left:auto;background:var(--danger);color:white;border-radius:50%;width:20px;height:20px;font-size:0.6rem;display:none;align-items:center;justify-content:center;">0</span>
+            </div>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Conta</div>
+            <button class="menu-item danger" id="menu-logout"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </nav>
+
+    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+<div class="mobile-bottom-bar" id="mobile-bottom-bar">
+    <button class="bb-item" data-nav="feed" id="bb-feed">
+        <i class="fas fa-newspaper"></i><span>Feed</span>
+    </button>
+    <button class="bb-item" data-nav="faturamento" id="bb-faturamento">
+        <i class="fas fa-chart-line"></i><span>Faturamento</span>
+    </button>
+    <button class="bb-item" data-nav="custos" id="bb-custos">
+        <i class="fas fa-calculator"></i><span>Custos</span>
+    </button>
+    <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
+        <i class="fas fa-bell"></i><span>Alertas</span>
+        <span class="badge-dot" id="bb-badge-dot" style="display:none;"></span>
+    </button>
+    <button class="bb-item" data-nav="home" id="bb-home">
+        <i class="fas fa-home"></i><span>Início</span>
+    </button>
+</div>
+
+    <div class="wrapper">
+        <header class="header" id="desktop-header">
+            <div class="user-section">
+                <img src="img/perfil.png" alt="Rubens" class="user-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
+                <span class="greeting" id="greeting-name">Rubens Alvarenga</span>
+                <span class="admin-badge">Adm</span>
+            </div>
+            <select id="vendor-selector" class="vendor-selector">
+                <option value="all">🌐 Todos os vendedores</option>
+            </select>
+            <a id="dolar-quote" class="dolar-quote" href="https://www.google.com/finance/quote/USD-BRL" target="_blank">
+                <span>Dólar: R$ --</span>
+                <span style="font-size:0.7rem; opacity:0.9;">(média 30d: R$ --)</span>
+            </a>
+            <div class="sync-status"><i class="fas fa-cloud"></i><span id="last-update">Sincronizando...</span><i class="fas fa-sync-alt" id="refresh-btn" style="cursor:pointer;"></i></div>
+            <span id="current-time" class="current-time"></span>
+            <div class="user-info">
+                <button class="icon-btn notification-bell" id="notification-bell" title="Notificações">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge" id="notification-badge" style="display:none;">0</span>
+                </button>
+                <button class="icon-btn home-btn" id="home-btn" title="Página inicial">
+                    <i class="fas fa-home"></i>
+                </button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Sair">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="carousel-section" id="carousel-section">
+            <div class="carousel-container" id="carousel-container"></div>
+            <div class="carousel-controls"><button class="carousel-btn" id="prev-btn"><i class="fas fa-chevron-left"></i></button><button class="carousel-btn" id="next-btn"><i class="fas fa-chevron-right"></i></button></div>
+            <div class="carousel-indicators" id="carousel-indicators"></div>
+        </div>
+
+        <h2 class="section-title">Acessos</h2>
+        <div class="quick-access-grid" id="quick-access-grid"></div>
+
+        <div id="sections-container">
+            <div data-section-id="kpi">
+                <h2 class="section-title">Resumo</h2>
+                <div class="kpi-grid" id="kpi-cards"></div>
+            </div>
+            <div data-section-id="insights">
+                <div class="insights-row">
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-users"></i> <span id="vendor-goals-title">Metas Vendedores</span> <select id="vendor-month-selector" class="month-selector-small"></select></div>
+                        <div id="vendor-goals-container" class="vendor-goals-list">Carregando...</div>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-truck"></i> Últimos Pedidos / Compras</div>
+                        <div style="overflow-x:auto;"><table class="orders-table" id="recent-orders-table"><thead><tr><th>Número</th><th>Empresa</th><th>Situação</th><th>Receb.</th></tr></thead><tbody><tr><td colspan="4">Carregando...</td></tr></tbody></table></div>
+                        <div class="donut-container"><canvas id="recebimentoDonut" width="180" height="180"></canvas><div class="donut-center-text" id="donut-center-text">--</div></div>
+                    </div>
+                    <div class="insight-card">
+                        <div class="insight-title"><i class="fas fa-calendar"></i> <span id="month-goal-title">Meta do Mês Atual</span> <select id="monthgoal-month-selector" class="month-selector-small"></select></div>
+                        <div class="donut-container"><canvas id="monthGoalDonut" width="180" height="180"></canvas><div class="donut-center-text" id="monthGoalCenter">--%</div></div>
+                        <div id="month-goal-details" style="text-align:center;font-size:0.85rem;"></div>
+                        <canvas id="dailyEvolutionChart" style="height:160px;margin-top:12px;"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div data-section-id="analysis">
+                <div class="analysis-row">
+                    <div class="analysis-panel">
+                        <div class="panel-title"><i class="fas fa-calendar-alt"></i> Análise Mensal <select id="month-selector" class="month-selector"></select></div>
+                        <div class="monthly-stats">
+                            <div class="stat-item"><div class="stat-label">Meta do Mês</div><div class="stat-number" id="monthly-goal-value">R$ 0</div></div>
+                            <div class="stat-item"><div class="stat-label">Faturamento</div><div class="stat-number" id="current-revenue-value">R$ 0</div></div>
+                            <div class="stat-item"><div class="stat-label">Dias c/ Venda</div><div class="stat-number" id="approved-orders-value">0</div></div>
+                            <div class="stat-item"><div class="stat-label">Status</div><div class="stat-number" id="goal-status">-</div></div>
+                        </div>
+                        <div class="progress-circle-container"><canvas id="progress-circle" width="120" height="120"></canvas></div>
+                    </div>
+                    <div class="analysis-panel">
+                        <div class="panel-title"><i class="fas fa-building"></i> Visão Geral</div>
+                        <div class="monthly-stats">
+                            <div class="stat-item"><div class="stat-label">Total acumulado</div><div class="stat-number" id="total-revenue">R$ 0</div></div>
+                            <div class="stat-item"><div class="stat-label">Este ano</div><div class="stat-number" id="year-revenue">R$ 0</div></div>
+                            <div class="stat-item"><div class="stat-label">Este mês</div><div class="stat-number" id="month-revenue">R$ 0</div></div>
+                            <div class="stat-item"><div class="stat-label">Dias com venda</div><div class="stat-number" id="total-orders">0</div></div>
+                        </div>
+                        <div>
+                            <div style="display:flex;justify-content:space-between;"><span>Progresso da meta anual</span><span id="year-goal-percent">0%</span></div>
+                            <div class="progress-bar-bg"><div class="progress-bar-fill fill-info" id="year-goal-bar" style="width:0%"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div data-section-id="charts">
+                <h2 class="section-title">Gráficos e Insights</h2>
+                <div class="charts-grid">
+                    <div class="chart-card"><h3><i class="fas fa-chart-line"></i> Evolução Mensal</h3><div class="chart-container"><canvas id="revenueChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Realizado x Meta</h3><div class="chart-container"><canvas id="yearlyGoalsChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-medal"></i> Top Vendedores</h3><div class="chart-container"><canvas id="salesRankingChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-building"></i> Ranking de Clientes (Top 10)</h3><div class="chart-container"><canvas id="clientRankingChart"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-logo-section">
+                <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div style="display:none; width:48px; height:48px; border-radius:12px; background:white; align-items:center; justify-content:center; font-weight:800; font-size:1rem; color:#1e3a5f;">CB</div>
+                <div>
+                    <div class="footer-brand-name">CENTROBOR</div>
+                    <div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div>
+                </div>
+            </div>
+            <div class="footer-social">
+                <a href="https://www.centrobor.com.br/" target="_blank" title="Site" class="footer-link-text"><i class="fas fa-globe"></i> Site</a>
+                <a href="https://www.centrobor.com.br/blog/" target="_blank" title="Blog" class="footer-link-text"><i class="fas fa-blog"></i> Blog</a>
+                <a href="https://www.facebook.com/centrobor.correias" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+                <a href="https://www.linkedin.com/company/centrobor/" target="_blank" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://www.instagram.com/centrobor.correias/" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            &copy; <span id="footer-year"></span> Centrobor Correias. Todos os direitos reservados. | Radar Centrobor - Dashboard • Administrador
+        </div>
+    </footer>
+
+    <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
+    <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
+    <div class="modal vendor-detail-modal" id="vendor-detail-modal"><div class="modal-content" id="vendor-detail-body"></div></div>
+
+    <script>
+        (function() {
+            // ==================== VERIFICAÇÃO DE SESSÃO ====================
+            if (localStorage.getItem('radar_logged_out') === 'true') {
+                window.location.href = '../../index.html?reason=logged_out';
+                return;
+            }
+            if (!localStorage.getItem('radar_usuario')) {
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
+            const nowDate = Date.now();
+            if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('radar_usuario');
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
+
+            // ==================== CONFIGURAÇÃO ====================
+            const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+            const BASES = {
+                faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
+                aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
+                metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+                metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
+                pedidos: `https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos`,
+                banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
+                postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
+                dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`
+            };
+            const VENDEDORES_MAP = {
+                "33": "Fábio Prado",
+                "49": "Matheus Santos",
+                "51": "Lorena Martins",
+                "55": "César Santos",
+                "20": "Juliana Cecchy",
+                "60": "Valéria Ferreira",
+                "3": "Hélio Coelho",
+                "61": "Luan Dantas",
+            };
+
+            let allFaturados = [],
+                allAprovados = [],
+                allMetas = [],
+                allPedidos = [],
+                BANNERS = [],
+                notificacoes = [],
+                dolarData = [],
+                metasGlobais = [];
+            let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
+            let quickItems = [
+                { titulo: 'Feed', link: '/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
+                { titulo: 'Faturamento Diário', link: '/67hpvx5_faturamento/faturamento', icone: 'fa-chart-line', cor: '#1e3a5f', visivel: true },
+                { titulo: 'Custos', link: '/6hp7vx6_buscador_de_custos/quest', icone: 'fa-calculator', cor: '#1e3a5f', visivel: true },
+                { titulo: 'Vendas', link: '/hpvx67_vendas/vendas', icone: 'fas fa-tags', cor: '#1e3a5f', visivel: true },
+                { titulo: 'Compras', link: '/hpvxz_pedidos/pedidos', icone: 'fas fa-shopping-cart', cor: '#1e3a5f', visivel: true },
+                { titulo: 'Leads', link: '/h6p2w9k4t1y8_leads/leads', icone: 'fas fa-user-plus', cor: '#1e3a5f', visivel: true }
+            ];
+            let currentSelectedMonth = '',
+                selectedVendor = 'all',
+                charts = {};
+
+            const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v : parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0);
+            const formatCurrency = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const parseDataBR = str => { if (!str) return null; const p = String(str).split('/'); if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])); return null; };
+            async function carregarJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
+
+            async function fetchAllData() {
+                document.getElementById('last-update').innerText = 'Carregando...';
+                try {
+                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData] = await Promise.all([
+                        carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
+                        carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
+                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais)
+                    ]);
+                    allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
+                    BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData;
+                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
+                } catch (e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
+            }
+
+            function atualizarCotacaoDolar() {
+                const el = document.getElementById('dolar-quote');
+                if (!dolarData.length) { el.innerHTML = '<span>Dólar: R$ --</span><span style="font-size:0.7rem;opacity:0.9;">(média 30d: R$ --)</span>'; return; }
+                const sorted = [...dolarData].sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
+                const lastVal = cleanNumber(sorted[0]?.valor);
+                const sum = dolarData.reduce((s, d) => s + cleanNumber(d.valor), 0);
+                const avg = sum / dolarData.length;
+                el.innerHTML = `<span>Dólar: R$ ${lastVal.toFixed(4).replace('.',',')}</span><span style="font-size:0.7rem;opacity:0.9;">(média 30d: R$ ${avg.toFixed(4).replace('.',',')})</span>`;
+            }
+
+            function getMetaGlobal(ano, mes) {
+                const key = `${ano}-${String(mes).padStart(2,'0')}`;
+                const entry = metasGlobais.find(m => m['Mês'] === key);
+                return entry ? cleanNumber(entry['Meta (R$)']) : 0;
+            }
+
+            function getFaturamentoPorVendedorMes(ano, mes, codVend) {
+                const map = {};
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return;
+                    const cod = f['Cod. Vendedor']?.trim(); if (!cod || cod == '80') return;
+                    if (codVend && codVend !== 'all' && cod !== codVend) return;
+                    map[cod] = (map[cod] || 0) + cleanNumber(f['Valor Mercadoria']);
+                }); return map;
+            }
+            function getMetaPorVendedorMes(ano, mes, codVend) {
+                const map = {};
+                allMetas.forEach(m => { const cod = String(m.id_vendedor || '').trim(); if (!cod || cod == '80') return; if (codVend && codVend !== 'all' && cod !== codVend) return; map[cod] = cleanNumber(m.meta_mensal); });
+                return map;
+            }
+
+            function refreshAll() { renderKPI(); renderRecentOrders(); populateMonthSelectors(); updateCharts(); updateMonthlyAnalysis(); updateOverview(); renderQuickGrid(); }
+
+            function renderKPI() {
+                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                let fatAno = 0, metaAno = 0;
+                if (vendCode) {
+                    for (let m = 1; m <= 12; m++) {
+                        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((a, b) => a + b, 0);
+                        metaAno += Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((a, b) => a + b, 0);
+                    }
+                } else {
+                    for (let m = 1; m <= 12; m++) {
+                        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, null)).reduce((a, b) => a + b, 0);
+                        metaAno += getMetaGlobal(ano, m);
+                    }
+                }
+                const fatMesAtual = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const metaMesAtual = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                const percAno = metaAno ? (fatAno / metaAno) * 100 : 0, percMes = metaMesAtual ? (fatMesAtual / metaMesAtual) * 100 : 0;
+                const totalPedidos = allPedidos.length, aprovados = allPedidos.filter(p => p.Situação === 'APROVADO').length;
+                const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
+                document.getElementById('kpi-cards').innerHTML = `
+                    <div class="kpi-card"><div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano</h4></div><div class="kpi-value">R$ ${formatCurrency(fatAno)}</div><div class="progress-bar-bg"><div class="progress-bar-fill fill-success" style="width:${Math.min(percAno,100)}%"></div></div><small>${percAno.toFixed(1)}% da meta anual (R$ ${formatCurrency(metaAno)})</small></div>
+                    <div class="kpi-card"><div class="kpi-header"><i class="fas fa-chart-line"></i><h4>Mês Atual</h4></div><div class="kpi-value">R$ ${formatCurrency(fatMesAtual)}</div><div class="progress-bar-bg"><div class="progress-bar-fill fill-warning" style="width:${Math.min(percMes,100)}%"></div></div><small>${percMes.toFixed(1)}% da meta (R$ ${formatCurrency(metaMesAtual)})</small></div>
+                    <div class="kpi-card"><div class="kpi-header"><i class="fas fa-check-circle"></i><h4>Aprovação de Pedidos</h4></div><div class="kpi-value">${aprovados} / ${totalPedidos}</div><div class="progress-bar-bg"><div class="progress-bar-fill fill-info" style="width:${percAprov}%"></div></div><small>${percAprov.toFixed(1)}% aprovados</small></div>`;
+            }
+
+            function renderRecentOrders() {
+                let pedidos = [...allPedidos].sort((a, b) => (parseInt(b.Número) || 0) - (parseInt(a.Número) || 0)).slice(0, 12);
+                let tbody = document.querySelector('#recent-orders-table tbody');
+                tbody.innerHTML = pedidos.map(p => `<tr><td>${p.Número||'--'}</td><td>${(p.Empresa||'--').split('-')[0].trim().slice(0,20)}</td><td><span class="${p.Situação==='APROVADO'?'status-approved':'status-pending'}">${p.Situação==='APROVADO'?'Aprovado':(p.Situação||'Pendente')}</span></td><td>${p.Recebimento||'NÃO'}</td></tr>`).join('');
+                let recebidos = allPedidos.filter(p => p.Recebimento === 'SIM').length, nao = allPedidos.length - recebidos;
+                let ctx = document.getElementById('recebimentoDonut')?.getContext('2d');
+                if (ctx) {
+                    if (window.recebimentoChart) window.recebimentoChart.destroy();
+                    window.recebimentoChart = new Chart(ctx, { type: 'doughnut', data: { labels: ['SIM', 'NÃO'], datasets: [{ data: [recebidos, nao], backgroundColor: ['#2e7d32', '#ed6c02'] }] }, options: { cutout: '65%', plugins: { legend: { position: 'bottom' } } } });
+                    document.getElementById('donut-center-text').innerHTML = `<strong>${recebidos}</strong><br>recebidos`;
+                }
+            }
+
+            function populateMonthSelectors() {
+                const now = new Date(), ano = now.getFullYear(), mesAtual = now.getMonth() + 1;
+                const months = []; for (let m = 1; m <= 12; m++) months.push(`${ano}-${String(m).padStart(2,'0')}`);
+                const defaultKey = `${ano}-${String(mesAtual).padStart(2,'0')}`;
+                const vendorSel = document.getElementById('vendor-month-selector'),
+                      monthGoalSel = document.getElementById('monthgoal-month-selector'),
+                      monthAnalSel = document.getElementById('month-selector');
+                const gerarOptions = (sel, defaultVal, incluirDefault = true) => {
+                    let html = '';
+                    months.forEach(m => {
+                        const [y, mo] = m.split('-'); const mesInt = parseInt(mo); const isFuture = mesInt > mesAtual;
+                        const selected = (m === defaultVal && incluirDefault) ? 'selected' : '';
+                        const disabled = isFuture ? 'disabled' : '';
+                        html += `<option value="${m}" ${selected} ${disabled}>${mo}/${y}</option>`;
+                    });
+                    sel.innerHTML = html; if (incluirDefault) sel.value = defaultVal;
+                };
+                gerarOptions(vendorSel, defaultKey); gerarOptions(monthGoalSel, defaultKey); gerarOptions(monthAnalSel, defaultKey);
+                vendorSel.onchange = () => renderVendorGoals(vendorSel.value);
+                monthGoalSel.onchange = () => renderMonthGoalAndDaily(monthGoalSel.value);
+                monthAnalSel.onchange = () => { currentSelectedMonth = monthAnalSel.value; updateMonthlyAnalysis(); };
+                currentSelectedMonth = defaultKey;
+                renderVendorGoals(defaultKey); renderMonthGoalAndDaily(defaultKey);
+            }
+
+            function getFabianoSincPoliasFat(ano, mes) { let fat = 0; const regs = new Set(); allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return; const desc = String(f['Descrição'] || '').toLowerCase(), grupo = String(f['Grupo'] || '').toLowerCase(); if (grupo.includes('torque') || grupo.includes('multi v') || grupo.includes('emendadas') || grupo.includes('taliscas') || grupo.includes('fixação') || grupo.includes('transmissao') || grupo.includes('manta') || grupo.includes('algodao') || grupo.includes('pvc')) return; const temSinc = desc.includes('sinc') || desc.includes('sincron'); const temPoly = /\bpoly\b/i.test(desc) && !desc.includes('poly-v') && !desc.includes('poly v') && !desc.includes('polyv') && !desc.includes('polychain') && !desc.includes('polyflex') && !desc.includes('polycord') && !desc.includes('polia'); if (!temSinc && !temPoly) return; const chave = [f['Chave Acesso'], f['Campo Chave'], f['Código'], f['Valor Mercadoria']].join('|'); if (regs.has(chave)) return; regs.add(chave); fat += cleanNumber(f['Valor Mercadoria']); }); return fat; }
+            function getFabianoLavanderiaFat(ano, mes) { const keys = new Set(); let fat = 0; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return; const ramo = String(f['Ramo'] || '').toLowerCase(); if (!ramo.includes('04 - lavanderia') && !ramo.includes('lavanderia')) return; const grupo = String(f['Grupo'] || '').toLowerCase(); if (!grupo) return; const match = grupo.match(/(\d+\.\d+|\d+)$/); const numGrupo = match ? match[0] : ''; if (!numGrupo.startsWith('2') && !numGrupo.startsWith('5')) return; const chave = [f['Nota Fiscal'] || '', f['Código'] || '', f['Descrição'] || '', f['Valor Mercadoria'] || ''].join('|'); if (keys.has(chave)) return; keys.add(chave); fat += cleanNumber(f['Valor Mercadoria']); }); return fat; }
+
+            function getStatusInfo(p) { if (p >= 100) return { icon: '<i class="fas fa-check-circle" style="color:var(--success)"></i>', text: 'Atingido', cssClass: 'status-atingido' }; if (p >= 60) return { icon: '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i>', text: 'No ritmo', cssClass: 'status-no-ritmo' }; return { icon: '<i class="fas fa-times-circle" style="color:var(--danger)"></i>', text: 'Em progresso', cssClass: 'status-em-progresso' }; }
+            function getProgressColor(p) { if (p >= 100) return '#2e7d32'; if (p >= 60) return '#ed6c02'; return '#d32f2f'; }
+
+            function renderVendorGoals(monthKey) {
+                const [ano, mes] = monthKey.split('-').map(Number);
+                const vendorEntries = []; const processedNonFabiano = new Set();
+                allMetas.forEach(m => {
+                    const nome = (m.vendedor || '').trim(); if (!nome) return;
+                    const id = String(m.id_vendedor || '').trim(); if (id == '80') return;
+                    const metaM = cleanNumber(m.meta_mensal);
+                    if (selectedVendor !== 'all' && id !== selectedVendor) return;
+                    if (nome.startsWith('Fabiano')) { vendorEntries.push({ vendedor: 'Fabiano', categoria: nome.replace('Fabiano - ', ''), metaMensal: metaM, idVendedor: id, isFabiano: true, fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia' }); }
+                    else if (!processedNonFabiano.has(id)) { processedNonFabiano.add(id); vendorEntries.push({ vendedor: VENDEDORES_MAP[id] || nome, categoria: '', metaMensal: metaM, idVendedor: id, isFabiano: false }); }
+                });
+                vendorEntries.forEach(e => { if (e.isFabiano) e.faturado = e.fabianoTipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes); else { let fat = 0; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) fat += cleanNumber(f['Valor Mercadoria']); }); e.faturado = fat; } });
+                let fatGeral = 0; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) { const cod = f['Cod. Vendedor']?.trim(); if (cod == '80') return; if (selectedVendor == 'all' || cod === selectedVendor) fatGeral += cleanNumber(f['Valor Mercadoria']); } });
+                vendorEntries.push({ vendedor: 'Dimas', categoria: 'Geral', metaMensal: 1100000, faturado: fatGeral, isDimas: true });
+                vendorEntries.forEach(e => { e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0; e.metaPlus = e.isDimas ? null : e.metaMensal * 1.1; e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0; });
+                const fabianoCards = vendorEntries.filter(e => e.isFabiano), outros = vendorEntries.filter(e => !e.isFabiano); outros.sort((a, b) => b.percentual - a.percentual);
+                const ordenados = [...fabianoCards, ...outros];
+                const container = document.getElementById('vendor-goals-container');
+                let html = '', fabianoGroupHtml = '';
+                ordenados.forEach((entry, index) => {
+                    const st = getStatusInfo(entry.percentual), cor = getProgressColor(entry.percentual), falta = Math.max(0, entry.metaMensal - entry.faturado);
+                    const cardHtml = `
+                        <div class="vendor-mini-card" data-entry-index="${index}">
+                            <div class="vendor-mini-header"><span class="vendor-name">${entry.vendedor}</span>${entry.categoria?`<span class="vendor-category">${entry.categoria}</span>`:''}</div>
+                            <div class="target-row"><div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div><div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div></div>
+                            <div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div><span class="percent-text">${entry.percentual.toFixed(1)}%</span></div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span></div>
+                            ${entry.metaPlus?`<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;"><div class="target-row"><div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div><div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div></div><div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div><span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span></div><div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span></div></div>`:''}
+                        </div>`;
+                    if (entry.isFabiano) fabianoGroupHtml += cardHtml; else html += cardHtml;
+                });
+                container.innerHTML = `<div class="fabiano-group">${fabianoGroupHtml}</div>${html}`;
+                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
+                document.querySelectorAll('.vendor-mini-card').forEach((card, i) => { card.addEventListener('click', () => abrirDetalhesMeta(ordenados[i])); });
+            }
+
+            function renderMonthGoalAndDaily(monthKey) {
+                const [ano, mes] = monthKey.split('-').map(Number);
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const faturado = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const meta = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                const perc = meta ? (faturado / meta) * 100 : 0;
+                let ctxDonut = document.getElementById('monthGoalDonut')?.getContext('2d');
+                if (ctxDonut) {
+                    if (window.monthGoalChart) window.monthGoalChart.destroy();
+                    window.monthGoalChart = new Chart(ctxDonut, { type: 'doughnut', data: { labels: ['Faturado', 'Faltante'], datasets: [{ data: [faturado, Math.max(0, meta - faturado)], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: { cutout: '70%', plugins: { legend: { position: 'bottom' } } } });
+                    document.getElementById('monthGoalCenter').innerHTML = `<strong>${perc.toFixed(1)}%</strong><br>R$ ${formatCurrency(faturado)}`;
+                    document.getElementById('month-goal-details').innerHTML = `Meta: R$ ${formatCurrency(meta)} • Faltam R$ ${formatCurrency(Math.max(0,meta-faturado))}`;
+                }
+                const dailyMap = {}; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return; if (vendCode && f['Cod. Vendedor']?.trim() !== vendCode) return; const dia = d.getDate(); dailyMap[dia] = (dailyMap[dia] || 0) + cleanNumber(f['Valor Mercadoria']); });
+                const diasNoMes = new Date(ano, mes, 0).getDate(); const labels = [], values = [];
+                for (let i = 1; i <= diasNoMes; i++) { labels.push(i); values.push(dailyMap[i] || 0); }
+                let ctxLine = document.getElementById('dailyEvolutionChart')?.getContext('2d');
+                if (ctxLine) { if (window.dailyChart) window.dailyChart.destroy(); window.dailyChart = new Chart(ctxLine, { type: 'line', data: { labels, datasets: [{ label: 'Diário', data: values, borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.1)', fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: true, scales: { y: { ticks: { callback: v => 'R$ ' + v.toLocaleString('pt-BR') } } } } }); }
+                document.getElementById('month-goal-title').innerText = `Meta do Mês - ${mes}/${ano}`;
+            }
+
+            function updateMonthlyAnalysis() {
+                if (!currentSelectedMonth) return;
+                const [ano, mes] = currentSelectedMonth.split('-').map(Number);
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const faturado = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const meta = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                const daysWithSale = new Set(allFaturados.filter(f => { const d = parseDataBR(f['Data']); return d && d.getFullYear() === ano && d.getMonth() + 1 === mes && cleanNumber(f['Valor Mercadoria']) > 0 && (!vendCode || f['Cod. Vendedor']?.trim() === vendCode); }).map(f => parseDataBR(f['Data']).getDate())).size;
+                document.getElementById('current-revenue-value').innerHTML = `R$ ${formatCurrency(faturado)}`;
+                document.getElementById('approved-orders-value').innerText = daysWithSale;
+                document.getElementById('monthly-goal-value').innerHTML = `R$ ${formatCurrency(meta)}`;
+                const perc = meta ? (faturado / meta) * 100 : 0;
+                document.getElementById('goal-status').innerText = perc < 50 ? 'A Melhorar' : (perc < 100 ? 'Bom' : 'Excelente');
+                drawProgressCircle(Math.min(perc, 100));
+            }
+
+            function drawProgressCircle(perc) {
+                const canvas = document.getElementById('progress-circle'); if (!canvas) return;
+                const ctx = canvas.getContext('2d'); ctx.clearRect(0, 0, 120, 120);
+                const c = 60, r = 50, start = -Math.PI / 2, end = start + (perc / 100) * 2 * Math.PI;
+                ctx.beginPath(); ctx.arc(c, c, r, 0, 2 * Math.PI); ctx.strokeStyle = '#e0e6ed'; ctx.lineWidth = 10; ctx.stroke();
+                ctx.beginPath(); ctx.arc(c, c, r, start, end); ctx.strokeStyle = perc < 50 ? '#d32f2f' : (perc < 100 ? '#ed6c02' : '#2e7d32'); ctx.stroke();
+                ctx.fillStyle = '#1a2b3c'; ctx.font = 'bold 16px Inter'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(perc.toFixed(0) + '%', c, c);
+            }
+
+            function updateOverview() {
+                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                let totalGeral = 0; for (let a = 2025; a <= 2026; a++) for (let m = 1; m <= 12; m++) totalGeral += Object.values(getFaturamentoPorVendedorMes(a, m, vendCode)).reduce((s, v) => s + v, 0);
+                const yearRev = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const yearGoal = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                const perc = yearGoal ? (yearRev / yearGoal) * 100 : 0;
+                document.getElementById('total-revenue').innerHTML = `R$ ${formatCurrency(totalGeral)}`;
+                document.getElementById('year-revenue').innerHTML = `R$ ${formatCurrency(yearRev)}`;
+                document.getElementById('month-revenue').innerHTML = `R$ ${formatCurrency(yearRev)}`;
+                document.getElementById('total-orders').innerText = new Set(allFaturados.filter(f => { const cod = f['Cod. Vendedor']?.trim(); return cod !== '80' && (!vendCode || vendCode == 'all' || cod === vendCode); }).map(f => f['Data'])).size;
+                document.getElementById('year-goal-percent').innerText = perc.toFixed(1) + '%';
+                document.getElementById('year-goal-bar').style.width = Math.min(perc, 100) + '%';
+            }
+
+            function updateCharts() {
+                const ano = new Date().getFullYear();
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                const monthlyRev = mesesLabels.map((_, i) => Object.values(getFaturamentoPorVendedorMes(ano, i + 1, vendCode)).reduce((s, v) => s + v, 0));
+                const monthlyGoals = mesesLabels.map((_, i) => vendCode ? Object.values(getMetaPorVendedorMes(ano, i + 1, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, i + 1));
+                if (charts.revenueChart) charts.revenueChart.data.datasets[0].data = monthlyRev; else charts.revenueChart = new Chart(document.getElementById('revenueChart'), { type: 'line', data: { labels: mesesLabels, datasets: [{ label: 'Faturamento (R$)', data: monthlyRev, borderColor: '#1e3a5f' }] }, options: { responsive: true, maintainAspectRatio: false } });
+                charts.revenueChart.update();
+                if (charts.yearlyGoalsChart) { charts.yearlyGoalsChart.data.datasets[0].data = monthlyRev; charts.yearlyGoalsChart.data.datasets[1].data = monthlyGoals; } else charts.yearlyGoalsChart = new Chart(document.getElementById('yearlyGoalsChart'), { type: 'bar', data: { labels: mesesLabels, datasets: [{ label: 'Realizado', data: monthlyRev, backgroundColor: '#1e3a5f' }, { label: 'Meta', data: monthlyGoals, backgroundColor: '#ed6c02' }] }, options: { responsive: true } });
+                charts.yearlyGoalsChart.update();
+                const sellerMap = {}; allFaturados.forEach(f => { const cod = f['Cod. Vendedor']?.trim(); if (cod && cod !== '80' && (!vendCode || vendCode == 'all' || cod === vendCode)) sellerMap[cod] = (sellerMap[cod] || 0) + cleanNumber(f['Valor Mercadoria']); });
+                const topVend = Object.entries(sellerMap).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([cod, val]) => [VENDEDORES_MAP[cod] || cod, val]);
+                if (charts.salesRankingChart) { charts.salesRankingChart.data.labels = topVend.map(v => v[0]); charts.salesRankingChart.data.datasets[0].data = topVend.map(v => v[1]); } else charts.salesRankingChart = new Chart(document.getElementById('salesRankingChart'), { type: 'bar', data: { labels: topVend.map(v => v[0]), datasets: [{ label: 'Vendas (R$)', data: topVend.map(v => v[1]), backgroundColor: '#2b4c7a' }] }, options: { indexAxis: 'y', responsive: true } });
+                charts.salesRankingChart.update();
+                const clientMap = {}; allFaturados.forEach(f => { const emp = (f['Empresa'] || '').split('-')[0].trim().toUpperCase(); const cod = f['Cod. Vendedor']?.trim(); if (emp && cod !== '80' && (!vendCode || vendCode == 'all' || cod === vendCode)) clientMap[emp] = (clientMap[emp] || 0) + cleanNumber(f['Valor Mercadoria']); });
+                const topCli = Object.entries(clientMap).sort((a, b) => b[1] - a[1]).slice(0, 10);
+                if (charts.clientRankingChart) { charts.clientRankingChart.data.labels = topCli.map(c => c[0]); charts.clientRankingChart.data.datasets[0].data = topCli.map(c => c[1]); } else charts.clientRankingChart = new Chart(document.getElementById('clientRankingChart'), { type: 'bar', data: { labels: topCli.map(c => c[0]), datasets: [{ label: 'Faturamento (R$)', data: topCli.map(c => c[1]), backgroundColor: '#5d6f88' }] }, options: { indexAxis: 'y', responsive: true } });
+                charts.clientRankingChart.update();
+            }
+
+            function renderCarrossel() {
+                const container = document.getElementById('carousel-container'), indicators = document.getElementById('carousel-indicators');
+                container.innerHTML = BANNERS.map((b, i) => `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22300%22><rect fill=%22%23ddd%22 width=%22800%22 height=%22300%22/><text fill=%22%23666%22 x=%2230%22 y=%22160%22>Sem imagem</text></svg>'"><div class="carousel-caption"><span>${b.titulo}</span><small>${b.data||''}</small></div></div>`).join('');
+                indicators.innerHTML = BANNERS.map((_, i) => `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                document.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', e => { currentCarouselIndex = parseInt(e.target.dataset.idx); updateCarrossel(); }));
+                document.querySelectorAll('.carousel-slide').forEach(s => s.addEventListener('click', () => abrirModalPostagem(BANNERS[currentCarouselIndex])));
+            }
+            let currentCarouselIndex = 0;
+            function updateCarrossel() { document.getElementById('carousel-container').style.transform = `translateX(-${currentCarouselIndex*100}%)`; document.querySelectorAll('.indicator-dot').forEach(d => d.classList.remove('active')); document.querySelector(`.indicator-dot[data-idx="${currentCarouselIndex}"]`)?.classList.add('active'); }
+
+            function abrirModalPostagem(post) {
+                const modal = document.getElementById('post-modal'), body = document.getElementById('post-modal-body');
+                body.innerHTML = `<button class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</button>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h2 style="margin:0;"><i class="fas fa-newspaper"></i> ${post.titulo}</h2>
+                    <div style="display:flex;gap:16px;color:var(--text-soft);font-size:0.85rem;">
+                        <span><i class="fas fa-calendar-alt"></i> ${post.data}</span>
+                        <span><i class="fas fa-user"></i> ${post.autor}</span>
+                    </div>
+                </div>
+                <img src="${post.imagem}" style="width:100%;max-height:400px;object-fit:cover;border-radius:16px;margin-bottom:16px;" onerror="this.style.display='none'">
+                <div>${post.texto_html||''}</div>`;
+                modal.classList.add('active');
+            }
+
+            function atualizarBadgeNotificacoes() { const badge = document.getElementById('notification-badge'); const bbDot = document.getElementById('bb-badge-dot'); const menuNotifCount = document.getElementById('menu-notif-count'); const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length; if (badge) { badge.style.display = unread ? 'flex' : 'none'; badge.textContent = unread; } if (bbDot) { bbDot.style.display = unread ? 'block' : 'none'; } if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none'; menuNotifCount.textContent = unread; } }
+
+            function abrirModalNotificacoes() {
+                const modal = document.getElementById('notif-modal'), body = document.getElementById('notif-modal-body');
+                if (notificacoes.length === 0) { body.innerHTML = '<button class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</button><p style="text-align:center;color:var(--muted);padding:40px;">Nenhum alerta recente.</p>'; }
+                else {
+                    let html = '<button class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</button>';
+                    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button></div>`;
+                    notificacoes.forEach(n => { const isRead = readNotifications.includes(n.id), plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...'; const tipo = n.tipo || 'informativo', bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' : '#f3f4f6', textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' : '#374151'; html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem||'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'"><div class="notif-body"><span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${plainText}</div><span style="font-size:0.75rem;color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span></div></div>`; });
+                    body.innerHTML = html;
+                    document.getElementById('btn-mark-all-read').addEventListener('click', () => { notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); }); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); abrirModalNotificacoes(); });
+                    body.querySelectorAll('.notif-card').forEach(card => { card.addEventListener('click', () => { const id = card.dataset.id; if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); } const post = notificacoes.find(p => p.id == id); if (post) abrirModalPostagem(post); modal.classList.remove('active'); }); });
+                }
+                modal.classList.add('active');
+            }
+
+            function abrirDetalhesMeta(entry) {
+                const modal = document.getElementById('vendor-detail-modal'), body = document.getElementById('vendor-detail-body');
+                const percent = Math.min(entry.percentual, 100), status = getStatusInfo(entry.percentual);
+                const metaPlus = entry.metaPlus, percPlus = metaPlus ? Math.min(entry.percentualPlus, 100) : null;
+                let html = `<button class="modal-close" onclick="document.getElementById('vendor-detail-modal').classList.remove('active')">&times;</button>
+                <h2 style="margin-bottom:20px;"><i class="fas fa-user"></i> ${entry.vendedor} ${entry.categoria?`- ${entry.categoria}`:''}</h2>
+                <div class="detail-donut-container"><canvas id="vendorDetailDonut" width="180" height="180"></canvas><div class="detail-donut-center"><strong>${percent.toFixed(1)}%</strong><br>R$ ${formatCurrency(entry.faturado)}</div></div>
+                <div class="detail-stats"><div class="detail-stat"><div class="stat-label">Meta Mensal</div><div class="stat-value">R$ ${formatCurrency(entry.metaMensal)}</div></div><div class="detail-stat"><div class="stat-label">Faturado</div><div class="stat-value">R$ ${formatCurrency(entry.faturado)}</div></div><div class="detail-stat"><div class="stat-label">Faltante</div><div class="stat-value">R$ ${formatCurrency(Math.max(0,entry.metaMensal-entry.faturado))}</div></div><div class="detail-stat"><div class="stat-label">Status</div><div class="stat-value">${status.icon} ${status.text}</div></div></div>`;
+                if (metaPlus) { html += `<div style="margin-top:20px;border-top:1px solid #e5e7eb;padding-top:16px;"><h3><i class="fas fa-star" style="color:#f59e0b;"></i> Meta Plus (+10%)</h3><div class="detail-donut-container" style="margin-top:12px;"><canvas id="vendorDetailPlusDonut" width="180" height="180"></canvas><div class="detail-donut-center"><strong>${percPlus.toFixed(1)}%</strong><br>R$ ${formatCurrency(entry.faturado)}</div></div><div class="detail-stats"><div class="detail-stat"><div class="stat-label">Meta Plus</div><div class="stat-value">R$ ${formatCurrency(metaPlus)}</div></div><div class="detail-stat"><div class="stat-label">Faltante</div><div class="stat-value">R$ ${formatCurrency(Math.max(0,metaPlus-entry.faturado))}</div></div></div></div>`; }
+                body.innerHTML = html; modal.classList.add('active');
+                setTimeout(() => { new Chart(document.getElementById('vendorDetailDonut'), { type: 'doughnut', data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: [getProgressColor(percent), '#e5e7eb'], borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); if (metaPlus && document.getElementById('vendorDetailPlusDonut')) { new Chart(document.getElementById('vendorDetailPlusDonut'), { type: 'doughnut', data: { datasets: [{ data: [percPlus, 100 - percPlus], backgroundColor: [getProgressColor(percPlus), '#e5e7eb'], borderWidth: 0, borderRadius: percPlus >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); } }, 100);
+            }
+
+            function populateVendorSelector() {
+                const VENDOR_LINKS = { "3": "vendedores/e8r1v6n3t9w5_helio_coelho/index.html", "20": "vendedores/f4y9k2p7m1z6_juliana_cecchy/index.html", "33": "vendedores/d2k7q5m8x1p4_fabio_prado/index.html", "49": "vendedores/i3v7r1m5q9x4_matheus_santos/index.html", "51": "vendedores/g1m5x8q3v7r2_lorena_martins/index.html", "55": "vendedores/a9f3x2k8m1q7_cesar_santos/index.html", "60": "vendedores/j9x4k2w7p1m6_valeria_ferreira/index.html", "61": "vendedores/h6p2w9k4t1y8_luan_dantas/index.html", "2": "vendedores/b7n4v9p2r6t1_dimas/index.html", "24": "vendedores/c5w8j1z4l9y2_fabiano/index.html" };
+                const select = document.getElementById('vendor-selector');
+                let options = '<option value="all">🌐 Todos os vendedores</option>';
+                Object.entries(VENDEDORES_MAP).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([cod, nome]) => { const link = VENDOR_LINKS[cod] || "#"; options += `<option value="${cod}" data-link="${link}">${nome}</option>`; });
+                select.innerHTML = options; select.value = selectedVendor;
+                select.addEventListener('change', function() { const opt = this.options[this.selectedIndex]; const link = opt.getAttribute('data-link'); if (this.value !== 'all' && link && link !== '#') { window.location.href = link; return; } selectedVendor = this.value; refreshAll(); });
+            }
+
+            function renderQuickGrid() { document.getElementById('quick-access-grid').innerHTML = quickItems.filter(i => i.visivel).map(i => `<a href="${i.link}" class="quick-card" style="color:${i.cor}"><i class="fas ${i.icone}" style="color:${i.cor}"></i><span>${i.titulo}</span></a>`).join(''); }
+
+            // ══════════════ HAMBURGER MENU CONTROLS ══════════════
+            function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
+            function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
+            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                fetchAllData();
+                setInterval(() => document.getElementById('current-time').innerText = new Date().toLocaleString('pt-BR'), 1000);
+                document.getElementById('refresh-btn').addEventListener('click', fetchAllData);
+                document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
+                document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = '../../index.html?reason=logged_out'; });
+                document.getElementById('home-btn')?.addEventListener('click', () => { window.location.href = 'https://radarcentrobor.netlify.app/'; });
+                document.getElementById('prev-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length; updateCarrossel(); });
+                document.getElementById('next-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); });
+                setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); } }, 6000);
+                document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+                document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+                document.getElementById('vendor-detail-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+                document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                // Mobile events
+                document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
+                document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+                document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://radarcentrobor.netlify.app/'; });
+                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx5_postagens/postagens'; });
+                document.getElementById('menu-faturamento').addEventListener('click', () => { closeHamburger(); window.location.href = '/67hpvx5_faturamento/faturamento'; });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx67_vendas/vendas'; });
+                document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
+                document.getElementById('menu-leads').addEventListener('click', () => { closeHamburger(); window.location.href = '/h6p2w9k4t1y8_leads/leads'; });
+                document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = '../../index.html?reason=logged_out'; });
+
+                setActiveBottomBar('home');
+document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = '/hpvx5_postagens/postagens'; });
+document.getElementById('bb-faturamento').addEventListener('click', () => { setActiveBottomBar('faturamento'); window.location.href = '/67hpvx5_faturamento/faturamento'; });
+document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = '/6hp7vx6_buscador_de_custos/quest'; });
+document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirModalNotificacoes(); });
+document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://radarcentrobor.netlify.app/'; });
+            });
+        })();
+    </script>
+</body>
+</html>

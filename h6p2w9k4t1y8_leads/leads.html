@@ -1,0 +1,2152 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
+    <title>Visão Leads • Centrobor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 24px;
+            transition: background-image 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        body.custom-bg {
+            background: var(--custom-bg-url) center/cover fixed;
+        }
+        :root {
+            --primary: #1e3a5f;
+            --primary-light: #2b4c7a;
+            --primary-soft: #eef3f9;
+            --text-dark: #1a2b3c;
+            --text-soft: #3e4e5e;
+            --text-light: #6b7b8c;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+            --info: #0288d1;
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --border-light: rgba(255, 255, 255, 0.9);
+            --shadow-sm: 0 8px 20px rgba(0, 20, 40, 0.06);
+            --shadow-hover: 0 16px 30px -8px rgba(26, 58, 95, 0.2);
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --blur: blur(16px);
+            --footer-bg: #1a2b3c;
+            --footer-text: #cbd5e1;
+            --bottom-bar-height: 62px;
+            --mobile-topbar-height: 56px;
+            --safe-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.2s ease;
+        }
+        .glass:hover {
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+        .wrapper {
+            max-width: 1600px;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+        }
+
+        /* ===== HEADER DESKTOP ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: 80px;
+            padding: 10px 22px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 16px;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+        }
+        .greeting {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .last-update-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(2, 136, 209, 0.08);
+            border: 1px solid rgba(2, 136, 209, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--info);
+            white-space: nowrap;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-soft);
+            cursor: pointer;
+            font-size: 1.2rem;
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .icon-btn:hover {
+            background: rgba(30, 58, 95, 0.08);
+            color: var(--primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        /* KPIs e Filtros (estilos originais compactados) */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 3px;
+            margin-bottom: 32px;
+        }
+        .kpi-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-md);
+            padding: 20px 18px;
+            cursor: default;
+            transition: all 0.2s;
+        }
+        .kpi-card:hover {
+            background: rgba(255, 255, 255, 0.95);
+            transform: translateY(-2px);
+        }
+        .kpi-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .kpi-value {
+            font-size: 1.9rem;
+            font-weight: 800;
+            color: var(--text-dark);
+            line-height: 1.2;
+        }
+        .kpi-sub {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            margin-top: 4px;
+        }
+        .filters-bar {
+            background: rgba(255, 255, 245, 0.8);
+            backdrop-filter: blur(8px);
+            border-radius: 48px;
+            padding: 10px 20px;
+            margin-bottom: 28px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 12px 20px;
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+            transition: all 0.3s;
+        }
+        .filters-bar.hidden {
+            display: none;
+        }
+        .show-filters-btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 20px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            transition: 0.2s;
+        }
+        .show-filters-btn:hover {
+            background: var(--primary-light);
+            transform: translateY(-1px);
+        }
+        .filter-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            padding: 4px 16px;
+            border-radius: 40px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            transition: all 0.2s;
+        }
+        .filter-group:hover {
+            background: #fefefe;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+        .filter-group label {
+            font-weight: 500;
+            font-size: 0.75rem;
+            color: #2c4b6e;
+            letter-spacing: 0.3px;
+        }
+        .filter-group select,
+        .filter-group input {
+            border: none;
+            background: transparent;
+            font-weight: 500;
+            font-size: 0.8rem;
+            padding: 6px 0;
+            border-radius: 30px;
+            outline: none;
+            color: #1f3a4b;
+        }
+        .filter-group select {
+            cursor: pointer;
+        }
+        .date-range-group {
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        .date-range-group input {
+            width: 110px;
+            padding: 4px 8px;
+            background: #f8fafc;
+            border-radius: 30px;
+            text-align: center;
+        }
+        .search-group {
+            flex: 1 1 260px;
+            min-width: 220px;
+            justify-content: space-between;
+            background: white;
+            padding: 4px 12px;
+        }
+        .search-group input {
+            width: 100%;
+            font-size: 0.8rem;
+            padding: 6px 4px;
+        }
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 500;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        .btn-clear {
+            border-color: #b9c3ce;
+            color: #5c6f87;
+        }
+        .btn-clear:hover {
+            background: #e2e8f0;
+            color: #2c3e50;
+            border-color: #b9c3ce;
+        }
+        .update-status {
+            font-size: 0.7rem;
+            color: var(--text-light);
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 240, 0.7);
+            padding: 4px 14px;
+            border-radius: 30px;
+        }
+        .refresh-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: var(--text-light);
+            background: rgba(255, 255, 240, 0.7);
+            padding: 4px 14px;
+            border-radius: 30px;
+        }
+        .refresh-indicator i {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .refresh-indicator i:hover {
+            transform: rotate(30deg);
+            color: var(--primary);
+        }
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 50px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        .charts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .charts-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .toggle-charts-btn {
+            background: rgba(255, 255, 255, 0.6);
+            border: 1px solid var(--border-light);
+            border-radius: 40px;
+            padding: 6px 14px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .toggle-charts-btn:hover {
+            background: white;
+            box-shadow: var(--shadow-sm);
+        }
+        .charts-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 32px;
+            transition: all 0.2s;
+        }
+        .charts-row.hidden {
+            display: none;
+        }
+        .chart-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .date-range {
+            display: flex;
+            gap: 8px;
+            background: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            align-items: center;
+        }
+        .date-range input {
+            border: 1px solid #ddd;
+            border-radius: 30px;
+            padding: 4px 8px;
+            font-size: 0.7rem;
+        }
+        #dailyLineChart {
+            max-height: 200px;
+        }
+        #donutChart {
+            max-height: 180px;
+        }
+        .table-wrapper {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-lg);
+            padding: 20px 0;
+            overflow-x: auto;
+            border: 1px solid var(--border-light);
+        }
+        .orders-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            min-width: 900px;
+        }
+        .orders-table th {
+            text-align: left;
+            padding: 16px 20px;
+            background: rgba(0, 0, 0, 0.02);
+            font-weight: 600;
+            color: var(--text-dark);
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .orders-table td {
+            padding: 12px 20px;
+            border-bottom: 1px solid #edf2f7;
+            cursor: pointer;
+        }
+        .orders-table tr:hover td {
+            background: rgba(30, 58, 95, 0.05);
+        }
+        .floating-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 65px;
+            height: 65px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            border: none;
+            box-shadow: 0 10px 25px rgba(26, 58, 95, 0.4);
+            font-size: 1.8rem;
+            cursor: pointer;
+            z-index: 990;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+        }
+        .floating-btn:hover {
+            transform: scale(1.1);
+            background: var(--primary-light);
+        }
+        .widget-sidebar {
+            position: fixed;
+            top: 0;
+            right: -360px;
+            width: 320px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(24px);
+            box-shadow: -12px 0 32px rgba(0, 0, 0, 0.1);
+            transition: right 0.3s ease;
+            padding: 28px 20px;
+            z-index: 1000;
+            border-left: 1px solid white;
+        }
+        .widget-sidebar.open {
+            right: 0;
+        }
+        .widget-sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+        }
+        .widget-item {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid white;
+            padding: 14px 18px;
+            border-radius: 40px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .widget-item:hover {
+            background: white;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1200;
+        }
+        .modal-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(30px);
+            border-radius: 48px;
+            padding: 28px;
+            max-width: 90%;
+            width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            border: 1px solid white;
+        }
+        .close-modal-btn {
+            float: right;
+            font-size: 2rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+        }
+        .detail-table td {
+            padding: 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .detail-table td:first-child {
+            font-weight: 600;
+            width: 35%;
+        }
+
+        /* ===== FOOTER DESKTOP ===== */
+        .footer {
+            background: var(--footer-bg);
+            color: var(--footer-text);
+            margin-top: 48px;
+            padding: 28px 20px 20px;
+            border-radius: 32px 32px 0 0;
+            width: 100%;
+        }
+        .footer-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        .footer-logo-section {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+        .footer-logo-img {
+            width: 140px;
+            height: 80px;
+            object-fit: contain;
+        }
+        .footer-brand-name {
+            font-weight: 800;
+            color: white;
+        }
+        .footer-tagline {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            max-width: 400px;
+        }
+        .footer-social a {
+            color: var(--footer-text);
+            font-size: 1.3rem;
+            margin-left: 12px;
+            transition: 0.2s;
+        }
+        .footer-social a:hover {
+            color: white;
+        }
+        .footer-bottom {
+            text-align: center;
+            margin-top: 18px;
+            font-size: 0.7rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 12px;
+            color: #94a3b8;
+        }
+
+        /* NOTIFICATION DROPDOWN */
+        .notification-dropdown {
+            position: fixed;
+            z-index: 2147483647;
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.25);
+            width: 320px;
+            display: none;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+        }
+        .notification-dropdown.show {
+            display: block;
+        }
+        .notification-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            font-weight: 600;
+            color: var(--primary);
+        }
+        .notification-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            font-size: 0.85rem;
+            color: var(--text-dark);
+            transition: background 0.1s;
+        }
+        .notification-item:hover {
+            background: #f9f9ff;
+        }
+        .sort-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-left: 10px;
+            transition: 0.2s;
+        }
+        .sort-btn:hover {
+            transform: scale(1.1);
+            color: var(--primary-light);
+        }
+        .icon-selector-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            margin-top: 8px;
+        }
+        .icon-option {
+            font-size: 1.4rem;
+            text-align: center;
+            cursor: pointer;
+            padding: 6px;
+            border-radius: 12px;
+        }
+        .icon-option.selected {
+            background: var(--primary);
+            color: white;
+        }
+        @media (max-width: 900px) {
+            .charts-row {
+                grid-template-columns: 1fr;
+            }
+            .header {
+                flex-direction: column;
+                align-items: stretch;
+                text-align: center;
+            }
+            .user-section,
+            .header-actions {
+                justify-content: center;
+            }
+        }
+
+        /* ══════════════ MOBILE TOPBAR ══════════════ */
+        .mobile-topbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            background: #ffffff;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 0 16px;
+            height: var(--mobile-topbar-height);
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        }
+        .mobile-topbar .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mobile-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-soft);
+        }
+        .mobile-topbar .topbar-greeting {
+            font-weight: 700;
+            font-size: 0.95rem;
+            color: var(--text-dark);
+        }
+        .mobile-topbar .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+        .mobile-topbar .hamburger-btn:active {
+            background: rgba(0, 0, 0, 0.05);
+            transform: scale(0.94);
+        }
+
+        /* ══════════════ HAMBURGER OVERLAY & MENU ══════════════ */
+        .hamburger-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .hamburger-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .hamburger-menu {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #ffffff;
+            z-index: 110;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
+            border-radius: 20px 0 0 20px;
+            overflow-y: auto;
+            padding: 24px 20px 100px;
+        }
+        .hamburger-menu.active {
+            right: 0;
+        }
+        .hamburger-menu .menu-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border-light);
+            margin-bottom: 16px;
+        }
+        .hamburger-menu .menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-soft);
+        }
+        .hamburger-menu .menu-user-info h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .hamburger-menu .menu-user-info span {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .hamburger-menu .menu-section {
+            margin-bottom: 14px;
+        }
+        .hamburger-menu .menu-section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding-left: 4px;
+            font-weight: 700;
+        }
+        .hamburger-menu .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .hamburger-menu .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+        .hamburger-menu .menu-item:active {
+            background: var(--primary-soft);
+            transform: scale(0.97);
+        }
+        .hamburger-menu .menu-item.danger {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-item.danger i {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-close-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.04);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            z-index: 5;
+        }
+        .hamburger-menu .menu-close-btn:active {
+            background: rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+        }
+
+        /* ══════════════ MOBILE BOTTOM BAR ══════════════ */
+        .mobile-bottom-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            z-index: 25;
+            padding: 6px 12px calc(6px + var(--safe-bottom));
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06);
+            height: var(--bottom-bar-height);
+            gap: 4px;
+        }
+        .mobile-bottom-bar .bb-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 14px;
+            transition: 0.2s;
+            text-decoration: none;
+            color: var(--text-soft);
+            min-width: 50px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-bottom-bar .bb-item i {
+            font-size: 1.25rem;
+            transition: 0.2s;
+        }
+        .mobile-bottom-bar .bb-item span {
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .mobile-bottom-bar .bb-item.active {
+            color: var(--primary);
+        }
+        .mobile-bottom-bar .bb-item.active i {
+            transform: translateY(-2px);
+        }
+        .mobile-bottom-bar .bb-item:active {
+            transform: scale(0.9);
+            background: rgba(30, 58, 95, 0.06);
+        }
+        .mobile-bottom-bar .bb-badge {
+            position: relative;
+        }
+        .mobile-bottom-bar .bb-badge .badge-dot {
+            position: absolute;
+            top: -2px;
+            right: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* ══════════════ MEDIA QUERIES MOBILE (≤1000px) ══════════════ */
+        @media (max-width: 1000px) {
+            body {
+                padding: 0 0 var(--bottom-bar-height) 0;
+                background: #f5f7fa;
+            }
+            .wrapper {
+                padding: 0 12px;
+                gap: 18px;
+            }
+            .header {
+                display: none !important;
+            }
+            .mobile-topbar {
+                display: flex;
+                margin-bottom: 12px;
+            }
+            .mobile-bottom-bar {
+                display: flex;
+            }
+            .hamburger-overlay {
+                display: block;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 6px;
+                margin-bottom: 18px;
+            }
+            .kpi-card {
+                padding: 12px 10px;
+                border-radius: 14px;
+            }
+            .kpi-title {
+                font-size: 0.7rem;
+                gap: 6px;
+            }
+            .kpi-value {
+                font-size: 1.3rem;
+            }
+            .filters-bar {
+                border-radius: 20px;
+                padding: 10px 14px;
+                margin-bottom: 18px;
+                gap: 8px;
+            }
+            .filter-group {
+                padding: 4px 10px;
+                gap: 6px;
+            }
+            .filter-group label {
+                font-size: 0.7rem;
+            }
+            .filter-group select,
+            .filter-group input {
+                font-size: 0.75rem;
+            }
+            .date-range-group input {
+                width: 90px;
+                font-size: 0.7rem;
+            }
+            .search-group {
+                flex: 1 1 100%;
+                min-width: auto;
+            }
+            .charts-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 18px;
+            }
+            .chart-card {
+                padding: 14px;
+                border-radius: 18px;
+            }
+            .chart-header h3 {
+                font-size: 0.9rem;
+            }
+            .table-wrapper {
+                border-radius: 18px;
+                padding: 14px 0;
+            }
+            .orders-table {
+                font-size: 0.75rem;
+                min-width: 700px;
+            }
+            .orders-table th {
+                padding: 10px 12px;
+                font-size: 0.7rem;
+            }
+            .orders-table td {
+                padding: 8px 12px;
+                font-size: 0.7rem;
+            }
+            .floating-btn {
+                bottom: 80px;
+                right: 16px;
+                width: 48px;
+                height: 48px;
+                font-size: 1.3rem;
+            }
+            .widget-sidebar {
+                width: 280px;
+                right: -300px;
+            }
+            .modal-content {
+                border-radius: 24px;
+                padding: 20px;
+                width: 94vw;
+                max-width: 94vw;
+                max-height: 85vh;
+            }
+            .notification-dropdown {
+                width: 90vw;
+                max-width: 350px;
+                right: 5vw !important;
+                left: auto !important;
+            }
+            .footer {
+                border-radius: 24px 24px 0 0;
+                padding: 20px 16px 100px;
+                margin-top: 28px;
+                text-align: center;
+            }
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            .footer-logo-section {
+                flex-direction: column;
+                align-items: center;
+                gap: 6px;
+            }
+            .footer-logo-img {
+                width: 100px;
+                height: 60px;
+            }
+            .footer-tagline {
+                display: none;
+            }
+            .footer-social {
+                display: none;
+            }
+            .footer-bottom {
+                font-size: 0.65rem;
+                padding-top: 10px;
+                margin-top: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mobile-topbar {
+                padding: 0 10px;
+                height: 50px;
+            }
+            .mobile-topbar .topbar-avatar {
+                width: 30px;
+                height: 30px;
+            }
+            .mobile-topbar .topbar-greeting {
+                font-size: 0.85rem;
+            }
+            .mobile-topbar .hamburger-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 1.2rem;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 4px;
+            }
+            .kpi-card {
+                padding: 10px 8px;
+            }
+            .kpi-value {
+                font-size: 1.1rem;
+            }
+            .hamburger-menu {
+                width: 280px;
+                max-width: 90vw;
+                right: -290px;
+                border-radius: 16px 0 0 16px;
+                padding: 18px 14px 90px;
+            }
+            .hamburger-menu .menu-item {
+                padding: 10px 12px;
+                font-size: 0.82rem;
+            }
+            .footer-logo-img {
+                width: 80px;
+                height: 55px;
+            }
+            .mobile-bottom-bar {
+                padding: 4px 6px calc(4px + var(--safe-bottom));
+                height: 56px;
+            }
+            .mobile-bottom-bar .bb-item i {
+                font-size: 1.1rem;
+            }
+            .mobile-bottom-bar .bb-item span {
+                font-size: 0.55rem;
+            }
+        }
+
+        /* IMPRESSÃO */
+        @media print {
+            @page {
+                size: landscape;
+                margin: 1cm;
+            }
+            body {
+                background: white;
+                padding: 0;
+                margin: 0;
+            }
+            .kpi-grid {
+                display: flex !important;
+                flex-flow: row nowrap !important;
+                justify-content: space-between !important;
+                gap: 8px !important;
+                margin-bottom: 20px !important;
+            }
+            .kpi-card {
+                flex: 1 1 auto !important;
+                min-width: 140px !important;
+                padding: 12px 8px !important;
+                margin: 0 !important;
+                text-align: center;
+                background: white !important;
+                border: 1px solid #ddd !important;
+                box-shadow: none !important;
+            }
+            .kpi-value {
+                font-size: 1.2rem !important;
+            }
+            .orders-table th,
+            .orders-table td {
+                padding: 6px 8px !important;
+                font-size: 0.7rem !important;
+            }
+            .orders-table {
+                font-size: 0.7rem;
+            }
+            .charts-row {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+            .charts-row.hidden {
+                display: none !important;
+            }
+            .header,
+            .floating-btn,
+            .widget-sidebar,
+            .filters-bar,
+            .show-filters-btn,
+            .charts-header,
+            .footer,
+            .update-status,
+            .refresh-indicator,
+            .notification-bell,
+            .current-time,
+            .user-info,
+            #toggleFiltersBarBtn,
+            .sort-btn,
+            .table-wrapper .sort-btn,
+            .footer-inner,
+            .footer-bottom,
+            .mobile-topbar,
+            .mobile-bottom-bar,
+            .hamburger-overlay,
+            .hamburger-menu {
+                display: none !important;
+            }
+            .wrapper {
+                gap: 16px;
+                padding: 0;
+            }
+            .glass,
+            .table-wrapper,
+            .chart-card {
+                background: white;
+                backdrop-filter: none;
+                border: 1px solid #ccc;
+                box-shadow: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <div class="mobile-topbar" id="mobile-topbar">
+        <div class="topbar-left">
+            <i class="fas fa-address-book"  alt="Avatar" id="topbar-avatar-mobile"></i>
+            <span class="topbar-greeting" id="topbar-greeting">Leads</span>
+        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <div class="hamburger-overlay" id="hamburger-overlay"></div>
+
+    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
+    <nav class="hamburger-menu" id="hamburger-menu">
+        <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="menu-header">
+           <i class="fas fa-address-book" alt="Avatar" class="menu-avatar" id="menu-avatar"></i> 
+            <div class="menu-user-info">
+                <h4 id="menu-user-name">CRM Leads</h4>
+                <span>Visão Leads</span>
+            </div>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Principal</div>
+            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Página Inicial</button>
+            <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
+            <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+            <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Conta</div>
+            <button class="menu-item danger" id="menu-logout"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </nav>
+
+    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+    <div class="mobile-bottom-bar" id="mobile-bottom-bar">
+        <button class="bb-item" data-nav="feed" id="bb-feed">
+            <i class="fas fa-newspaper"></i><span>Feed</span>
+        </button>
+        <button class="bb-item" data-nav="custos" id="bb-custos">
+            <i class="fas fa-calculator"></i><span>Custos</span>
+        </button>
+        <button class="bb-item active" data-nav="home" id="bb-home">
+            <i class="fas fa-home"></i><span>Home</span>
+        </button>
+        <button class="bb-item" data-nav="alertas" id="bb-alertas">
+            <i class="fas fa-bell"></i><span>Alertas</span>
+        </button>
+    </div>
+
+    <div class="wrapper">
+        <!-- HEADER DESKTOP -->
+        <header class="header" id="desktop-header">
+            <div class="user-section">
+                <img src="https://cdn-icons-png.flaticon.com/512/12225/12225881.png" alt="Avatar" class="user-avatar" id="user-avatar">
+                <span class="greeting" id="greeting">CRM Leads</span>
+            </div>
+            <div class="header-actions">
+                <span class="last-update-badge" id="last-update-badge">
+                    <i class="fas fa-sync-alt"></i> <span id="last-update-text">Atualizado em: --</span>
+                </span>
+                <button class="icon-btn notification-bell" id="notification-bell">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge" id="notification-badge" style="display: none;">0</span>
+                </button>
+                <button class="icon-btn home-btn" id="home-btn" title="Página inicial">
+                    <i class="fas fa-home"></i>
+                </button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Sair">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <div class="kpi-grid" id="kpiContainer"></div>
+            <div class="filters-bar" id="filtersBar">
+                <div class="filter-group"><i class="fas fa-user-tie"></i><label>Vendedor</label><select id="vendedorFilter"><option value="todos">Todos</option></select></div>
+                <div class="filter-group"><i class="fas fa-filter"></i><label>Status</label>
+                    <select id="statusFilter">
+                        <option value="todos" selected>Todos</option>
+                        <option value="Atendido Gerou Venda">Gerou Venda</option>
+                        <option value="Atendido Não Gerou Venda">Não Gerou Venda</option>
+                        <option value="Atendido Sem Retorno">Sem Retorno</option>
+                        <option value="Atendido">Atendido</option>
+                        <option value="Em Andamento">Em Andamento</option>
+                    </select>
+                </div>
+                <div class="filter-group date-range-group">
+                    <i class="fas fa-calendar-alt"></i>
+                    <input type="date" id="globalDateStart" placeholder="dd/mm/aaaa">
+                    <span>a</span>
+                    <input type="date" id="globalDateEnd" placeholder="dd/mm/aaaa">
+                    <button id="applyGlobalDate" class="btn-outline">Aplicar</button>
+                    <button id="clearGlobalDate" class="btn-outline btn-clear">Limpar</button>
+                </div>
+                <div class="filter-group search-group">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Nome, empresa, whatsapp...">
+                    <button id="searchBtn" class="btn-outline"><i class="fas fa-search"></i> Buscar</button>
+                    <button id="clearSearchBtn" class="btn-outline btn-clear"><i class="fas fa-times"></i> Limpar</button>
+                </div>
+                <div class="update-status">
+                    <i class="fas fa-cloud status-icon" id="statusIcon"></i>
+                    <span id="lastUpdateText">Carregando...</span>
+                </div>
+                <div class="refresh-indicator">
+                    <i class="fas fa-rotate-right" id="manualRefresh" style="cursor: pointer;"></i>
+                    <span>Auto 10min</span>
+                </div>
+                <button id="toggleFiltersBarBtn" class="btn-outline"><i class="fas fa-eye-slash"></i> Ocultar</button>
+            </div>
+            <button id="showFiltersBtn" class="show-filters-btn" style="display: none;"><i class="fas fa-filter"></i> Mostrar filtros</button>
+            <div class="charts-header">
+                <h2><i class="fas fa-table"></i> Análise</h2>
+                <button class="toggle-charts-btn" id="toggleChartsBtn"><i class="fas fa-eye-slash"></i> Ocultar gráficos</button>
+            </div>
+            <div class="charts-row" id="chartsRow">
+                <div class="chart-card glass">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-line"></i> Evolução de Leads (por dia)</h3>
+                        <div class="date-range">
+                            <input type="date" id="chartDateStart" placeholder="Início">
+                            <input type="date" id="chartDateEnd" placeholder="Fim">
+                            <button id="applyChartDate" class="btn-outline">Filtrar</button>
+                        </div>
+                    </div>
+                    <canvas id="dailyLineChart" height="200"></canvas>
+                </div>
+                <div class="chart-card glass">
+                    <div class="chart-header">
+                        <h3><i class="fas fa-chart-pie"></i> Distribuição por Status</h3>
+                    </div>
+                    <div style="position: relative;">
+                        <canvas id="donutChart" height="180"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="table-wrapper">
+                <div style="padding: 0 20px 12px 20px; display: flex; justify-content: space-between; align-items: center;">
+                    <h3><i class="fas fa-receipt"></i> Lista de Leads</h3>
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span id="rowCountInfo" class="update-status">Exibindo registros</span>
+                        <button id="sortOrderBtn" class="sort-btn" title="Inverter ordem (crescente/decrescente)"><i class="fas fa-sort-amount-down-alt"></i></button>
+                    </div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table class="orders-table" id="ordersTable">
+                        <thead>
+                            <th>Data</th><th>Nome</th><th>Empresa</th><th>WhatsApp</th><th>Mensagem</th><th>Status</th><th>Valor (R$)</th><th>Vendedor</th>
+                        </thead>
+                        <tbody id="tableBody"><tr><td colspan="8">Carregando...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+
+        <!-- FOOTER -->
+        <footer class="footer">
+            <div class="footer-inner">
+                <div class="footer-logo-section">
+                    <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
+                    <div>
+                        <div class="footer-brand-name">CENTROBOR</div>
+                        <div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div>
+                    </div>
+                </div>
+                <div class="footer-social">
+                    <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i></a>
+                    <a href="https://www.linkedin.com/company/centrobor/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                    <a href="https://www.instagram.com/centrobor.correias/" target="_blank"><i class="fab fa-instagram"></i></a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                &copy; <span id="footer-year"></span> Centrobor Correias. Todos os direitos reservados. | Visão Leads
+            </div>
+        </footer>
+    </div>
+
+    <button class="floating-btn" id="toggle-sidebar-btn"><i class="fas fa-grip-horizontal"></i></button>
+    <div class="widget-sidebar" id="widget-sidebar">
+        <div class="widget-sidebar-header"><h3>Opções</h3><button class="close-btn" id="close-widget-btn">×</button></div>
+        <div class="widget-item" id="configRowsBtn"><i class="fas fa-table-list"></i> Exibir Qtd. de Registros</div>
+        <div class="widget-item" id="exportDataBtn"><i class="fas fa-download"></i> Exportar dados (JSON)</div>
+        <div class="widget-item" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Baixar Excel</div>
+        <div class="widget-item" id="printPdfBtn"><i class="fas fa-print"></i> Gerar PDF (imprimir)</div>
+        <div class="widget-item" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> Recarregar agora</div>
+        <div class="widget-item" id="editProfileBtn"><i class="fas fa-user-edit"></i> Editar perfil</div>
+    </div>
+
+    <!-- Modais -->
+    <div id="detailsModal" class="modal"><div class="modal-content"><span class="close-modal-btn">×</span><h3>Detalhes do Lead</h3><div id="detailsContent"></div></div></div>
+    <div id="profile-modal" class="modal"><div class="modal-content"><span class="close-modal-btn">×</span><h2><i class="fas fa-user-cog"></i> Editar Perfil</h2><form id="profile-form"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profile-name" class="form-control" value="Admistrador"></div><div class="form-group"><label>URL da foto do perfil</label><input type="url" id="profile-avatar-url" class="form-control" placeholder="https://exemplo.com/avatar.jpg" value="https://cdn-icons-png.flaticon.com/512/12225/12225881.png"></div><div class="form-group"><label>Ícone alternativo</label><select id="profile-icon-select" class="form-control"></select><div class="icon-selector-grid" id="profile-icon-grid"></div></div><div class="form-group"><label>Cor do ícone</label><input type="color" id="profile-icon-color" value="#1e3a5f" class="form-control"></div><div class="form-group"><label>Background personalizado (URL da imagem)</label><input type="url" id="profile-bg-url" class="form-control" placeholder="Deixe em branco para padrão"></div><button type="submit" class="btn" style="background:var(--primary);color:white;border-radius:40px;padding:10px;">Salvar</button></form></div></div>
+    <div id="configRowsModal" class="modal"><div class="modal-content"><span class="close-modal-btn">×</span><h3>Exibir Qtd. de Registros</h3><input type="number" id="rowsInput" min="5" max="200" value="50" style="width:100%; margin:15px 0; padding:12px;"><button id="applyRowsBtn" class="btn" style="background:var(--primary);color:white;border-radius:40px;">Aplicar</button></div></div>
+    <div id="notification-dropdown" class="notification-dropdown"></div>
+
+    <script>
+        (function() {
+            // ==================== VERIFICAÇÃO DE SESSÃO (PADRÃO RADAR) ====================
+            if (localStorage.getItem('radar_logged_out') === 'true') {
+                window.location.href = '../../index.html?reason=logged_out';
+                return;
+            }
+            if (!localStorage.getItem('radar_usuario')) {
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
+            const nowDate = Date.now();
+            if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('radar_usuario');
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
+
+            const VENDEDORES_LIST = [
+                { "nome": "Luan", "cor": "#008000", "email": "luan.dantas@centrobor.com.br", "whatsapp": "5511939523210" },
+                { "nome": "Ju", "cor": "#b3009b", "email": "juliana.vendas@centrobor.com.br", "whatsapp": "5511988396052" },
+                { "nome": "Dimas", "email": "dimas.lima@centrobor.com.br", "cc": "rubens.alvarenga@centrobor.com.br", "metas": { "mensal": null, "anual": null }, "campanhas": [], "cor": "#15b0ad" },
+                { "nome": "Fábio", "cor": "#d79300", "email": "fabio.prado@centrobor.com.br", "whatsapp": "5511959214220" },
+                { "nome": "Hélio", "cor": "#a0bd7b", "email": "helio.vendas@centrobor.com.br", "whatsapp": "" },
+                { "nome": "Lorena", "cor": "#fa788f", "email": "lorena.martins@centrobor.com.br", "whatsapp": "11939523210" }
+            ];
+
+            const SHEET_URL = "https://opensheet.elk.sh/1eI87ScC4wFcDeFPz8K-IbpTWTM2Ui2WXjRbQIr3SsdA/leads";
+            let rawLeads = [];
+            let lastUpdateTime = null;
+            let currentRowsLimit = parseInt(localStorage.getItem('rowsLimit')) || 50;
+            let chartsVisible = localStorage.getItem('chartsVisible') !== 'false';
+            let sortOrder = 'desc';
+            let filtersBarVisible = localStorage.getItem('filtersBarVisible') !== 'false';
+            const DEFAULT_BG_URL = "https://img.freepik.com/free-vector/gradient-blur-pink-blue-abstract-background_53876-117324.jpg";
+
+            let currentVendedor = "todos";
+            let currentStatus = "todos";
+            let globalDateStart = null,
+                globalDateEnd = null;
+            let chartDateStart = null,
+                chartDateEnd = null;
+            let searchTerm = "";
+
+            const statusColorMap = {
+                "Atendido Gerou Venda": "#2e7d32",
+                "Atendido Não Gerou Venda": "#ed6c02",
+                "Atendido Sem Retorno": "#d32f2f",
+                "Atendido": "#0288d1",
+                "Em Andamento": "#1e3a5f"
+            };
+
+            const kpiContainer = document.getElementById('kpiContainer');
+            const vendedorFilter = document.getElementById('vendedorFilter');
+            const statusFilter = document.getElementById('statusFilter');
+            const tableBody = document.getElementById('tableBody');
+            const updateStatusSpan = document.getElementById('lastUpdateText');
+            const statusIcon = document.getElementById('statusIcon');
+            const chartsRow = document.getElementById('chartsRow');
+            const toggleChartsBtn = document.getElementById('toggleChartsBtn');
+            const sortOrderBtn = document.getElementById('sortOrderBtn');
+            const filtersBar = document.getElementById('filtersBar');
+            const showFiltersBtn = document.getElementById('showFiltersBtn');
+            const toggleFiltersBarBtn = document.getElementById('toggleFiltersBarBtn');
+
+            let userProfile = JSON.parse(localStorage.getItem('userProfile')) || {
+                name: '',
+                avatarUrl: 'https://cdn-icons-png.flaticon.com/512/12225/12225881.png',
+                icon: 'fa-user-circle',
+                iconColor: '#1e3a5f',
+                bgUrl: null
+            };
+
+            const iconList = ["fa-user-circle", "fa-user-tie", "fa-chart-line", "fa-chart-pie", "fa-chart-bar",
+                "fa-dollar-sign", "fa-coins", "fa-users", "fa-building", "fa-truck"
+            ];
+
+            function populateIconSelect(selectEl, gridEl, selectedIcon) {
+                if (selectEl) selectEl.innerHTML = iconList.map(icon =>
+                    `<option value="${icon}" ${icon === selectedIcon ? 'selected' : ''}>${icon}</option>`).join('');
+                if (gridEl) {
+                    gridEl.innerHTML = iconList.map(icon =>
+                        `<div class="icon-option ${icon === selectedIcon ? 'selected' : ''}" data-icon="${icon}"><i class="fas ${icon}"></i></div>`
+                        ).join('');
+                    gridEl.querySelectorAll('.icon-option').forEach(opt => opt.addEventListener('click', () => {
+                        gridEl.querySelectorAll('.icon-option').forEach(o => o.classList.remove(
+                            'selected'));
+                        opt.classList.add('selected');
+                        if (selectEl) selectEl.value = opt.dataset.icon;
+                    }));
+                }
+            }
+
+            function applyUserProfile() {
+                document.getElementById('greeting').innerText = `Olá ${userProfile.name}!`;
+                document.getElementById('topbar-greeting').textContent = userProfile.name || 'Leads';
+                document.getElementById('menu-user-name').textContent = userProfile.name || 'Admistrador';
+                document.getElementById('user-avatar').src = userProfile.avatarUrl;
+                document.getElementById('topbar-avatar-mobile').src = userProfile.avatarUrl;
+                document.getElementById('menu-avatar').src = userProfile.avatarUrl;
+                const bgToUse = userProfile.bgUrl && userProfile.bgUrl.trim() !== "" ? userProfile.bgUrl : DEFAULT_BG_URL;
+                document.body.style.setProperty('--custom-bg-url', `url('${bgToUse}')`);
+                document.body.classList.add('custom-bg');
+            }
+
+            function parseMonetary(value) {
+                if (!value || value === '-' || value === '') return 0;
+                let str = String(value).replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
+                let num = parseFloat(str);
+                return isNaN(num) ? 0 : num;
+            }
+
+            function formatMoney(value) {
+                if (value === 0) return '';
+                return value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
+
+            function abbreviateNumber(num) {
+                if (num >= 1e6) return (num / 1e6).toFixed(1) + 'M';
+                if (num >= 1e3) return (num / 1e3).toFixed(1) + 'k';
+                return num.toFixed(0);
+            }
+
+            function normalizarDataBR(dataStr) {
+                if (!dataStr) return null;
+                let partes = dataStr.split('/');
+                if (partes.length === 3) {
+                    return `${partes[2]}-${partes[1].padStart(2,'0')}-${partes[0].padStart(2,'0')}`;
+                }
+                return null;
+            }
+
+            function processLeads(dataArray) {
+                if (!Array.isArray(dataArray)) return [];
+                return dataArray.map(item => ({
+                    data: item.Data || '',
+                    nome: item.Nome || '',
+                    whatsapp: item.WhatsApp || '',
+                    email: item.Email || '',
+                    empresa: item.Empresa || '',
+                    cnpj: item.CNPJ || '',
+                    mensagem: item.Mensagem || '',
+                    status: item.Status || 'Em Andamento',
+                    valorVenda: parseMonetary(item['Valor da Venda']),
+                    vendedor: item.Vendedor || 'Não informado',
+                    obs: item.Obs || ''
+                })).filter(l => l.data && l.nome);
+            }
+
+            function saveBackup() { localStorage.setItem('leadsBackup', JSON.stringify({ data: rawLeads,
+                    lastUpdate: lastUpdateTime })); }
+
+            function loadBackup() {
+                const raw = localStorage.getItem('leadsBackup');
+                if (raw) {
+                    try {
+                        const backup = JSON.parse(raw);
+                        if (backup.data && Array.isArray(backup.data)) {
+                            rawLeads = backup.data;
+                            lastUpdateTime = backup.lastUpdate;
+                            return true;
+                        }
+                    } catch (e) {}
+                }
+                return false;
+            }
+
+            function updateStatusText(online) {
+                if (online && lastUpdateTime) {
+                    const date = new Date(lastUpdateTime);
+                    updateStatusSpan.innerText = `Última atualização: ${date.toLocaleString('pt-BR')}`;
+                    statusIcon.className = 'fas fa-cloud status-icon';
+                    statusIcon.style.color = '#2ecc71';
+                    document.getElementById('last-update-text').innerText =
+                        `Atualizado em: ${date.toLocaleString('pt-BR')}`;
+                    document.getElementById('last-update-badge').style.display = 'flex';
+                } else if (!online && lastUpdateTime) {
+                    updateStatusSpan.innerText =
+                        `📴 Offline (${new Date(lastUpdateTime).toLocaleString('pt-BR')})`;
+                    statusIcon.className = 'fas fa-cloud-rain status-icon';
+                    statusIcon.style.color = '#e67e22';
+                    document.getElementById('last-update-badge').style.display = 'flex';
+                } else {
+                    updateStatusSpan.innerText = 'Aguardando dados';
+                    statusIcon.className = 'fas fa-cloud-rain status-icon';
+                    statusIcon.style.color = '#d32f2f';
+                    document.getElementById('last-update-badge').style.display = 'none';
+                }
+            }
+
+            async function fetchData() {
+                try {
+                    const resp = await fetch(SHEET_URL);
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    const data = await resp.json();
+                    rawLeads = processLeads(data);
+                    lastUpdateTime = new Date().toISOString();
+                    saveBackup();
+                    updateStatusText(true);
+                    applyFiltersAndRefresh();
+                    generateNotifications();
+                } catch (err) {
+                    console.warn('Erro online:', err);
+                    const loaded = loadBackup();
+                    updateStatusText(false);
+                    if (loaded) applyFiltersAndRefresh();
+                    generateNotifications();
+                }
+            }
+
+            function getFilteredLeads() {
+                let filtered = [...rawLeads];
+                if (currentVendedor !== 'todos') filtered = filtered.filter(l => l.vendedor === currentVendedor);
+                if (currentStatus !== 'todos') filtered = filtered.filter(l => l.status === currentStatus);
+                if (globalDateStart || globalDateEnd) {
+                    filtered = filtered.filter(l => {
+                        let isoDate = normalizarDataBR(l.data);
+                        if (!isoDate) return true;
+                        let d = new Date(isoDate);
+                        if (globalDateStart && d < globalDateStart) return false;
+                        if (globalDateEnd && d > globalDateEnd) return false;
+                        return true;
+                    });
+                }
+                if (searchTerm.trim()) {
+                    const term = searchTerm.trim().toLowerCase();
+                    filtered = filtered.filter(l =>
+                        l.nome.toLowerCase().includes(term) ||
+                        l.empresa.toLowerCase().includes(term) ||
+                        l.whatsapp.includes(term) ||
+                        l.status.toLowerCase().includes(term) ||
+                        l.vendedor.toLowerCase().includes(term)
+                    );
+                }
+                return filtered;
+            }
+
+            function updateKPIs(filtered) {
+                const total = filtered.length;
+                const mesAtual = new Date().toISOString().slice(0, 7);
+                const leadsMes = filtered.filter(l => {
+                    let iso = normalizarDataBR(l.data);
+                    return iso && iso.startsWith(mesAtual);
+                }).length;
+                const atendidos = filtered.filter(l => l.status.includes('Atendido')).length;
+                const vendas = filtered.filter(l => l.status === 'Atendido Gerou Venda').length;
+                const totalFaturado = filtered.reduce((acc, l) => acc + (l.status === 'Atendido Gerou Venda' ? l
+                    .valorVenda : 0), 0);
+                const ticketMedio = vendas ? totalFaturado / vendas : 0;
+                kpiContainer.innerHTML = `
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-users"></i> Total leads</div><div class="kpi-value">${abbreviateNumber(total)}</div></div>
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-calendar-alt"></i> Leads no mês</div><div class="kpi-value">${abbreviateNumber(leadsMes)}</div></div>
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-phone-alt"></i> Atendidos</div><div class="kpi-value">${abbreviateNumber(atendidos)}</div></div>
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-trophy"></i> Vendas realizadas</div><div class="kpi-value">${abbreviateNumber(vendas)}</div></div>
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-dollar-sign"></i> Faturamento</div><div class="kpi-value">R$ ${abbreviateNumber(totalFaturado)}</div><div class="kpi-sub">apenas vendas</div></div>
+                <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-chart-line"></i> Ticket médio</div><div class="kpi-value">R$ ${abbreviateNumber(ticketMedio)}</div></div>
+            `;
+            }
+
+            function renderTable(filtered) {
+                const sorted = [...filtered].sort((a, b) => {
+                    let da = normalizarDataBR(a.data) || '';
+                    let db = normalizarDataBR(b.data) || '';
+                    if (sortOrder === 'desc') return db.localeCompare(da);
+                    else return da.localeCompare(db);
+                });
+                const display = sorted.slice(0, currentRowsLimit);
+                document.getElementById('rowCountInfo').innerHTML =
+                    `Exibindo ${display.length} de ${filtered.length} registros`;
+                if (!display.length) {
+                    tableBody.innerHTML = `<tr><td colspan="8">Nenhum lead encontrado</td></tr>`;
+                    return;
+                }
+                tableBody.innerHTML = display.map(lead => {
+                    const statusColor = statusColorMap[lead.status] || '#6b7b8c';
+                    const valorExibido = lead.valorVenda > 0 ? formatMoney(lead.valorVenda) : '';
+                    return `
+                    <tr data-id="${lead.nome+lead.whatsapp+lead.data}">
+                         <td>${lead.data}</td>
+                         <td>${lead.nome.substring(0,40)}</td>
+                         <td>${lead.empresa.substring(0,40)}</td>
+                         <td>${lead.whatsapp}</td>
+                        <td title="${lead.mensagem.replace(/"/g, '&quot;')}">${lead.mensagem.length > 60 ? lead.mensagem.substring(0,60)+'…' : lead.mensagem}</td>
+                         <td><span class="status-badge" data-status="${lead.status}" style="background:${statusColor}20; color:${statusColor}; border:1px solid ${statusColor}40;">${lead.status}</span></td>
+                         <td>${valorExibido ? `R$ ${valorExibido}` : ''}</td>
+                         <td>${lead.vendedor}</td>
+                     </tr>
+                `;
+                }).join('');
+                document.querySelectorAll('#tableBody tr').forEach(tr => {
+                    tr.addEventListener('click', () => showLeadDetails(display.find(l => l.nome + l.whatsapp + l
+                        .data === tr.dataset.id)));
+                });
+            }
+
+            function showLeadDetails(lead) {
+                if (!lead) return;
+                document.getElementById('detailsContent').innerHTML =
+                    `<table class="detail-table">${Object.entries(lead).map(([k,v]) => `<tr><td>${k}</td><td>${v || '—'}</td></tr>`).join('')}</table>`;
+                document.getElementById('detailsModal').style.display = 'flex';
+            }
+
+            let lineChart, donutChart;
+
+            function updateLineChart(filtered) {
+                let daily = {};
+                filtered.forEach(l => {
+                    let iso = normalizarDataBR(l.data);
+                    if (!iso) return;
+                    let dateObj = new Date(iso);
+                    if (chartDateStart && dateObj < chartDateStart) return;
+                    if (chartDateEnd && dateObj > chartDateEnd) return;
+                    daily[l.data] = (daily[l.data] || 0) + 1;
+                });
+                let sortedDates = Object.keys(daily).sort((a, b) => {
+                    let da = a.split('/').reverse().join('-');
+                    let db = b.split('/').reverse().join('-');
+                    return da.localeCompare(db);
+                });
+                const values = sortedDates.map(d => daily[d]);
+                const ctx = document.getElementById('dailyLineChart').getContext('2d');
+                if (lineChart) lineChart.destroy();
+                lineChart = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: sortedDates, datasets: [{ label: 'Nº de Leads', data: values,
+                            borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.05)', tension: 0.3,
+                            fill: true }] },
+                    options: { responsive: true, maintainAspectRatio: true }
+                });
+            }
+
+            function updateDonutChart(filtered) {
+                const statusCount = {};
+                filtered.forEach(l => { statusCount[l.status] = (statusCount[l.status] || 0) + 1; });
+                const labels = Object.keys(statusCount);
+                const data = Object.values(statusCount);
+                const backgroundColors = labels.map(label => statusColorMap[label] || '#6b7b8c');
+                const ctx = document.getElementById('donutChart').getContext('2d');
+                if (donutChart) donutChart.destroy();
+                donutChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: { labels, datasets: [{ data, backgroundColor: backgroundColors, borderWidth: 0 }] },
+                    options: { cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+                });
+            }
+
+            function applyFiltersAndRefresh() {
+                const filtered = getFilteredLeads();
+                updateKPIs(filtered);
+                renderTable(filtered);
+                updateLineChart(filtered);
+                updateDonutChart(filtered);
+            }
+
+            // ========== NOTIFICAÇÕES (CRM ALERTS) ==========
+            function getSeenNotifications() {
+                const seen = localStorage.getItem('seenNotifications');
+                if (seen) { try { return JSON.parse(seen); } catch (e) {} }
+                return {};
+            }
+
+            function markNotificationsAsSeen(notificationIds) {
+                const seen = getSeenNotifications();
+                const now = Date.now();
+                notificationIds.forEach(id => { seen[id] = now; });
+                localStorage.setItem('seenNotifications', JSON.stringify(seen));
+            }
+
+            function generateNotifications() {
+                const notifications = [];
+                const notificationIds = [];
+                const hoje = new Date();
+                const tresDiasAtras = new Date();
+                tresDiasAtras.setDate(hoje.getDate() - 3);
+                const leadsRecentes = rawLeads.filter(l => new Date(normalizarDataBR(l.data)) >= tresDiasAtras);
+                if (leadsRecentes.length) {
+                    const msg = `📌 ${leadsRecentes.length} novo(s) lead(s) nos últimos 3 dias.`;
+                    notifications.push({ msg, id: `recent_leads_${leadsRecentes.length}`, type: 'info' });
+                    notificationIds.push(`recent_leads_${leadsRecentes.length}`);
+                }
+                const vendasSemValor = rawLeads.filter(l => l.status === 'Atendido Gerou Venda' && (!l.valorVenda || l
+                    .valorVenda === 0));
+                if (vendasSemValor.length) {
+                    const msg = `⚠️ ${vendasSemValor.length} venda(s) gerada(s) sem valor informado.`;
+                    notifications.push({ msg, id: `vendas_sem_valor_${vendasSemValor.length}`, type: 'warning' });
+                    notificationIds.push(`vendas_sem_valor_${vendasSemValor.length}`);
+                }
+                const leadsAntigosEmAndamento = rawLeads.filter(l => {
+                    if (l.status !== 'Em Andamento') return false;
+                    let dataLead = new Date(normalizarDataBR(l.data));
+                    return (hoje - dataLead) / (1000 * 60 * 60 * 24) > 7;
+                });
+                if (leadsAntigosEmAndamento.length) {
+                    const msg =
+                        `⏳ ${leadsAntigosEmAndamento.length} lead(s) em andamento há mais de 7 dias.`;
+                    notifications.push({ msg, id: `antigos_andamento_${leadsAntigosEmAndamento.length}`,
+                        type: 'danger' });
+                    notificationIds.push(`antigos_andamento_${leadsAntigosEmAndamento.length}`);
+                }
+                const leadsSemRetorno = rawLeads.filter(l => l.status === 'Atendido Sem Retorno' && new Date(
+                    normalizarDataBR(l.data)) >= tresDiasAtras);
+                if (leadsSemRetorno.length) {
+                    const msg =
+                        `🚨 ${leadsSemRetorno.length} lead(s) 'Atendido Sem Retorno' nos últimos 3 dias.`;
+                    notifications.push({ msg, id: `sem_retorno_${leadsSemRetorno.length}`, type: 'danger' });
+                    notificationIds.push(`sem_retorno_${leadsSemRetorno.length}`);
+                }
+                const prioMap = { danger: 0, warning: 1, info: 2 };
+                notifications.sort((a, b) => (prioMap[a.type] || 3) - (prioMap[b.type] || 3));
+                const allNotifications = notifications;
+                const seen = getSeenNotifications();
+                const now = Date.now();
+                const DAY_MS = 24 * 60 * 60 * 1000;
+                const unseenNotifications = allNotifications.filter(n => {
+                    const lastSeen = seen[n.id];
+                    return !lastSeen || (now - lastSeen) > DAY_MS;
+                });
+                const badge = document.getElementById('notification-badge');
+                if (unseenNotifications.length > 0) {
+                    badge.style.display = 'flex';
+                    badge.innerText = unseenNotifications.length;
+                } else {
+                    badge.style.display = 'none';
+                }
+                const dropdown = document.getElementById('notification-dropdown');
+                let htmlContent =
+                    `<div class="notification-header"><i class="fas fa-bell"></i> Alertas do CRM (${allNotifications.length})</div>`;
+                if (allNotifications.length === 0) {
+                    htmlContent +=
+                        `<div class="notification-empty">📭 Nenhum alerta no momento.</div>`;
+                } else {
+                    htmlContent += allNotifications.map(n => {
+                        const borderColor = n.type === 'danger' ? '#d32f2f' : n.type === 'warning' ?
+                            '#ed6c02' : '#0288d1';
+                        return `<div class="notification-item" style="border-left: 4px solid ${borderColor}; padding-left: 12px;">${n.msg}</div>`;
+                    }).join('');
+                }
+                dropdown.innerHTML = htmlContent;
+                dropdown._currentNotificationIds = notificationIds;
+            }
+
+            function exportJSON() {
+                const registros = rawLeads.map((lead, idx) => ({
+                    id: lead.id || (new Date(lead.data).getTime() + idx + Math.random() * 10000),
+                    data: lead.data,
+                    nome: lead.nome,
+                    whatsapp: lead.whatsapp,
+                    email: lead.email,
+                    empresa: lead.empresa,
+                    cnpj: lead.cnpj,
+                    mensagem: lead.mensagem,
+                    status: lead.status,
+                    vendedor: lead.vendedor,
+                    valorVenda: lead.valorVenda || null,
+                    obs: lead.obs,
+                    historico: [],
+                    ultimaModificacao: lastUpdateTime || lead.data
+                }));
+                const fullExport = { vendedores: VENDEDORES_LIST, registros };
+                const blob = new Blob([JSON.stringify(fullExport, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `leads_export_${new Date().toISOString().slice(0,19)}.json`;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            }
+
+            function exportToExcel() {
+                const filtered = getFilteredLeads();
+                const ws = XLSX.utils.json_to_sheet(filtered.map(l => ({ Data: l.data, Nome: l.nome, Empresa: l.empresa,
+                    WhatsApp: l.whatsapp, Email: l.email, Mensagem: l.mensagem, Status: l.status,
+                    "Valor da Venda": l.valorVenda ? `R$ ${formatMoney(l.valorVenda)}` : '',
+                    Vendedor: l.vendedor })));
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Leads");
+                XLSX.writeFile(wb, `leads_${new Date().toISOString().slice(0,19)}.xlsx`);
+            }
+
+            // ==================== HAMBURGER MENU CONTROLS ====================
+            function openHamburger() {
+                document.getElementById('hamburger-menu').classList.add('active');
+                document.getElementById('hamburger-overlay').classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeHamburger() {
+                document.getElementById('hamburger-menu').classList.remove('active');
+                document.getElementById('hamburger-overlay').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            function setActiveBottomBar(nav) {
+                document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove(
+                'active'));
+                const activeEl = document.getElementById('bb-' + nav);
+                if (activeEl) activeEl.classList.add('active');
+            }
+
+            function fazerLogout() {
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href = '../../index.html?reason=logged_out';
+            }
+
+            function init() {
+                applyUserProfile();
+                currentStatus = "todos";
+                statusFilter.value = "todos";
+                if (!filtersBarVisible) { filtersBar.classList.add('hidden');
+                    showFiltersBtn.style.display = 'inline-flex'; } else { filtersBar.classList.remove('hidden');
+                    showFiltersBtn.style.display = 'none'; }
+                toggleFiltersBarBtn.addEventListener('click', () => {
+                    filtersBar.classList.add('hidden');
+                    showFiltersBtn.style.display = 'inline-flex';
+                    filtersBarVisible = false;
+                    localStorage.setItem('filtersBarVisible', 'false');
+                });
+                showFiltersBtn.addEventListener('click', () => {
+                    filtersBar.classList.remove('hidden');
+                    showFiltersBtn.style.display = 'none';
+                    filtersBarVisible = true;
+                    localStorage.setItem('filtersBarVisible', 'true');
+                });
+                vendedorFilter.addEventListener('change', () => { currentVendedor = vendedorFilter.value;
+                    applyFiltersAndRefresh(); });
+                statusFilter.addEventListener('change', () => { currentStatus = statusFilter.value;
+                    applyFiltersAndRefresh(); });
+                document.getElementById('manualRefresh').addEventListener('click', () => fetchData());
+                document.getElementById('applyGlobalDate').addEventListener('click', () => {
+                    globalDateStart = document.getElementById('globalDateStart').value ? new Date(document
+                        .getElementById('globalDateStart').value) : null;
+                    globalDateEnd = document.getElementById('globalDateEnd').value ? new Date(document
+                        .getElementById('globalDateEnd').value) : null;
+                    applyFiltersAndRefresh();
+                });
+                document.getElementById('clearGlobalDate').addEventListener('click', () => {
+                    document.getElementById('globalDateStart').value = '';
+                    document.getElementById('globalDateEnd').value = '';
+                    globalDateStart = null;
+                    globalDateEnd = null;
+                    applyFiltersAndRefresh();
+                });
+                document.getElementById('applyChartDate').addEventListener('click', () => {
+                    chartDateStart = document.getElementById('chartDateStart').value ? new Date(document
+                        .getElementById('chartDateStart').value) : null;
+                    chartDateEnd = document.getElementById('chartDateEnd').value ? new Date(document
+                        .getElementById('chartDateEnd').value) : null;
+                    applyFiltersAndRefresh();
+                });
+                const searchInput = document.getElementById('searchInput'),
+                    searchBtn = document.getElementById('searchBtn'),
+                    clearSearchBtn = document.getElementById('clearSearchBtn');
+                searchBtn.addEventListener('click', () => { searchTerm = searchInput.value;
+                    applyFiltersAndRefresh(); });
+                clearSearchBtn.addEventListener('click', () => { searchInput.value = '';
+                    searchTerm = '';
+                    applyFiltersAndRefresh(); });
+                searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') { searchTerm = searchInput
+                        .value;
+                        applyFiltersAndRefresh(); } });
+                sortOrderBtn.addEventListener('click', () => {
+                    sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+                    sortOrderBtn.querySelector('i').className = sortOrder === 'desc' ?
+                        'fas fa-sort-amount-down-alt' : 'fas fa-sort-amount-up';
+                    applyFiltersAndRefresh();
+                });
+                document.getElementById('toggle-sidebar-btn').addEventListener('click', () => document.getElementById(
+                    'widget-sidebar').classList.toggle('open'));
+                document.getElementById('close-widget-btn').addEventListener('click', () => document.getElementById(
+                    'widget-sidebar').classList.remove('open'));
+                toggleChartsBtn.addEventListener('click', () => {
+                    chartsVisible = !chartsVisible;
+                    localStorage.setItem('chartsVisible', chartsVisible);
+                    chartsRow.classList.toggle('hidden', !chartsVisible);
+                    toggleChartsBtn.innerHTML = chartsVisible ?
+                        '<i class="fas fa-eye-slash"></i> Ocultar gráficos' :
+                        '<i class="fas fa-chart-line"></i> Mostrar gráficos';
+                });
+                document.getElementById('configRowsBtn').addEventListener('click', () => {
+                    document.getElementById('rowsInput').value = currentRowsLimit;
+                    document.getElementById('configRowsModal').style.display = 'flex';
+                    document.getElementById('widget-sidebar').classList.remove('open');
+                });
+                document.getElementById('applyRowsBtn').addEventListener('click', () => {
+                    let val = parseInt(document.getElementById('rowsInput').value);
+                    if (val >= 5 && val <= 200) { currentRowsLimit = val;
+                        localStorage.setItem('rowsLimit', val);
+                        applyFiltersAndRefresh(); }
+                    document.getElementById('configRowsModal').style.display = 'none';
+                });
+                document.getElementById('refreshDataBtn').addEventListener('click', () => { fetchData();
+                    document.getElementById('widget-sidebar').classList.remove('open'); });
+                document.getElementById('exportDataBtn').addEventListener('click', () => { exportJSON();
+                    document.getElementById('widget-sidebar').classList.remove('open'); });
+                document.getElementById('exportExcelBtn').addEventListener('click', () => { exportToExcel();
+                    document.getElementById('widget-sidebar').classList.remove('open'); });
+                document.getElementById('printPdfBtn').addEventListener('click', () => { window.print();
+                    document.getElementById('widget-sidebar').classList.remove('open'); });
+                document.getElementById('editProfileBtn').addEventListener('click', () => {
+                    document.getElementById('profile-name').value = userProfile.name;
+                    document.getElementById('profile-avatar-url').value = userProfile.avatarUrl;
+                    document.getElementById('profile-icon-color').value = userProfile.iconColor;
+                    document.getElementById('profile-bg-url').value = userProfile.bgUrl || '';
+                    populateIconSelect(document.getElementById('profile-icon-select'), document.getElementById(
+                        'profile-icon-grid'), userProfile.icon);
+                    document.getElementById('profile-modal').style.display = 'flex';
+                    document.getElementById('widget-sidebar').classList.remove('open');
+                });
+                document.getElementById('profile-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    userProfile.name = document.getElementById('profile-name').value;
+                    userProfile.avatarUrl = document.getElementById('profile-avatar-url').value;
+                    userProfile.icon = document.getElementById('profile-icon-select').value;
+                    userProfile.iconColor = document.getElementById('profile-icon-color').value;
+                    userProfile.bgUrl = document.getElementById('profile-bg-url').value.trim() || null;
+                    localStorage.setItem('userProfile', JSON.stringify(userProfile));
+                    applyUserProfile();
+                    document.getElementById('profile-modal').style.display = 'none';
+                });
+                document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', e => e
+                    .target.closest('.modal').style.display = 'none'));
+                chartsRow.classList.toggle('hidden', !chartsVisible);
+                toggleChartsBtn.innerHTML = chartsVisible ? '<i class="fas fa-eye-slash"></i> Ocultar gráficos' :
+                    '<i class="fas fa-chart-line"></i> Mostrar gráficos';
+
+                // Dropdown de notificações
+                const bell = document.getElementById('notification-bell');
+                const notifDropdown = document.getElementById('notification-dropdown');
+
+                function positionDropdown() {
+                    const rect = bell.getBoundingClientRect();
+                    notifDropdown.style.top = `${rect.bottom + 5}px`;
+                    notifDropdown.style.right = `${window.innerWidth - rect.right}px`;
+                    notifDropdown.style.left = 'auto';
+                }
+                bell.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const currentIds = notifDropdown._currentNotificationIds || [];
+                    if (currentIds.length) {
+                        markNotificationsAsSeen(currentIds);
+                        generateNotifications();
+                    }
+                    positionDropdown();
+                    notifDropdown.classList.toggle('show');
+                });
+                document.addEventListener('click', (e) => {
+                    if (!bell.contains(e.target) && !notifDropdown.contains(e.target)) {
+                        notifDropdown.classList.remove('show');
+                    }
+                });
+                window.addEventListener('scroll', () => { if (notifDropdown.classList.contains('show'))
+                        positionDropdown(); });
+                window.addEventListener('resize', () => { if (notifDropdown.classList.contains('show'))
+                        positionDropdown(); });
+
+                // Home e Logout (desktop)
+                document.getElementById('home-btn').addEventListener('click', () => {
+                    window.location.href = '../../index.html';
+                });
+                document.getElementById('logout-btn').addEventListener('click', fazerLogout);
+
+                // ══════════════ MOBILE EVENT LISTENERS ══════════════
+                document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
+                document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+                document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+
+                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
+                    window.location.href = '../../index.html'; });
+                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
+                    window.location.href = '/hpvx5_postagens/postagens'; });
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
+                    window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
+                    fazerLogout(); });
+
+                // Bottom bar
+                setActiveBottomBar('home');
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
+                    window.location.href = '/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
+                    window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar(
+                    'alertas'); });
+
+                // Ano no footer
+                document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                async function load() {
+                    await fetchData();
+                    const vendedores = [...new Set(rawLeads.map(l => l.vendedor).filter(v => v && v !==
+                        'Não informado'))].sort();
+                    vendedorFilter.innerHTML = '<option value="todos">Todos os vendedores</option>' + vendedores
+                        .map(v => `<option value="${v}">${v}</option>`).join('');
+                    applyFiltersAndRefresh();
+                }
+                load();
+                setInterval(() => fetchData(), 600000);
+            }
+            init();
+        })();
+    </script>
+</body>
+</html>

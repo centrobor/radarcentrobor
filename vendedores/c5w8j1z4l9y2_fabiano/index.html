@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
+    <title>Fabiano • Coordenador • Radar Centrobor</title>
+    <link rel="icon" type="image/png" href="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQkPTXodjq73nQgq7wMEkkvzv6NkcRiJrRstQ&s">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 24px 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #1a2b3c;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wrapper {
+            max-width: 1400px;
+            width: 100%;
+            flex: 1;
+        }
+        :root {
+            --primary: #1e3a5f;
+            --primary-light: #2b4c7a;
+            --primary-soft: #eef3f9;
+            --text-dark: #1a2b3c;
+            --text-soft: #3e4e5e;
+            --text-light: #6b7b8c;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+            --info: #0288d1;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --border-light: rgba(255, 255, 255, 0.9);
+            --shadow-sm: 0 8px 20px rgba(0, 20, 40, 0.06);
+            --shadow-md: 0 12px 28px rgba(0, 20, 40, 0.12);
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --radius-sm: 16px;
+            --blur: blur(16px);
+            --line: #e5e7eb;
+            --muted: #5b6472;
+            --footer-bg: #1a2b3c;
+            --footer-text: #cbd5e1;
+            --bottom-bar-height: 62px;
+            --mobile-topbar-height: 56px;
+            --safe-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: 80px;
+            padding: 10px 22px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+            position: sticky;
+            top: 16px;
+            z-index: 10;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .user-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .user-avatar {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+        .greeting {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--text-dark);
+        }
+        .coordenador-badge {
+            background: var(--primary);
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 4px 12px;
+            border-radius: 30px;
+            margin-left: 8px;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .last-update-badge {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(2, 136, 209, 0.08);
+            border: 1px solid rgba(2, 136, 209, 0.2);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--info);
+            white-space: nowrap;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-soft);
+            cursor: pointer;
+            font-size: 1.2rem;
+            position: relative;
+            padding: 8px;
+            border-radius: 50%;
+            transition: 0.2s;
+        }
+        .icon-btn:hover {
+            background: rgba(30, 58, 95, 0.08);
+            color: var(--primary);
+        }
+        .badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: var(--danger);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+        .carousel-section {
+            margin-bottom: 32px;
+            border-radius: 32px;
+            overflow: hidden;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            position: relative;
+            box-shadow: var(--shadow-md);
+        }
+        .carousel-container {
+            display: flex;
+            transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .carousel-slide {
+            min-width: 100%;
+            position: relative;
+            cursor: pointer;
+        }
+        .carousel-slide img {
+            width: 100%;
+            height: 340px;
+            object-fit: cover;
+        }
+        .carousel-caption {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.75));
+            color: white;
+            padding: 20px 24px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .carousel-controls {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            padding: 0 16px;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+        .carousel-btn {
+            background: rgba(255, 255, 255, 0.85);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            pointer-events: all;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+        }
+        .carousel-indicators {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            padding: 14px;
+        }
+        .indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.25);
+            cursor: pointer;
+            transition: 0.2s;
+        }
+        .indicator-dot.active {
+            background: var(--primary);
+            transform: scale(1.4);
+        }
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 14px;
+            margin-bottom: 28px;
+        }
+        .tool-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-md);
+            padding: 20px 14px;
+            text-align: center;
+            text-decoration: none;
+            color: var(--text-dark);
+            border: 1px solid var(--border-light);
+            transition: 0.2s;
+        }
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+        }
+        .tool-icon {
+            font-size: 1.8rem;
+            color: var(--primary);
+            margin-bottom: 8px;
+        }
+        .tool-label {
+            font-weight: 600;
+            font-size: 0.8rem;
+        }
+        .filters-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 28px;
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: 60px;
+            padding: 12px 24px;
+            align-items: center;
+        }
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .filter-group label {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: var(--text-dark);
+        }
+        select {
+            background: white;
+            border: 1px solid var(--line);
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+        select option:disabled {
+            color: #aaa;
+            background: #f0f0f0;
+        }
+        .segment-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 24px;
+            margin-bottom: 40px;
+        }
+        @media (max-width: 900px) {
+            .segment-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        .segment-card {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+        .segment-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-left: 5px solid var(--primary);
+            padding-left: 16px;
+        }
+        .meta-grid-3col {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+        .meta-item {
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 20px;
+            padding: 16px;
+            text-align: center;
+        }
+        .meta-label {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--muted);
+            letter-spacing: 0.5px;
+        }
+        .big-number {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin: 8px 0;
+            color: var(--text-dark);
+        }
+        .meta-value-small {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-soft);
+        }
+        .progress-bar-sm {
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0 6px;
+        }
+        .progress-fill-sm {
+            height: 100%;
+            border-radius: 10px;
+            transition: width 0.4s;
+        }
+        .detail-text {
+            font-size: 0.7rem;
+            color: var(--text-soft);
+        }
+        .chart-evolution {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            margin-bottom: 36px;
+            border: 1px solid var(--border-light);
+        }
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .footer {
+            background: var(--footer-bg);
+            color: var(--footer-text);
+            margin-top: 48px;
+            padding: 28px 20px 20px;
+            border-radius: 32px 32px 0 0;
+            width: 100%;
+        }
+        .footer-inner {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 20px;
+        }
+        .footer-logo-img {
+            width: 140px;
+            height: 80px;
+            object-fit: contain;
+        }
+        .footer-brand-name {
+            font-weight: 800;
+            color: white;
+        }
+        .footer-tagline {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            max-width: 400px;
+        }
+        .footer-social a {
+            color: var(--footer-text);
+            font-size: 1.3rem;
+            margin-left: 12px;
+            transition: 0.2s;
+        }
+        .footer-social a:hover {
+            color: white;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 28px;
+            padding: 28px;
+            width: 80vw;
+            max-width: 1100px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--muted);
+            transition: 0.2s;
+        }
+        .modal-close:hover {
+            color: var(--danger);
+        }
+        .notif-card {
+            display: flex;
+            gap: 14px;
+            padding: 14px;
+            border-bottom: 1px solid var(--line);
+            cursor: pointer;
+            border-radius: 16px;
+            transition: 0.2s;
+        }
+        .notif-card:hover {
+            background: #f9fafb;
+        }
+        .notif-thumb {
+            width: 80px;
+            height: 70px;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+        .btn-mark-all-read {
+            background: var(--primary-soft);
+            border: 1px solid var(--primary-light);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            transition: 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-mark-all-read i {
+            font-size: 0.9rem;
+        }
+        .btn-mark-all-read:hover {
+            background: var(--primary);
+            color: white;
+        }
+        @media (max-width: 680px) {
+            .meta-grid-3col {
+                grid-template-columns: 1fr;
+            }
+            .modal-content {
+                width: 95vw;
+            }
+        }
+
+        /* ══════════════ MOBILE TOPBAR ══════════════ */
+        .mobile-topbar {
+            display: none;
+            position: sticky;
+            top: 0;
+            z-index: 20;
+            width: 100%;
+            background: #ffffff;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            padding: 0 16px;
+            height: var(--mobile-topbar-height);
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
+            flex-shrink: 0;
+        }
+        .mobile-topbar .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mobile-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-soft);
+        }
+        .mobile-topbar .topbar-greeting {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+        .mobile-topbar .hamburger-btn {
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+        .mobile-topbar .hamburger-btn:active {
+            background: rgba(0, 0, 0, 0.05);
+            transform: scale(0.94);
+        }
+
+        /* ══════════════ HAMBURGER OVERLAY & MENU ══════════════ */
+        .hamburger-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+        .hamburger-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .hamburger-menu {
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #ffffff;
+            z-index: 110;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
+            border-radius: 20px 0 0 20px;
+            overflow-y: auto;
+            padding: 24px 20px 100px;
+        }
+        .hamburger-menu.active {
+            right: 0;
+        }
+        .hamburger-menu .menu-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 16px;
+        }
+        .hamburger-menu .menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-soft);
+        }
+        .hamburger-menu .menu-user-info h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .hamburger-menu .menu-user-info span {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .hamburger-menu .menu-section {
+            margin-bottom: 14px;
+        }
+        .hamburger-menu .menu-section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding-left: 4px;
+            font-weight: 700;
+        }
+        .hamburger-menu .menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
+        }
+        .hamburger-menu .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+        .hamburger-menu .menu-item:active {
+            background: var(--primary-soft);
+            transform: scale(0.97);
+        }
+        .hamburger-menu .menu-item.danger {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-item.danger i {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-close-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.04);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            z-index: 5;
+        }
+        .hamburger-menu .menu-close-btn:active {
+            background: rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+        }
+
+        /* ══════════════ MOBILE BOTTOM BAR ══════════════ */
+        .mobile-bottom-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            z-index: 25;
+            padding: 6px 12px calc(6px + var(--safe-bottom));
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06);
+            height: var(--bottom-bar-height);
+            gap: 4px;
+        }
+        .mobile-bottom-bar .bb-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 14px;
+            transition: 0.2s;
+            text-decoration: none;
+            color: var(--text-soft);
+            min-width: 50px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-bottom-bar .bb-item i {
+            font-size: 1.25rem;
+            transition: 0.2s;
+        }
+        .mobile-bottom-bar .bb-item span {
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .mobile-bottom-bar .bb-item.active {
+            color: var(--primary);
+        }
+        .mobile-bottom-bar .bb-item.active i {
+            transform: translateY(-2px);
+        }
+        .mobile-bottom-bar .bb-item:active {
+            transform: scale(0.9);
+            background: rgba(30, 58, 95, 0.06);
+        }
+        .mobile-bottom-bar .bb-badge {
+            position: relative;
+        }
+        .mobile-bottom-bar .bb-badge .badge-dot {
+            position: absolute;
+            top: -2px;
+            right: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+
+        /* ══════════════ MEDIA QUERIES MOBILE (≤1000px) ══════════════ */
+        @media (max-width: 1000px) {
+            body {
+                padding: 0 0 var(--bottom-bar-height) 0;
+                background: #f5f7fa;
+            }
+            .wrapper {
+                padding: 0 12px;
+            }
+            .header {
+                display: none !important;
+            }
+            .mobile-topbar {
+                display: flex;
+                margin-bottom: 12px;
+            }
+            .mobile-bottom-bar {
+                display: flex;
+            }
+            .hamburger-overlay {
+                display: block;
+            }
+            .tools-grid {
+                display: none !important;
+            }
+            .carousel-section {
+                border-radius: 20px;
+                margin-bottom: 20px;
+                margin-left: -4px;
+                margin-right: -4px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            .carousel-slide img {
+                height: 220px;
+                object-fit: cover;
+            }
+            .carousel-caption {
+                padding: 14px 16px;
+                font-size: 0.85rem;
+                border-radius: 0 0 20px 20px;
+            }
+            .carousel-btn {
+                width: 32px;
+                height: 32px;
+                font-size: 0.8rem;
+            }
+            .carousel-indicators {
+                padding: 10px;
+                gap: 8px;
+            }
+            .indicator-dot {
+                width: 7px;
+                height: 7px;
+            }
+            .filters-bar {
+                border-radius: 20px;
+                padding: 10px 16px;
+                margin-bottom: 18px;
+                gap: 12px;
+            }
+            .segment-row {
+                grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 24px;
+            }
+            .segment-card {
+                padding: 16px;
+                border-radius: 18px;
+            }
+            .segment-title {
+                font-size: 1.1rem;
+                margin-bottom: 16px;
+                padding-left: 12px;
+            }
+            .meta-grid-3col {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .meta-item {
+                padding: 12px;
+                border-radius: 16px;
+            }
+            .big-number {
+                font-size: 1.2rem;
+            }
+            .chart-evolution {
+                padding: 16px;
+                border-radius: 18px;
+                margin-bottom: 24px;
+            }
+            .section-title {
+                font-size: 1.1rem;
+                margin-bottom: 14px;
+            }
+            .modal-content {
+                width: 94vw;
+                max-width: 94vw;
+                border-radius: 20px;
+                padding: 16px;
+                max-height: 85vh;
+            }
+            .modal-close {
+                top: 8px;
+                right: 12px;
+                font-size: 1.4rem;
+            }
+            .notif-card {
+                flex-direction: row;
+                gap: 10px;
+                padding: 10px;
+                border-radius: 10px;
+            }
+            .notif-thumb {
+                width: 60px;
+                height: 50px;
+                border-radius: 10px;
+            }
+            .btn-mark-all-read {
+                font-size: 0.7rem;
+                padding: 6px 12px;
+            }
+            .footer {
+                border-radius: 24px 24px 0 0;
+                padding: 20px 16px 100px;
+                margin-top: 28px;
+                text-align: center;
+            }
+            .footer-inner {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            .footer-logo-img {
+                width: 100px;
+                height: 60px;
+            }
+            .footer-tagline {
+                display: none;
+            }
+            .footer-social {
+                display: none;
+            }
+            .footer-bottom {
+                font-size: 0.65rem;
+                padding-top: 10px;
+                margin-top: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .mobile-topbar {
+                padding: 0 10px;
+                height: 50px;
+            }
+            .mobile-topbar .topbar-avatar {
+                width: 30px;
+                height: 30px;
+            }
+            .mobile-topbar .topbar-greeting {
+                font-size: 0.8rem;
+            }
+            .mobile-topbar .hamburger-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 1.2rem;
+            }
+            .carousel-slide img {
+                height: 170px;
+            }
+            .carousel-caption {
+                padding: 10px 12px;
+                font-size: 0.75rem;
+            }
+            .hamburger-menu {
+                width: 280px;
+                max-width: 90vw;
+                right: -290px;
+                border-radius: 16px 0 0 16px;
+                padding: 18px 14px 90px;
+            }
+            .hamburger-menu .menu-item {
+                padding: 10px 12px;
+                font-size: 0.82rem;
+            }
+            .footer-logo-img {
+                width: 80px;
+                height: 55px;
+            }
+            .mobile-bottom-bar {
+                padding: 4px 6px calc(4px + var(--safe-bottom));
+                height: 56px;
+            }
+            .mobile-bottom-bar .bb-item i {
+                font-size: 1.1rem;
+            }
+            .mobile-bottom-bar .bb-item span {
+                font-size: 0.55rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <div class="mobile-topbar" id="mobile-topbar">
+        <div class="topbar-left">
+            <img src="img/perfil.png" alt="Fabiano" class="topbar-avatar" id="topbar-avatar">
+            <span class="topbar-greeting" id="topbar-greeting">Fabiano <span class="coordenador-badge" style="font-size:0.6rem;padding:2px 8px;">Coord.</span></span>
+        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <div class="hamburger-overlay" id="hamburger-overlay"></div>
+
+    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
+    <nav class="hamburger-menu" id="hamburger-menu">
+        <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
+            <i class="fas fa-times"></i>
+        </button>
+        <div class="menu-header">
+            <img src="img/perfil.png" alt="Fabiano" class="menu-avatar" id="menu-avatar">
+            <div class="menu-user-info">
+                <h4>Fabiano</h4>
+                <span>Coordenador</span>
+            </div>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Principal</div>
+            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
+            <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
+            <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
+            <button class="menu-item" id="menu-vendas"><i class="fas fa-tags"></i> Vendas</button>
+            <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Status</div>
+            <div class="menu-item" style="pointer-events:none;opacity:0.8;">
+                <i class="fas fa-sync-alt"></i>
+                <span id="menu-update-status" style="font-size:0.75rem;">Carregando...</span>
+            </div>
+            <div class="menu-item" id="menu-notifications-side">
+                <i class="fas fa-bell"></i> Alertas
+                <span id="menu-notif-count" style="margin-left:auto;background:var(--danger);color:white;border-radius:50%;width:20px;height:20px;font-size:0.6rem;display:none;align-items:center;justify-content:center;">0</span>
+            </div>
+        </div>
+        <div class="menu-section">
+            <div class="menu-section-label">Conta</div>
+            <button class="menu-item danger" id="menu-logout"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </nav>
+
+    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+    <div class="mobile-bottom-bar" id="mobile-bottom-bar">
+        <button class="bb-item active" data-nav="feed" id="bb-feed">
+            <i class="fas fa-newspaper"></i><span>Feed</span>
+        </button>
+        <button class="bb-item" data-nav="custos" id="bb-custos">
+            <i class="fas fa-calculator"></i><span>Custos</span>
+        </button>
+        <button class="bb-item" data-nav="vendas" id="bb-vendas">
+            <i class="fas fa-tags"></i><span>Vendas</span>
+        </button>
+        <button class="bb-item" data-nav="home" id="bb-home">
+            <i class="fas fa-home"></i><span>Início</span>
+        </button>
+        <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
+            <i class="fas fa-bell"></i><span>Alertas</span>
+            <span class="badge-dot" id="bb-badge-dot" style="display:none;"></span>
+        </button>
+    </div>
+
+    <div class="wrapper">
+        <div class="header" id="desktop-header">
+            <div class="user-section">
+                <img src="img/perfil.png" alt="Fabiano" class="user-avatar">
+                <span class="greeting">Fabiano <span class="coordenador-badge">Coordenador</span></span>
+            </div>
+            <div class="header-actions">
+                <span class="last-update-badge" id="last-update-badge" style="display:none;">
+                    <i class="fas fa-sync-alt"></i> <span id="last-update-text">Atualizado em: --</span>
+                </span>
+                <button class="icon-btn notification-bell" id="notification-bell"><i class="fas fa-bell"></i><span class="badge" id="notification-badge">0</span></button>
+                <button class="icon-btn home-btn" id="home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+
+        <div class="carousel-section">
+            <div class="carousel-container" id="carousel-container"></div>
+            <div class="carousel-controls">
+                <button class="carousel-btn" id="prev-btn"><i class="fas fa-chevron-left"></i></button>
+                <button class="carousel-btn" id="next-btn"><i class="fas fa-chevron-right"></i></button>
+            </div>
+            <div class="carousel-indicators" id="carousel-indicators"></div>
+        </div>
+
+        <div class="tools-grid">
+            <a class="tool-card" href="/hpvx5_postagens/postagens"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
+            <a class="tool-card" href="/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>
+            <a class="tool-card" href="/hpvx67_vendas/vendas"><div class="tool-icon"><i class="fas fa-tags"></i></div><div class="tool-label">Vendas</div></a>
+        </div>
+
+        <div class="filters-bar">
+            <div class="filter-group">
+                <i class="fas fa-calendar-alt"></i>
+                <label>Mês de referência (segmentos):</label>
+                <select id="monthSelector" class="month-select"></select>
+            </div>
+        </div>
+
+        <div class="segment-row" id="segment-cards"></div>
+
+        <div class="chart-evolution">
+            <div class="section-title"><i class="fas fa-chart-line" style="color: var(--primary);"></i> Evolução Mensal (R$) – Sinc/Polias vs Lavanderia</div>
+            <canvas id="evolutionChart" height="280" style="max-height: 300px; width:100%"></canvas>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-logo-section">
+                <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
+                <div><div class="footer-brand-name">CENTROBOR</div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div></div>
+            </div>
+            <div class="footer-social">
+                <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i></a>
+                <a href="https://www.linkedin.com/company/centrobor/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://www.instagram.com/centrobor.correias/" target="_blank"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom" style="text-align:center; margin-top: 18px; font-size:0.7rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:12px;">
+            &copy; <span id="footer-year"></span> Centrobor Correias. Todos os direitos reservados. | Radar Centrobor - Fabiano - Coordenador
+        </div>
+    </footer>
+
+    <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
+    <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
+
+    <script>
+        (function() {
+            // ==================== VERIFICAÇÃO DE SESSÃO (PADRÃO RADAR) ====================
+            if (localStorage.getItem('radar_logged_out') === 'true') {
+                window.location.href = '../../index.html?reason=logged_out';
+                return;
+            }
+            if (!localStorage.getItem('radar_usuario')) {
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
+            const nowDate = Date.now();
+            if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('radar_usuario');
+                window.location.href = '../../index.html?reason=expired';
+                return;
+            }
+            localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
+            // ==================== FIM VERIFICAÇÃO ====================
+
+            // ==================== CONFIGURAÇÃO ====================
+            const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+            const BASES = {
+                faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
+                metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+                banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
+                postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
+                informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`
+            };
+            const COD_FABIANO = "24";
+            let faturadosRaw = [],
+                metasRaw = [],
+                BANNERS = [],
+                notificacoes = [];
+            let readNotifications = JSON.parse(localStorage.getItem('readNotifications_Fabiano')) || [];
+            let evolutionChart = null;
+            let currentMonth = null,
+                currentYear = new Date().getFullYear();
+
+            // ==================== UTILITÁRIOS ====================
+            const cleanNumber = (v) => {
+                if (v === null || v === undefined || v === '') return 0;
+                if (typeof v === 'number') return v;
+                let str = String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
+                return parseFloat(str) || 0;
+            };
+            const formatarMoeda = (v) => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const parseDataBR = (str) => {
+                if (!str) return null;
+                const p = String(str).split('/');
+                if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+                return null;
+            };
+
+            function getFabianoSincPoliasFat(ano, mes) {
+                let fat = 0;
+                const regs = new Set();
+                faturadosRaw.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return;
+                    const desc = String(f['Descrição'] || '').toLowerCase();
+                    const grupo = String(f['Grupo'] || '').toLowerCase();
+                    if (grupo.includes('torque') || grupo.includes('multi v') || grupo.includes('emendadas') ||
+                        grupo.includes('taliscas') || grupo.includes('fixação') || grupo.includes('transmissao') ||
+                        grupo.includes('manta') || grupo.includes('algodao') || grupo.includes('pvc')) return;
+                    const temSinc = desc.includes('sinc') || desc.includes('sincron');
+                    const temPoly = /\bpoly\b/i.test(desc) && !desc.includes('poly-v') && !desc.includes('poly v') && !
+                        desc.includes('polyv') && !desc.includes('polychain') && !desc.includes('polyflex') && !desc
+                        .includes('polycord') && !desc.includes('polia');
+                    if (!temSinc && !temPoly) return;
+                    const chave = [f['Chave Acesso'], f['Campo Chave'], f['Código'], f['Valor Mercadoria']].join(
+                        '|');
+                    if (regs.has(chave)) return;
+                    regs.add(chave);
+                    fat += cleanNumber(f['Valor Mercadoria']);
+                });
+                return fat;
+            }
+
+            function getFabianoLavanderiaFat(ano, mes) {
+                const keys = new Set();
+                let fat = 0;
+                faturadosRaw.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth() + 1 !== mes) return;
+                    const ramo = String(f['Ramo'] || '').toLowerCase();
+                    if (!ramo.includes('04 - lavanderia') && !ramo.includes('lavanderia')) return;
+                    const grupo = String(f['Grupo'] || '').toLowerCase();
+                    if (!grupo) return;
+                    const match = grupo.match(/(\d+\.\d+|\d+)$/);
+                    const numGrupo = match ? match[0] : '';
+                    if (!numGrupo.startsWith('2') && !numGrupo.startsWith('5')) return;
+                    const chave = [f['Nota Fiscal'] || '', f['Código'] || '', f['Descrição'] || '', f[
+                        'Valor Mercadoria'
+                    ] || ''].join('|');
+                    if (keys.has(chave)) return;
+                    keys.add(chave);
+                    fat += cleanNumber(f['Valor Mercadoria']);
+                });
+                return fat;
+            }
+
+            function getMetasFabiano() {
+                const sincRow = metasRaw.find(m => String(m.id_vendedor) === COD_FABIANO && String(m.vendedor).includes(
+                    'Sinc/Polias'));
+                const lavRow = metasRaw.find(m => String(m.id_vendedor) === COD_FABIANO && String(m.vendedor).includes(
+                    'Lavand'));
+                return {
+                    sinc: { mensal: cleanNumber(sincRow?.meta_mensal), semestral: cleanNumber(sincRow?.meta_semestral),
+                        anual: cleanNumber(sincRow?.meta_anual) },
+                    lav: { mensal: cleanNumber(lavRow?.meta_mensal), semestral: cleanNumber(lavRow?.meta_semestral),
+                        anual: cleanNumber(lavRow?.meta_anual) }
+                };
+            }
+
+            function renderSegmentCards(ano, mes) {
+                const metas = getMetasFabiano();
+                const fatSinc = getFabianoSincPoliasFat(ano, mes);
+                const fatLav = getFabianoLavanderiaFat(ano, mes);
+                const getAcumulado = (fn) => {
+                    let total = 0;
+                    for (let m = 1; m <= mes; m++) total += fn(ano, m);
+                    return total;
+                };
+                const acumSincAno = getAcumulado(getFabianoSincPoliasFat);
+                const acumLavAno = getAcumulado(getFabianoLavanderiaFat);
+                const semestreInicio = mes <= 6 ? 1 : 7;
+                const semestreFim = mes <= 6 ? 6 : 12;
+                let acumSincSem = 0,
+                    acumLavSem = 0;
+                for (let m = semestreInicio; m <= Math.min(semestreFim, mes); m++) {
+                    acumSincSem += getFabianoSincPoliasFat(ano, m);
+                    acumLavSem += getFabianoLavanderiaFat(ano, m);
+                }
+                const percSincMes = metas.sinc.mensal ? (fatSinc / metas.sinc.mensal) * 100 : 0;
+                const percLavMes = metas.lav.mensal ? (fatLav / metas.lav.mensal) * 100 : 0;
+                const percSincSem = metas.sinc.semestral ? (acumSincSem / metas.sinc.semestral) * 100 : 0;
+                const percLavSem = metas.lav.semestral ? (acumLavSem / metas.lav.semestral) * 100 : 0;
+                const percSincAno = metas.sinc.anual ? (acumSincAno / metas.sinc.anual) * 100 : 0;
+                const percLavAno = metas.lav.anual ? (acumLavAno / metas.lav.anual) * 100 : 0;
+                const semestreLabel = mes <= 6 ? '1º Semestre' : '2º Semestre';
+                const buildItem = (label, bigValue, metaVal, percent, falta) => `
+                <div class="meta-item">
+                    <div class="meta-label">${label}</div>
+                    <div class="big-number">${formatarMoeda(bigValue)}</div>
+                    <div class="meta-value-small">Meta: ${formatarMoeda(metaVal)}</div>
+                    <div class="progress-bar-sm"><div class="progress-fill-sm" style="width: ${Math.min(percent,100)}%; background: ${percent>=80?'#2e7d32':'#ed6c02'}"></div></div>
+                    <div class="detail-text">${percent.toFixed(1)}% da meta • Faltam ${formatarMoeda(falta)}</div>
+                </div>`;
+                const sincHtml = `
+                <div class="segment-card">
+                    <div class="segment-title"><i class="fas fa-cogs"></i> Sincronizadas / Polias</div>
+                    <div class="meta-grid-3col">
+                        ${buildItem(`Mensal (${mes}/${ano})`, fatSinc, metas.sinc.mensal, percSincMes, Math.max(0, metas.sinc.mensal - fatSinc))}
+                        ${buildItem(`${semestreLabel} (acum.)`, acumSincSem, metas.sinc.semestral, percSincSem, Math.max(0, metas.sinc.semestral - acumSincSem))}
+                        ${buildItem(`Anual ${ano} (acum.)`, acumSincAno, metas.sinc.anual, percSincAno, Math.max(0, metas.sinc.anual - acumSincAno))}
+                    </div>
+                </div>`;
+                const lavHtml = `
+                <div class="segment-card">
+                    <div class="segment-title"><i class="fas fa-water"></i> Lavanderia</div>
+                    <div class="meta-grid-3col">
+                        ${buildItem(`Mensal (${mes}/${ano})`, fatLav, metas.lav.mensal, percLavMes, Math.max(0, metas.lav.mensal - fatLav))}
+                        ${buildItem(`${semestreLabel} (acum.)`, acumLavSem, metas.lav.semestral, percLavSem, Math.max(0, metas.lav.semestral - acumLavSem))}
+                        ${buildItem(`Anual ${ano} (acum.)`, acumLavAno, metas.lav.anual, percLavAno, Math.max(0, metas.lav.anual - acumLavAno))}
+                    </div>
+                </div>`;
+                document.getElementById('segment-cards').innerHTML = sincHtml + lavHtml;
+            }
+
+            function renderEvolutionChart(ano) {
+                const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+                const sincData = [],
+                    lavData = [];
+                for (let i = 1; i <= 12; i++) {
+                    sincData.push(getFabianoSincPoliasFat(ano, i));
+                    lavData.push(getFabianoLavanderiaFat(ano, i));
+                }
+                const ctx = document.getElementById('evolutionChart').getContext('2d');
+                if (evolutionChart) evolutionChart.destroy();
+                evolutionChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: mesesLabels,
+                        datasets: [
+                            { label: 'Sincronizadas / Polias', data: sincData, borderColor: '#1e3a5f',
+                                backgroundColor: 'rgba(30,58,95,0.05)', fill: true, tension: 0.3,
+                            pointRadius: 4 },
+                            { label: 'Lavanderia', data: lavData, borderColor: '#d97706',
+                                backgroundColor: 'rgba(217,119,6,0.05)', fill: true, tension: 0.3, pointRadius: 4 }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { tooltip: { callbacks: { label: ctx =>
+                                    `${ctx.dataset.label}: R$ ${ctx.raw.toLocaleString('pt-BR')}` } } },
+                        scales: { y: { ticks: { callback: v => 'R$ ' + (v / 1000).toFixed(0) + 'k' } } }
+                    }
+                });
+            }
+
+            function populateMonthSelector() {
+                const hoje = new Date();
+                const anoAtual = hoje.getFullYear();
+                const mesAtual = hoje.getMonth() + 1;
+                const select = document.getElementById('monthSelector');
+                let options = '';
+                for (let m = 1; m <= 12; m++) {
+                    const isFuture = m > mesAtual;
+                    const selected = (m === mesAtual) ? 'selected' : '';
+                    options +=
+                        `<option value="${m}" ${selected} ${isFuture ? 'disabled' : ''}>${m.toString().padStart(2,'0')}/${anoAtual}</option>`;
+                }
+                select.innerHTML = options;
+                select.addEventListener('change', (e) => {
+                    const mes = parseInt(e.target.value);
+                    currentMonth = mes;
+                    renderSegmentCards(anoAtual, currentMonth);
+                    renderEvolutionChart(anoAtual);
+                });
+                currentMonth = mesAtual;
+                renderSegmentCards(anoAtual, currentMonth);
+                renderEvolutionChart(anoAtual);
+            }
+
+            // ==================== CARROSSEL E NOTIFICAÇÕES ====================
+            let currentCarouselIndex = 0;
+
+            function renderCarrossel() {
+                const container = document.getElementById('carousel-container');
+                const indicators = document.getElementById('carousel-indicators');
+                if (!BANNERS.length) {
+                    container.innerHTML =
+                        '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor"></div>';
+                    return;
+                }
+                container.innerHTML = BANNERS.map((b, i) => `
+                <div class="carousel-slide" data-idx="${i}">
+                    <img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='https://via.placeholder.com/1200x340?text=Imagem'">
+                    <div class="carousel-caption"><span>${b.titulo}</span><small>${b.data || ''}</small></div>
+                </div>`).join('');
+                indicators.innerHTML = BANNERS.map((_, i) =>
+                    `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                document.querySelectorAll('.indicator-dot').forEach(dot => dot.addEventListener('click', e => {
+                    currentCarouselIndex = parseInt(e.target.dataset.idx);
+                    updateCarrossel();
+                }));
+                document.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () =>
+                    abrirPostagem(BANNERS[currentCarouselIndex])));
+                updateCarrossel();
+            }
+
+            function updateCarrossel() {
+                document.getElementById('carousel-container').style.transform =
+                    `translateX(-${currentCarouselIndex * 100}%)`;
+                document.querySelectorAll('.indicator-dot').forEach(d => d.classList.remove('active'));
+                document.querySelector(`.indicator-dot[data-idx="${currentCarouselIndex}"]`)?.classList.add('active');
+            }
+
+            function abrirPostagem(post) {
+                const modal = document.getElementById('post-modal');
+                const body = document.getElementById('post-modal-body');
+                body.innerHTML = `
+                <span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span>
+                <img src="${post.imagem}" style="width:100%; max-height:300px; object-fit:cover; border-radius:20px; margin-bottom:20px;">
+                <h2>${post.titulo}</h2>
+                <div style="display:flex; gap:20px; margin:12px 0;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div>
+                <div>${post.texto_html || ''}</div>
+            `;
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+
+            function atualizarBadgeNotificacoes() {
+                const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                const badge = document.getElementById('notification-badge');
+                const bbDot = document.getElementById('bb-badge-dot');
+                const menuNotifCount = document.getElementById('menu-notif-count');
+                if (badge) {
+                    badge.style.display = unread ? 'flex' : 'none';
+                    badge.textContent = unread;
+                }
+                if (bbDot) {
+                    bbDot.style.display = unread ? 'block' : 'none';
+                }
+                if (menuNotifCount) {
+                    menuNotifCount.style.display = unread ? 'flex' : 'none';
+                    menuNotifCount.textContent = unread;
+                }
+            }
+
+            function abrirNotificacoes() {
+                const modal = document.getElementById('notif-modal');
+                const body = document.getElementById('notif-modal-body');
+                let html =
+                    `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                            <h2><i class="fas fa-bell"></i> Alertas</h2>
+                            <button id="markAllReadBtn" class="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>
+                        </div>`;
+                notificacoes.forEach(n => {
+                    const isRead = readNotifications.includes(n.id);
+                    const plain = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 100);
+                    html +=
+                        `<div class="notif-card" data-id="${n.id}">
+                            <img src="${n.imagem || 'https://via.placeholder.com/80x60'}" class="notif-thumb">
+                            <div><strong>${n.titulo}</strong><div style="font-size:0.7rem;">${n.data} • ${n.autor}</div><div>${plain}...</div><span style="color:${isRead ? 'gray' : 'green'}">${isRead ? '✓ Lida' : '● Nova'}</span></div>
+                        </div>`;
+                });
+                body.innerHTML = html;
+                document.getElementById('markAllReadBtn')?.addEventListener('click', () => {
+                    notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n
+                            .id); });
+                    localStorage.setItem('readNotifications_Fabiano', JSON.stringify(readNotifications));
+                    atualizarBadgeNotificacoes();
+                    abrirNotificacoes();
+                });
+                body.querySelectorAll('.notif-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const id = card.dataset.id;
+                        if (!readNotifications.includes(id)) { readNotifications.push(id);
+                            localStorage.setItem('readNotifications_Fabiano', JSON.stringify(
+                                readNotifications));
+                            atualizarBadgeNotificacoes(); }
+                        const post = notificacoes.find(p => p.id == id);
+                        if (post) abrirPostagem(post);
+                        modal.classList.remove('active');
+                    });
+                });
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove(
+                    'active'); });
+            }
+
+            // ==================== CARREGAMENTO ====================
+            async function fetchAllData() {
+                try {
+                    const [faturados, metas, banners, postagens, info] = await Promise.all([
+                        fetch(BASES.faturados).then(r => r.json()),
+                        fetch(BASES.metas).then(r => r.json()),
+                        fetch(BASES.banners).then(r => r.json()),
+                        fetch(BASES.postagens).then(r => r.json()),
+                        fetch(BASES.informacoes).then(r => r.json())
+                    ]);
+                    faturadosRaw = faturados;
+                    metasRaw = metas;
+                    BANNERS = banners;
+                    notificacoes = postagens;
+                    if (info && info[0]) {
+                        let d = info[0].data || '',
+                            h = info[0].hora || '';
+                        if (d.length > 5) d = d.substring(0, 5);
+                        if (h.length > 5) h = h.substring(0, 5);
+                        document.getElementById('last-update-text').innerText =
+                            `Atualizado em: ${d} às ${h} hrs`;
+                        document.getElementById('last-update-badge').style.display = 'flex';
+                        document.getElementById('menu-update-status').textContent =
+                            `Atualizado em: ${d} às ${h} hrs`;
+                    }
+                    renderCarrossel();
+                    atualizarBadgeNotificacoes();
+                    populateMonthSelector();
+                } catch (e) { console.error(e);
+                    document.getElementById('last-update-badge').style.display = 'none'; }
+            }
+
+            // ==================== HAMBURGER MENU CONTROLS ====================
+            function openHamburger() {
+                document.getElementById('hamburger-menu').classList.add('active');
+                document.getElementById('hamburger-overlay').classList.add('active');
+                document.body.style.overflow = 'hidden';
+            }
+
+            function closeHamburger() {
+                document.getElementById('hamburger-menu').classList.remove('active');
+                document.getElementById('hamburger-overlay').classList.remove('active');
+                document.body.style.overflow = '';
+            }
+
+            function setActiveBottomBar(nav) {
+                document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active'));
+                const activeEl = document.getElementById('bb-' + nav);
+                if (activeEl) activeEl.classList.add('active');
+            }
+
+            // ==================== EVENTOS ====================
+            // Logout usando o sistema padrão do radar
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href = '../../index.html?reason=logged_out';
+            });
+            document.getElementById('home-btn').addEventListener('click', () => {
+                window.location.href = '../../index.html';
+            });
+            document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
+            document.getElementById('prev-btn').addEventListener('click', () => { if (BANNERS.length) {
+                    currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
+                    updateCarrossel(); } });
+            document.getElementById('next-btn').addEventListener('click', () => { if (BANNERS.length) {
+                    currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
+                    updateCarrossel(); } });
+            setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
+                    updateCarrossel(); } }, 6000);
+            document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+            // ══════════════ MOBILE EVENT LISTENERS ══════════════
+            document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
+            document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+            document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+
+            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
+                window.location.href = '../../index.html'; });
+            document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
+                window.location.href = '/hpvx5_postagens/postagens'; });
+            document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
+                window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+            document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger();
+                window.location.href = '/hpvx67_vendas/vendas'; });
+            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
+                window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger();
+                abrirNotificacoes(); });
+            // Logout do menu hambúrguer também usa o sistema padrão
+            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href = '../../index.html?reason=logged_out'; });
+
+            setActiveBottomBar('home');
+            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
+                window.location.href = '/hpvx5_postagens/postagens'; });
+            document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
+                window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+            document.getElementById('bb-vendas').addEventListener('click', () => { setActiveBottomBar('vendas');
+                window.location.href = '/hpvx67_vendas/vendas'; });
+            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
+                window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas');
+                abrirNotificacoes(); });
+
+            fetchAllData();
+        })();
+    </script>
+</body>
+</html>
