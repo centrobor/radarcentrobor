@@ -1227,7 +1227,7 @@
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Principal</div>
-            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Página Inicial</button>
+            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
             <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
             <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
             <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
@@ -1249,7 +1249,7 @@
             <i class="fas fa-calculator"></i><span>Custos</span>
         </button>
         <button class="bb-item active" data-nav="home" id="bb-home">
-            <i class="fas fa-home"></i><span>Home</span>
+            <i class="fas fa-home"></i><span>Início</span>
         </button>
         <button class="bb-item" data-nav="alertas" id="bb-alertas">
             <i class="fas fa-bell"></i><span>Alertas</span>
@@ -1397,20 +1397,23 @@
 
     <script>
         (function() {
+            // ==================== URLs absolutos para redirecionamento ====================
+            const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
+
             // ==================== VERIFICAÇÃO DE SESSÃO (padrão Radar) ====================
             if (localStorage.getItem('radar_logged_out') === 'true') {
-                window.location.href = '../../index.html?reason=logged_out';
+                window.location.href = BASE_URL + '/index.html?reason=logged_out';
                 return;
             }
             if (!localStorage.getItem('radar_usuario')) {
-                window.location.href = '../../index.html?reason=expired';
+                window.location.href = BASE_URL + '/index.html?reason=expired';
                 return;
             }
             const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
             const nowDate = Date.now();
             if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
                 localStorage.removeItem('radar_usuario');
-                window.location.href = '../../index.html?reason=expired';
+                window.location.href = BASE_URL + '/index.html?reason=expired';
                 return;
             }
             localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
@@ -1436,8 +1439,7 @@
                     hasDot = str.includes('.');
                 if (hasComma && hasDot) str = str.replace(/\./g, '').replace(',', '.');
                 else if (hasComma) str = str.replace(',', '.');
-                else if (hasDot && str.indexOf('.') !== str.lastIndexOf('.')) str = str.replace(
-                    /\.(?=\d{3}(?:\.|$))/g, '');
+                else if (hasDot && str.indexOf('.') !== str.lastIndexOf('.')) str = str.replace(/\.(?=\d{3}(?:\.|$))/g, '');
                 return parseFloat(str) || 0;
             }
 
@@ -1505,16 +1507,11 @@
                         mapApvFat = {},
                         mapApv = {},
                         mapDolar = {};
-                    fat.forEach(item => { const d = item.Data; if (d) mapNF[d] = (mapNF[d] || 0) + parseBRL(
-                            item["Valor Mercadoria"]); });
-                    apvFat.forEach(item => { const d = item.Data; if (d) mapApvFat[d] = (mapApvFat[d] || 0) +
-                        parseBRL(item["Total Bruto"]); });
-                    apv.forEach(item => { const d = item.Data; if (d) mapApv[d] = (mapApv[d] || 0) + parseBRL(item[
-                            "Total Bruto"]); });
-                    dol.forEach(item => { const d = item.Data; if (d) mapDolar[d] = parseFloat(String(item.valor)
-                            .replace(',', '.')) || 0; });
-                    const allDates = new Set([...Object.keys(mapNF), ...Object.keys(mapApvFat), ...Object.keys(
-                        mapApv), ...Object.keys(mapDolar)]);
+                    fat.forEach(item => { const d = item.Data; if (d) mapNF[d] = (mapNF[d] || 0) + parseBRL(item["Valor Mercadoria"]); });
+                    apvFat.forEach(item => { const d = item.Data; if (d) mapApvFat[d] = (mapApvFat[d] || 0) + parseBRL(item["Total Bruto"]); });
+                    apv.forEach(item => { const d = item.Data; if (d) mapApv[d] = (mapApv[d] || 0) + parseBRL(item["Total Bruto"]); });
+                    dol.forEach(item => { const d = item.Data; if (d) mapDolar[d] = parseFloat(String(item.valor).replace(',', '.')) || 0; });
+                    const allDates = new Set([...Object.keys(mapNF), ...Object.keys(mapApvFat), ...Object.keys(mapApv), ...Object.keys(mapDolar)]);
                     registros = [];
                     allDates.forEach(data => { registros.push({ data, faturamentoNF: mapNF[data] || 0,
                             pedidosAprovFat: mapApvFat[data] || 0, pedidosAprov: mapApv[data] || 0,
@@ -1599,10 +1596,8 @@
                 const statusText = document.getElementById('status-text');
                 statusPill.className = 'pill';
                 if (percMeta >= 100) { statusPill.classList.add('green');
-                    statusText.innerHTML = 'Atingida 🎉'; } else if (percMeta >= 90) { statusPill.classList.add(
-                    'yellow');
-                    statusText.innerHTML = 'Excelente ✅'; } else if (percMeta >= 70) { statusPill.classList.add(
-                    'yellow');
+                    statusText.innerHTML = 'Atingida 🎉'; } else if (percMeta >= 90) { statusPill.classList.add('yellow');
+                    statusText.innerHTML = 'Excelente ✅'; } else if (percMeta >= 70) { statusPill.classList.add('yellow');
                     statusText.innerHTML = 'Boa 👍'; } else { statusPill.classList.add('red');
                     statusText.innerHTML = 'A Melhorar ⚠️'; }
                 document.getElementById('percentAtingidoHeader').textContent = percMeta.toFixed(1) + '%';
@@ -1637,17 +1632,11 @@
                     elements: { arc: { borderWidth: 2, borderColor: 'white', borderRadius: 8 } }
                 };
                 charts.aprovadosNF = new Chart(document.getElementById('aprovadosNFChart'), { type: 'doughnut',
-                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: [
-                                '#2e7d32', '#d32f2f'
-                            ] }] }, options: donutOpts });
+                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
                 charts.faturadosNF = new Chart(document.getElementById('faturadosNFChart'), { type: 'doughnut',
-                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: [
-                                '#2e7d32', '#d32f2f'
-                            ] }] }, options: donutOpts });
+                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
                 charts.aprovadosFaturados = new Chart(document.getElementById('aprovadosFaturadosChart'), { type: 'doughnut',
-                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: [
-                                '#2e7d32', '#d32f2f'
-                            ] }] }, options: donutOpts });
+                    data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
                 const barOpts = {
                     responsive: true,
                     maintainAspectRatio: false,
@@ -1659,12 +1648,10 @@
                 };
                 charts.comparacaoDiaria = new Chart(document.getElementById('comparacaoDiariaChart'), { type: 'bar',
                     data: { labels: [], datasets: [{ label: 'Faturamento NF', backgroundColor: '#2e7d32' },
-                            { label: 'Ped. Aprov+Fat', backgroundColor: '#ed6c02' }
-                        ] }, options: barOpts });
+                            { label: 'Ped. Aprov+Fat', backgroundColor: '#ed6c02' } ] }, options: barOpts });
                 charts.evolucaoDiaria = new Chart(document.getElementById('evolucaoDiariaChart'), { type: 'line',
-                    data: { labels: [], datasets: [{ label: 'Faturamento NF', borderColor: '#2e7d32',
-                            fill: false }, { label: 'Ped. Aprov+Fat', borderColor: '#ed6c02',
-                        fill: false }] }, options: { ...barOpts, elements: { line: { tension: 0.4 } } } });
+                    data: { labels: [], datasets: [{ label: 'Faturamento NF', borderColor: '#2e7d32', fill: false },
+                            { label: 'Ped. Aprov+Fat', borderColor: '#ed6c02', fill: false }] }, options: { ...barOpts, elements: { line: { tension: 0.4 } } } });
             }
 
             function atualizarCharts(regsFiltrados, meta) {
@@ -1684,18 +1671,14 @@
                 charts.evolucaoDiaria.data.datasets[0].data = fatNF;
                 charts.evolucaoDiaria.data.datasets[1].data = pedFat;
                 const percProj = meta > 0 ? (proj / meta) * 100 : 0;
-                document.getElementById('center1').innerHTML =
-                    `<strong>${percProj.toFixed(1)}%</strong><br><small>${formatBRL(proj)}</small>`;
-                document.getElementById('center2').innerHTML =
-                    `<strong>${(meta>0?(totalNF/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalNF)}</small>`;
-                document.getElementById('center3').innerHTML =
-                    `<strong>${(meta>0?(totalApv/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalApv)}</small>`;
+                document.getElementById('center1').innerHTML = `<strong>${percProj.toFixed(1)}%</strong><br><small>${formatBRL(proj)}</small>`;
+                document.getElementById('center2').innerHTML = `<strong>${(meta>0?(totalNF/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalNF)}</small>`;
+                document.getElementById('center3').innerHTML = `<strong>${(meta>0?(totalApv/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalApv)}</small>`;
                 Object.values(charts).forEach(c => c.update());
             }
 
             async function carregarPostagens() {
-                try { notificacoes = await fetch(URL_POSTAGENS).then(r => r.json()); } catch (e) { notificacoes =
-                    []; }
+                try { notificacoes = await fetch(URL_POSTAGENS).then(r => r.json()); } catch (e) { notificacoes = []; }
                 atualizarBadgeNotificacoes();
             }
 
@@ -1739,8 +1722,7 @@
                         card.addEventListener('click', () => {
                             const id = card.dataset.id;
                             if (!readNotifications.includes(id)) { readNotifications.push(id);
-                                localStorage.setItem('readNotifications_fat', JSON.stringify(
-                                    readNotifications));
+                                localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications));
                                 atualizarBadgeNotificacoes(); }
                             modal.classList.remove('active');
                         });
@@ -1749,8 +1731,7 @@
                     if (btnMarkAll) {
                         btnMarkAll.addEventListener('click', () => {
                             readNotifications = notificacoes.map(n => n.id);
-                            localStorage.setItem('readNotifications_fat', JSON.stringify(
-                                readNotifications));
+                            localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications));
                             atualizarBadgeNotificacoes();
                             abrirModalNotificacoes();
                         });
@@ -1762,21 +1743,16 @@
             function gerarNotificacoesInsight() {
                 if (!currentMonthKey) return;
                 const [m, a] = currentMonthKey.split('/');
-                const mes = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9,
-                nov: 10, dez: 11 } [m];
+                const mes = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 } [m];
                 const ano = 2000 + parseInt(a);
                 const meta = metasMensais[`${ano}-${String(mes+1).padStart(2,'0')}`] || 0;
-                const total = registros.filter(r => { const my = extractMonthYear(r.data); return my && my
-                        .month === mes + 1 && my.year === ano; }).reduce((s, r) => s + r.faturamentoNF + r
-                    .pedidosAprov, 0);
+                const total = registros.filter(r => { const my = extractMonthYear(r.data); return my && my.month === mes + 1 && my.year === ano; }).reduce((s, r) => s + r.faturamentoNF + r.pedidosAprov, 0);
                 if (meta > 0 && total >= meta) adicionarNotif(`Meta de ${currentMonthKey} atingida! 🎉`);
-                else if (meta > 0 && total / meta >= 0.9) adicionarNotif(
-                    `Falta ${formatBRL(meta-total)} para bater a meta de ${currentMonthKey}!`);
+                else if (meta > 0 && total / meta >= 0.9) adicionarNotif(`Falta ${formatBRL(meta-total)} para bater a meta de ${currentMonthKey}!`);
             }
 
             function adicionarNotif(texto) {
-                notificacoes.unshift({ id: Date.now(), titulo: 'Insight', data: new Date().toLocaleDateString(
-                    'pt-BR'), autor: 'Sistema', texto_html: texto, tipo: 'novidade' });
+                notificacoes.unshift({ id: Date.now(), titulo: 'Insight', data: new Date().toLocaleDateString('pt-BR'), autor: 'Sistema', texto_html: texto, tipo: 'novidade' });
                 notificacoes = notificacoes.slice(0, 30);
                 atualizarBadgeNotificacoes();
             }
@@ -1813,8 +1789,7 @@
 
             function openEmailConfigModal() { document.getElementById('emailConfigModal').classList.add('active'); }
 
-            function closeEmailConfigModal() { document.getElementById('emailConfigModal').classList.remove(
-            'active'); }
+            function closeEmailConfigModal() { document.getElementById('emailConfigModal').classList.remove('active'); }
 
             function salvarConfigEmail() {
                 emailConfig = {
@@ -1832,15 +1807,13 @@
                 const hoje = new Date();
                 const ano = hoje.getFullYear();
                 const mesAtual = hoje.getMonth();
-                const mesesAbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov',
-                'dez'];
+                const mesesAbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
                 const grid = document.getElementById('month-grid');
                 let html = '';
                 for (let i = 0; i < 12; i++) {
                     const key = `${mesesAbrev[i]}/${ano.toString().slice(-2)}`;
                     const future = i > mesAtual;
-                    html +=
-                        `<span class="month-item ${key===currentMonthKey?'active':''} ${future?'future':''}" data-month="${key}">${mesesAbrev[i].toUpperCase()}</span>`;
+                    html += `<span class="month-item ${key===currentMonthKey?'active':''} ${future?'future':''}" data-month="${key}">${mesesAbrev[i].toUpperCase()}</span>`;
                 }
                 grid.innerHTML = html;
                 document.querySelectorAll('.month-item:not(.future)').forEach(item => {
@@ -1855,7 +1828,15 @@
                 });
             }
 
-            // ══════════════ HAMBURGER MENU CONTROLS ══════════════
+            // Função de logout usando URL absoluta
+            function fazerLogout() {
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href = BASE_URL + '/index.html?reason=logged_out';
+            }
+
+            // ══════════════ HAMBURGER MENU CONTROLS (com URLs absolutos) ══════════════
             function openHamburger() {
                 document.getElementById('hamburger-menu').classList.add('active');
                 document.getElementById('hamburger-overlay').classList.add('active');
@@ -1872,13 +1853,6 @@
                 document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active'));
                 const activeEl = document.getElementById('bb-' + nav);
                 if (activeEl) activeEl.classList.add('active');
-            }
-
-            function fazerLogout() {
-                localStorage.setItem('radar_logged_out', 'true');
-                localStorage.removeItem('radar_usuario');
-                localStorage.removeItem('ultimo_acesso_radar');
-                window.location.href = '../../index.html?reason=logged_out';
             }
 
             // Init
@@ -1907,22 +1881,16 @@
                     }
                 });
 
-                document.getElementById('toggle-sidebar-btn').addEventListener('click', () => document.getElementById(
-                    'widget-sidebar').classList.toggle('open'));
-                document.getElementById('close-widget-btn').addEventListener('click', () => document.getElementById(
-                    'widget-sidebar').classList.remove('open'));
+                document.getElementById('toggle-sidebar-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.toggle('open'));
+                document.getElementById('close-widget-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.remove('open'));
                 document.getElementById('exportarPDF').addEventListener('click', () => window.print());
                 document.getElementById('exportarExcelBtn').addEventListener('click', () => {
                     const wb = XLSX.utils.book_new();
-                    const dados = [
-                        ["Data", "Faturamento NF", "Ped. Aprov+Fat", "Ped. Aprovados", "Dólar"]];
-                    registros.forEach(r => dados.push([r.data, r.faturamentoNF, r.pedidosAprovFat, r
-                        .pedidosAprov, r.dolar
-                    ]));
+                    const dados = [["Data", "Faturamento NF", "Ped. Aprov+Fat", "Ped. Aprovados", "Dólar"]];
+                    registros.forEach(r => dados.push([r.data, r.faturamentoNF, r.pedidosAprovFat, r.pedidosAprov, r.dolar]));
                     XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados), "Dados");
                     if (Object.keys(metasMensais).length) {
-                        const metas = [
-                            ["Mês", "Meta"]];
+                        const metas = [["Mês", "Meta"]];
                         Object.entries(metasMensais).forEach(([k, v]) => metas.push([k, v]));
                         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(metas), "Metas");
                     }
@@ -1935,16 +1903,15 @@
                     document.getElementById('profile-modal').classList.add('active');
                     document.getElementById('widget-sidebar').classList.remove('open');
                 });
-                document.getElementById('home-btn').addEventListener('click', () => window.location.href =
-                    '../../index.html');
+                // Botão Home desktop com URL absoluto
+                document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
                 document.getElementById('logout-btn').addEventListener('click', fazerLogout);
                 document.getElementById('last-update-badge').addEventListener('click', () => carregarDados(true));
                 document.getElementById('notification-bell').addEventListener('click', (e) => {
                     e.stopPropagation();
                     abrirModalNotificacoes();
                 });
-                document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target ===
-                        this) this.classList.remove('active'); });
+                document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('user-avatar-header').addEventListener('click', () => {
                     document.getElementById('profile-modal').classList.add('active');
                     document.getElementById('profile-name').value = userProfile.name;
@@ -1974,33 +1941,23 @@
                     });
                 });
 
-                // ══════════════ MOBILE EVENT LISTENERS ══════════════
+                // ══════════════ MOBILE EVENT LISTENERS (com URLs absolutos) ══════════════
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
-                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
-                    window.location.href = '../../index.html'; });
-                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
-                    window.location.href = '/hpvx5_postagens/postagens'; });
-                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
-                    window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
-                document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger();
-                    window.location.href = '/hpvx67_vendas/vendas'; });
-                document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger();
-                    window.location.href = '/hpvxz_pedidos/pedidos'; });
-                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
-                    fazerLogout(); });
+                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
+                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx67_vendas/vendas'; });
+                document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); fazerLogout(); });
 
                 setActiveBottomBar('home');
-                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
-                    window.location.href = '/hpvx5_postagens/postagens'; });
-                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
-                    window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
                 document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); });
 
                 document.getElementById('footer-year').textContent = new Date().getFullYear();

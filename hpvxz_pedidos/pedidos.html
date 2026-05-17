@@ -5,8 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
     <title>Visão Pedidos • Centrobor</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1208,19 +1207,16 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+    <!-- ══════════════ MOBILE BOTTOM BAR (apenas Feed, Notificações, Início) ══════════════ -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" data-nav="feed" id="bb-feed">
             <i class="fas fa-newspaper"></i><span>Feed</span>
         </button>
-        <button class="bb-item" data-nav="custos" id="bb-custos">
-            <i class="fas fa-calculator"></i><span>Custos</span>
+        <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
+            <i class="fas fa-bell"></i><span>Alertas</span>
         </button>
         <button class="bb-item active" data-nav="home" id="bb-home">
-            <i class="fas fa-home"></i><span>Home</span>
-        </button>
-        <button class="bb-item" data-nav="alertas" id="bb-alertas">
-            <i class="fas fa-bell"></i><span>Alertas</span>
+            <i class="fas fa-home"></i><span>Início</span>
         </button>
     </div>
 
@@ -1344,7 +1340,7 @@
         </footer>
     </div>
 
-    <!-- Sidebar, modais e scripts mantidos -->
+    <!-- Sidebar, modais e demais elementos -->
     <button class="floating-btn" id="toggle-sidebar-btn"><i class="fas fa-grip-horizontal"></i></button>
     <div class="widget-sidebar" id="widget-sidebar">
         <div class="widget-sidebar-header"><h3>Opções</h3><button class="close-btn" id="close-widget-btn">&times;</button></div>
@@ -1364,50 +1360,48 @@
 
     <script>
         (function() {
-            // ==================== SESSÃO (igual ao Blog do Colaborador) ====================
+            // ==================== URLs absolutos para redirecionamento ====================
+            const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
             const LOGGED_OUT_KEY = 'radar_logged_out';
             const USER_KEY = 'radar_usuario';
             const LAST_ACCESS_KEY = 'ultimo_acesso_radar';
 
+            // Sessão
             if (localStorage.getItem(LOGGED_OUT_KEY) === 'true') {
                 alert('Sessão encerrada. Faça login novamente.');
-                window.location.href = '../../index.html';
+                window.location.href = BASE_URL + '/index.html';
                 return;
             }
-
             if (!localStorage.getItem(USER_KEY)) {
                 alert('Sessão expirada. Faça login novamente.');
-                window.location.href = '../../index.html';
+                window.location.href = BASE_URL + '/index.html';
                 return;
             }
-
             const lastAccess = localStorage.getItem(LAST_ACCESS_KEY);
             const nowDate = Date.now();
             if (lastAccess && (nowDate - parseInt(lastAccess)) > 24 * 60 * 60 * 1000) {
                 localStorage.removeItem(USER_KEY);
                 alert('Sessão expirada (24 horas). Faça login novamente.');
-                window.location.href = '../../index.html';
+                window.location.href = BASE_URL + '/index.html';
                 return;
             }
             localStorage.setItem(LAST_ACCESS_KEY, nowDate.toString());
 
-            // Nome do usuário a partir do cache (idêntico ao blog)
+            // Nome do usuário
             function getNomeUsuario() {
                 const raw = localStorage.getItem(USER_KEY);
                 if (!raw) return 'Visitante';
                 try {
                     const obj = JSON.parse(raw);
                     if (obj && obj.nome_usuario) {
-                        return obj.nome_usuario.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(
-                            ' ');
+                        return obj.nome_usuario.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
                     }
                 } catch (e) {}
                 return raw.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
             }
 
             // ==================== CONFIGURAÇÕES ====================
-            const SHEET_URL =
-                "https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos";
+            const SHEET_URL = "https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos";
             const MAX_MISSING_DISPLAY = 50;
 
             let rawOrders = [];
@@ -1417,8 +1411,7 @@
             let chartsVisible = localStorage.getItem('chartsVisible') !== 'false';
             let sortOrder = 'desc';
             let filtersBarVisible = localStorage.getItem('filtersBarVisible') !== 'false';
-            const DEFAULT_BG_URL =
-                "https://img.freepik.com/free-vector/gradient-blur-pink-blue-abstract-background_53876-117324.jpg?t=st=1772721970~exp=1772725570~hmac=d4c6462eb142f1036e046ee7f7d9493138cf294c3f6bed84547c7f774aa94827&w=1480";
+            const DEFAULT_BG_URL = "https://img.freepik.com/free-vector/gradient-blur-pink-blue-abstract-background_53876-117324.jpg?t=st=1772721970~exp=1772725570~hmac=d4c6462eb142f1036e046ee7f7d9493138cf294c3f6bed84547c7f774aa94827&w=1480";
 
             let currentVendedor = "todos";
             let currentSituacao = "todos";
@@ -1477,8 +1470,7 @@
                         ).join('');
                     gridEl.querySelectorAll('.icon-option').forEach(opt => {
                         opt.addEventListener('click', () => {
-                            gridEl.querySelectorAll('.icon-option').forEach(o => o.classList.remove(
-                                'selected'));
+                            gridEl.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
                             opt.classList.add('selected');
                             if (selectEl) selectEl.value = opt.dataset.icon;
                         });
@@ -1493,8 +1485,7 @@
                 document.getElementById('user-avatar').src = userProfile.avatarUrl;
                 document.getElementById('topbar-avatar-mobile').src = userProfile.avatarUrl;
                 document.getElementById('menu-avatar').src = userProfile.avatarUrl;
-                const bgToUse = userProfile.bgUrl && userProfile.bgUrl.trim() !== "" ? userProfile.bgUrl :
-                DEFAULT_BG_URL;
+                const bgToUse = userProfile.bgUrl && userProfile.bgUrl.trim() !== "" ? userProfile.bgUrl : DEFAULT_BG_URL;
                 document.body.style.backgroundImage = `url('${bgToUse}')`;
                 document.body.style.backgroundSize = 'cover';
                 document.body.style.backgroundPosition = 'center';
@@ -1642,10 +1633,8 @@
                 <div class="kpi-card glass"><div class="kpi-title"><i class="fas fa-ticket-alt"></i> Ticket médio</div><div class="kpi-value">R$ ${abbreviateNumber(ticketMedio)}</div><div class="kpi-sub">por aprovado</div></div>
                 <div class="kpi-card glass pending-alert" id="kpiPendentesReceb"><div class="kpi-title"><i class="fas fa-clock"></i> Pendentes recebimento</div><div class="kpi-value">${abbreviateNumber(pendentesReceb)}</div><div class="kpi-sub">clique para ver lista</div></div>
             `;
-                document.getElementById('kpiDiferentes')?.addEventListener('click', () => showSituacaoBreakdown(
-                    situacaoCount));
-                document.getElementById('kpiPendentesReceb')?.addEventListener('click', () => showPendingReceiptList(
-                    filteredOrders));
+                document.getElementById('kpiDiferentes')?.addEventListener('click', () => showSituacaoBreakdown(situacaoCount));
+                document.getElementById('kpiPendentesReceb')?.addEventListener('click', () => showPendingReceiptList(filteredOrders));
             }
 
             function renderTable(filtered) {
@@ -1661,8 +1650,7 @@
                     return sortOrder === 'desc' ? numB - numA : numA - numB;
                 });
                 const display = sorted.slice(0, currentRowsLimit);
-                document.getElementById('rowCountInfo').innerHTML =
-                    `Exibindo ${display.length} de ${filtered.length} registros`;
+                document.getElementById('rowCountInfo').innerHTML = `Exibindo ${display.length} de ${filtered.length} registros`;
                 if (!display.length) {
                     tableBody.innerHTML = '<tr><td colspan="6">Nenhum pedido encontrado</td></tr>';
                     return;
@@ -1675,7 +1663,7 @@
                     <td>R$ ${order.valorTotal.toFixed(2).replace('.', ',')}</td>
                     <td><span class="status-badge ${order.situacao === 'APROVADO' ? 'status-aprovado' : 'status-pendente'}">${order.situacao}</span></td>
                     <td><span class="status-badge ${order.recebimento === 'SIM' ? 'recebimento-sim' : 'recebimento-outros'}">${order.recebimento || 'PENDENTE'}</span></td>
-                </tr>
+                </table>
             `).join('');
                 document.querySelectorAll('#tableBody tr').forEach(tr => {
                     tr.addEventListener('click', () => {
@@ -1736,8 +1724,7 @@
                 const outros = filteredOrders.length - sim;
                 const perc = filteredOrders.length ? Math.round((sim / filteredOrders.length) * 100) : 0;
                 document.getElementById('donutCenterText').innerText = `${perc}%`;
-                donutChart.data.datasets[0].data = [];
-                donutChart.data.datasets[0].data.push(sim, outros);
+                donutChart.data.datasets[0].data = [sim, outros];
                 donutChart.update({ duration: 0 });
             }
 
@@ -1756,9 +1743,7 @@
             }
 
             function showMissingNumbers(missing) {
-                const listHtml = missing.map(n =>
-                    `<span style="display:inline-block; margin:4px; background:#ffebee; padding:4px 12px; border-radius:20px;">${n}</span>`
-                    ).join(' ');
+                const listHtml = missing.map(n => `<span style="display:inline-block; margin:4px; background:#ffebee; padding:4px 12px; border-radius:20px;">${n}</span>`).join(' ');
                 document.getElementById('missingNumbersList').innerHTML = listHtml;
                 const modal = document.getElementById('missingNumbersModal');
                 modal.style.display = 'flex';
@@ -1771,8 +1756,7 @@
             }
 
             function showSituacaoBreakdown(counts) {
-                document.getElementById('breakdownList').innerHTML = Object.entries(counts).map(([k, v]) =>
-                    `<p><strong>${k}:</strong> ${v} pedido(s)</p>`).join('');
+                document.getElementById('breakdownList').innerHTML = Object.entries(counts).map(([k, v]) => `<p><strong>${k}:</strong> ${v} pedido(s)</p>`).join('');
                 document.getElementById('situacaoBreakdownModal').style.display = 'flex';
                 document.querySelector('#situacaoBreakdownModal .close-modal-btn').onclick = () => {
                     document.getElementById('situacaoBreakdownModal').style.display = 'none';
@@ -1782,13 +1766,12 @@
             function showPendingReceiptList(orders) {
                 const pendentes = orders.filter(o => o.recebimento === 'PENDENTE');
                 if (!pendentes.length) {
-                    document.getElementById('pendingList').innerHTML =
-                        '<p>Nenhum pedido pendente de recebimento.</p>';
+                    document.getElementById('pendingList').innerHTML = '<p>Nenhum pedido pendente de recebimento.</p>';
                 } else {
                     document.getElementById('pendingList').innerHTML = `
                     <table class="orders-table"><thead><th>Data</th><th>Nº</th><th>Empresa</th><th>Valor</th><th>Situação</th></thead>
-                    <tbody>${pendentes.map(p => `<tr><td>${p.data}</td><td>${p.numero}</td><td>${p.empresa}</td><td>R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td><td>${p.situacao}</td></tr>`).join('')}</tbody></table>
-                `;
+                    <tbody>${pendentes.map(p => `<tr><td>${p.data}</td><td>${p.numero}</td><td>${p.empresa}</td><td>R$ ${p.valorTotal.toFixed(2).replace('.',',')}</td><td>${p.situacao}</td></tr>`).join('')}</tbody>
+                    </table>`;
                 }
                 document.getElementById('pendingReceiptModal').style.display = 'flex';
                 document.querySelector('#pendingReceiptModal .close-modal-btn').onclick = () => {
@@ -1836,17 +1819,14 @@
             function generateSystemNotifications() {
                 const filtered = getFilteredOrders();
                 const pendentes = filtered.filter(o => o.recebimento === 'PENDENTE').length;
-                if (pendentes > 0) addActionNotification(
-                    `⚠️ ${pendentes} pedido(s) com recebimento pendente.`, 'pendentes_receb');
+                if (pendentes > 0) addActionNotification(`⚠️ ${pendentes} pedido(s) com recebimento pendente.`, 'pendentes_receb');
                 const nums = filtered.map(o => parseInt(o.numero, 10)).filter(n => !isNaN(n));
                 if (nums.length) {
-                    const min = Math.min(...nums),
-                        max = Math.max(...nums);
+                    const min = Math.min(...nums), max = Math.max(...nums);
                     const missing = [];
                     for (let i = min; i <= max; i++) { if (!nums.includes(i)) missing.push(i); }
                     if (missing.length > 0 && missing.length <= MAX_MISSING_DISPLAY) {
-                        addActionNotification(`🔢 ${missing.length} número(s) de pedido ausente(s).`,
-                            'missing_numbers');
+                        addActionNotification(`🔢 ${missing.length} número(s) de pedido ausente(s).`, 'missing_numbers');
                     }
                 }
             }
@@ -1905,19 +1885,19 @@
             });
             document.addEventListener('click', () => dropdownNotif.classList.remove('show'));
 
-            // Home e Logout
+            // Botões de logout e home usando URLs absolutos
             document.getElementById('home-btn').addEventListener('click', () => {
-                window.location.href = '../../index.html';
+                window.location.href = BASE_URL + '/';
             });
             document.getElementById('logout-btn').addEventListener('click', () => {
                 localStorage.setItem(LOGGED_OUT_KEY, 'true');
                 localStorage.removeItem(USER_KEY);
                 localStorage.removeItem(LAST_ACCESS_KEY);
                 alert('Você foi desconectado.');
-                window.location.href = '../../index.html';
+                window.location.href = BASE_URL + '/index.html';
             });
 
-            // ══════════════ HAMBURGER MENU CONTROLS ══════════════
+            // ==================== HAMBURGER MENU CONTROLS com URLs absolutos ====================
             function openHamburger() {
                 document.getElementById('hamburger-menu').classList.add('active');
                 document.getElementById('hamburger-overlay').classList.add('active');
@@ -1931,45 +1911,35 @@
             }
 
             function setActiveBottomBar(nav) {
-                document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove(
-                    'active'));
+                document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active'));
                 const activeEl = document.getElementById('bb-' + nav);
                 if (activeEl) activeEl.classList.add('active');
             }
 
-            // ══════════════ MOBILE EVENT LISTENERS ══════════════
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
-            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
-                window.location.href = '../../index.html'; });
-            document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
-                window.location.href = '/hpvx5_postagens/postagens'; });
-            document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
-                window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
-                window.scrollTo({ top: 0, behavior: 'smooth' }); });
-            document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger();
-                window.location.href = '/hpvx67_vendas/vendas'; });
-            document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger();
-                window.location.href = '/hpvxz_pedidos/pedidos'; });
+            // Links do menu hambúrguer
+            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
+            document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+            document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx67_vendas/vendas'; });
+            document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
             document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
                 localStorage.setItem(LOGGED_OUT_KEY, 'true');
                 localStorage.removeItem(USER_KEY);
                 localStorage.removeItem(LAST_ACCESS_KEY);
                 alert('Você foi desconectado.');
-                window.location.href = '../../index.html'; });
+                window.location.href = BASE_URL + '/index.html';
+            });
 
             // Bottom bar
             setActiveBottomBar('home');
-            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
-                window.location.href = '/hpvx5_postagens/postagens'; });
-            document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
-                window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
-                window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
             document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); });
+            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
 
             // Inicialização
             function init() {
@@ -1994,16 +1964,12 @@
                 toggleFiltersBarBtn.addEventListener('click', () => toggleFiltersBar(!filtersBarVisible));
                 showFiltersBtn.addEventListener('click', () => toggleFiltersBar(true));
 
-                vendedorFilter.addEventListener('change', () => { currentVendedor = vendedorFilter.value;
-                    applyFiltersAndRefresh(); });
-                situacaoFilter.addEventListener('change', () => { currentSituacao = situacaoFilter.value;
-                    applyFiltersAndRefresh(); });
+                vendedorFilter.addEventListener('change', () => { currentVendedor = vendedorFilter.value; applyFiltersAndRefresh(); });
+                situacaoFilter.addEventListener('change', () => { currentSituacao = situacaoFilter.value; applyFiltersAndRefresh(); });
 
                 document.getElementById('applyGlobalDate').addEventListener('click', () => {
-                    globalDateStart = document.getElementById('globalDateStart').value ? new Date(document
-                        .getElementById('globalDateStart').value) : null;
-                    globalDateEnd = document.getElementById('globalDateEnd').value ? new Date(document.getElementById(
-                        'globalDateEnd').value) : null;
+                    globalDateStart = document.getElementById('globalDateStart').value ? new Date(document.getElementById('globalDateStart').value) : null;
+                    globalDateEnd = document.getElementById('globalDateEnd').value ? new Date(document.getElementById('globalDateEnd').value) : null;
                     applyFiltersAndRefresh();
                 });
                 document.getElementById('clearGlobalDate').addEventListener('click', () => {
@@ -2030,24 +1996,24 @@
                     }
                 });
 
+                document.getElementById('applyChartDate').addEventListener('click', () => {
+                    chartDateStart = document.getElementById('chartDateStart').value ? new Date(document.getElementById('chartDateStart').value) : null;
+                    chartDateEnd = document.getElementById('chartDateEnd').value ? new Date(document.getElementById('chartDateEnd').value) : null;
+                    applyFiltersAndRefresh();
+                });
+
                 toggleChartsBtn.addEventListener('click', () => {
                     chartsVisible = !chartsVisible;
                     chartsRow.classList.toggle('hidden', !chartsVisible);
-                    toggleChartsBtn.innerHTML = chartsVisible ?
-                        '<i class="fas fa-eye-slash"></i> Ocultar gráficos' :
-                        '<i class="fas fa-eye"></i> Mostrar gráficos';
+                    toggleChartsBtn.innerHTML = chartsVisible ? '<i class="fas fa-eye-slash"></i> Ocultar gráficos' : '<i class="fas fa-eye"></i> Mostrar gráficos';
                     localStorage.setItem('chartsVisible', chartsVisible);
                 });
                 chartsRow.classList.toggle('hidden', !chartsVisible);
-                toggleChartsBtn.innerHTML = chartsVisible ?
-                    '<i class="fas fa-eye-slash"></i> Ocultar gráficos' :
-                    '<i class="fas fa-eye"></i> Mostrar gráficos';
+                toggleChartsBtn.innerHTML = chartsVisible ? '<i class="fas fa-eye-slash"></i> Ocultar gráficos' : '<i class="fas fa-eye"></i> Mostrar gráficos';
 
                 sortOrderBtn.addEventListener('click', () => {
                     sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
-                    sortOrderBtn.innerHTML = sortOrder === 'desc' ?
-                        '<i class="fas fa-sort-amount-down-alt"></i>' :
-                        '<i class="fas fa-sort-amount-up-alt"></i>';
+                    sortOrderBtn.innerHTML = sortOrder === 'desc' ? '<i class="fas fa-sort-amount-down-alt"></i>' : '<i class="fas fa-sort-amount-up-alt"></i>';
                     applyFiltersAndRefresh();
                 });
 
@@ -2089,8 +2055,7 @@
                     document.getElementById('profile-avatar-url').value = userProfile.avatarUrl;
                     document.getElementById('profile-icon-color').value = userProfile.iconColor;
                     document.getElementById('profile-bg-url').value = userProfile.bgUrl || '';
-                    populateIconSelect(document.getElementById('profile-icon-select'), document.getElementById(
-                        'profile-icon-grid'), userProfile.icon);
+                    populateIconSelect(document.getElementById('profile-icon-select'), document.getElementById('profile-icon-grid'), userProfile.icon);
                     document.getElementById('profile-modal').style.display = 'flex';
                     document.querySelector('#profile-modal .close-modal-btn').onclick = () => {
                         document.getElementById('profile-modal').style.display = 'none';
@@ -2110,23 +2075,19 @@
 
                 dailyChart = new Chart(document.getElementById('dailyLineChart'), {
                     type: 'line',
-                    data: { labels: [], datasets: [{ label: 'Pedidos', data: [], borderColor: '#1e3a5f',
-                            tension: 0.3 }] },
+                    data: { labels: [], datasets: [{ label: 'Pedidos', data: [], borderColor: '#1e3a5f', tension: 0.3 }] },
                     options: { responsive: true, maintainAspectRatio: false }
                 });
                 donutChart = new Chart(document.getElementById('donutChart'), {
                     type: 'doughnut',
-                    data: { labels: ['Sim', 'Outros/Pendente'], datasets: [{ data: [0, 0],
-                            backgroundColor: ['#2e7d32', '#d32f2f'] }] },
+                    data: { labels: ['Sim', 'Outros/Pendente'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] },
                     options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
                 });
 
                 async function loadInitial() {
                     await fetchData();
-                    const vendedores = [...new Set(rawOrders.map(o => o.vendedor).filter(v => v && v !==
-                        'Não informado'))].sort();
-                    vendedorFilter.innerHTML = '<option value="todos">Todos os vendedores</option>' + vendedores
-                        .map(v => `<option value="${v}">${v}</option>`).join('');
+                    const vendedores = [...new Set(rawOrders.map(o => o.vendedor).filter(v => v && v !== 'Não informado'))].sort();
+                    vendedorFilter.innerHTML = '<option value="todos">Todos os vendedores</option>' + vendedores.map(v => `<option value="${v}">${v}</option>`).join('');
                     applyFiltersAndRefresh();
                 }
                 loadInitial();
