@@ -6,8 +6,8 @@
     <title>Radar Centrobor – César Santos</title>
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --bg: #f0f4f8;
@@ -66,7 +66,7 @@
             flex: 1;
         }
 
-        /* ══════════════ HEADER DESKTOP ══════════════ */
+        /* HEADER DESKTOP */
         .header {
             display: flex;
             justify-content: space-between;
@@ -173,7 +173,7 @@
             50% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
         }
 
-        /* ══════════════ MOBILE TOPBAR ══════════════ */
+        /* MOBILE TOPBAR */
         .mobile-topbar {
             display: none;
             position: sticky;
@@ -228,7 +228,7 @@
             transform: scale(0.94);
         }
 
-        /* ══════════════ HAMBURGER OVERLAY & MENU ══════════════ */
+        /* HAMBURGER OVERLAY & MENU */
         .hamburger-overlay {
             display: none;
             position: fixed;
@@ -359,7 +359,7 @@
             transform: scale(0.9);
         }
 
-        /* ══════════════ MOBILE BOTTOM BAR ══════════════ */
+        /* MOBILE BOTTOM BAR */
         .mobile-bottom-bar {
             display: none;
             position: fixed;
@@ -617,6 +617,35 @@
             color: var(--purple);
         }
 
+        /* PDF BUTTON */
+        .pdf-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 20px;
+            border-radius: 24px;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            border: 1px solid var(--line);
+            background: white;
+            color: var(--primary);
+            transition: 0.25s;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+            margin-left: auto;
+        }
+        .pdf-btn:hover {
+            background: var(--primary-soft);
+            border-color: var(--primary);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(30, 58, 95, 0.15);
+        }
+        .pdf-btn i {
+            color: var(--danger);
+            font-size: 1rem;
+        }
+
         /* MONTH FILTER */
         .month-filter {
             display: flex;
@@ -628,7 +657,7 @@
             border-radius: 60px;
             padding: 10px 24px;
             border: 1px solid var(--border-light);
-            width: fit-content;
+            width: 100%;
             box-shadow: var(--shadow-sm);
         }
         .month-filter i {
@@ -1146,9 +1175,95 @@
             padding-top: 14px;
         }
 
-        /* ══════════════════════════════════════════════
-           MEDIA QUERIES – MOBILE & TABLET (≤1000px)
-           ══════════════════════════════════════════════ */
+        /* PDF Loading Animation */
+        .pdf-loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .pdf-loading-overlay.active {
+            display: flex;
+        }
+        .pdf-loading-content {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 400px;
+            width: 90%;
+        }
+        .pdf-loading-spinner {
+            font-size: 3rem;
+            color: var(--primary);
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .pdf-loading-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            margin-bottom: 8px;
+        }
+        .pdf-loading-subtext {
+            font-size: 0.85rem;
+            color: var(--muted);
+        }
+        .pdf-progress-bar {
+            width: 100%;
+            height: 6px;
+            background: var(--line);
+            border-radius: 3px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        .pdf-progress-fill {
+            height: 100%;
+            background: var(--primary);
+            border-radius: 3px;
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        /* Toast notification */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            background: var(--success);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 16px;
+            font-weight: 600;
+            z-index: 10001;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s ease;
+        }
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .toast.error {
+            background: var(--danger);
+        }
+
+        /* MEDIA QUERIES – MOBILE & TABLET */
         @media (max-width:1000px) {
             body {
                 padding: 0 0 var(--bottom-bar-height) 0;
@@ -1157,34 +1272,22 @@
             .wrapper {
                 padding: 0 12px;
             }
-
-            /* Esconde header desktop */
             .header {
                 display: none !important;
             }
-
-            /* Mostra topbar mobile */
             .mobile-topbar {
                 display: flex;
                 margin-bottom: 12px;
             }
-
-            /* Mostra bottom bar */
             .mobile-bottom-bar {
                 display: flex;
             }
-
-            /* Hamburger overlay visível quando ativo */
             .hamburger-overlay {
                 display: block;
             }
-
-            /* OCULTA FERRAMENTAS RÁPIDAS (Feed/Custos) no mobile */
             .tools-grid {
                 display: none !important;
             }
-
-            /* Carrossel mais imersivo */
             .carousel-section {
                 border-radius: 20px;
                 margin-bottom: 20px;
@@ -1221,8 +1324,6 @@
                 width: 7px;
                 height: 7px;
             }
-
-            /* KPI row mais compacto */
             .kpi-row {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
@@ -1238,8 +1339,6 @@
             .mini-card-kpi .label {
                 font-size: 9px;
             }
-
-            /* Month filter */
             .month-filter {
                 width: 100%;
                 border-radius: 20px;
@@ -1247,6 +1346,7 @@
                 margin-bottom: 18px;
                 justify-content: flex-start;
                 overflow-x: auto;
+                flex-wrap: wrap;
             }
             .month-grid {
                 flex-wrap: nowrap;
@@ -1257,8 +1357,11 @@
                 font-size: 0.65rem;
                 white-space: nowrap;
             }
-
-            /* Main split já é 1 coluna pelo @media existente */
+            .pdf-btn {
+                padding: 6px 14px;
+                font-size: 0.7rem;
+                margin-left: 0;
+            }
             .main-split {
                 gap: 12px;
                 margin-bottom: 18px;
@@ -1271,8 +1374,6 @@
                 font-size: 0.9rem;
                 margin-bottom: 10px;
             }
-
-            /* Meta cards mais compactos */
             .meta-card-full {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1298,8 +1399,6 @@
             .meta-grid-stats strong {
                 font-size: 0.75rem;
             }
-
-            /* Campaign cards */
             .campaign-card {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1308,14 +1407,10 @@
             .campaign-card .campaign-header {
                 font-size: 0.8rem;
             }
-
-            /* Chart */
             .chart-container {
                 min-height: 230px;
                 margin-bottom: 10px;
             }
-
-            /* Tabelas com scroll horizontal mantido */
             .table-wrapper {
                 padding: 8px;
                 border-radius: 16px;
@@ -1325,12 +1420,9 @@
                 font-size: 0.68rem;
                 min-width: 500px;
             }
-            th,
-            td {
+            th, td {
                 padding: 5px 4px;
             }
-
-            /* Notificações em modal */
             .notif-card {
                 flex-direction: row;
                 gap: 10px;
@@ -1359,8 +1451,6 @@
                 font-size: 0.7rem;
                 padding: 6px 12px;
             }
-
-            /* Modal geral */
             .modal-content {
                 width: 94%;
                 max-width: 94vw;
@@ -1373,8 +1463,6 @@
                 right: 10px;
                 font-size: 1.3rem;
             }
-
-            /* Post modal */
             #post-modal .modal-content {
                 padding: 16px;
                 border-radius: 20px;
@@ -1386,14 +1474,10 @@
             #post-modal .modal-content h2 {
                 font-size: 1rem;
             }
-
-            /* Notif modal */
             #notif-modal .modal-content {
                 padding: 14px;
                 border-radius: 20px;
             }
-
-            /* Carteira */
             #carteira-metricas>div {
                 grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
@@ -1402,8 +1486,6 @@
                 grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
             }
-
-            /* Badge list */
             .badge-list {
                 gap: 4px;
             }
@@ -1411,8 +1493,6 @@
                 font-size: 0.65rem;
                 padding: 3px 8px;
             }
-
-            /* FOOTER mobile – simplificado */
             .footer {
                 border-radius: 24px 24px 0 0;
                 padding: 20px 16px 100px;
@@ -1455,7 +1535,6 @@
             }
         }
 
-        /* ══════════════ EXTRA SMALL (≤480px) ══════════════ */
         @media (max-width:480px) {
             .mobile-topbar {
                 padding: 0 10px;
@@ -1528,11 +1607,88 @@
                 font-size: 0.55rem;
             }
         }
+
+        /* Print styles for PDF */
+        @media print {
+            body {
+                background: white !important;
+                padding: 0 !important;
+            }
+            .wrapper {
+                padding: 0 !important;
+                max-width: 100% !important;
+            }
+            .mobile-topbar,
+            .mobile-bottom-bar,
+            .hamburger-overlay,
+            .hamburger-menu,
+            .header,
+            .footer,
+            .tools-grid,
+            .carousel-section,
+            .month-filter,
+            .pdf-btn,
+            .table-search,
+            .no-print {
+                display: none !important;
+            }
+            .card-panel,
+            .table-wrapper,
+            .mini-card-kpi {
+                box-shadow: none !important;
+                border: 1px solid #e5e7eb !important;
+                break-inside: avoid !important;
+                page-break-inside: avoid !important;
+            }
+            .main-split {
+                grid-template-columns: 1fr 1fr !important;
+                gap: 12px !important;
+            }
+            .kpi-row {
+                grid-template-columns: repeat(5, 1fr) !important;
+                gap: 8px !important;
+            }
+            .mini-card-kpi {
+                padding: 8px !important;
+            }
+            .mini-card-kpi .value {
+                font-size: 1.1rem !important;
+            }
+            .mini-card-kpi .label {
+                font-size: 8px !important;
+            }
+            .chart-container {
+                min-height: 200px !important;
+                max-height: 250px !important;
+            }
+            table {
+                font-size: 7px !important;
+            }
+            th, td {
+                padding: 2px 4px !important;
+            }
+            h2, h3, .section-title {
+                font-size: 12px !important;
+                margin: 6px 0 !important;
+            }
+            .meta-card-full {
+                padding: 8px !important;
+                margin-bottom: 6px !important;
+            }
+            .campaign-card {
+                padding: 8px !important;
+                margin-bottom: 6px !important;
+            }
+            @page {
+                size: A4 landscape;
+                margin: 5mm;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <!-- MOBILE TOPBAR -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img src="img/perfil.png" alt="César" class="topbar-avatar" id="topbar-avatar">
@@ -1543,10 +1699,10 @@
         </button>
     </div>
 
-    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <!-- HAMBURGER OVERLAY -->
     <div class="hamburger-overlay" id="hamburger-overlay"></div>
 
-    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
+    <!-- HAMBURGER MENU -->
     <nav class="hamburger-menu" id="hamburger-menu">
         <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
             <i class="fas fa-times"></i>
@@ -1582,7 +1738,7 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR (Feed, Custos, Home, Alertas) ══════════════ -->
+    <!-- MOBILE BOTTOM BAR -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item active" data-nav="feed" id="bb-feed">
             <i class="fas fa-newspaper"></i><span>Feed</span>
@@ -1599,8 +1755,8 @@
         </button>
     </div>
 
-    <!-- ══════════════ WRAPPER PRINCIPAL ══════════════ -->
-    <div class="wrapper">
+    <!-- WRAPPER PRINCIPAL -->
+    <div class="wrapper" id="main-content">
         <!-- Cabeçalho DESKTOP -->
         <div class="header" id="desktop-header">
             <div class="user-section">
@@ -1630,7 +1786,7 @@
             <div class="carousel-indicators" id="carousel-indicators"></div>
         </div>
 
-        <!-- Ferramentas rápidas (visível apenas no desktop) -->
+        <!-- Ferramentas rápidas -->
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos de Vendas</div></a>
@@ -1639,10 +1795,13 @@
         <!-- KPIs -->
         <div class="kpi-row" id="kpi-cards"></div>
 
-        <!-- Filtro mensal -->
+        <!-- Filtro mensal COM BOTÃO PDF -->
         <div class="month-filter" id="month-filter">
             <i class="fas fa-calendar-alt"></i>
             <div class="month-grid" id="month-grid"></div>
+            <button class="pdf-btn" id="btn-gerar-pdf" title="Baixar relatório em PDF">
+                <i class="fas fa-file-pdf"></i> PDF
+            </button>
         </div>
 
         <!-- Metas & Gráfico -->
@@ -1659,7 +1818,7 @@
             </div>
         </div>
 
-        <!-- Campanhas Especiais (OpenSheet) -->
+        <!-- Campanhas Especiais -->
         <div class="card-panel" id="campanhas-especiais-panel" style="margin-bottom:32px;">
             <div class="section-title"><i class="fas fa-trophy"></i> Campanhas Especiais</div>
             <div id="campanhas-especiais-container"></div>
@@ -1725,6 +1884,26 @@
     <div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
     <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
     <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
+
+    <!-- PDF Loading Overlay -->
+    <div class="pdf-loading-overlay" id="pdf-loading-overlay">
+        <div class="pdf-loading-content">
+            <div class="pdf-loading-spinner">
+                <i class="fas fa-spinner"></i>
+            </div>
+            <div class="pdf-loading-text">Gerando relatório PDF...</div>
+            <div class="pdf-loading-subtext">Isso pode levar alguns segundos</div>
+            <div class="pdf-progress-bar">
+                <div class="pdf-progress-fill" id="pdf-progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div class="toast" id="toast-notification">
+        <i class="fas fa-check-circle"></i>
+        <span id="toast-message">PDF gerado com sucesso!</span>
+    </div>
 
     <script>
         (function() {
@@ -2618,6 +2797,184 @@
                 });
             }
 
+            // ══════════════ FUNCIONALIDADE DE PDF ══════════════
+            function showToast(message, isError = false) {
+                const toast = document.getElementById('toast-notification');
+                const toastMessage = document.getElementById('toast-message');
+                const icon = toast.querySelector('i');
+                
+                toast.classList.remove('show', 'error');
+                if (isError) {
+                    toast.classList.add('error');
+                    icon.className = 'fas fa-exclamation-circle';
+                } else {
+                    icon.className = 'fas fa-check-circle';
+                }
+                toastMessage.textContent = message;
+                
+                setTimeout(() => toast.classList.add('show'), 100);
+                setTimeout(() => toast.classList.remove('show'), 4000);
+            }
+
+            function showLoading() {
+                const overlay = document.getElementById('pdf-loading-overlay');
+                overlay.classList.add('active');
+                // Simular progresso
+                const progressFill = document.getElementById('pdf-progress-fill');
+                let width = 0;
+                const interval = setInterval(() => {
+                    width += Math.random() * 30;
+                    if (width > 90) width = 90;
+                    progressFill.style.width = width + '%';
+                }, 500);
+                return interval;
+            }
+
+            function hideLoading(interval) {
+                clearInterval(interval);
+                const progressFill = document.getElementById('pdf-progress-fill');
+                progressFill.style.width = '100%';
+                setTimeout(() => {
+                    document.getElementById('pdf-loading-overlay').classList.remove('active');
+                    progressFill.style.width = '0%';
+                }, 500);
+            }
+
+            async function gerarPDF() {
+                const progressInterval = showLoading();
+                
+                try {
+                    // Capturar os canvases dos gráficos para o PDF
+                    const chartCanvas = document.getElementById('chart-faturamento');
+                    const chartImage = chartCanvas ? chartCanvas.toDataURL('image/png') : null;
+                    
+                    // Capturar os doughnuts
+                    const doughnutIds = ['meta-mensal-chart', 'meta-plus-chart', 'meta-semestral-chart', 'meta-anual-chart'];
+                    const doughnutImages = {};
+                    doughnutIds.forEach(id => {
+                        const canvas = document.getElementById(id);
+                        if (canvas) {
+                            doughnutImages[id] = canvas.toDataURL('image/png');
+                        }
+                    });
+
+                    // Criar uma cópia do conteúdo principal para o PDF
+                    const mainContent = document.getElementById('main-content');
+                    const clone = mainContent.cloneNode(true);
+                    
+                    // Remover elementos que não devem aparecer no PDF
+                    const removeSelectors = [
+                        '.carousel-section',
+                        '.tools-grid',
+                        '.month-filter',
+                        '.table-search',
+                        '.mobile-topbar',
+                        '.mobile-bottom-bar',
+                        '.header',
+                        '.footer',
+                        '.pdf-btn',
+                        '.no-print',
+                        '.icon-btn',
+                        '.notification-bell',
+                        '.badge'
+                    ];
+                    
+                    removeSelectors.forEach(selector => {
+                        clone.querySelectorAll(selector).forEach(el => el.remove());
+                    });
+
+                    // Substituir canvas do gráfico principal por imagem
+                    const cloneChartCanvas = clone.querySelector('#chart-faturamento');
+                    if (cloneChartCanvas && chartImage) {
+                        const img = document.createElement('img');
+                        img.src = chartImage;
+                        img.style.width = '100%';
+                        img.style.maxWidth = '100%';
+                        img.style.height = 'auto';
+                        cloneChartCanvas.parentNode.replaceChild(img, cloneChartCanvas);
+                    }
+
+                    // Substituir doughnuts por imagens
+                    doughnutIds.forEach(id => {
+                        const cloneCanvas = clone.querySelector('#' + id);
+                        if (cloneCanvas && doughnutImages[id]) {
+                            const img = document.createElement('img');
+                            img.src = doughnutImages[id];
+                            img.style.width = '90px';
+                            img.style.height = '90px';
+                            cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
+                            // Atualizar o texto de percentagem
+                            const percentDiv = cloneCanvas.parentNode.querySelector('div[style*="position:absolute"]');
+                            if (percentDiv) {
+                                percentDiv.style.color = '#000';
+                            }
+                        }
+                    });
+
+                    // Criar container temporário para o PDF
+                    const tempContainer = document.createElement('div');
+                    tempContainer.style.cssText = `
+                        position: absolute;
+                        left: -9999px;
+                        top: 0;
+                        width: 1200px;
+                        background: white;
+                        padding: 20px;
+                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                    `;
+                    
+                    // Adicionar cabeçalho ao PDF
+                    const headerDiv = document.createElement('div');
+                    headerDiv.style.cssText = `
+                        text-align: center;
+                        padding: 10px;
+                        margin-bottom: 20px;
+                        border-bottom: 3px solid #1e3a5f;
+                    `;
+                    headerDiv.innerHTML = `
+                        <h1 style="color: #1e3a5f; margin: 0 0 5px 0; font-size: 20px;">Relatório de Performance</h1>
+                        <p style="color: #5b6472; margin: 0; font-size: 14px;">${nomeVendedor} | Mês: ${currentMonth || 'Atual'} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>
+                    `;
+                    tempContainer.appendChild(headerDiv);
+                    tempContainer.appendChild(clone);
+                    
+                    document.body.appendChild(tempContainer);
+
+                    // Configurações do html2pdf
+                    const options = {
+                        margin: [8, 8, 8, 8],
+                        filename: `relatorio_${nomeVendedor.replace(/\s+/g, '_')}_${currentMonth || 'atual'}_${new Date().toISOString().slice(0,10)}.pdf`,
+                        image: { type: 'jpeg', quality: 0.95 },
+                        html2canvas: { 
+                            scale: 2,
+                            useCORS: true,
+                            letterRendering: true,
+                            logging: false,
+                            windowWidth: 1200
+                        },
+                        jsPDF: { 
+                            unit: 'mm', 
+                            format: 'a3', 
+                            orientation: 'landscape' 
+                        },
+                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+                    };
+
+                    // Gerar PDF
+                    await html2pdf().set(options).from(tempContainer).save();
+                    
+                    // Limpar
+                    document.body.removeChild(tempContainer);
+                    hideLoading(progressInterval);
+                    showToast('PDF gerado com sucesso!');
+                    
+                } catch (error) {
+                    console.error('Erro ao gerar PDF:', error);
+                    hideLoading(progressInterval);
+                    showToast('Erro ao gerar PDF. Tente novamente.', true);
+                }
+            }
+
             // ══════════════ HAMBURGER MENU CONTROLS ══════════════
             function openHamburger() {
                 document.getElementById('hamburger-menu').classList.add('active');
@@ -2653,6 +3010,9 @@
                 await renderAll(currentMonth);
                 renderCarrossel();
                 renderizarCampanhasEspeciais();
+
+                // Botão PDF
+                document.getElementById('btn-gerar-pdf').addEventListener('click', gerarPDF);
 
                 document.getElementById('prev-btn').addEventListener('click', () => {
                     currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
@@ -2693,13 +3053,11 @@
                 const homeBtn = document.querySelector('.home-btn');
                 if (homeBtn) homeBtn.addEventListener('click', () => window.location.href = './index.html');
 
-                // ══════════════ MOBILE EVENT LISTENERS ══════════════
-                // Hamburger
+                // MOBILE EVENT LISTENERS
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
-                // Menu items
                 document.getElementById('menu-home').addEventListener('click', () => {
                     closeHamburger();
                     window.location.href = './index.html';
@@ -2728,8 +3086,8 @@
                     window.location.href = '../../index.html?reason=logged_out';
                 });
 
-                // Bottom bar (Feed, Custos, Home, Alertas)
-                setActiveBottomBar('home'); // ativo na dashboard
+                // Bottom bar
+                setActiveBottomBar('home');
                 document.getElementById('bb-feed').addEventListener('click', () => {
                     setActiveBottomBar('feed');
                     window.location.href = '/hpvx5_postagens/postagens.html';
