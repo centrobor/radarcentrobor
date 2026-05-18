@@ -2798,23 +2798,291 @@
             }
 
             // ══════════════ FUNCIONALIDADE DE PDF ══════════════
-            function showToast(message, isError = false) {
-                const toast = document.getElementById('toast-notification');
-                const toastMessage = document.getElementById('toast-message');
-                const icon = toast.querySelector('i');
-                
-                toast.classList.remove('show', 'error');
-                if (isError) {
-                    toast.classList.add('error');
-                    icon.className = 'fas fa-exclamation-circle';
-                } else {
-                    icon.className = 'fas fa-check-circle';
-                }
-                toastMessage.textContent = message;
-                
-                setTimeout(() => toast.classList.add('show'), 100);
-                setTimeout(() => toast.classList.remove('show'), 4000);
+            // ══════════════ FUNCIONALIDADE DE PDF CORRIGIDA ══════════════
+function showToast(message, isError = false) {
+    const toast = document.getElementById('toast-notification');
+    const toastMessage = document.getElementById('toast-message');
+    const icon = toast.querySelector('i');
+    
+    toast.classList.remove('show', 'error');
+    if (isError) {
+        toast.classList.add('error');
+        icon.className = 'fas fa-exclamation-circle';
+    } else {
+        icon.className = 'fas fa-check-circle';
+    }
+    toastMessage.textContent = message;
+    
+    setTimeout(() => toast.classList.add('show'), 100);
+    setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+function showLoading() {
+    const overlay = document.getElementById('pdf-loading-overlay');
+    if (!overlay) return null;
+    overlay.classList.add('active');
+    const progressFill = document.getElementById('pdf-progress-fill');
+    let width = 0;
+    const interval = setInterval(() => {
+        width += Math.random() * 30;
+        if (width > 90) width = 90;
+        if (progressFill) progressFill.style.width = width + '%';
+    }, 500);
+    return interval;
+}
+
+function hideLoading(interval) {
+    if (interval) clearInterval(interval);
+    const progressFill = document.getElementById('pdf-progress-fill');
+    if (progressFill) progressFill.style.width = '100%';
+    setTimeout(() => {
+        const overlay = document.getElementById('pdf-loading-overlay');
+        if (overlay) overlay.classList.remove('active');
+        if (progressFill) progressFill.style.width = '0%';
+    }, 500);
+}
+
+async function gerarPDF() {
+    const progressInterval = showLoading();
+    
+    try {
+        // Aguardar um pouco para garantir que tudo está renderizado
+        await new Promise(resolve => setTimeout(resolve, 300));
+        
+        // Capturar os canvases dos gráficos para o PDF (antes de clonar)
+        const chartCanvas = document.getElementById('chart-faturamento');
+        let chartImage = null;
+        if (chartCanvas) {
+            try {
+                chartImage = chartCanvas.toDataURL('image/png');
+            } catch(e) {
+                console.warn('Erro ao capturar gráfico principal:', e);
             }
+        }
+        
+        // Capturar os doughnuts
+        const doughnutIds = ['meta-mensal-chart', 'meta-plus-chart', 'meta-semestral-chart', 'meta-anual-chart'];
+        const doughnutImages = {};
+        doughnutIds.forEach(id => {
+            const canvas = document.getElementById(id);
+            if (canvas) {
+                try {
+                    doughnutImages[id] = canvas.toDataURL('image/png');
+                } catch(e) {
+                    console.warn('Erro ao capturar doughnut:', id, e);
+                }
+            }
+        });
+
+        // Clonar o conteúdo principal
+        const mainContent = document.getElementById('main-content');
+        if (!mainContent) {
+            throw new Error('Elemento main-content não encontrado');
+        }
+        
+        const clone = mainContent.cloneNode(true);
+        
+        // Função segura para remover elementos
+        function safeRemove(selector) {
+            try {
+                const elements = clone.querySelectorAll(selector);
+                elements.forEach(el => {
+                    if (el && el.parentNode) {
+                        el.parentNode.removeChild(el);
+                    }
+                });
+            } catch(e) {
+                console.warn('Erro ao remover elemento:', selector, e);
+            }
+        }
+        
+        // Remover elementos que não devem aparecer no PDF
+        const removeSelectors = [
+            '.carousel-section',
+            '.tools-grid', 
+            '.mobile-topbar',
+            '.mobile-bottom-bar',
+            '.hamburger-overlay',
+            '.hamburger-menu',
+            '.footer',
+            '.table-search',
+            '.pdf-btn',
+            '.no-print',
+            '.month-filter' // Remove o filtro de mês também
+        ];
+        
+        removeSelectors.forEach(selector => safeRemove(selector));
+
+        // Manter apenas as tabelas com seus cabeçalhos
+        const monthFilterClone = clone.querySelector('.month-filter');
+        if (monthFilterClone) monthFilterClone.remove();
+
+        // Substituir canvas do gráfico principal por imagem (se existir)
+        if (chartImage) {
+            const cloneChartCanvas = clone.querySelector('#chart-faturamento');
+            if (cloneChartCanvas && cloneChartCanvas.parentNode) {
+                try {
+                    const img = document.createElement('img');
+                    img.src = chartImage;
+                    img.style.width = '100%';
+                    img.style.maxWidth = '100%';
+                    img.style.height = 'auto';
+                    img.style.display = 'block';
+                    cloneChartCanvas.parentNode.replaceChild(img, cloneChartCanvas);
+                } catch(e) {
+                    console.warn('Erro ao substituir gráfico principal:', e);
+                }
+            }
+        }
+
+        // Substituir doughnuts por imagens
+        doughnutIds.forEach(id => {
+            try {
+                const cloneCanvas = clone.querySelector('#' + id);
+                if (cloneCanvas && doughnutImages[id] && cloneCanvas.parentNode) {
+                    const parentDiv = cloneCanvas.parentNode;
+                    const containerDiv = parentDiv.parentNode;
+                    
+                    const img = document.createElement('img');
+                    img.src = doughnutImages[id];
+                    img.style.width = '90px';
+                    img.style.height = '90px';
+                    img.style.display = 'block';
+                    
+                    // Substituir o canvas pela imagem
+                    if (parentDiv) {
+                        parentDiv.replaceChild(img, cloneCanvas);
+                    }
+                }
+            } catch(e) {
+                console.warn('Erro ao substituir doughnut:', id, e);
+            }
+        });
+
+        // Forçar cores e estilos para impressão
+        const stylePrint = document.createElement('style');
+        stylePrint.textContent = `
+            @media print {
+                body { background: white !important; padding: 0 !important; margin: 0 !important; }
+                .wrapper { padding: 0 !important; margin: 0 !important; }
+                .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
+                    break-inside: avoid !important;
+                    page-break-inside: avoid !important;
+                    box-shadow: none !important;
+                    border: 1px solid #e5e7eb !important;
+                }
+                .kpi-row {
+                    display: grid;
+                    grid-template-columns: repeat(5, 1fr) !important;
+                    gap: 8px !important;
+                }
+                .main-split {
+                    display: grid !important;
+                    grid-template-columns: 1fr 1fr !important;
+                    gap: 16px !important;
+                }
+                table {
+                    font-size: 9px !important;
+                }
+                th, td {
+                    padding: 4px 6px !important;
+                }
+                .meta-progress-bar {
+                    print-color-adjust: exact !important;
+                    -webkit-print-color-adjust: exact !important;
+                }
+                .badge-on-track, .badge-behind, .badge-ahead {
+                    print-color-adjust: exact !important;
+                    -webkit-print-color-adjust: exact !important;
+                }
+                .section-title {
+                    font-size: 14px !important;
+                }
+                h1, h2, h3, h4 {
+                    print-color-adjust: exact !important;
+                    -webkit-print-color-adjust: exact !important;
+                }
+            }
+        `;
+        clone.prepend(stylePrint);
+
+        // Criar container temporário para o PDF
+        const tempContainer = document.createElement('div');
+        tempContainer.style.cssText = `
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1200px;
+            background: white;
+            padding: 20px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        `;
+        
+        // Adicionar cabeçalho ao PDF
+        const headerDiv = document.createElement('div');
+        const mesAtual = currentMonth || (() => {
+            const d = new Date();
+            const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+            return `${meses[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`;
+        })();
+        
+        headerDiv.style.cssText = `
+            text-align: center;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #1e3a5f;
+        `;
+        headerDiv.innerHTML = `
+            <h1 style="color: #1e3a5f; margin: 0 0 5px 0; font-size: 22px;">Relatório de Performance</h1>
+            <p style="color: #5b6472; margin: 0; font-size: 14px;">
+                ${nomeVendedor || 'César Santos'} | Mês: ${mesAtual} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}
+            </p>
+        `;
+        tempContainer.appendChild(headerDiv);
+        tempContainer.appendChild(clone);
+        
+        document.body.appendChild(tempContainer);
+
+        // Configurações do html2pdf
+        const options = {
+            margin: [10, 8, 10, 8],
+            filename: `relatorio_${(nomeVendedor || 'cesar_santos').replace(/\s+/g, '_')}_${mesAtual.replace('/', '_')}_${new Date().toISOString().slice(0,10)}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2.5,
+                useCORS: true,
+                letterRendering: true,
+                logging: false,
+                windowWidth: 1200,
+                backgroundColor: '#ffffff'
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: 'a3', 
+                orientation: 'landscape' 
+            },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        // Gerar PDF
+        await html2pdf().set(options).from(tempContainer).save();
+        
+        // Limpar
+        setTimeout(() => {
+            if (tempContainer && tempContainer.parentNode) {
+                document.body.removeChild(tempContainer);
+            }
+        }, 1000);
+        
+        hideLoading(progressInterval);
+        showToast('PDF gerado com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        hideLoading(progressInterval);
+        showToast('Erro ao gerar PDF: ' + error.message, true);
+    }
+}
 
             function showLoading() {
                 const overlay = document.getElementById('pdf-loading-overlay');
