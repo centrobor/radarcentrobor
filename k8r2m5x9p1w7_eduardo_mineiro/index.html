@@ -1758,6 +1758,7 @@
             // ==================== CONFIGURAÇÃO ====================
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
             const BASES = {
+                cadastro: `https://opensheet.elk.sh/${SHEET_ID}/cadastro`,  // ← NOVA LINHA
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
@@ -1766,6 +1767,8 @@
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`
+                
+
             };
             const VENDEDORES_MAP = {
                 "33": "Fábio Prado",
@@ -1785,7 +1788,9 @@
                 BANNERS = [],
                 notificacoes = [],
                 dolarData = [],
-                metasGlobais = [];
+                metasGlobais = [],
+                        cadastros = [];  // ← NOVA LINHA
+
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = [
                 { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
@@ -1805,20 +1810,40 @@
             async function carregarJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
 
             async function fetchAllData() {
-                document.getElementById('last-update').innerText = 'Carregando...';
-                try {
-                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData] = await Promise.all([
-                        carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
-                        carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
-                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais)
-                    ]);
-                    allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
-                    BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData;
-                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
-                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
-                    atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
-                } catch (e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
-            }
+    document.getElementById('last-update').innerText = 'Carregando...';
+    try {
+        const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData] = await Promise.all([
+            carregarJSON(BASES.faturados), 
+            carregarJSON(BASES.aprovados), 
+            carregarJSON(BASES.metas),
+            carregarJSON(BASES.pedidos), 
+            carregarJSON(BASES.banners), 
+            carregarJSON(BASES.postagens),
+            carregarJSON(BASES.dolar), 
+            carregarJSON(BASES.metasGlobais),
+            carregarJSON(BASES.cadastro)  // ← NOVA LINHA
+        ]);
+        allFaturados = faturados; 
+        allAprovados = aprovados; 
+        allMetas = metasVendedores; 
+        allPedidos = pedidos;
+        BANNERS = banners; 
+        notificacoes = postagens; 
+        dolarData = dolar; 
+        metasGlobais = metasGlobaisData;
+        cadastros = cadastroData;  // ← NOVA LINHA
+        document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
+        document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+        atualizarBadgeNotificacoes(); 
+        renderCarrossel(); 
+        atualizarCotacaoDolar(); 
+        populateVendorSelector(); 
+        refreshAll();
+    } catch (e) { 
+        console.error(e); 
+        document.getElementById('last-update').innerText = 'Erro ao carregar.'; 
+    }
+}
 
             function atualizarCotacaoDolar() {
                 const el = document.getElementById('dolar-quote');
@@ -2094,14 +2119,80 @@
                 setTimeout(() => { new Chart(document.getElementById('vendorDetailDonut'), { type: 'doughnut', data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: [getProgressColor(percent), '#e5e7eb'], borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); if (metaPlus && document.getElementById('vendorDetailPlusDonut')) { new Chart(document.getElementById('vendorDetailPlusDonut'), { type: 'doughnut', data: { datasets: [{ data: [percPlus, 100 - percPlus], backgroundColor: [getProgressColor(percPlus), '#e5e7eb'], borderWidth: 0, borderRadius: percPlus >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); } }, 100);
             }
 
-            function populateVendorSelector() {
-                const VENDOR_LINKS = { "3": "vendedores/e8r1v6n3t9w5_helio_coelho/index.html", "20": "vendedores/f4y9k2p7m1z6_juliana_cecchy/index.html", "33": "vendedores/d2k7q5m8x1p4_fabio_prado/index.html", "49": "vendedores/i3v7r1m5q9x4_matheus_santos/index.html", "51": "vendedores/g1m5x8q3v7r2_lorena_martins/index.html", "55": "vendedores/a9f3x2k8m1q7_cesar_santos/index.html", "60": "vendedores/j9x4k2w7p1m6_valeria_ferreira/index.html", "61": "vendedores/h6p2w9k4t1y8_luan_dantas/index.html", "2": "vendedores/b7n4v9p2r6t1_dimas/index.html", "24": "vendedores/c5w8j1z4l9y2_fabiano/index.html" };
-                const select = document.getElementById('vendor-selector');
-                let options = '<option value="all">🌐 Todos os vendedores</option>';
-                Object.entries(VENDEDORES_MAP).sort((a, b) => parseInt(a[0]) - parseInt(b[0])).forEach(([cod, nome]) => { const link = VENDOR_LINKS[cod] || "#"; options += `<option value="${cod}" data-link="${link}">${nome}</option>`; });
-                select.innerHTML = options; select.value = selectedVendor;
-                select.addEventListener('change', function() { const opt = this.options[this.selectedIndex]; const link = opt.getAttribute('data-link'); if (this.value !== 'all' && link && link !== '#') { window.location.href = link; return; } selectedVendor = this.value; refreshAll(); });
-            }
+function populateVendorSelector() {
+    const select = document.getElementById('vendor-selector');
+    
+    // Filtra apenas vendedores com código diferente de 80 (RKB) e 1 (admin)
+    // e que tenham pagina_destino definida
+    const vendedoresValidos = cadastros.filter(c => 
+        c.codigo_vendedor && 
+        c.codigo_vendedor !== '80' && 
+        c.codigo_vendedor !== '1' && 
+        c.pagina_destino
+    );
+    
+    // Remove duplicatas por codigo_vendedor (caso exista)
+    const vendedoresUnicos = [];
+    const codigosVistos = new Set();
+    vendedoresValidos.forEach(v => {
+        if (!codigosVistos.has(v.codigo_vendedor)) {
+            codigosVistos.add(v.codigo_vendedor);
+            vendedoresUnicos.push(v);
+        }
+    });
+    
+    let options = '<option value="all">🌐 Todos os vendedores</option>';
+    
+    // Ordena por código do vendedor
+    vendedoresUnicos
+        .sort((a, b) => parseInt(a.codigo_vendedor) - parseInt(b.codigo_vendedor))
+        .forEach(cad => {
+            const nome = VENDEDORES_MAP[cad.codigo_vendedor] || cad.nome_usuario;
+            const link = cad.pagina_destino;
+            options += `<option value="${cad.codigo_vendedor}" data-link="${link}">${nome}</option>`;
+        });
+    
+    select.innerHTML = options;
+    
+    // Mantém a seleção atual se o vendedor ainda existe na lista
+    if (selectedVendor !== 'all') {
+        const existe = vendedoresUnicos.some(v => v.codigo_vendedor === selectedVendor);
+        if (existe) {
+            select.value = selectedVendor;
+        } else {
+            select.value = 'all';
+            selectedVendor = 'all';
+        }
+    } else {
+        select.value = 'all';
+    }
+    
+    // Remove listeners antigos para não duplicar
+    const novoSelect = select.cloneNode(true);
+    select.parentNode.replaceChild(novoSelect, select);
+    
+    novoSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const link = selectedOption.getAttribute('data-link');
+        
+        if (this.value === 'all') {
+            selectedVendor = 'all';
+            refreshAll();
+            return;
+        }
+        
+        if (link && link !== '#' && link !== 'null' && link !== 'undefined') {
+            // Abre em nova guia
+            window.open(link, '_blank');
+            // Volta o seletor para a opção anterior
+            this.value = selectedVendor;
+        } else {
+            // Se não tem link, filtra no dashboard atual
+            selectedVendor = this.value;
+            refreshAll();
+        }
+    });
+}
 
             function renderQuickGrid() { document.getElementById('quick-access-grid').innerHTML = quickItems.filter(i => i.visivel).map(i => `<a href="${i.link}" class="quick-card" style="color:${i.cor}"><i class="fas ${i.icone}" style="color:${i.cor}"></i><span>${i.titulo}</span></a>`).join(''); }
 
