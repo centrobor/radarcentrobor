@@ -247,12 +247,45 @@
         .group-badge.red { border-color:var(--danger); color:var(--danger); background:rgba(211,47,47,0.08); }
 
         /* Modais */
-        .modal { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index:1000; justify-content: center; align-items: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; border-radius:24px; padding:24px; max-width:95%; width:900px; max-height:90vh; overflow-y: auto; position: relative; }
-        .modal-close { position: absolute; top:14px; right:14px; cursor: pointer; font-size:1.6rem; color:var(--muted); z-index:2; }
-        .modal-pedido-item { display: flex; gap:10px; padding:8px 0; border-bottom:1px dashed #e5e7eb; }
-        .modal-pedido-item.highlight { background:#d4edda; border-radius:10px; padding:8px 12px; }
+        /* Modais com animação */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(6px);
+    z-index: 1000;
+    display: flex;                /* sempre flex, mas invisível */
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 24px;
+    padding: 24px;
+    max-width: 95%;
+    width: 900px;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    transform: scale(0.9);               /* começa um pouco menor */
+    transition: transform 0.3s ease;     /* animação de zoom */
+}
+
+.modal.active .modal-content {
+    transform: scale(1);                 /* volta ao tamanho normal quando ativo */
+}
 
         /* Notificações */
         .notif-card { display: flex; gap:14px; padding:14px; border-bottom:1px solid var(--line); cursor: pointer; border-radius:12px; }
@@ -496,7 +529,7 @@
                 <a href="https://www.instagram.com/centrobor.correias/" target="_blank"><i class="fab fa-instagram"></i></a>
             </div>
         </div>
-        <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor . Todos os direitos reservados. | Radar Centrobor – César Santos</div>
+        <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor. Todos os direitos reservados. | Radar Centrobor – César Santos</div>
     </footer>
 
     <!-- Modais -->
@@ -634,65 +667,134 @@
                 abrirModalNotificacoes();
             }
             function abrirModalNotificacoes() {
-                const modal = document.getElementById('notif-modal');
-                const body = document.getElementById('notif-modal-body');
-                const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-                if (notificacoes.length === 0) {
-                    body.innerHTML = '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span><p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>';
-                } else {
-                    let html = '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span>';
-                    html += `<div class="notif-modal-header"><h2><i class="fas fa-bell"></i> Alertas</h2>${unreadCount>0?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}</div>`;
-                    notificacoes.forEach(n => {
-                        const isRead = readNotifications.includes(n.id);
-                        const tipo = n.tipo || 'informativo';
-                        const bgColor = tipo==='alerta'?'#fee2e2':'#e0f2fe';
-                        const textColor = tipo==='alerta'?'#991b1b':'#0369a1';
-                        html += `
-                        <div class="notif-card" data-id="${n.id}">
-                            <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
-                            <div class="notif-body">
-                                <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
-                                <div class="notif-title">${n.titulo}</div>
-                                <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
-                                <div class="notif-excerpt">${(n.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div>
-                                <span style="font-size:0.75rem; color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span>
-                            </div>
-                        </div>`;
-                    });
-                    body.innerHTML = html;
-                    const btnMarkAll = document.getElementById('btn-mark-all-read');
-                    if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
-                    body.querySelectorAll('.notif-card').forEach(card => {
-                        card.addEventListener('click', () => {
-                            const id = card.dataset.id;
-                            if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
-                            const post = notificacoes.find(p => p.id == id);
-                            if (post) exibirPostagemDetalhe(post);
-                            modal.classList.remove('active');
-                        });
-                    });
+    const modal = document.getElementById('notif-modal');
+    const body = document.getElementById('notif-modal-body');
+
+    // Força reanimação se o modal já estiver ativo
+    if (modal.classList.contains('active')) {
+        modal.classList.remove('active');
+        setTimeout(() => {
+            preencherListaNotificacoes(modal, body);
+        }, 300);
+    } else {
+        preencherListaNotificacoes(modal, body);
+    }
+}
+
+// Função auxiliar que realmente monta a lista
+function preencherListaNotificacoes(modal, body) {
+    const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+    if (notificacoes.length === 0) {
+        body.innerHTML = `
+            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
+                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                    &times;
+                </button>
+            </div>
+            <p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
+    } else {
+        let html = `
+            <!-- Cabeçalho com título + botões (marcar lido e X) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    ${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}
+                    <button onclick="document.getElementById('notif-modal').classList.remove('active')"
+                            style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                        &times;
+                    </button>
+                </div>
+            </div>`;
+        notificacoes.forEach(n => {
+            const isRead = readNotifications.includes(n.id);
+            const tipo = n.tipo || 'informativo';
+            const bgColor = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+            const textColor = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+            html += `
+            <div class="notif-card" data-id="${n.id}">
+                <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
+                <div class="notif-body">
+                    <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
+                    <div class="notif-title">${n.titulo}</div>
+                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
+                    <div class="notif-excerpt">${(n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120)}...</div>
+                    <span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'};">${isRead ? '✔ Lida' : '● Nova'}</span>
+                </div>
+            </div>`;
+        });
+        body.innerHTML = html;
+        const btnMarkAll = document.getElementById('btn-mark-all-read');
+        if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
+        body.querySelectorAll('.notif-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.id;
+                if (!readNotifications.includes(id)) { 
+                    readNotifications.push(id); 
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); 
+                    atualizarBadgeNotificacoes(); 
                 }
-                modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
-            }
-            function exibirPostagemDetalhe(post) {
-                const body = document.getElementById('notif-modal-body');
-                const modal = document.getElementById('notif-modal');
-                const tipo = post.tipo || 'informativo';
-                const corTipo = tipo==='alerta'?'#fee2e2':'#e0f2fe';
-                const corTexto = tipo==='alerta'?'#991b1b':'#0369a1';
-                body.innerHTML = `
-                    <span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>
-                    <button id="voltar-lista-btn" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:0.9rem;margin-bottom:12px;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                    <div style="display:flex; gap:14px; margin-bottom:16px;">
-                        ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px;max-height:220px;border-radius:14px;" onerror="this.style.display='none'">` : ''}
-                        <div><span class="notif-type" style="background:${corTipo};color:${corTexto}">${tipo.toUpperCase()}</span><h3>${post.titulo}</h3><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div></div>
-                    </div>
-                    <div>${post.texto_html || ''}</div>
-                `;
-                document.getElementById('voltar-lista-btn').addEventListener('click', abrirModalNotificacoes);
-                modal.classList.add('active');
-            }
+                const post = notificacoes.find(p => p.id == id);
+                if (post) exibirPostagemDetalhe(post);
+            });
+        });
+    }
+    modal.classList.add('active');
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+}
+
+function exibirPostagemDetalhe(post) {
+    const body = document.getElementById('notif-modal-body');
+    const modal = document.getElementById('notif-modal');
+
+    // Fecha o modal atual (inicia fade out)
+    modal.classList.remove('active');
+
+    // Aguarda a transição terminar, troca o conteúdo e reabre com animação
+    setTimeout(() => {
+        const tipo = post.tipo || 'informativo';
+        const corTipo = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+        const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+
+        body.innerHTML = `
+            <!-- Cabeçalho com Voltar (esquerda) e X (direita) -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;">
+                    <i class="fas fa-arrow-left"></i> Voltar
+                </button>
+                <button id="fechar-detalhe-btn" style="background:none; border:none; font-size:1.6rem; color: var(--muted); cursor:pointer; line-height:1; padding:0;">
+                    &times;
+                </button>
+            </div>
+            <div style="display:flex; gap:14px; margin-bottom:16px;">
+                ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px; max-height:220px; border-radius:14px;" onerror="this.style.display='none'">` : ''}
+                <div>
+                    <span class="notif-type" style="background:${corTipo}; color:${corTexto}">${tipo.toUpperCase()}</span>
+                    <h3>${post.titulo}</h3>
+                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div>
+                </div>
+            </div>
+            <div>${post.texto_html || ''}</div>
+        `;
+
+        // Ação do botão Voltar: fecha e reabre a lista com animação
+        document.getElementById('voltar-lista-btn').addEventListener('click', () => {
+            modal.classList.remove('active');
+            setTimeout(() => {
+                abrirModalNotificacoes();
+            }, 300);
+        });
+
+        // Ação do botão X: apenas fecha o modal
+        document.getElementById('fechar-detalhe-btn').addEventListener('click', () => {
+            modal.classList.remove('active');
+        });
+
+        // Reabre o modal (dispara a animação de entrada)
+        modal.classList.add('active');
+    }, 300);
+}
+
 
             // Carrossel
             let currentCarouselIndex = 0;
@@ -906,15 +1008,132 @@
 
                     // Clique nas linhas → modal de detalhes
                     function abrirFicha(dados) {
-                        let html = '<span class="modal-close">&times;</span><h3 style="margin-bottom:24px;"><i class="fas fa-receipt"></i> Detalhes</h3>';
-                        const totalFields = ['Total Bruto','Total Líquido','Valor Mercadoria','Valor Total'];
-                        for (let [chave, valor] of Object.entries(dados)) {
-                            const highlight = totalFields.some(tf => chave.toLowerCase().includes(tf.toLowerCase()));
-                            html += `<div class="modal-pedido-item ${highlight?'highlight':''}"><i class="fas fa-file-alt" style="color:${highlight?'var(--success)':'var(--primary)'}"></i><div><strong>${chave}</strong><br>${valor||'—'}</div></div>`;
-                        }
-                        document.getElementById('modal-body').innerHTML = html;
-                        document.getElementById('detail-modal').classList.add('active');
-                    }
+    const icones = {
+        'competência': 'fa-calendar-alt',
+        'data': 'fa-calendar-day',
+        'vendedor': 'fa-user-tie',
+        'cliente': 'fa-building',
+        'razão social': 'fa-building',
+        'produto': 'fa-box',
+        'quantidade': 'fa-hashtag',
+        'valor unitário': 'fa-dollar-sign',
+        'total bruto': 'fa-file-invoice-dollar',
+        'total líquido': 'fa-hand-holding-usd',
+        'valor mercadoria': 'fa-tag',
+        'custo': 'fa-coins',
+        'margem': 'fa-percent',
+        'depósito': 'fa-warehouse',
+        'país': 'fa-globe-americas',
+        'moeda': 'fa-money-bill',
+        '% icms': 'fa-percent',
+        '% ipi': 'fa-percent',
+        '% iss': 'fa-percent',
+        'empresa': 'fa-industry',
+        'nome chave': 'fa-id-card',
+        'número': 'fa-hashtag',
+        'data criação': 'fa-calendar-plus',
+        'situação versão': 'fa-info-circle',
+        'representante': 'fa-user-tie',
+        'cidade': 'fa-city',
+        'uf': 'fa-map-marker-alt',
+        'código': 'fa-barcode',
+        'descrição': 'fa-align-left',
+        'observação': 'fa-comment',
+        'status': 'fa-check-circle',
+        'tipo': 'fa-tag',
+        'grupo': 'fa-layer-group',
+        'filial': 'fa-code-branch',
+        'transportadora': 'fa-truck',
+        'pedido': 'fa-clipboard-list',
+        'nota fiscal': 'fa-file-invoice',
+        'volume': 'fa-cube',
+        'peso': 'fa-weight-hanging'
+    };
+
+    const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
+
+    const linhas = Object.entries(dados).map(([chave, valor]) => {
+        const chaveLower = chave.toLowerCase().trim();
+        // Ícone específico ou fallback com ícone de documento (não bolinha)
+        const icone = icones[chaveLower] || 'fa-file-alt';
+        const isDestaque = camposDestaque.includes(chaveLower);
+        const valorFormatado = valor || '—';
+        return `
+        <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
+            <i class="fas ${icone} ficha-icone"></i>
+            <div class="ficha-conteudo">
+                <span class="ficha-label">${chave}</span>
+                <span class="ficha-valor">${valorFormatado}</span>
+            </div>
+        </div>`;
+    }).join('');
+
+    const html = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
+        </h3>
+        <button onclick="document.getElementById('detail-modal').classList.remove('active')"
+                style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+            &times;
+        </button>
+    </div>
+    <div class="ficha-lista">
+        ${linhas}
+    </div>
+    <style>
+        .ficha-lista {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .ficha-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 10px 12px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 1px solid #edf2f7;
+        }
+        .ficha-item-destaque {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+        .ficha-icone {
+            color: var(--primary);
+            font-size: 1rem;
+            width: 20px;
+            text-align: center;
+            margin-top: 2px;
+        }
+        .ficha-conteudo {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .ficha-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--muted);
+        }
+        .ficha-valor {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+        .ficha-item-destaque .ficha-valor {
+            font-size: 1.05rem;
+            color: var(--success);
+        }
+    </style>
+    `;
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('detail-modal').classList.add('active');
+}
                     const listas = { aprov, fat, cot, aprovfat: aprovFat };
                     document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
                         row.addEventListener('click', function() {
