@@ -2841,139 +2841,159 @@
             }
 
             async function gerarPDF() {
-                const progressInterval = showLoading();
-                
-                try {
-                    // Capturar os canvases dos gráficos para o PDF
-                    const chartCanvas = document.getElementById('chart-faturamento');
-                    const chartImage = chartCanvas ? chartCanvas.toDataURL('image/png') : null;
-                    
-                    // Capturar os doughnuts
-                    const doughnutIds = ['meta-mensal-chart', 'meta-plus-chart', 'meta-semestral-chart', 'meta-anual-chart'];
-                    const doughnutImages = {};
-                    doughnutIds.forEach(id => {
-                        const canvas = document.getElementById(id);
-                        if (canvas) {
-                            doughnutImages[id] = canvas.toDataURL('image/png');
-                        }
-                    });
+    const progressInterval = showLoading();
+    
+    try {
+        // Capturar os canvases dos gráficos para o PDF
+        const chartCanvas = document.getElementById('chart-faturamento');
+        const chartImage = chartCanvas ? chartCanvas.toDataURL('image/png') : null;
+        
+        // Capturar os doughnuts
+        const doughnutIds = ['meta-mensal-chart', 'meta-plus-chart', 'meta-semestral-chart', 'meta-anual-chart'];
+        const doughnutImages = {};
+        doughnutIds.forEach(id => {
+            const canvas = document.getElementById(id);
+            if (canvas) {
+                doughnutImages[id] = canvas.toDataURL('image/png');
+            }
+        });
 
-                    // Criar uma cópia do conteúdo principal para o PDF
-                    const mainContent = document.getElementById('main-content');
-                    const clone = mainContent.cloneNode(true);
-                    
-                    // Remover elementos que não devem aparecer no PDF
-                    const removeSelectors = [
-                        '.carousel-section',
-                        '.tools-grid',
-                        '.month-filter',
-                        '.table-search',
-                        '.mobile-topbar',
-                        '.mobile-bottom-bar',
-                        '.header',
-                        '.footer',
-                        '.pdf-btn',
-                        '.no-print',
-                        '.icon-btn',
-                        '.notification-bell',
-                        '.badge'
-                    ];
-                    
-                    removeSelectors.forEach(selector => {
-                        clone.querySelectorAll(selector).forEach(el => el.remove());
-                    });
+        // Criar uma cópia do conteúdo principal para o PDF
+        const mainContent = document.getElementById('main-content');
+        const clone = mainContent.cloneNode(true);
+        
+        // Remover elementos que não devem aparecer no PDF (usando classes e IDs específicos)
+        const removeSelectors = [
+            '.carousel-section',
+            '.tools-grid', 
+            '.month-filter',
+            '.header',
+            '.footer',
+            '.mobile-topbar',
+            '.mobile-bottom-bar',
+            '.hamburger-overlay',
+            '.hamburger-menu'
+        ];
+        
+        // Remover por seletor CSS
+        removeSelectors.forEach(selector => {
+            const elements = clone.querySelectorAll(selector);
+            elements.forEach(el => {
+                if (el && el.parentNode) {
+                    el.parentNode.removeChild(el);
+                }
+            });
+        });
+        
+        // Remover campos de busca das tabelas
+        const searchInputs = clone.querySelectorAll('.table-search');
+        searchInputs.forEach(input => {
+            if (input && input.parentNode) {
+                input.parentNode.removeChild(input);
+            }
+        });
+        
+        // Remover botão PDF do clone
+        const pdfBtns = clone.querySelectorAll('.pdf-btn');
+        pdfBtns.forEach(btn => {
+            if (btn && btn.parentNode) {
+                btn.parentNode.removeChild(btn);
+            }
+        });
 
-                    // Substituir canvas do gráfico principal por imagem
-                    const cloneChartCanvas = clone.querySelector('#chart-faturamento');
-                    if (cloneChartCanvas && chartImage) {
-                        const img = document.createElement('img');
-                        img.src = chartImage;
-                        img.style.width = '100%';
-                        img.style.maxWidth = '100%';
-                        img.style.height = 'auto';
-                        cloneChartCanvas.parentNode.replaceChild(img, cloneChartCanvas);
-                    }
+        // Substituir canvas do gráfico principal por imagem
+        const cloneChartCanvas = clone.querySelector('#chart-faturamento');
+        if (cloneChartCanvas && chartImage) {
+            const img = document.createElement('img');
+            img.src = chartImage;
+            img.style.width = '100%';
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            if (cloneChartCanvas.parentNode) {
+                cloneChartCanvas.parentNode.replaceChild(img, cloneChartCanvas);
+            }
+        }
 
-                    // Substituir doughnuts por imagens
-                    doughnutIds.forEach(id => {
-                        const cloneCanvas = clone.querySelector('#' + id);
-                        if (cloneCanvas && doughnutImages[id]) {
-                            const img = document.createElement('img');
-                            img.src = doughnutImages[id];
-                            img.style.width = '90px';
-                            img.style.height = '90px';
-                            cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
-                            // Atualizar o texto de percentagem
-                            const percentDiv = cloneCanvas.parentNode.querySelector('div[style*="position:absolute"]');
-                            if (percentDiv) {
-                                percentDiv.style.color = '#000';
-                            }
-                        }
-                    });
-
-                    // Criar container temporário para o PDF
-                    const tempContainer = document.createElement('div');
-                    tempContainer.style.cssText = `
-                        position: absolute;
-                        left: -9999px;
-                        top: 0;
-                        width: 1200px;
-                        background: white;
-                        padding: 20px;
-                        font-family: 'Inter', system-ui, -apple-system, sans-serif;
-                    `;
-                    
-                    // Adicionar cabeçalho ao PDF
-                    const headerDiv = document.createElement('div');
-                    headerDiv.style.cssText = `
-                        text-align: center;
-                        padding: 10px;
-                        margin-bottom: 20px;
-                        border-bottom: 3px solid #1e3a5f;
-                    `;
-                    headerDiv.innerHTML = `
-                        <h1 style="color: #1e3a5f; margin: 0 0 5px 0; font-size: 20px;">Relatório de Performance</h1>
-                        <p style="color: #5b6472; margin: 0; font-size: 14px;">${nomeVendedor} | Mês: ${currentMonth || 'Atual'} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>
-                    `;
-                    tempContainer.appendChild(headerDiv);
-                    tempContainer.appendChild(clone);
-                    
-                    document.body.appendChild(tempContainer);
-
-                    // Configurações do html2pdf
-                    const options = {
-                        margin: [8, 8, 8, 8],
-                        filename: `relatorio_${nomeVendedor.replace(/\s+/g, '_')}_${currentMonth || 'atual'}_${new Date().toISOString().slice(0,10)}.pdf`,
-                        image: { type: 'jpeg', quality: 0.95 },
-                        html2canvas: { 
-                            scale: 2,
-                            useCORS: true,
-                            letterRendering: true,
-                            logging: false,
-                            windowWidth: 1200
-                        },
-                        jsPDF: { 
-                            unit: 'mm', 
-                            format: 'a3', 
-                            orientation: 'landscape' 
-                        },
-                        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                    };
-
-                    // Gerar PDF
-                    await html2pdf().set(options).from(tempContainer).save();
-                    
-                    // Limpar
-                    document.body.removeChild(tempContainer);
-                    hideLoading(progressInterval);
-                    showToast('PDF gerado com sucesso!');
-                    
-                } catch (error) {
-                    console.error('Erro ao gerar PDF:', error);
-                    hideLoading(progressInterval);
-                    showToast('Erro ao gerar PDF. Tente novamente.', true);
+        // Substituir doughnuts por imagens
+        doughnutIds.forEach(id => {
+            const cloneCanvas = clone.querySelector('#' + id);
+            if (cloneCanvas && doughnutImages[id] && cloneCanvas.parentNode) {
+                const img = document.createElement('img');
+                img.src = doughnutImages[id];
+                img.style.width = '90px';
+                img.style.height = '90px';
+                cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
+                // Atualizar o texto de percentagem
+                const percentDiv = cloneCanvas.parentNode.querySelector('div[style*="position:absolute"]');
+                if (percentDiv) {
+                    percentDiv.style.color = '#000';
                 }
             }
+        });
+
+        // Criar container temporário para o PDF
+        const tempContainer = document.createElement('div');
+        tempContainer.style.cssText = `
+            position: absolute;
+            left: -9999px;
+            top: 0;
+            width: 1200px;
+            background: white;
+            padding: 20px;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+        `;
+        
+        // Adicionar cabeçalho ao PDF
+        const headerDiv = document.createElement('div');
+        headerDiv.style.cssText = `
+            text-align: center;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #1e3a5f;
+        `;
+        headerDiv.innerHTML = `
+            <h1 style="color: #1e3a5f; margin: 0 0 5px 0; font-size: 20px;">Relatório de Performance</h1>
+            <p style="color: #5b6472; margin: 0; font-size: 14px;">${nomeVendedor} | Mês: ${currentMonth || 'Atual'} | Gerado em: ${new Date().toLocaleDateString('pt-BR')}</p>
+        `;
+        tempContainer.appendChild(headerDiv);
+        tempContainer.appendChild(clone);
+        
+        document.body.appendChild(tempContainer);
+
+        // Configurações do html2pdf
+        const options = {
+            margin: [8, 8, 8, 8],
+            filename: `relatorio_${nomeVendedor.replace(/\s+/g, '_')}_${currentMonth || 'atual'}_${new Date().toISOString().slice(0,10)}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { 
+                scale: 2,
+                useCORS: true,
+                letterRendering: true,
+                logging: false,
+                windowWidth: 1200
+            },
+            jsPDF: { 
+                unit: 'mm', 
+                format: 'a3', 
+                orientation: 'landscape' 
+            },
+            pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
+        };
+
+        // Gerar PDF
+        await html2pdf().set(options).from(tempContainer).save();
+        
+        // Limpar
+        document.body.removeChild(tempContainer);
+        hideLoading(progressInterval);
+        showToast('PDF gerado com sucesso!');
+        
+    } catch (error) {
+        console.error('Erro ao gerar PDF:', error);
+        hideLoading(progressInterval);
+        showToast('Erro ao gerar PDF. Tente novamente.', true);
+    }
+}
 
             // ══════════════ HAMBURGER MENU CONTROLS ══════════════
             function openHamburger() {
