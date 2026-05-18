@@ -2862,72 +2862,66 @@
         const mainContent = document.getElementById('main-content');
         const clone = mainContent.cloneNode(true);
         
-        // Remover elementos que não devem aparecer no PDF (usando classes e IDs específicos)
+        // Função segura para remover elementos
+        function safeRemove(selector) {
+            try {
+                const elements = clone.querySelectorAll(selector);
+                elements.forEach(el => {
+                    if (el && el.parentNode) {
+                        el.parentNode.removeChild(el);
+                    }
+                });
+            } catch(e) {
+                console.warn('Erro ao remover elemento:', selector, e);
+            }
+        }
+        
+        // Remover elementos que não devem aparecer no PDF
         const removeSelectors = [
             '.carousel-section',
             '.tools-grid', 
             '.month-filter',
             '.header',
-            '.footer',
             '.mobile-topbar',
             '.mobile-bottom-bar',
             '.hamburger-overlay',
-            '.hamburger-menu'
+            '.hamburger-menu',
+            '.footer',
+            '.table-search',
+            '.pdf-btn',
+            '.no-print'
         ];
         
-        // Remover por seletor CSS
-        removeSelectors.forEach(selector => {
-            const elements = clone.querySelectorAll(selector);
-            elements.forEach(el => {
-                if (el && el.parentNode) {
-                    el.parentNode.removeChild(el);
-                }
-            });
-        });
-        
-        // Remover campos de busca das tabelas
-        const searchInputs = clone.querySelectorAll('.table-search');
-        searchInputs.forEach(input => {
-            if (input && input.parentNode) {
-                input.parentNode.removeChild(input);
-            }
-        });
-        
-        // Remover botão PDF do clone
-        const pdfBtns = clone.querySelectorAll('.pdf-btn');
-        pdfBtns.forEach(btn => {
-            if (btn && btn.parentNode) {
-                btn.parentNode.removeChild(btn);
-            }
-        });
+        removeSelectors.forEach(selector => safeRemove(selector));
 
-        // Substituir canvas do gráfico principal por imagem
+        // Substituir canvas do gráfico principal por imagem (se existir)
         const cloneChartCanvas = clone.querySelector('#chart-faturamento');
-        if (cloneChartCanvas && chartImage) {
-            const img = document.createElement('img');
-            img.src = chartImage;
-            img.style.width = '100%';
-            img.style.maxWidth = '100%';
-            img.style.height = 'auto';
-            if (cloneChartCanvas.parentNode) {
+        if (cloneChartCanvas && chartImage && cloneChartCanvas.parentNode) {
+            try {
+                const img = document.createElement('img');
+                img.src = chartImage;
+                img.style.width = '100%';
+                img.style.maxWidth = '100%';
+                img.style.height = 'auto';
                 cloneChartCanvas.parentNode.replaceChild(img, cloneChartCanvas);
+            } catch(e) {
+                console.warn('Erro ao substituir gráfico principal:', e);
             }
         }
 
         // Substituir doughnuts por imagens
         doughnutIds.forEach(id => {
-            const cloneCanvas = clone.querySelector('#' + id);
-            if (cloneCanvas && doughnutImages[id] && cloneCanvas.parentNode) {
-                const img = document.createElement('img');
-                img.src = doughnutImages[id];
-                img.style.width = '90px';
-                img.style.height = '90px';
-                cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
-                // Atualizar o texto de percentagem
-                const percentDiv = cloneCanvas.parentNode.querySelector('div[style*="position:absolute"]');
-                if (percentDiv) {
-                    percentDiv.style.color = '#000';
+            try {
+                const cloneCanvas = clone.querySelector('#' + id);
+                if (cloneCanvas && doughnutImages[id] && cloneCanvas.parentNode) {
+                    const img = document.createElement('img');
+                    img.src = doughnutImages[id];
+                    img.style.width = '90px';
+                    img.style.height = '90px';
+                    cloneCanvas.parentNode.replaceChild(img, cloneCanvas);
                 }
+            } catch(e) {
+                console.warn('Erro ao substituir doughnut:', id, e);
             }
         });
 
@@ -2984,14 +2978,19 @@
         await html2pdf().set(options).from(tempContainer).save();
         
         // Limpar
-        document.body.removeChild(tempContainer);
+        setTimeout(() => {
+            if (tempContainer && tempContainer.parentNode) {
+                document.body.removeChild(tempContainer);
+            }
+        }, 1000);
+        
         hideLoading(progressInterval);
         showToast('PDF gerado com sucesso!');
         
     } catch (error) {
         console.error('Erro ao gerar PDF:', error);
         hideLoading(progressInterval);
-        showToast('Erro ao gerar PDF. Tente novamente.', true);
+        showToast('Erro ao gerar PDF: ' + error.message, true);
     }
 }
 
