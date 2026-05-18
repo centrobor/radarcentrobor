@@ -939,7 +939,6 @@
             background: none;
             font-family: inherit;
             -webkit-tap-highlight-color: transparent;
-            position: relative;
         }
         .mobile-bottom-bar .bb-item i {
             font-size: 1.25rem;
@@ -959,21 +958,6 @@
         .mobile-bottom-bar .bb-item:active {
             transform: scale(0.9);
             background: rgba(30, 58, 95, 0.06);
-        }
-        .badge-mobile {
-            position: absolute;
-            top: -6px;
-            right: 2px;
-            background: var(--danger);
-            color: white;
-            border-radius: 50%;
-            width: 18px;
-            height: 18px;
-            font-size: 0.6rem;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
         }
 
         /* ══════════════ MEDIA QUERIES MOBILE (≤1000px) ══════════════ */
@@ -1212,6 +1196,8 @@
             <div class="menu-section-label">Principal</div>
             <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
             <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
+
+       
             <button class="menu-item" id="menu-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
         </div>
         <div class="menu-section">
@@ -1220,17 +1206,13 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+    <!-- ══════════════ MOBILE BOTTOM BAR (apenas Feed, Notificações, Início) ══════════════ -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" data-nav="feed" id="bb-feed">
             <i class="fas fa-newspaper"></i><span>Feed</span>
         </button>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
-            <span style="position: relative;">
-                <i class="fas fa-bell"></i>
-                <span class="badge-mobile" id="mobile-notification-badge">0</span>
-            </span>
-            <span>Alertas</span>
+            <i class="fas fa-bell"></i><span>Alertas</span>
         </button>
         <button class="bb-item active" data-nav="home" id="bb-home">
             <i class="fas fa-home"></i><span>Início</span>
@@ -1375,15 +1357,6 @@
     <div id="configRowsModal" class="modal"><div class="modal-content"><span class="close-modal-btn">&times;</span><h3>Exibir Qtd. de Registros</h3><input type="number" id="rowsInput" min="5" max="100" value="10" style="width:100%; margin:15px 0; padding:12px;"><button id="applyRowsBtn" class="btn">Aplicar</button></div></div>
     <div class="notification-dropdown" id="notification-dropdown"></div>
 
-    <!-- MODAL PARA NOTIFICAÇÕES NO MOBILE -->
-    <div id="mobileNotificationsModal" class="modal">
-        <div class="modal-content" style="max-width: 500px;">
-            <span class="close-modal-btn" id="closeMobileNotifModal">&times;</span>
-            <h3><i class="fas fa-bell"></i> Central de Alertas</h3>
-            <div id="mobileNotificationsList" style="max-height: 60vh; overflow-y: auto; margin-top: 16px;"></div>
-        </div>
-    </div>
-
     <script>
         (function() {
             // ==================== URLs absolutos para redirecionamento ====================
@@ -1437,7 +1410,8 @@
             let chartsVisible = localStorage.getItem('chartsVisible') !== 'false';
             let sortOrder = 'desc';
             let filtersBarVisible = localStorage.getItem('filtersBarVisible') !== 'false';
-            const DEFAULT_BG_URL = "";
+            const DEFAULT_BG_URL = ""; // ou sua URL de background padrão
+        
 
             let currentVendedor = "todos";
             let currentSituacao = "todos";
@@ -1689,7 +1663,7 @@
                     <td>R$ ${order.valorTotal.toFixed(2).replace('.', ',')}</td>
                     <td><span class="status-badge ${order.situacao === 'APROVADO' ? 'status-aprovado' : 'status-pendente'}">${order.situacao}</span></td>
                     <td><span class="status-badge ${order.recebimento === 'SIM' ? 'recebimento-sim' : 'recebimento-outros'}">${order.recebimento || 'PENDENTE'}</span></td>
-                </tr>
+                </table>
             `).join('');
                 document.querySelectorAll('#tableBody tr').forEach(tr => {
                     tr.addEventListener('click', () => {
@@ -1859,16 +1833,8 @@
 
             function refreshNotifications() {
                 const unread = notifications.filter(n => !readNotifications.includes(n.id));
-                const badgeDesktop = document.getElementById('notification-badge');
-                const badgeMobile = document.getElementById('mobile-notification-badge');
-                if (badgeDesktop) {
-                    badgeDesktop.innerText = unread.length;
-                    badgeDesktop.style.display = unread.length ? 'flex' : 'none';
-                }
-                if (badgeMobile) {
-                    badgeMobile.innerText = unread.length;
-                    badgeMobile.style.display = unread.length ? 'flex' : 'none';
-                }
+                document.getElementById('notification-badge').innerText = unread.length;
+                document.getElementById('notification-badge').style.display = unread.length ? 'flex' : 'none';
             }
 
             function renderNotificationDropdown() {
@@ -1904,36 +1870,6 @@
                 renderNotificationDropdown();
             }
 
-            // Função para renderizar o modal mobile de notificações
-            function renderMobileNotificationsModal() {
-                const container = document.getElementById('mobileNotificationsList');
-                if (!container) return;
-                const unread = notifications.filter(n => !readNotifications.includes(n.id));
-                const all = [...notifications].reverse(); // mais recentes primeiro
-                container.innerHTML = all.map(n => {
-                    const isUnread = unread.some(u => u.id === n.id);
-                    return `
-                        <div class="notification-item ${isUnread ? 'unread' : 'read'}" data-id="${n.id}">
-                            <div>${n.text}</div>
-                            <div class="date">${new Date(n.date).toLocaleString('pt-BR')}</div>
-                        </div>
-                    `;
-                }).join('');
-                // Marcar como lidas ao clicar em cada item
-                container.querySelectorAll('.notification-item').forEach(item => {
-                    item.addEventListener('click', (e) => {
-                        const id = item.dataset.id;
-                        if (!readNotifications.includes(id)) {
-                            readNotifications.push(id);
-                            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-                            refreshNotifications();
-                            renderMobileNotificationsModal(); // re-render para remover o negrito
-                        }
-                    });
-                });
-            }
-
-            // Eventos da UI
             const bell = document.getElementById('notification-bell');
             const dropdownNotif = document.getElementById('notification-dropdown');
             bell.addEventListener('click', (e) => {
@@ -1948,30 +1884,6 @@
                 }
             });
             document.addEventListener('click', () => dropdownNotif.classList.remove('show'));
-
-            // Modal mobile de notificações
-            const mobileNotifModal = document.getElementById('mobileNotificationsModal');
-            const closeMobileNotif = document.getElementById('closeMobileNotifModal');
-            const bbAlertas = document.getElementById('bb-alertas');
-            if (bbAlertas) {
-                bbAlertas.addEventListener('click', () => {
-                    // Marcar todas como lidas ao abrir (comportamento igual ao desktop)
-                    markNotificationsAsRead();
-                    renderMobileNotificationsModal();
-                    mobileNotifModal.style.display = 'flex';
-                });
-            }
-            if (closeMobileNotif) {
-                closeMobileNotif.addEventListener('click', () => {
-                    mobileNotifModal.style.display = 'none';
-                });
-            }
-            // Fechar modal ao clicar fora (opcional)
-            window.addEventListener('click', (e) => {
-                if (e.target === mobileNotifModal) {
-                    mobileNotifModal.style.display = 'none';
-                }
-            });
 
             // Botões de logout e home usando URLs absolutos
             document.getElementById('home-btn').addEventListener('click', () => {
@@ -2008,8 +1920,12 @@
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
+            // Links do menu hambúrguer
             document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
             document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+
+       //     document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); }); 
+
             document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
             document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
                 localStorage.setItem(LOGGED_OUT_KEY, 'true');
@@ -2022,6 +1938,7 @@
             // Bottom bar
             setActiveBottomBar('home');
             document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+            document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); });
             document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
 
             // Inicialização
