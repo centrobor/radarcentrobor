@@ -1950,40 +1950,220 @@
             function getProgressColor(p) { if (p >= 100) return '#2e7d32'; if (p >= 60) return '#ed6c02'; return '#d32f2f'; }
 
             function renderVendorGoals(monthKey) {
-                const [ano, mes] = monthKey.split('-').map(Number);
-                const vendorEntries = []; const processedNonFabiano = new Set();
-                allMetas.forEach(m => {
-                    const nome = (m.vendedor || '').trim(); if (!nome) return;
-                    const id = String(m.id_vendedor || '').trim(); if (id == '80') return;
-                    const metaM = cleanNumber(m.meta_mensal);
-                    if (selectedVendor !== 'all' && id !== selectedVendor) return;
-                    if (nome.startsWith('Fabiano')) { vendorEntries.push({ vendedor: 'Fabiano', categoria: nome.replace('Fabiano - ', ''), metaMensal: metaM, idVendedor: id, isFabiano: true, fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia' }); }
-                    else if (!processedNonFabiano.has(id)) { processedNonFabiano.add(id); vendorEntries.push({ vendedor: VENDEDORES_MAP[id] || nome, categoria: '', metaMensal: metaM, idVendedor: id, isFabiano: false }); }
-                });
-                vendorEntries.forEach(e => { if (e.isFabiano) e.faturado = e.fabianoTipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes); else { let fat = 0; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) fat += cleanNumber(f['Valor Mercadoria']); }); e.faturado = fat; } });
-                let fatGeral = 0; allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) { const cod = f['Cod. Vendedor']?.trim(); if (cod == '80') return; if (selectedVendor == 'all' || cod === selectedVendor) fatGeral += cleanNumber(f['Valor Mercadoria']); } });
-                vendorEntries.push({ vendedor: 'Dimas', categoria: 'Geral', metaMensal: 1100000, faturado: fatGeral, isDimas: true });
-                vendorEntries.forEach(e => { e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0; e.metaPlus = e.isDimas ? null : e.metaMensal * 1.1; e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0; });
-                const fabianoCards = vendorEntries.filter(e => e.isFabiano), outros = vendorEntries.filter(e => !e.isFabiano); outros.sort((a, b) => b.percentual - a.percentual);
-                const ordenados = [...fabianoCards, ...outros];
-                const container = document.getElementById('vendor-goals-container');
-                let html = '', fabianoGroupHtml = '';
-                ordenados.forEach((entry, index) => {
-                    const st = getStatusInfo(entry.percentual), cor = getProgressColor(entry.percentual), falta = Math.max(0, entry.metaMensal - entry.faturado);
-                    const cardHtml = `
-                        <div class="vendor-mini-card" data-entry-index="${index}">
-                            <div class="vendor-mini-header"><span class="vendor-name">${entry.vendedor}</span>${entry.categoria?`<span class="vendor-category">${entry.categoria}</span>`:''}</div>
-                            <div class="target-row"><div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div><div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div></div>
-                            <div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div><span class="percent-text">${entry.percentual.toFixed(1)}%</span></div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span></div>
-                            ${entry.metaPlus?`<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;"><div class="target-row"><div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div><div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div></div><div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div><span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span></div><div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span></div></div>`:''}
-                        </div>`;
-                    if (entry.isFabiano) fabianoGroupHtml += cardHtml; else html += cardHtml;
-                });
-                container.innerHTML = `<div class="fabiano-group">${fabianoGroupHtml}</div>${html}`;
-                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
-                document.querySelectorAll('.vendor-mini-card').forEach((card, i) => { card.addEventListener('click', () => abrirDetalhesMeta(ordenados[i])); });
+    const [ano, mes] = monthKey.split('-').map(Number);
+    const vendorEntries = [];
+    const processedNonFabiano = new Set();
+    
+    // Processa as metas da tabela
+    allMetas.forEach(m => {
+        const nome = (m.vendedor || '').trim();
+        if (!nome) return;
+        
+        const id = String(m.id_vendedor || '').trim();
+        
+        // Pula vendedores com código 80 (RKB) e 1 (admin)
+        if (id == '80' || id == '1') return;
+        
+        // Pula Dimas e Eduardo da tabela de metas (serão adicionados manualmente depois)
+        if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
+        
+        const metaM = cleanNumber(m.meta_mensal);
+        
+        if (selectedVendor !== 'all' && id !== selectedVendor) return;
+        
+        if (nome.startsWith('Fabiano')) {
+            vendorEntries.push({
+                vendedor: 'Fabiano',
+                categoria: nome.replace('Fabiano - ', ''),
+                metaMensal: metaM,
+                idVendedor: id,
+                isFabiano: true,
+                fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
+            });
+        } else if (!processedNonFabiano.has(id)) {
+            processedNonFabiano.add(id);
+            vendorEntries.push({
+                vendedor: VENDEDORES_MAP[id] || nome,
+                categoria: '',
+                metaMensal: metaM,
+                idVendedor: id,
+                isFabiano: false
+            });
+        }
+    });
+    
+    // Calcula faturamento para cada vendedor
+    vendorEntries.forEach(e => {
+        if (e.isFabiano) {
+            e.faturado = e.fabianoTipo === 'sincpolias' 
+                ? getFabianoSincPoliasFat(ano, mes) 
+                : getFabianoLavanderiaFat(ano, mes);
+        } else {
+            let fat = 0;
+            allFaturados.forEach(f => {
+                const d = parseDataBR(f['Data']);
+                if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && 
+                    String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
+                    fat += cleanNumber(f['Valor Mercadoria']);
+                }
+            });
+            e.faturado = fat;
+        }
+    });
+    
+    // Calcula faturamento total do mês (excluindo código 80 e 1)
+    let fatGeral = 0;
+    const chavesUsadas = new Set();
+    allFaturados.forEach(f => {
+        const d = parseDataBR(f['Data']);
+        if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
+            const cod = f['Cod. Vendedor']?.trim();
+            // Exclui RKB (80) e admin (1) do faturamento geral
+            if (cod == '80' || cod == '1') return;
+            if (selectedVendor == 'all' || cod === selectedVendor) {
+                // Evita duplicatas por chave única
+                const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
+                if (!chavesUsadas.has(chave)) {
+                    chavesUsadas.add(chave);
+                    fatGeral += cleanNumber(f['Valor Mercadoria']);
+                }
             }
+        }
+    });
+    
+    // Busca a meta do Dimas da tabela de metas
+    let metaDimas = 0;
+    allMetas.forEach(m => {
+        const nome = (m.vendedor || '').trim();
+        if (nome.includes('Dimas')) {
+            metaDimas = cleanNumber(m.meta_mensal);
+        }
+    });
+    
+    // Se não encontrou meta específica para Dimas, usa a meta global
+    if (metaDimas === 0) {
+        metaDimas = getMetaGlobal(ano, mes);
+    }
+    
+    // Adiciona Dimas (Geral) - apenas UMA vez
+    vendorEntries.push({
+        vendedor: 'Dimas',
+        categoria: 'Geral',
+        metaMensal: metaDimas,
+        faturado: fatGeral,
+        isDimas: true
+    });
+    
+    // Adiciona Eduardo com os mesmos valores do Dimas
+    vendorEntries.push({
+        vendedor: 'Eduardo',
+        categoria: 'Geral',
+        metaMensal: metaDimas,
+        faturado: fatGeral,
+        isEduardo: true
+    });
+    
+    // Calcula percentuais
+    vendorEntries.forEach(e => {
+        e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
+        // Meta Plus apenas para quem não é Dimas nem Eduardo
+        e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
+        e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
+    });
+    
+    // Organiza os cards
+    const fabianoCards = vendorEntries.filter(e => e.isFabiano);
+    const outros = vendorEntries.filter(e => !e.isFabiano);
+    
+    // Ordena: Dimas primeiro, depois Eduardo, depois os outros por percentual decrescente
+    outros.sort((a, b) => {
+        if (a.isDimas) return -1; // Dimas sempre primeiro
+        if (b.isDimas) return 1;
+        if (a.isEduardo) return -1; // Eduardo em segundo
+        if (b.isEduardo) return 1;
+        return b.percentual - a.percentual; // Resto ordenado por percentual
+    });
+    
+    const ordenados = [...fabianoCards, ...outros];
+    
+    // Renderiza os cards
+    const container = document.getElementById('vendor-goals-container');
+    let html = '';
+    let fabianoGroupHtml = '';
+    
+    ordenados.forEach((entry, index) => {
+        const st = getStatusInfo(entry.percentual);
+        const cor = getProgressColor(entry.percentual);
+        const falta = Math.max(0, entry.metaMensal - entry.faturado);
+        
+        const cardHtml = `
+            <div class="vendor-mini-card" data-entry-index="${index}">
+                <div class="vendor-mini-header">
+                    <span class="vendor-name">${entry.vendedor}</span>
+                    ${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}
+                </div>
+                <div class="target-row">
+                    <div class="target-info">
+                        <div class="label">Meta Mensal</div>
+                        <div>R$ ${formatCurrency(entry.metaMensal)}</div>
+                    </div>
+                    <div class="target-info">
+                        <div class="label">Faturado</div>
+                        <div>R$ ${formatCurrency(entry.faturado)}</div>
+                    </div>
+                </div>
+                <div class="progress-wrapper">
+                    <div class="mini-progress">
+                        <div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div>
+                    </div>
+                    <span class="percent-text">${entry.percentual.toFixed(1)}%</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span>
+                    <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span>
+                </div>
+                ${entry.metaPlus ? `
+                <div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;">
+                    <div class="target-row">
+                        <div class="target-info">
+                            <div class="label">Meta Plus (+10%)</div>
+                            <div>R$ ${formatCurrency(entry.metaPlus)}</div>
+                        </div>
+                        <div class="target-info">
+                            <div class="label">Atingido</div>
+                            <div>${entry.percentualPlus.toFixed(1)}%</div>
+                        </div>
+                    </div>
+                    <div class="progress-wrapper">
+                        <div class="mini-progress">
+                            <div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div>
+                        </div>
+                        <span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span>
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">
+                            ${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}
+                        </span>
+                        <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span>
+                    </div>
+                </div>` : ''}
+            </div>`;
+        
+        if (entry.isFabiano) {
+            fabianoGroupHtml += cardHtml;
+        } else {
+            html += cardHtml;
+        }
+    });
+    
+    container.innerHTML = `<div class="fabiano-group">${fabianoGroupHtml}</div>${html}`;
+    document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
+    
+    // Adiciona eventos de clique
+    document.querySelectorAll('.vendor-mini-card').forEach((card, i) => {
+        card.addEventListener('click', () => abrirDetalhesMeta(ordenados[i]));
+    });
+}
 
             function renderMonthGoalAndDaily(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);

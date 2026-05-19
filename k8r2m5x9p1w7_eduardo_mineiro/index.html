@@ -2054,10 +2054,20 @@
         isDimas: true
     });
     
+    // Adiciona Eduardo com os mesmos valores do Dimas
+    vendorEntries.push({
+        vendedor: 'Eduardo',
+        categoria: 'Geral',
+        metaMensal: metaDimas,
+        faturado: fatGeral,
+        isEduardo: true
+    });
+    
     // Calcula percentuais
     vendorEntries.forEach(e => {
         e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
-        e.metaPlus = e.isDimas ? null : e.metaMensal * 1.1;
+        // Meta Plus apenas para quem não é Dimas nem Eduardo
+        e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
         e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
     });
     
@@ -2065,11 +2075,13 @@
     const fabianoCards = vendorEntries.filter(e => e.isFabiano);
     const outros = vendorEntries.filter(e => !e.isFabiano);
     
-    // Ordena: Dimas primeiro, depois os outros por percentual decrescente
+    // Ordena: Dimas primeiro, depois Eduardo, depois os outros por percentual decrescente
     outros.sort((a, b) => {
         if (a.isDimas) return -1; // Dimas sempre primeiro
         if (b.isDimas) return 1;
-        return b.percentual - a.percentual;
+        if (a.isEduardo) return -1; // Eduardo em segundo
+        if (b.isEduardo) return 1;
+        return b.percentual - a.percentual; // Resto ordenado por percentual
     });
     
     const ordenados = [...fabianoCards, ...outros];
