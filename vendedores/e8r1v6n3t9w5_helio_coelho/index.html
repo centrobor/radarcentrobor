@@ -588,7 +588,10 @@
                 const str = String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
                 return parseFloat(str) || 0;
             };
-            const extrairCodigo = (str) => { const match = String(str || '').match(/^(\d+)/); return match ? match[1] : null; };
+            const extrairCodigo = (str) => { 
+    const match = String(str || '').match(/^(\d+)/); 
+    return match ? String(parseInt(match[1], 10)) : null; 
+};
             const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
@@ -878,15 +881,18 @@ function exibirPostagemDetalhe(post) {
                     const cot = filterByMonth(cotFull,'Data Criação');
                     const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                    const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-                    const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']||i['Valor Mercadoria']||0),0);
+                                                            const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+
+                    // Pedidos Aprov+Fat: soma do mês selecionado
+                    const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
+
                     const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
                     const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                     const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
                     document.getElementById('kpi-cards').innerHTML = `
                         <div class="mini-card-kpi"><div class="label">Faturamento Mês</div><div class="value green">${formatarMoeda(totalFaturado)}</div></div>
-                        <div class="mini-card-kpi"><div class="label">Aprov+Faturados</div><div class="value blue">${formatarMoeda(totalAprovFat)}</div></div>
+                        <div class="mini-card-kpi"><div class="label">Pedidos Aprov+Fat</div><div class="value blue">${formatarMoeda(totalAprovFat)}</div></div>
                         <div class="mini-card-kpi"><div class="label">Itens Vendidos</div><div class="value blue">${itensVendidos}</div></div>
                         <div class="mini-card-kpi"><div class="label">Cotações Ativas</div><div class="value purple">${cotAtivas}</div></div>
                         <div class="mini-card-kpi"><div class="label">Clientes Atendidos</div><div class="value">${totalClientes}</div></div>

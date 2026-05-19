@@ -1568,68 +1568,171 @@
                 }
             }
 
-            function carregarTabela() {
-                const tbody = document.querySelector('#tabelaRegistros tbody');
-                tbody.innerHTML = '';
-                if (!registros.length || !currentMonthKey) return;
-                const [mesStr, anoStr] = currentMonthKey.split('/');
-                const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9,
-                    nov: 10, dez: 11 };
-                const mes = mesesMap[mesStr];
-                const ano = 2000 + parseInt(anoStr);
-                const filtrados = registros.filter(r => {
-                    const my = extractMonthYear(r.data);
-                    return my && my.month === mes + 1 && my.year === ano;
-                });
-                let totalNF = 0,
-                    totalApv = 0,
-                    totalPedFat = 0,
-                    somaDolar = 0,
-                    acum = 0;
-                const meta = metasMensais[`${ano}-${String(mes+1).padStart(2,'0')}`] || 0;
-                filtrados.forEach(r => {
-                    totalNF += r.faturamentoNF;
-                    totalApv += r.pedidosAprov;
-                    totalPedFat += r.pedidosAprovFat;
-                    somaDolar += r.dolar;
-                    acum += r.faturamentoNF + r.pedidosAprov;
-                    const perc = meta > 0 ? (acum / meta) * 100 : 0;
-                    const tr = document.createElement('tr');
-                    tr.innerHTML =
-                        `<td>${r.data}</td><td>${formatBRL(r.faturamentoNF)}</td><td>${formatBRL(r.pedidosAprovFat)}</td><td>${formatBRL(r.pedidosAprov)}</td><td>${perc.toFixed(1)}%</td><td>${formatBRL(r.dolar)}</td>`;
-                    tbody.appendChild(tr);
-                });
-                const mediaDolar = filtrados.length ? somaDolar / filtrados.length : 0;
-                document.getElementById('mediaDolarHeader').textContent = formatBRL(mediaDolar);
-                document.getElementById('metaMensalTexto').textContent = formatBRL(meta);
-                const projTotal = totalNF + totalApv;
-                const percMeta = meta > 0 ? (projTotal / meta) * 100 : 0;
-                const statusPill = document.getElementById('status-pill');
-                const statusText = document.getElementById('status-text');
-                statusPill.className = 'pill';
-                if (percMeta >= 100) { statusPill.classList.add('green');
-                    statusText.innerHTML = 'Atingida 🎉'; } else if (percMeta >= 90) { statusPill.classList.add('yellow');
-                    statusText.innerHTML = 'Excelente ✅'; } else if (percMeta >= 70) { statusPill.classList.add('yellow');
-                    statusText.innerHTML = 'Boa 👍'; } else { statusPill.classList.add('red');
-                    statusText.innerHTML = 'A Melhorar ⚠️'; }
-                document.getElementById('percentAtingidoHeader').textContent = percMeta.toFixed(1) + '%';
-                const percentPill = document.getElementById('percent-pill');
-                percentPill.className = 'pill ' + (percMeta >= 100 ? 'green' : percMeta >= 70 ? 'yellow' : 'red');
-                renderizarKPIs(projTotal, totalNF, totalApv, meta);
-                atualizarCharts(filtrados, meta);
+            function isDiaUtil(data) {
+    const dia = data.getDay();
+    return dia !== 0 && dia !== 6; // 0 = domingo, 6 = sábado
+}
+
+function getDiasUteisDoMes(ano, mes, ateHoje = true) {
+    const hoje = new Date();
+    const ultimoDia = ateHoje ? Math.min(new Date(ano, mes + 1, 0).getDate(), hoje.getDate()) : new Date(ano, mes + 1, 0).getDate();
+    const diasUteis = [];
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        const data = new Date(ano, mes, dia);
+        if (isDiaUtil(data)) {
+            if (!ateHoje || data <= hoje) {
+                diasUteis.push(data);
             }
+        }
+    }
+    return diasUteis;
+}
+
+// Função auxiliar: verifica se é dia útil (segunda a sexta)
+function isDiaUtil(data) {
+    const dia = data.getDay();
+    return dia !== 0 && dia !== 6; // 0 = domingo, 6 = sábado
+}
+
+// Função auxiliar: retorna array de dias úteis do mês
+function getDiasUteisDoMes(ano, mes, ateHoje = true) {
+    const hoje = new Date();
+    const ultimoDiaDoMes = new Date(ano, mes + 1, 0).getDate();
+    const ultimoDia = ateHoje ? Math.min(ultimoDiaDoMes, hoje.getDate()) : ultimoDiaDoMes;
+    const diasUteis = [];
+    
+    for (let dia = 1; dia <= ultimoDia; dia++) {
+        const data = new Date(ano, mes, dia);
+        if (isDiaUtil(data)) {
+            if (!ateHoje || data <= hoje) {
+                diasUteis.push(data);
+            }
+        }
+    }
+    return diasUteis;
+}
+
+function carregarTabela() {
+    const tbody = document.querySelector('#tabelaRegistros tbody');
+    tbody.innerHTML = '';
+    if (!registros.length || !currentMonthKey) return;
+    
+    const [mesStr, anoStr] = currentMonthKey.split('/');
+    const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
+    const mes = mesesMap[mesStr];
+    const ano = 2000 + parseInt(anoStr);
+    
+    // FILTRA APENAS REGISTROS DO MÊS SELECIONADO PARA A TABELA
+    const filtrados = registros.filter(r => {
+        const my = extractMonthYear(r.data);
+        return my && my.month === mes + 1 && my.year === ano;
+    });
+    
+    // CRIA MAPA DE DÓLAR POR DATA PARA CONSULTA RÁPIDA
+    const dolarPorData = {};
+    registros.forEach(r => {
+        dolarPorData[r.data] = r.dolar;
+    });
+    
+    // DETERMINA SE É MÊS ATUAL (para saber se usa até hoje ou mês completo)
+    const hoje = new Date();
+    const isMesAtual = (ano === hoje.getFullYear() && mes === hoje.getMonth());
+    
+    // OBTÉM TODOS OS DIAS ÚTEIS DO PERÍODO
+    const diasUteisPeriodo = getDiasUteisDoMes(ano, mes, isMesAtual);
+    
+    // CALCULA MÉDIA DO DÓLAR CONSIDERANDO TODOS OS DIAS ÚTEIS
+    let somaDolar = 0;
+    let contadorDolar = 0;
+    
+    diasUteisPeriodo.forEach(data => {
+        const dataStr = `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
+        const valorDolar = dolarPorData[dataStr] || 0;
+        if (valorDolar > 0) {
+            somaDolar += valorDolar;
+            contadorDolar++;
+        }
+    });
+    
+    const mediaDolar = contadorDolar > 0 ? somaDolar / contadorDolar : 0;
+    
+    // ATUALIZA O DISPLAY DO DÓLAR
+    const mediaDolarElement = document.getElementById('mediaDolarHeader');
+    if (mediaDolarElement) {
+        mediaDolarElement.textContent = formatBRL(mediaDolar);
+    }
+    
+    let totalNF = 0,
+        totalApv = 0,
+        totalPedFat = 0,
+        acum = 0;
+    
+    const meta = metasMensais[`${ano}-${String(mes + 1).padStart(2, '0')}`] || 0;
+    
+    // EXIBE OS REGISTROS NA TABELA (APENAS DIAS COM DADOS DE VENDA)
+    filtrados.forEach(r => {
+        totalNF += r.faturamentoNF;
+        totalApv += r.pedidosAprov;
+        totalPedFat += r.pedidosAprovFat;
+        acum += r.faturamentoNF + r.pedidosAprov;
+        const perc = meta > 0 ? (acum / meta) * 100 : 0;
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+            `<td>${r.data}</td>
+             <td>${formatBRL(r.faturamentoNF)}</td>
+             <td>${formatBRL(r.pedidosAprovFat)}</td>
+             <td>${formatBRL(r.pedidosAprov)}</td>
+             <td>${perc.toFixed(1)}%</td>
+              <td>${formatBRL(r.dolar)}</td>`;
+        tbody.appendChild(tr);
+    });
+    
+    document.getElementById('metaMensalTexto').textContent = formatBRL(meta);
+    const projTotal = totalNF + totalApv;
+    const percMeta = meta > 0 ? (projTotal / meta) * 100 : 0;
+    
+    // STATUS PILL
+    const statusPill = document.getElementById('status-pill');
+    const statusText = document.getElementById('status-text');
+    statusPill.className = 'pill';
+    if (percMeta >= 100) {
+        statusPill.classList.add('green');
+        statusText.innerHTML = 'Atingida 🎉';
+    } else if (percMeta >= 90) {
+        statusPill.classList.add('yellow');
+        statusText.innerHTML = 'Excelente ✅';
+    } else if (percMeta >= 70) {
+        statusPill.classList.add('yellow');
+        statusText.innerHTML = 'Boa 👍';
+    } else {
+        statusPill.classList.add('red');
+        statusText.innerHTML = 'A Melhorar ⚠️';
+    }
+    
+    document.getElementById('percentAtingidoHeader').textContent = percMeta.toFixed(1) + '%';
+    const percentPill = document.getElementById('percent-pill');
+    percentPill.className = 'pill ' + (percMeta >= 100 ? 'green' : percMeta >= 70 ? 'yellow' : 'red');
+    
+    // RENDERIZA KPIs (já com o dólar médio atualizado)
+    renderizarKPIs(projTotal, totalNF, totalApv, meta);
+    atualizarCharts(filtrados, meta);
+}
 
             function renderizarKPIs(proj, nf, apv, meta) {
-                const falta = Math.max(0, meta - proj);
-                const perc = meta > 0 ? (proj / meta) * 100 : 0;
-                document.getElementById('kpi-cards').innerHTML = `
-                <div class="mini-card-kpi"><div class="label">Projeção Total</div><div class="value blue">${formatBRL(proj)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Faturado (NF)</div><div class="value green">${formatBRL(nf)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Aprovados</div><div class="value purple">${formatBRL(apv)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Falta p/ Meta</div><div class="value amber">${formatBRL(falta)}</div></div>
-                <div class="mini-card-kpi"><div class="label">% Atingido</div><div class="value blue">${perc.toFixed(1)}%</div></div>
-                <div class="mini-card-kpi"><div class="label">Dólar Médio</div><div class="value">${document.getElementById('mediaDolarHeader').textContent}</div></div>`;
-            }
+    const falta = Math.max(0, meta - proj);
+    const perc = meta > 0 ? (proj / meta) * 100 : 0;
+    const dolarMedio = document.getElementById('mediaDolarHeader').textContent;
+    
+    document.getElementById('kpi-cards').innerHTML = `
+        <div class="mini-card-kpi"><div class="label">Projeção Total</div><div class="value blue">${formatBRL(proj)}</div></div>
+        <div class="mini-card-kpi"><div class="label">Faturado (NF)</div><div class="value green">${formatBRL(nf)}</div></div>
+        <div class="mini-card-kpi"><div class="label">Aprovados</div><div class="value purple">${formatBRL(apv)}</div></div>
+        <div class="mini-card-kpi"><div class="label">Falta p/ Meta</div><div class="value amber">${formatBRL(falta)}</div></div>
+        <div class="mini-card-kpi"><div class="label">% Atingido</div><div class="value blue">${perc.toFixed(1)}%</div></div>
+        <div class="mini-card-kpi"><div class="label">Dólar Médio</div><div class="value">${dolarMedio}</div></div>
+    `;
+}
 
             let charts = {};
 
