@@ -1629,39 +1629,43 @@ function carregarTabela() {
         return my && my.month === mes + 1 && my.year === ano;
     });
     
-    // CRIA MAPA DE DÓLAR POR DATA PARA CONSULTA RÁPIDA
-    const dolarPorData = {};
-    registros.forEach(r => {
-        dolarPorData[r.data] = r.dolar;
+    // ============================================================
+    // CÁLCULO DO DÓLAR MÉDIO - MESMA LÓGICA DO DASHBOARD
+    // ============================================================
+    // 1. Pega o último valor disponível (igual ao Dashboard)
+    const dolarOrdenados = [...registros].filter(r => r.dolar > 0).sort((a, b) => {
+        const [da, ma, aa] = a.data.split('/');
+        const [db, mb, ab] = b.data.split('/');
+        return new Date(`${ab}-${mb}-${db}`) - new Date(`${aa}-${ma}-${da}`);
     });
     
-    // DETERMINA SE É MÊS ATUAL (para saber se usa até hoje ou mês completo)
-    const hoje = new Date();
-    const isMesAtual = (ano === hoje.getFullYear() && mes === hoje.getMonth());
+    const ultimoDolar = dolarOrdenados.length > 0 ? dolarOrdenados[0].dolar : 0;
     
-    // OBTÉM TODOS OS DIAS ÚTEIS DO PERÍODO
-    const diasUteisPeriodo = getDiasUteisDoMes(ano, mes, isMesAtual);
-    
-    // CALCULA MÉDIA DO DÓLAR CONSIDERANDO TODOS OS DIAS ÚTEIS
+    // 2. Calcula a média de TODOS os registros (igual ao Dashboard)
     let somaDolar = 0;
     let contadorDolar = 0;
-    
-    diasUteisPeriodo.forEach(data => {
-        const dataStr = `${String(data.getDate()).padStart(2, '0')}/${String(data.getMonth() + 1).padStart(2, '0')}/${data.getFullYear()}`;
-        const valorDolar = dolarPorData[dataStr] || 0;
-        if (valorDolar > 0) {
-            somaDolar += valorDolar;
+    registros.forEach(r => {
+        if (r.dolar > 0) {
+            somaDolar += r.dolar;
             contadorDolar++;
         }
     });
+    const mediaDolarTodos = contadorDolar > 0 ? somaDolar / contadorDolar : 0;
     
-    const mediaDolar = contadorDolar > 0 ? somaDolar / contadorDolar : 0;
-    
-    // ATUALIZA O DISPLAY DO DÓLAR
+    // ATUALIZA O DISPLAY DO DÓLAR (mostra o último valor, igual ao Dashboard)
     const mediaDolarElement = document.getElementById('mediaDolarHeader');
     if (mediaDolarElement) {
-        mediaDolarElement.textContent = formatBRL(mediaDolar);
+        mediaDolarElement.textContent = formatBRL(ultimoDolar);
     }
+    
+    // Adiciona título com média (igual ao Dashboard)
+    const dolarPill = document.querySelector('.pill.blue');
+    if (dolarPill) {
+        dolarPill.innerHTML = `<i class="fas fa-dollar-sign"></i> Dólar: <strong>${formatBRL(ultimoDolar)}</strong> <span style="font-size:0.65rem; opacity:0.8;">(média: ${formatBRL(mediaDolarTodos)} últimos 30d)</span>`;
+    }
+    
+    console.log(`Dólar (último): ${ultimoDolar.toFixed(4)} | Média total: ${mediaDolarTodos.toFixed(4)}`);
+    // ============================================================
     
     let totalNF = 0,
         totalApv = 0,
@@ -1670,7 +1674,7 @@ function carregarTabela() {
     
     const meta = metasMensais[`${ano}-${String(mes + 1).padStart(2, '0')}`] || 0;
     
-    // EXIBE OS REGISTROS NA TABELA (APENAS DIAS COM DADOS DE VENDA)
+    // EXIBE OS REGISTROS NA TABELA
     filtrados.forEach(r => {
         totalNF += r.faturamentoNF;
         totalApv += r.pedidosAprov;
@@ -1714,12 +1718,11 @@ function carregarTabela() {
     const percentPill = document.getElementById('percent-pill');
     percentPill.className = 'pill ' + (percMeta >= 100 ? 'green' : percMeta >= 70 ? 'yellow' : 'red');
     
-    // RENDERIZA KPIs (já com o dólar médio atualizado)
     renderizarKPIs(projTotal, totalNF, totalApv, meta);
     atualizarCharts(filtrados, meta);
 }
 
-            function renderizarKPIs(proj, nf, apv, meta) {
+function renderizarKPIs(proj, nf, apv, meta) {
     const falta = Math.max(0, meta - proj);
     const perc = meta > 0 ? (proj / meta) * 100 : 0;
     const dolarMedio = document.getElementById('mediaDolarHeader').textContent;
@@ -1730,7 +1733,7 @@ function carregarTabela() {
         <div class="mini-card-kpi"><div class="label">Aprovados</div><div class="value purple">${formatBRL(apv)}</div></div>
         <div class="mini-card-kpi"><div class="label">Falta p/ Meta</div><div class="value amber">${formatBRL(falta)}</div></div>
         <div class="mini-card-kpi"><div class="label">% Atingido</div><div class="value blue">${perc.toFixed(1)}%</div></div>
-        <div class="mini-card-kpi"><div class="label">Dólar Médio</div><div class="value">${dolarMedio}</div></div>
+        <div class="mini-card-kpi"><div class="label">Dólar</div><div class="value">${dolarMedio}</div></div>
     `;
 }
 
