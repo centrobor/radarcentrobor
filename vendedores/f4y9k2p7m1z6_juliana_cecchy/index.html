@@ -873,23 +873,18 @@ function exibirPostagemDetalhe(post) {
                         if (!selectedMonth) return lista;
                         return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
                     };
-                    const aprov = filterByMonth(aprovFull,'Data');
+                                       const aprov = filterByMonth(aprovFull,'Data');
                     const fat = filterByMonth(fatFull,'Data');
                     const cot = filterByMonth(cotFull,'Data Criação');
                     const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                    const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+                                        const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
 
-// Soma APENAS do mês selecionado: Valor Mercadoria (faturados) + Total Bruto (aprovados)
-const totalFaturadoMes = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-const totalAprovadoBrutoMes = aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-const totalAprovFat = totalFaturadoMes + totalAprovadoBrutoMes;
+                    // Pedidos Aprov+Fat: soma do mês selecionado
+                    const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
 
-// NOVO: soma Valor Mercadoria dos faturados + Total Bruto dos aprovados
-const totalFaturadoValor = fatFull.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-const totalAprovadoBruto = aprovFull.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-const totalAprovFat = totalFaturadoValor + totalAprovadoBruto;
                     const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
+
                     const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                     const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
