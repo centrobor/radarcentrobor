@@ -148,6 +148,28 @@
             justify-content: center;
             font-weight: 700;
         }
+        
+        /* === PDF BUTTON === */
+        .btn-pdf {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-pdf:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
+        }
+        
         .carousel-section {
             margin-bottom: 32px;
             border-radius: 32px;
@@ -260,6 +282,7 @@
             border-radius: 60px;
             padding: 12px 24px;
             align-items: center;
+            justify-content: space-between;
         }
         .filter-group {
             display: flex;
@@ -502,6 +525,46 @@
             background: var(--primary);
             color: white;
         }
+        
+        /* === IMPRESSÃO === */
+        #print-header { display: none; }
+        @media print {
+            .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
+            .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
+            .icon-btn, .btn-pdf, .filters-bar, .modal, .footer-social,
+            .footer-bottom, .last-update-badge, .logout-btn, .notification-bell,
+            .badge, #bb-badge-dot, .btn-mark-all-read, .footer, .month-select {
+                display: none !important;
+            }
+            #print-header { 
+                display: block !important; 
+                text-align: center; 
+                margin-bottom: 20px; 
+                border-bottom: 2px solid var(--primary); 
+                padding-bottom: 10px; 
+            }
+            #print-header h1 { font-size: 18pt; color: var(--primary); margin: 0; }
+            #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
+            body, .wrapper { 
+                background: white !important; 
+                padding: 0; 
+                margin: 0; 
+                color: black; 
+            }
+            .segment-card, .chart-evolution, .meta-item, .segment-title {
+                background: white !important; 
+                backdrop-filter: none !important;
+                box-shadow: none !important; 
+                border: 1px solid #ccc !important;
+                page-break-inside: avoid;
+            }
+            canvas, .progress-fill-sm { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            .meta-item { page-break-inside: avoid; }
+        }
+        
         @media (max-width: 680px) {
             .meta-grid-3col {
                 grid-template-columns: 1fr;
@@ -825,6 +888,13 @@
                 padding: 10px 16px;
                 margin-bottom: 18px;
                 gap: 12px;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .btn-pdf {
+                align-self: center;
+                width: 100%;
+                justify-content: center;
             }
             .segment-row {
                 grid-template-columns: 1fr;
@@ -969,6 +1039,12 @@
 </head>
 <body>
 
+    <!-- Cabeçalho de impressão -->
+    <div id="print-header">
+        <h1>Fabiano - Coordenador</h1>
+        <p>Relatório - Gerado em <span id="print-date"></span></p>
+    </div>
+
     <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
@@ -1029,12 +1105,9 @@
         <button class="bb-item" data-nav="custos" id="bb-custos">
             <i class="fas fa-calculator"></i><span>Custos</span>
         </button>
-        
-            <button class="bb-item" data-nav="analise" id="bb-analise">
+        <button class="bb-item" data-nav="analise" id="bb-analise">
             <i class="fas fa-ship"></i><span>Análise Custos</span>
         </button>
-        
-        
         <button class="bb-item" data-nav="vendas" id="bb-vendas">
             <i class="fas fa-tags"></i><span>Vendas</span>
         </button>
@@ -1075,9 +1148,7 @@
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>
-            
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos"><div class="tool-icon"><i class="fas fa-ship"></i></div><div class="tool-label">Análise</div></a>
-            
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas"><div class="tool-icon"><i class="fas fa-tags"></i></div><div class="tool-label">Vendas</div></a>
         </div>
 
@@ -1087,6 +1158,7 @@
                 <label>Mês de referência (segmentos):</label>
                 <select id="monthSelector" class="month-select"></select>
             </div>
+            <button class="btn-pdf" id="gerar-pdf-btn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
         </div>
 
         <div class="segment-row" id="segment-cards"></div>
@@ -1120,7 +1192,6 @@
     <script>
         (function() {
             // ==================== VERIFICAÇÃO DE SESSÃO (PADRÃO RADAR) ====================
-            // URLs absolutos para redirecionamento após logout/expiração
             const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
             if (localStorage.getItem('radar_logged_out') === 'true') {
                 window.location.href = BASE_URL + '/index.html?reason=logged_out';
@@ -1172,6 +1243,10 @@
                 const p = String(str).split('/');
                 if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
                 return null;
+            };
+            const nomeMesExtenso = (mesNum) => {
+                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                return meses[mesNum - 1];
             };
 
             function getFabianoSincPoliasFat(ano, mes) {
@@ -1273,7 +1348,7 @@
                 <div class="segment-card">
                     <div class="segment-title"><i class="fas fa-cogs"></i> Sincronizadas / Polias</div>
                     <div class="meta-grid-3col">
-                        ${buildItem(`Mensal (${mes}/${ano})`, fatSinc, metas.sinc.mensal, percSincMes, Math.max(0, metas.sinc.mensal - fatSinc))}
+                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatSinc, metas.sinc.mensal, percSincMes, Math.max(0, metas.sinc.mensal - fatSinc))}
                         ${buildItem(`${semestreLabel} (acum.)`, acumSincSem, metas.sinc.semestral, percSincSem, Math.max(0, metas.sinc.semestral - acumSincSem))}
                         ${buildItem(`Anual ${ano} (acum.)`, acumSincAno, metas.sinc.anual, percSincAno, Math.max(0, metas.sinc.anual - acumSincAno))}
                     </div>
@@ -1282,7 +1357,7 @@
                 <div class="segment-card">
                     <div class="segment-title"><i class="fas fa-water"></i> Lavanderia</div>
                     <div class="meta-grid-3col">
-                        ${buildItem(`Mensal (${mes}/${ano})`, fatLav, metas.lav.mensal, percLavMes, Math.max(0, metas.lav.mensal - fatLav))}
+                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatLav, metas.lav.mensal, percLavMes, Math.max(0, metas.lav.mensal - fatLav))}
                         ${buildItem(`${semestreLabel} (acum.)`, acumLavSem, metas.lav.semestral, percLavSem, Math.max(0, metas.lav.semestral - acumLavSem))}
                         ${buildItem(`Anual ${ano} (acum.)`, acumLavAno, metas.lav.anual, percLavAno, Math.max(0, metas.lav.anual - acumLavAno))}
                     </div>
@@ -1455,6 +1530,13 @@
                     'active'); });
             }
 
+            // ==================== PDF ====================
+            function gerarPDF() {
+                const hoje = new Date();
+                document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR');
+                window.print();
+            }
+
             // ==================== CARREGAMENTO ====================
             async function fetchAllData() {
                 try {
@@ -1507,7 +1589,6 @@
             }
 
             // ==================== EVENTOS ====================
-            // Logout com URL absoluto
             document.getElementById('logout-btn').addEventListener('click', () => {
                 localStorage.setItem('radar_logged_out', 'true');
                 localStorage.removeItem('radar_usuario');
@@ -1518,6 +1599,7 @@
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/';
             });
             document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
+            document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
             document.getElementById('prev-btn').addEventListener('click', () => { if (BANNERS.length) {
                     currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
                     updateCarrossel(); } });
@@ -1539,11 +1621,8 @@
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-            
             document.getElementById('menu-analise').addEventListener('click', () => { closeHamburger();
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
-            
-            
             document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger();
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
             document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
@@ -1561,11 +1640,8 @@
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-            
-                        document.getElementById('menu-analise').addEventListener('click', () => { closeHamburger();
+            document.getElementById('bb-analise').addEventListener('click', () => { setActiveBottomBar('analise');
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
-            
-            
             document.getElementById('bb-vendas').addEventListener('click', () => { setActiveBottomBar('vendas');
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
             document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
