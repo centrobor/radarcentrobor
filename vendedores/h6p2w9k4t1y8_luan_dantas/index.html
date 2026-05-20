@@ -7,9 +7,6 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <!-- Adicionado: html2canvas e jspdf para geração de PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --bg: #f0f4f8;
@@ -623,7 +620,7 @@
         .month-filter {
             display: flex;
             align-items: center;
-            justify-content: space-between; /* Alterado para space-between para caber o botão */
+            justify-content: space-between;
             flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 28px;
@@ -632,7 +629,7 @@
             border-radius: 60px;
             padding: 10px 24px;
             border: 1px solid var(--border-light);
-            width: 100%; /* Garante largura total */
+            width: 100%;
             box-shadow: var(--shadow-sm);
         }
         .filter-left {
@@ -677,7 +674,6 @@
             border-color: var(--primary-light);
             color: var(--primary);
         }
-        /* Estilo do botão PDF */
         .btn-pdf {
             background: var(--primary);
             color: white;
@@ -941,20 +937,24 @@
 
         /* MODALS */
         .modal {
-            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0,0,0,0.5);
             backdrop-filter: blur(6px);
             z-index: 1000;
+            display: flex;
             justify-content: center;
             align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
         }
         .modal.active {
-            display: flex;
+            opacity: 1;
+            visibility: visible;
         }
         .modal-content {
             background: white;
@@ -965,12 +965,11 @@
             max-height: 90vh;
             overflow-y: auto;
             position: relative;
-            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.25);
-            animation: modalIn 0.3s ease;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
         }
-        @keyframes modalIn {
-            from { opacity: 0; transform: translateY(30px) scale(0.96); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+        .modal.active .modal-content {
+            transform: scale(1);
         }
         .modal-close {
             position: absolute;
@@ -984,30 +983,6 @@
         }
         .modal-close:hover {
             color: var(--danger);
-        }
-        .modal-pedido-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 10px;
-            padding: 8px 0;
-            border-bottom: 1px dashed #e5e7eb;
-            font-size: 0.85rem;
-        }
-        .modal-pedido-item i {
-            color: var(--primary);
-            width: 20px;
-            text-align: center;
-            margin-top: 2px;
-        }
-        .modal-pedido-item.highlight {
-            background: #d4edda;
-            border-radius: 10px;
-            padding: 8px 12px;
-            border-bottom: none;
-            margin: 4px 0;
-        }
-        .modal-pedido-item.highlight i {
-            color: var(--success);
         }
 
         /* NOTIFICATION CARDS */
@@ -1176,14 +1151,118 @@
             padding-top: 14px;
         }
 
-        /* ══════════════ CABEÇALHO DE IMPRESSÃO (OCULTO NA TELA) ══════════════ */
+        /* ══════════════ CABEÇALHO DE IMPRESSÃO ══════════════ */
         #print-header {
             display: none;
         }
 
-        /* ══════════════════════════════════════════════
-           MEDIA QUERIES – MOBILE & TABLET (≤1000px)
-           ══════════════════════════════════════════════ */
+        /* ══════════════ ESTILOS DE IMPRESSÃO ══════════════ */
+        @media print {
+            .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
+            .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
+            .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
+            .footer-bottom, .last-update-badge, .logout-btn, .home-btn, .notification-bell,
+            .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
+            .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
+            .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
+            .footer .footer-bottom, .month-filter .filter-left i, .footer {
+                display: none !important;
+            }
+            #print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--primary);
+                padding-bottom: 10px;
+            }
+            #print-header h1 {
+                font-size: 18pt;
+                color: var(--primary);
+                margin: 0;
+            }
+            #print-header p {
+                font-size: 10pt;
+                color: #333;
+                margin: 5px 0 0;
+            }
+            body, .wrapper {
+                background: white;
+                padding: 0;
+                margin: 0;
+                color: black;
+            }
+            .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
+                background: white !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+                page-break-inside: avoid;
+                margin-bottom: 12px;
+            }
+            canvas, .meta-progress-fill {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            body {
+                font-size: 10pt;
+                line-height: 1.3;
+            }
+            .mini-card-kpi .value {
+                font-size: 14pt;
+            }
+            .section-title {
+                font-size: 12pt;
+                margin-bottom: 8px;
+            }
+            table {
+                font-size: 8pt;
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                padding: 4px 2px;
+                border: 1px solid #ddd;
+                white-space: normal;
+                word-break: break-word;
+            }
+            th {
+                background: #f5f5f5;
+            }
+            #carteira-detalhes > div {
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+                break-inside: avoid;
+            }
+            .badge-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin: 6px 0;
+            }
+            .group-badge {
+                display: inline-block;
+                background: #f0f0f0;
+                border-left: 4px solid;
+                padding: 2px 6px;
+                font-size: 7pt;
+                white-space: nowrap;
+            }
+            .table-wrapper table {
+                font-size: 7pt;
+            }
+            tr {
+                page-break-inside: avoid;
+            }
+            .fa, .fas, .far {
+                display: none !important;
+            }
+            .section-title::before {
+                content: "● ";
+                font-weight: bold;
+            }
+        }
+
+        /* ══════════════ MEDIA QUERIES MOBILE & TABLET (≤1000px) ══════════════ */
         @media (max-width:1000px) {
             body {
                 padding: 0 0 var(--bottom-bar-height) 0;
@@ -1192,28 +1271,22 @@
             .wrapper {
                 padding: 0 12px;
             }
-
             .header {
                 display: none !important;
             }
-
             .mobile-topbar {
                 display: flex;
                 margin-bottom: 12px;
             }
-
             .mobile-bottom-bar {
                 display: flex;
             }
-
             .hamburger-overlay {
                 display: block;
             }
-
             .tools-grid {
                 display: none !important;
             }
-
             .carousel-section {
                 border-radius: 20px;
                 margin-bottom: 20px;
@@ -1250,7 +1323,6 @@
                 width: 7px;
                 height: 7px;
             }
-
             .kpi-row {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
@@ -1266,14 +1338,11 @@
             .mini-card-kpi .label {
                 font-size: 9px;
             }
-
             .month-filter {
                 width: 100%;
                 border-radius: 20px;
                 padding: 8px 14px;
                 margin-bottom: 18px;
-                justify-content: flex-start;
-                overflow-x: auto;
                 flex-direction: column;
                 align-items: stretch;
             }
@@ -1295,7 +1364,6 @@
                 width: 100%;
                 justify-content: center;
             }
-
             .main-split {
                 gap: 12px;
                 margin-bottom: 18px;
@@ -1308,7 +1376,6 @@
                 font-size: 0.9rem;
                 margin-bottom: 10px;
             }
-
             .meta-card-full {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1334,7 +1401,6 @@
             .meta-grid-stats strong {
                 font-size: 0.75rem;
             }
-
             .campaign-card {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1343,12 +1409,10 @@
             .campaign-card .campaign-header {
                 font-size: 0.8rem;
             }
-
             .chart-container {
                 min-height: 230px;
                 margin-bottom: 10px;
             }
-
             .table-wrapper {
                 padding: 8px;
                 border-radius: 16px;
@@ -1358,11 +1422,9 @@
                 font-size: 0.68rem;
                 min-width: 500px;
             }
-            th,
-            td {
+            th, td {
                 padding: 5px 4px;
             }
-
             .notif-card {
                 flex-direction: row;
                 gap: 10px;
@@ -1391,7 +1453,6 @@
                 font-size: 0.7rem;
                 padding: 6px 12px;
             }
-
             .modal-content {
                 width: 94%;
                 max-width: 94vw;
@@ -1404,7 +1465,6 @@
                 right: 10px;
                 font-size: 1.3rem;
             }
-
             #post-modal .modal-content {
                 padding: 16px;
                 border-radius: 20px;
@@ -1416,12 +1476,10 @@
             #post-modal .modal-content h2 {
                 font-size: 1rem;
             }
-
             #notif-modal .modal-content {
                 padding: 14px;
                 border-radius: 20px;
             }
-
             #carteira-metricas>div {
                 grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
@@ -1430,7 +1488,6 @@
                 grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
             }
-
             .badge-list {
                 gap: 4px;
             }
@@ -1438,7 +1495,6 @@
                 font-size: 0.65rem;
                 padding: 3px 8px;
             }
-
             .footer {
                 border-radius: 24px 24px 0 0;
                 padding: 20px 16px 100px;
@@ -1554,135 +1610,11 @@
                 font-size: 0.55rem;
             }
         }
-
-        /* ══════════════════════════════════════════════
-           ESTILOS DE IMPRESSÃO (GERAÇÃO DE PDF)
-           ══════════════════════════════════════════════ */
-        @media print {
-            /* Esconde tudo que não é conteúdo principal */
-            .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
-            .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
-            .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
-            .footer-bottom, .last-update-badge, .logout-btn, .home-btn, .notification-bell,
-            .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
-            .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
-            .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
-            .footer .footer-bottom, .month-filter .filter-left i, .footer {
-                display: none !important;
-            }
-
-            /* Mostra cabeçalho de impressão */
-            #print-header {
-                display: block !important;
-                text-align: center;
-                margin-bottom: 20px;
-                border-bottom: 2px solid var(--primary);
-                padding-bottom: 10px;
-            }
-            #print-header h1 {
-                font-size: 18pt;
-                color: var(--primary);
-                margin: 0;
-            }
-            #print-header p {
-                font-size: 10pt;
-                color: #333;
-                margin: 5px 0 0;
-            }
-
-            /* Reset de fundo e sombras */
-            body, .wrapper {
-                background: white;
-                padding: 0;
-                margin: 0;
-                color: black;
-            }
-            .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
-                background: white !important;
-                backdrop-filter: none !important;
-                box-shadow: none !important;
-                border: 1px solid #ccc !important;
-                page-break-inside: avoid;
-                margin-bottom: 12px;
-            }
-
-            /* Força cores exatas em canvas e barras de progresso */
-            canvas, .meta-progress-fill {
-                -webkit-print-color-adjust: exact !important;
-                print-color-adjust: exact !important;
-            }
-
-            /* Ajustes de fonte e layout */
-            body {
-                font-size: 10pt;
-                line-height: 1.3;
-            }
-            .mini-card-kpi .value {
-                font-size: 14pt;
-            }
-            .section-title {
-                font-size: 12pt;
-                margin-bottom: 8px;
-            }
-
-            /* Tabelas otimizadas para impressão */
-            table {
-                font-size: 8pt;
-                width: 100%;
-                border-collapse: collapse;
-            }
-            th, td {
-                padding: 4px 2px;
-                border: 1px solid #ddd;
-                white-space: normal;
-                word-break: break-word;
-            }
-            th {
-                background: #f5f5f5;
-            }
-
-            /* Carteira de clientes */
-            #carteira-detalhes > div {
-                page-break-inside: avoid;
-                margin-bottom: 20px;
-                break-inside: avoid;
-            }
-            .badge-list {
-                display: flex;
-                flex-wrap: wrap;
-                gap: 6px;
-                margin: 6px 0;
-            }
-            .group-badge {
-                display: inline-block;
-                background: #f0f0f0;
-                border-left: 4px solid;
-                padding: 2px 6px;
-                font-size: 7pt;
-                white-space: nowrap;
-            }
-            .table-wrapper table {
-                font-size: 7pt;
-            }
-            tr {
-                page-break-inside: avoid;
-            }
-
-            /* Remove ícones Font Awesome (podem não imprimir bem) */
-            .fa, .fas, .far {
-                display: none !important;
-            }
-            /* Adiciona um bullet point simples no lugar dos ícones nos títulos */
-            .section-title::before {
-                content: "● ";
-                font-weight: bold;
-            }
-        }
     </style>
 </head>
 <body>
 
-    <!-- ══════════════ CABEÇALHO DE IMPRESSÃO (VISÍVEL APENAS NA IMPRESSÃO/PDF) ══════════════ -->
+    <!-- ══════════════ CABEÇALHO DE IMPRESSÃO ══════════════ -->
     <div id="print-header">
         <h1 id="print-vendor-name">Luan Dantas</h1>
         <p>Relatório Diário de Vendas - Gerado em <span id="print-date"></span></p>
@@ -1800,7 +1732,7 @@
         <!-- KPIs -->
         <div class="kpi-row" id="kpi-cards"></div>
 
-        <!-- Filtro mensal COM BOTÃO PDF -->
+        <!-- Filtro mensal + botão PDF -->
         <div class="month-filter" id="month-filter">
             <div class="filter-left">
                 <i class="fas fa-calendar-alt"></i>
@@ -1852,13 +1784,11 @@
     </div>
 
     <!-- Rodapé -->
-    <!-- Rodapé Desktop -->
     <footer class="footer" id="main-footer">
         <div class="footer-inner">
             <div class="footer-logo-section">
                 <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img">
-                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.
-</div></div>
+                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div></div>
             </div>
             <div class="footer-social">
                 <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i> Site</a>
@@ -1868,7 +1798,6 @@
         </div>
         <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor . Todos os direitos reservados. | Radar Centrobor – Luan Dantas</div>
     </footer>
-
 
     <!-- Modais -->
     <div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
@@ -1931,8 +1860,7 @@
                 const match = String(str || '').match(/^\d+\s*-\s*(.+)/);
                 return match ? match[1].trim() : str;
             };
-            const formatarMoeda = (v) => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2,
-                maximumFractionDigits: 2 });
+            const formatarMoeda = (v) => 'R$ ' + (Math.round(v * 100) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
                 const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -1976,11 +1904,9 @@
                 const year = now.getFullYear();
                 const month = now.getMonth();
                 if (month < 6) {
-                    return { start: firstBusinessDayOfMonth(year, 0), end: lastBusinessDayOfMonth(year, 5),
-                        label: '1º Semestre' };
+                    return { start: firstBusinessDayOfMonth(year, 0), end: lastBusinessDayOfMonth(year, 5), label: '1º Semestre' };
                 } else {
-                    return { start: firstBusinessDayOfMonth(year, 6), end: lastBusinessDayOfMonth(year, 11),
-                        label: '2º Semestre' };
+                    return { start: firstBusinessDayOfMonth(year, 6), end: lastBusinessDayOfMonth(year, 11), label: '2º Semestre' };
                 }
             };
             const getYearBoundaries = () => {
@@ -1989,8 +1915,7 @@
             };
             const getMonthBoundaries = () => {
                 const now = new Date();
-                return { start: firstBusinessDayOfMonth(now.getFullYear(), now.getMonth()),
-                    end: lastBusinessDayOfMonth(now.getFullYear(), now.getMonth()), label: 'Mensal' };
+                return { start: firstBusinessDayOfMonth(now.getFullYear(), now.getMonth()), end: lastBusinessDayOfMonth(now.getFullYear(), now.getMonth()), label: 'Mensal' };
             };
             const businessDaysRemaining = (endDate) => {
                 const today = new Date();
@@ -2052,15 +1977,9 @@
                 } catch (e) {
                     console.warn('Banners não carregados, usando fallback.');
                     BANNERS = [
-                        { titulo: "Nova campanha de vendas", data: "01/05/2026", autor: "Marketing",
-                            imagem: "https://via.placeholder.com/800x300/1e3a5f/ffffff?text=Campanha+Vendas",
-                            texto_html: "<p>Condições especiais para correias industriais neste mês.</p>" },
-                        { titulo: "Confraternização anual", data: "10/05/2026", autor: "RH",
-                            imagem: "https://via.placeholder.com/800x300/2e7d32/ffffff?text=Confraternizacao",
-                            texto_html: "<p>Participe da festa de fim de ano no dia 20/12.</p>" },
-                        { titulo: "Meta batida: Parabéns!", data: "28/04/2026", autor: "Diretoria",
-                            imagem: "https://via.placeholder.com/800x300/7c3aed/ffffff?text=Meta+Batida",
-                            texto_html: "<p>Agradecemos o empenho de todos os vendedores!</p>" }
+                        { titulo: "Nova campanha de vendas", data: "01/05/2026", autor: "Marketing", imagem: "https://via.placeholder.com/800x300/1e3a5f/ffffff?text=Campanha+Vendas", texto_html: "<p>Condições especiais para correias industriais neste mês.</p>" },
+                        { titulo: "Confraternização anual", data: "10/05/2026", autor: "RH", imagem: "https://via.placeholder.com/800x300/2e7d32/ffffff?text=Confraternizacao", texto_html: "<p>Participe da festa de fim de ano no dia 20/12.</p>" },
+                        { titulo: "Meta batida: Parabéns!", data: "28/04/2026", autor: "Diretoria", imagem: "https://via.placeholder.com/800x300/7c3aed/ffffff?text=Meta+Batida", texto_html: "<p>Agradecemos o empenho de todos os vendedores!</p>" }
                     ];
                 }
             }
@@ -2121,10 +2040,7 @@
                 if (notificacoes.length === 0) {
                     body.innerHTML = `
                         <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                            <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                                &times;
-                            </button>
+                            <button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button>
                         </div>
                         <p style="text-align:center;padding:40px;color:var(--muted);">Nenhum alerta recente.</p>`;
                 } else {
@@ -2133,10 +2049,7 @@
                             <h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>
                             <div style="display: flex; gap: 10px; align-items: center;">
                                 ${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}
-                                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                                    &times;
-                                </button>
+                                <button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button>
                             </div>
                         </div>`;
                     notificacoes.forEach(n => {
@@ -2163,11 +2076,7 @@
                     body.querySelectorAll('.notif-card').forEach(card => {
                         card.addEventListener('click', () => {
                             const id = card.dataset.id;
-                            if (!readNotifications.includes(id)) {
-                                readNotifications.push(id);
-                                localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-                                atualizarBadgeNotificacoes();
-                            }
+                            if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
                             const post = notificacoes.find(p => p.id == id);
                             if (post) exibirPostagemDetalhe(post);
                         });
@@ -2187,13 +2096,8 @@
                     const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
                     body.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                            <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;">
-                                <i class="fas fa-arrow-left"></i> Voltar
-                            </button>
-                            <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                                &times;
-                            </button>
+                            <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                            <button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button>
                         </div>
                         <div style="display:flex; gap:14px; margin-bottom:16px; align-items:flex-start; flex-wrap:wrap;">
                             ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px;max-height:220px;border-radius:14px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
@@ -2203,9 +2107,7 @@
                                 <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div>
                             </div>
                         </div>
-                        <div style="line-height:1.6; font-size:0.9rem; border-top:1px solid #e5e7eb; padding-top:12px;">
-                            ${post.texto_html || '<p>Sem conteúdo adicional.</p>'}
-                        </div>
+                        <div style="line-height:1.6; font-size:0.9rem; border-top:1px solid #e5e7eb; padding-top:12px;">${post.texto_html || '<p>Sem conteúdo adicional.</p>'}</div>
                     `;
                     document.getElementById('voltar-lista-btn').addEventListener('click', () => {
                         modal.classList.remove('active');
@@ -2229,19 +2131,16 @@
                             <span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data || '—'} &nbsp; <i class="fas fa-user"></i> ${b.autor || '—'}</span>
                         </div>
                     </div>`).join('');
-                indicators.innerHTML = BANNERS.map((_, i) =>
-                    `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                indicators.innerHTML = BANNERS.map((_, i) => `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
                 document.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', e => {
                     currentCarouselIndex = parseInt(e.target.dataset.idx);
                     updateCarrossel();
                 }));
-                document.querySelectorAll('.carousel-slide').forEach(s => s.addEventListener('click', () =>
-                    abrirModalPostagem(BANNERS[currentCarouselIndex])));
+                document.querySelectorAll('.carousel-slide').forEach(s => s.addEventListener('click', () => abrirModalPostagem(BANNERS[currentCarouselIndex])));
             }
 
             function updateCarrossel() {
-                document.getElementById('carousel-container').style.transform =
-                    `translateX(-${currentCarouselIndex*100}%)`;
+                document.getElementById('carousel-container').style.transform = `translateX(-${currentCarouselIndex*100}%)`;
                 document.querySelectorAll('.indicator-dot').forEach(d => d.classList.remove('active'));
                 document.querySelector(`.indicator-dot[data-idx="${currentCarouselIndex}"]`)?.classList.add('active');
             }
@@ -2272,8 +2171,7 @@
                         return cod == codVendedor && cleanNumber(c.meta_valor) > 0;
                     });
                     if (minhasCampanhas.length === 0) {
-                        document.getElementById('campanhas-especiais-container').innerHTML =
-                            '<p style="color:var(--muted);">Nenhuma campanha especial ativa no momento.</p>';
+                        document.getElementById('campanhas-especiais-container').innerHTML = '<p style="color:var(--muted);">Nenhuma campanha especial ativa no momento.</p>';
                         return;
                     }
                     let html = '';
@@ -2294,10 +2192,8 @@
                             if (perc >= 95) statusCamp = 'acima-da-meta';
                             else if (perc < progIdeal * 0.8) statusCamp = 'atrasado';
                         }
-                        const statusColor = statusCamp === 'acima-da-meta' ? 'var(--success)' : statusCamp ===
-                            'atrasado' ? 'var(--danger)' : 'var(--warning)';
-                        const campIcon = camp.tipo === 'dias_uteis' ? '<i class="fas fa-clock"></i>' :
-                            '<i class="fas fa-calendar-check"></i>';
+                        const statusColor = statusCamp === 'acima-da-meta' ? 'var(--success)' : statusCamp === 'atrasado' ? 'var(--danger)' : 'var(--warning)';
+                        const campIcon = camp.tipo === 'dias_uteis' ? '<i class="fas fa-clock"></i>' : '<i class="fas fa-calendar-check"></i>';
                         html += `
                         <div class="campaign-card">
                             <div class="campaign-header">${campIcon} ${camp.campanha}</div>
@@ -2319,8 +2215,7 @@
                     document.getElementById('campanhas-especiais-container').innerHTML = html;
                 } catch (e) {
                     console.error('Erro ao carregar campanhas especiais', e);
-                    document.getElementById('campanhas-especiais-container').innerHTML =
-                        '<p style="color:var(--danger);">Erro ao carregar campanhas.</p>';
+                    document.getElementById('campanhas-especiais-container').innerHTML = '<p style="color:var(--danger);">Erro ao carregar campanhas.</p>';
                 }
             }
 
@@ -2328,30 +2223,22 @@
             async function renderAll(selectedMonth) {
                 try {
                     const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
-                        carregarJSON(BASES.meta),
-                        carregarJSON(BASES.aprovados),
-                        carregarJSON(BASES.faturados),
-                        carregarJSON(BASES.aprovadosfaturados),
-                        carregarJSON(BASES.carteira),
-                        carregarJSON(BASES.cotacoes)
+                        carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
+                        carregarJSON(BASES.aprovadosfaturados), carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
                     ]);
 
                     document.getElementById('greeting-name').textContent = nomeVendedor;
                     document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
                     document.getElementById('menu-user-name').textContent = nomeVendedor;
-                    // Atualiza cabeçalho de impressão
                     document.getElementById('print-vendor-name').textContent = nomeVendedor;
                     document.getElementById('print-date').textContent = new Date().toLocaleDateString('pt-BR');
 
                     const metaArr = metaRawArr.filter(m => String(m.id_vendedor || '').trim() === codVendedor);
                     const meta = metaArr.length > 0 ? metaArr[0] : {};
 
-                    const filtrarPorNome = (lista, campo) => lista.filter(i => String(i[campo] || '').toLowerCase()
-                        .includes(nomeVendedor.toLowerCase()));
-                    const filtrarPorCod = (lista, campo) => lista.filter(i => String(i[campo] || '').trim() ===
-                        codVendedor);
-                    const filtrarPorCodExtraido = (lista, campo) => lista.filter(i => extrairCodigo(i[campo]) ===
-                        codVendedor);
+                    const filtrarPorNome = (lista, campo) => lista.filter(i => String(i[campo] || '').toLowerCase().includes(nomeVendedor.toLowerCase()));
+                    const filtrarPorCod = (lista, campo) => lista.filter(i => String(i[campo] || '').trim() === codVendedor);
+                    const filtrarPorCodExtraido = (lista, campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
 
                     const aprovFull = filtrarPorNome(aprovRaw, 'Vendedor');
                     const fatFull = filtrarPorCod(fatRaw, 'Cod. Vendedor');
@@ -2374,17 +2261,11 @@
                     const cot = filterByMonth(cotFull, 'Data Criação');
                     const aprovFat = filterByMonth(aprovFatFull, 'Data');
 
-                    const totalAprovado = aprov.reduce((s, i) => s + cleanNumber(i['Total Bruto']), 0);
-                                        const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-
-                    // Pedidos Aprov+Fat: soma do mês selecionado
+                    const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
                     const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-
                     const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
-                    const cotAtivas = cot.filter(c => ['Em Aprovação', 'Confirmado'].includes(c['Situação Versão']))
-                        .length;
-                    const totalClientes = new Set([...aprov.map(i => i['Cliente']), ...fat.map(i => i['Nome Chave'])])
-                        .size;
+                    const cotAtivas = cot.filter(c => ['Em Aprovação', 'Confirmado'].includes(c['Situação Versão'])).length;
+                    const totalClientes = new Set([...aprov.map(i => i['Cliente']), ...fat.map(i => i['Nome Chave'])]).size;
 
                     document.getElementById('kpi-cards').innerHTML = `
                         <div class="mini-card-kpi"><div class="label">Faturamento Mês</div><div class="value green">${formatarMoeda(totalFaturado)}</div></div>
@@ -2400,8 +2281,7 @@
                     let cutoffDate = new Date();
                     if (selectedMonth) {
                         const [mesStr, anoStr] = selectedMonth.split('/');
-                        const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8,
-                            out: 9, nov: 10, dez: 11 };
+                        const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
                         const monthIdx = mesesMap[mesStr];
                         const year = 2000 + parseInt(anoStr);
                         if (monthIdx !== undefined) cutoffDate = lastBusinessDayOfMonth(year, monthIdx);
@@ -2428,12 +2308,10 @@
                     const percMonth = metaMensal > 0 ? (totalFaturado / metaMensal) * 100 : 0;
                     const remainingMonth = Math.max(0, metaMensal - totalFaturado);
                     const projectionMonth = (totalFaturado / Math.max(1, daysPassedMonth)) * totalDaysMonth;
-                    const statusMonth = percMonth >= (daysPassedMonth / totalDaysMonth * 0.95 * 100) ? 'on-track' :
-                        'behind';
+                    const statusMonth = percMonth >= (daysPassedMonth / totalDaysMonth * 0.95 * 100) ? 'on-track' : 'behind';
                     const percPlus = metaPlus > 0 ? (totalFaturado / metaPlus) * 100 : 0;
                     const remainingPlus = Math.max(0, metaPlus - totalFaturado);
-                    const statusPlus = percPlus >= (daysPassedMonth / totalDaysMonth * 0.95 * 100) ? 'on-track' :
-                    'behind';
+                    const statusPlus = percPlus >= (daysPassedMonth / totalDaysMonth * 0.95 * 100) ? 'on-track' : 'behind';
 
                     const semesterBound = getSemesterBoundaries();
                     const daysPassedSem = businessDaysPassed(semesterBound.start);
@@ -2451,14 +2329,10 @@
                     const percYear = metaAnual > 0 ? (faturamentoAcumulado / metaAnual) * 100 : 0;
                     const remainingYear = Math.max(0, metaAnual - faturamentoAcumulado);
                     const projectionYear = (faturamentoAcumulado / Math.max(1, daysPassedYear)) * totalDaysYear;
-                    const statusYear = percYear >= (daysPassedYear / totalDaysYear * 0.95 * 100) ? 'on-track' :
-                    'behind';
+                    const statusYear = percYear >= (daysPassedYear / totalDaysYear * 0.95 * 100) ? 'on-track' : 'behind';
 
-                    function criarMetaCardClean(titulo, metaValor, realizado, perc, restante, diasPass, diasRest,
-                        projecao, status, cor, icone, idCanvas) {
-                        const statusBadge = status === 'on-track' ?
-                            '<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>' :
-                            '<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
+                    function criarMetaCardClean(titulo, metaValor, realizado, perc, restante, diasPass, diasRest, projecao, status, cor, icone, idCanvas) {
+                        const statusBadge = status === 'on-track' ? '<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>' : '<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
                         return `
                         <div class="meta-card-full">
                             <div class="meta-card-header">
@@ -2484,78 +2358,10 @@
                     }
 
                     let metasHTML = '';
-                    metasHTML += criarMetaCardClean('Meta Mensal', metaMensal, totalFaturado, percMonth,
-                        remainingMonth, daysPassedMonth, daysRemainingMonth, projectionMonth, statusMonth,
-                        '#2e7d32', '<i class="fas fa-calendar-check"></i>', 'meta-mensal-chart');
-                    metasHTML += criarMetaCardClean('Meta Plus (110%)', metaPlus, totalFaturado, percPlus,
-                        remainingPlus, daysPassedMonth, daysRemainingMonth, projectionMonth, statusPlus,
-                        '#f59e0b', '<i class="fas fa-star"></i>', 'meta-plus-chart');
-                    metasHTML += criarMetaCardClean(`Meta Semestral (${semesterBound.label})`, metaSemestral,
-                        faturamentoAcumulado, percSem, remainingSem, daysPassedSem, daysRemainingSem, projectionSem,
-                        statusSem, '#ea580c', '<i class="fas fa-calendar-week"></i>', 'meta-semestral-chart');
-                    metasHTML += criarMetaCardClean('Meta Anual', metaAnual, faturamentoAcumulado, percYear, remainingYear,
-                        daysPassedYear, daysRemainingYear, projectionYear, statusYear, '#2563eb',
-                        '<i class="fas fa-calendar-alt"></i>', 'meta-anual-chart');
-
-                    const campaignGroups = {};
-                    for (const key of Object.keys(meta)) {
-                        const match = key.match(/^campanha_(.+)_(mes|qtd|meta|resultados)$/);
-                        if (match) {
-                            const campName = match[1];
-                            const field = match[2];
-                            if (!campaignGroups[campName]) campaignGroups[campName] = {};
-                            campaignGroups[campName][field] = cleanNumber(meta[key]);
-                        }
-                    }
-                    for (const [campName, fields] of Object.entries(campaignGroups)) {
-                        const campMes = parseInt(fields.mes) || 0;
-                        const campMeta = fields.meta || 0;
-                        const campResultados = fields.resultados || 0;
-                        const campQtdDias = fields.qtd || 30;
-                        if (campMes > 0 && campMeta > 0) {
-                            const currentMonthNum = today.getMonth() + 1;
-                            if (currentMonthNum === campMes || currentMonthNum < campMes) {
-                                const campEnd = new Date(today.getFullYear(), campMes - 1, campQtdDias);
-                                const diasRestantesCamp = Math.max(0, Math.ceil((campEnd - today) / (1000 * 60 * 60 *
-                                    24)));
-                                const percCamp = campMeta > 0 ? (campResultados / campMeta) * 100 : 0;
-                                const faltanteCamp = Math.max(0, campMeta - campResultados);
-                                const ritmoNecessarioCamp = diasRestantesCamp > 0 ? faltanteCamp /
-                                    diasRestantesCamp : 0;
-                                const ritmoAtualCamp = (currentMonthNum === campMes && diasRestantesCamp <
-                                    campQtdDias) ? campResultados / Math.max(1, campQtdDias - diasRestantesCamp) :
-                                    0;
-                                const projecaoCamp = ritmoAtualCamp * campQtdDias;
-                                let statusCamp = 'no-ritmo';
-                                if (percCamp < (1 - diasRestantesCamp / campQtdDias) * 80) statusCamp = 'atrasado';
-                                if (percCamp >= 95) statusCamp = 'acima-da-meta';
-                                const statusColor = statusCamp === 'acima-da-meta' ? 'var(--success)' : statusCamp ===
-                                    'atrasado' ? 'var(--danger)' : 'var(--warning)';
-                                const isConti = campName.toLowerCase().includes('conti');
-                                const cardClass = isConti ? 'campaign-card conti' : 'campaign-card';
-                                const campIcon = isConti ? '<i class="fas fa-industry"></i>' :
-                                    '<i class="fas fa-bullseye"></i>';
-                                metasHTML += `
-                                <div class="${cardClass}">
-                                    <div class="campaign-header">${campIcon} Campanha ${campName.replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase())}</div>
-                                    <div style="display:flex; justify-content:space-between; font-size:0.8rem; margin-bottom:4px;">
-                                        <span>${formatarMoeda(campResultados)} / ${formatarMoeda(campMeta)}</span>
-                                        <span><strong>${percCamp.toFixed(1)}%</strong></span>
-                                    </div>
-                                    <div class="meta-progress-bar">
-                                        <div class="meta-progress-fill" style="width:${Math.min(percCamp,100)}%; background:${statusColor};"></div>
-                                    </div>
-                                    <div class="meta-grid-stats" style="margin-top:10px;">
-                                        <span><strong>${diasRestantesCamp}</strong><br>Dias restantes</span>
-                                        <span><strong>${formatarMoeda(faltanteCamp)}</strong><br>Valor faltante</span>
-                                        <span><strong>${formatarMoeda(ritmoNecessarioCamp)}</strong><br>Ritmo necessário/dia</span>
-                                        <span><strong>${formatarMoeda(projecaoCamp)}</strong><br>Projeção final</span>
-                                        <span><strong style="color:${statusColor}">${statusCamp.replace(/-/g,' ').toUpperCase()}</strong><br>Status</span>
-                                    </div>
-                                </div>`;
-                            }
-                        }
-                    }
+                    metasHTML += criarMetaCardClean('Meta Mensal', metaMensal, totalFaturado, percMonth, remainingMonth, daysPassedMonth, daysRemainingMonth, projectionMonth, statusMonth, '#2e7d32', '<i class="fas fa-calendar-check"></i>', 'meta-mensal-chart');
+                    metasHTML += criarMetaCardClean('Meta Plus (110%)', metaPlus, totalFaturado, percPlus, remainingPlus, daysPassedMonth, daysRemainingMonth, projectionMonth, statusPlus, '#f59e0b', '<i class="fas fa-star"></i>', 'meta-plus-chart');
+                    metasHTML += criarMetaCardClean(`Meta Semestral (${semesterBound.label})`, metaSemestral, faturamentoAcumulado, percSem, remainingSem, daysPassedSem, daysRemainingSem, projectionSem, statusSem, '#ea580c', '<i class="fas fa-calendar-week"></i>', 'meta-semestral-chart');
+                    metasHTML += criarMetaCardClean('Meta Anual', metaAnual, faturamentoAcumulado, percYear, remainingYear, daysPassedYear, daysRemainingYear, projectionYear, statusYear, '#2563eb', '<i class="fas fa-calendar-alt"></i>', 'meta-anual-chart');
                     document.getElementById('metas-container').innerHTML = metasHTML;
 
                     setTimeout(() => {
@@ -2567,48 +2373,31 @@
 
                     // GRÁFICO
                     const evoMap = {};
-                    aprov.forEach(p => { const chave = p['Competência'] || p['Data'] || ''; evoMap[chave] = (evoMap[
-                            chave] || 0) + cleanNumber(p['Total Bruto']); });
-                    fat.forEach(p => { const chave = p['Data'] || ''; evoMap[chave] = (evoMap[chave] || 0) +
-                        cleanNumber(p['Valor Mercadoria']); });
-                    const chavesOrdenadas = Object.keys(evoMap).sort((a, b) => { const da = parseDataBR(a), db =
-                            parseDataBR(b); return (da && db) ? da - db : 0; });
+                    aprov.forEach(p => { const chave = p['Competência'] || p['Data'] || ''; evoMap[chave] = (evoMap[chave] || 0) + cleanNumber(p['Total Bruto']); });
+                    fat.forEach(p => { const chave = p['Data'] || ''; evoMap[chave] = (evoMap[chave] || 0) + cleanNumber(p['Valor Mercadoria']); });
+                    const chavesOrdenadas = Object.keys(evoMap).sort((a, b) => { const da = parseDataBR(a), db = parseDataBR(b); return (da && db) ? da - db : 0; });
                     const valores = chavesOrdenadas.map(k => evoMap[k]);
                     if (chartInstance) chartInstance.destroy();
                     const ctx = document.getElementById('chart-faturamento').getContext('2d');
                     chartInstance = new Chart(ctx, {
                         type: 'line',
-                        data: {
-                            labels: chavesOrdenadas,
-                            datasets: [{ label: 'Faturamento', data: valores, borderColor: '#1e3a5f',
-                                backgroundColor: 'rgba(30,58,95,0.08)', fill: true, tension: 0.4,
-                                pointRadius: 3, borderWidth: 2.5 }]
-                        },
-                        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: (
-                                        v) => 'R$ ' + (v / 1000).toFixed(0) + 'k' },
-                                    grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } } }
+                        data: { labels: chavesOrdenadas, datasets: [{ label: 'Faturamento', data: valores, borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.08)', fill: true, tension: 0.4, pointRadius: 3, borderWidth: 2.5 }] },
+                        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: (v) => 'R$ ' + (v / 1000).toFixed(0) + 'k' }, grid: { color: 'rgba(0,0,0,0.05)' } }, x: { grid: { display: false } } } }
                     });
 
                     // Top 5
                     const clienteFat = {};
-                    aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']] || 0) + cleanNumber(p[
-                        'Total Bruto']));
-                    fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']] || 0) + cleanNumber(p[
-                        'Valor Mercadoria']));
+                    aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']] || 0) + cleanNumber(p['Total Bruto']));
+                    fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']] || 0) + cleanNumber(p['Valor Mercadoria']));
                     const topClientes = Object.entries(clienteFat).sort((a, b) => b[1] - a[1]).slice(0, 5);
-                    document.getElementById('top-clientes-container').innerHTML =
-                        `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
-                    const topCot = cot.sort((a, b) => cleanNumber(b['Valor Total']) - cleanNumber(a['Valor Total']))
-                        .slice(0, 5);
-                    document.getElementById('top-cotacoes-container').innerHTML =
-                        `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
+                    document.getElementById('top-clientes-container').innerHTML = `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
+                    const topCot = cot.sort((a, b) => cleanNumber(b['Valor Total']) - cleanNumber(a['Valor Total'])).slice(0, 5);
+                    document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
                     // TABELAS
                     function gerarTabela(dados, colunas, tipo) {
-                        if (!dados.length)
-                            return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
-                        let html =
-                            '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px; max-width:100%;"></div>';
+                        if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
+                        let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px; max-width:100%;"></div>';
                         html += '<table><thead><tr>';
                         colunas.forEach(c => html += `<th>${c}</th>`);
                         html += '</tr></thead><tbody>';
@@ -2620,18 +2409,10 @@
                         html += '</tbody></table>';
                         return html;
                     }
-                    document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência',
-                        'Cliente', 'Produto', 'Quantidade', 'Total Bruto', 'Total Líquido'
-                    ], 'aprov');
-                    document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data', 'Nome Chave',
-                        'Empresa', 'Quantidade', 'Valor Mercadoria', 'Custo', 'Margem'
-                    ], 'fat');
-                    document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data',
-                        'Cliente', 'Produto', 'Quantidade', 'Total Bruto', 'Vendedor'
-                    ], 'aprovfat');
-                    document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número', 'Data Criação',
-                        'Razão Social', 'Valor Total', 'Situação Versão'
-                    ], 'cot');
+                    document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto', 'Total Líquido'], 'aprov');
+                    document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria', 'Custo', 'Margem'], 'fat');
+                    document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto', 'Vendedor'], 'aprovfat');
+                    document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número', 'Data Criação', 'Razão Social', 'Valor Total', 'Situação Versão'], 'cot');
 
                     document.querySelectorAll('.table-search').forEach(input => {
                         input.addEventListener('input', function() {
@@ -2639,28 +2420,14 @@
                             const table = this.closest('.table-wrapper').querySelector('table');
                             if (!table) return;
                             table.querySelectorAll('tbody tr').forEach(row => {
-                                row.style.display = row.textContent.toLowerCase().includes(
-                                    term) ? '' : 'none';
+                                row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none';
                             });
                         });
                     });
 
                     function abrirFicha(dados) {
                         const icones = {
-                            'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
-                            'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
-                            'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign',
-                            'total bruto': 'fa-file-invoice-dollar', 'total líquido': 'fa-hand-holding-usd',
-                            'valor mercadoria': 'fa-tag', 'custo': 'fa-coins', 'margem': 'fa-percent',
-                            'depósito': 'fa-warehouse', 'país': 'fa-globe-americas', 'moeda': 'fa-money-bill',
-                            '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
-                            'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
-                            'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
-                            'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
-                            'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
-                            'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
-                            'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
-                            'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
+                            'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie', 'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box', 'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign', 'total bruto': 'fa-file-invoice-dollar', 'total líquido': 'fa-hand-holding-usd', 'valor mercadoria': 'fa-tag', 'custo': 'fa-coins', 'margem': 'fa-percent', 'depósito': 'fa-warehouse', 'país': 'fa-globe-americas', 'moeda': 'fa-money-bill', '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent', 'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag', 'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle', 'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt', 'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment', 'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group', 'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list', 'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
                         };
                         const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
                         const linhas = Object.entries(dados).map(([chave, valor]) => {
@@ -2668,54 +2435,21 @@
                             const icone = icones[chaveLower] || 'fa-file-alt';
                             const isDestaque = camposDestaque.includes(chaveLower);
                             const valorFormatado = valor || '—';
-                            return `
-                            <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
-                                <i class="fas ${icone} ficha-icone"></i>
-                                <div class="ficha-conteudo">
-                                    <span class="ficha-label">${chave}</span>
-                                    <span class="ficha-valor">${valorFormatado}</span>
-                                </div>
-                            </div>`;
+                            return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
                         }).join('');
-                        const html = `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
-                                <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
-                            </h3>
-                            <button onclick="document.getElementById('detail-modal').classList.remove('active')"
-                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                                &times;
-                            </button>
-                        </div>
-                        <div class="ficha-lista">
-                            ${linhas}
-                        </div>
-                        <style>
-                            .ficha-lista { display: flex; flex-direction: column; gap: 8px; }
-                            .ficha-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f9fafb; border-radius: 12px; border: 1px solid #edf2f7; }
-                            .ficha-item-destaque { background: #f0fdf4; border-color: #bbf7d0; }
-                            .ficha-icone { color: var(--primary); font-size: 1rem; width: 20px; text-align: center; margin-top: 2px; }
-                            .ficha-conteudo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-                            .ficha-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
-                            .ficha-valor { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); }
-                            .ficha-item-destaque .ficha-valor { font-size: 1.05rem; color: var(--success); }
-                        </style>
-                        `;
+                        const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div><div class="ficha-lista">${linhas}</div><style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
                         document.getElementById('modal-body').innerHTML = html;
                         document.getElementById('detail-modal').classList.add('active');
                     }
-                    document.querySelectorAll(
-                            '#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-cotacoes table tbody tr, #tabela-aprovadosfaturados table tbody tr'
-                        )
-                        .forEach(row => {
-                            row.addEventListener('click', function() {
-                                const idx = parseInt(this.dataset.idx);
-                                const tipo = this.dataset.tipo;
-                                const listas = { aprov, fat, cot, aprovfat: aprovFat };
-                                const lista = listas[tipo];
-                                if (lista && lista[idx]) abrirFicha(lista[idx]);
-                            });
+                    document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-cotacoes table tbody tr, #tabela-aprovadosfaturados table tbody tr').forEach(row => {
+                        row.addEventListener('click', function() {
+                            const idx = parseInt(this.dataset.idx);
+                            const tipo = this.dataset.tipo;
+                            const listas = { aprov, fat, cot, aprovfat: aprovFat };
+                            const lista = listas[tipo];
+                            if (lista && lista[idx]) abrirFicha(lista[idx]);
                         });
+                    });
 
                     // CARTEIRA
                     const interacoes = new Map();
@@ -2730,32 +2464,21 @@
                     const clientesStatus = carteiraFull.map(cli => {
                         const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
                         const ultima = interacoes.get(nome);
-                        let status = 'red',
-                            ultimaStr = 'Sem Interação';
+                        let status = 'red', ultimaStr = 'Sem Interação';
                         if (ultima) {
                             const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
                             ultimaStr = formatarData(ultima);
                             if (dias <= 30) status = 'green';
                             else if (dias <= 90) status = 'yellow';
                         }
-                        return { nome, razao: cli['Nome/Razão Social'] || '', status, ultima: ultimaStr, cidade: cli[
-                                'Cidade'
-                            ] || '', uf: cli['UF'] || '', ativo: (cli['ATivo/Inativo'] || '').toLowerCase() ===
-                            'ativo' };
+                        return { nome, razao: cli['Nome/Razão Social'] || '', status, ultima: ultimaStr, cidade: cli['Cidade'] || '', uf: cli['UF'] || '', ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo' };
                     });
                     const totalFiliais = clientesStatus.length;
                     const ativosCount = clientesStatus.filter(c => c.ativo).length;
                     const inativosCount = totalFiliais - ativosCount;
                     const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
                     const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
-                    document.getElementById('carteira-metricas').innerHTML = `
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:16px;">
-                            <div style="background:var(--primary-soft); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--primary);">${totalFiliais}</strong><br><span style="font-size:0.7rem; color:var(--muted);">Total</span></div>
-                            <div style="background:rgba(46,125,50,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--success);">${ativosCount}</strong><br><span style="font-size:0.7rem; color:var(--muted);"><i class="fas fa-check-circle"></i> Ativos</span></div>
-                            <div style="background:rgba(211,47,47,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--danger);">${inativosCount}</strong><br><span style="font-size:0.7rem; color:var(--muted);"><i class="fas fa-times-circle"></i> Inativos</span></div>
-                            <div style="background:rgba(237,108,2,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--warning);">${ufSet.size}</strong><br><span style="font-size:0.7rem; color:var(--muted);">UFs</span></div>
-                            <div style="background:#f3e8ff; padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--purple);">${cidadeSet.size}</strong><br><span style="font-size:0.7rem; color:var(--muted);">Cidades</span></div>
-                        </div>`;
+                    document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px; margin-bottom:16px;"><div style="background:var(--primary-soft); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--primary);">${totalFiliais}</strong><br><span style="font-size:0.7rem; color:var(--muted);">Total</span></div><div style="background:rgba(46,125,50,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--success);">${ativosCount}</strong><br><span style="font-size:0.7rem; color:var(--muted);"><i class="fas fa-check-circle"></i> Ativos</span></div><div style="background:rgba(211,47,47,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--danger);">${inativosCount}</strong><br><span style="font-size:0.7rem; color:var(--muted);"><i class="fas fa-times-circle"></i> Inativos</span></div><div style="background:rgba(237,108,2,0.1); padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--warning);">${ufSet.size}</strong><br><span style="font-size:0.7rem; color:var(--muted);">UFs</span></div><div style="background:#f3e8ff; padding:12px; border-radius:14px; text-align:center;"><strong style="font-size:1.3rem; color:var(--purple);">${cidadeSet.size}</strong><br><span style="font-size:0.7rem; color:var(--muted);">Cidades</span></div></div>`;
                     const contagem = { green: 0, yellow: 0, red: 0 };
                     const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
                     clientesStatus.forEach(c => {
@@ -2765,32 +2488,18 @@
                         else grupos[c.status].set(key, grupos[c.status].get(key) + 1);
                     });
                     const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
-                    document.getElementById('semaphore-summary').innerHTML = `
-                        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px;">
-                            <div style="text-align:center; background:rgba(46,125,50,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--success)">${percCont(contagem.green)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--success);"></i> Verdes</span><br><span style="font-size:0.7rem;">${contagem.green} filiais</span></div>
-                            <div style="text-align:center; background:rgba(237,108,2,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--warning)">${percCont(contagem.yellow)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--warning);"></i> Amarelos</span><br><span style="font-size:0.7rem;">${contagem.yellow} filiais</span></div>
-                            <div style="text-align:center; background:rgba(211,47,47,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--danger)">${percCont(contagem.red)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--danger);"></i> Vermelhos</span><br><span style="font-size:0.7rem;">${contagem.red} filiais</span></div>
-                        </div>`;
+                    document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:18px;"><div style="text-align:center; background:rgba(46,125,50,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--success)">${percCont(contagem.green)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--success);"></i> Verdes</span><br><span style="font-size:0.7rem;">${contagem.green} filiais</span></div><div style="text-align:center; background:rgba(237,108,2,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--warning)">${percCont(contagem.yellow)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--warning);"></i> Amarelos</span><br><span style="font-size:0.7rem;">${contagem.yellow} filiais</span></div><div style="text-align:center; background:rgba(211,47,47,0.1); padding:14px; border-radius:14px;"><strong style="font-size:1.8rem; color:var(--danger)">${percCont(contagem.red)}%</strong><br><span style="font-weight:600;"><i class="fas fa-circle" style="color:var(--danger);"></i> Vermelhos</span><br><span style="font-size:0.7rem;">${contagem.red} filiais</span></div></div>`;
 
                     function gerarTabelaClientes(status, cor) {
-                        const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome
-                            .localeCompare(b.nome));
+                        const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
                         if (!filtrados.length) return '';
                         const corNome = status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger';
-                        return `
-                        <div style="margin-bottom:22px;">
-                            <h4 style="color:var(--${corNome}); margin-bottom:8px;"><i class="fas fa-circle"></i> ${status==='green'?'Verdes':status==='yellow'?'Amarelos':'Vermelhos'} (${filtrados.length})</h4>
-                            <div class="badge-list">${Array.from(grupos[status], ([k,v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div>
-                            <div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => `<tr><td>${c.nome}</td><td>${c.cidade}</td><td>${c.uf}</td><td>${c.ultima}</td><td>${c.ativo?'<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo':'<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`).join('')}</tbody></table></div>
-                        </div>`;
+                        return `<div style="margin-bottom:22px;"><h4 style="color:var(--${corNome}); margin-bottom:8px;"><i class="fas fa-circle"></i> ${status==='green'?'Verdes':status==='yellow'?'Amarelos':'Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${Array.from(grupos[status], ([k,v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => `<tr><td>${c.nome}</td><td>${c.cidade}</td><td>${c.uf}</td><td>${c.ultima}</td><td>${c.ativo?'<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo':'<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`).join('')}</tbody></table></div></div>`;
                     }
-                    document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green', 'success') +
-                        gerarTabelaClientes('yellow', 'warning') + gerarTabelaClientes('red', 'danger');
+                    document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green', 'success') + gerarTabelaClientes('yellow', 'warning') + gerarTabelaClientes('red', 'danger');
 
                     // MESES
-                    const mesesAbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov',
-                        'dez'
-                    ];
+                    const mesesAbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
                     const anoAtual = today.getFullYear();
                     const mesAtualIdx = today.getMonth();
                     const gridMeses = document.getElementById('month-grid');
@@ -2798,8 +2507,7 @@
                     for (let i = 0; i < 12; i++) {
                         const mesKey = `${mesesAbrev[i]}/${anoAtual.toString().slice(-2)}`;
                         const isFuture = i > mesAtualIdx;
-                        htmlMeses +=
-                            `<span class="month-item ${mesKey===currentMonth?'active':''} ${isFuture?'future':''}" data-month="${mesKey}">${mesesAbrev[i].toUpperCase()}</span>`;
+                        htmlMeses += `<span class="month-item ${mesKey===currentMonth?'active':''} ${isFuture?'future':''}" data-month="${mesKey}">${mesesAbrev[i].toUpperCase()}</span>`;
                     }
                     gridMeses.innerHTML = htmlMeses;
                     document.querySelectorAll('.month-item:not(.future)').forEach(item => {
@@ -2825,77 +2533,16 @@
                 const cappedPercent = Math.min(percent, 100);
                 new Chart(ctx, {
                     type: 'doughnut',
-                    data: {
-                        datasets: [{
-                            data: [cappedPercent, 100 - cappedPercent],
-                            backgroundColor: [color, '#e5e7eb'],
-                            borderWidth: 0,
-                            borderRadius: percent >= 100 ? 0 : 5
-                        }]
-                    },
-                    options: {
-                        cutout: '75%',
-                        responsive: false,
-                        plugins: { tooltip: { enabled: false }, legend: { display: false } }
-                    }
+                    data: { datasets: [{ data: [cappedPercent, 100 - cappedPercent], backgroundColor: [color, '#e5e7eb'], borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] },
+                    options: { cutout: '75%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } }
                 });
             }
 
-            // ══════════════ FUNÇÃO DE GERAR PDF ══════════════
-            async function gerarPDF() {
-                const btn = document.getElementById('gerar-pdf-btn');
-                const originalText = btn.innerHTML;
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
-                btn.disabled = true;
-
-                try {
-                    const element = document.querySelector('.wrapper');
-                    // Força o cabeçalho de impressão a ficar visível para o canvas
-                    const printHeader = document.getElementById('print-header');
-                    printHeader.style.display = 'block';
-
-                    const canvas = await html2canvas(element, {
-                        scale: 2,
-                        useCORS: true,
-                        logging: false,
-                        allowTaint: true,
-                        backgroundColor: '#ffffff',
-                    });
-
-                    // Esconde o cabeçalho de impressão novamente
-                    printHeader.style.display = 'none';
-
-                    const imgData = canvas.toDataURL('image/png');
-                    const { jsPDF } = window.jspdf;
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const imgWidth = pageWidth - 20; // margem de 10mm de cada lado
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-                    let heightLeft = imgHeight;
-                    let position = 10; // margem superior
-
-                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-                    heightLeft -= (pageHeight - 20);
-
-                    while (heightLeft > 0) {
-                        position = heightLeft - imgHeight + 10;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
-                        heightLeft -= (pageHeight - 20);
-                    }
-
-                    const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
-                    pdf.save(`Relatorio_Diario_${nomeVendedor.replace(/\s/g, '_')}_${dataHoje}.pdf`);
-                } catch (err) {
-                    console.error('Erro ao gerar PDF:', err);
-                    alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
-                } finally {
-                    btn.innerHTML = originalText;
-                    btn.disabled = false;
-                }
+            // ══════════════ FUNÇÃO DE GERAR PDF (window.print) ══════════════
+            function gerarPDF() {
+                document.getElementById('print-vendor-name').textContent = nomeVendedor;
+                document.getElementById('print-date').textContent = new Date().toLocaleDateString('pt-BR');
+                window.print();
             }
 
             // ══════════════ HAMBURGER MENU CONTROLS ══════════════
@@ -2924,7 +2571,6 @@
                 await carregarNotificacoes();
                 atualizarBadgeNotificacoes();
 
-                // Desktop notification bell
                 const notifBell = document.getElementById('notification-bell');
                 if (notifBell) notifBell.addEventListener('click', abrirModalNotificacoes);
 
@@ -2934,33 +2580,14 @@
                 renderCarrossel();
                 renderizarCampanhasEspeciais();
 
-                document.getElementById('prev-btn').addEventListener('click', () => {
-                    currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
-                    updateCarrossel();
-                });
-                document.getElementById('next-btn').addEventListener('click', () => {
-                    currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
-                    updateCarrossel();
-                });
-                setInterval(() => {
-                    currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
-                    updateCarrossel();
-                }, 6000);
+                document.getElementById('prev-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length; updateCarrossel(); });
+                document.getElementById('next-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); });
+                setInterval(() => { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); }, 6000);
 
-                // Fechar modais
-                document.getElementById('detail-modal').addEventListener('click', function(e) {
-                    if (e.target === this || e.target.classList.contains('modal-close')) this.classList
-                        .remove('active');
-                });
-                document.getElementById('post-modal').addEventListener('click', function(e) {
-                    if (e.target === this || e.target.classList.contains('modal-close')) this.classList
-                        .remove('active');
-                });
-                document.getElementById('notif-modal').addEventListener('click', function(e) {
-                    if (e.target === this) this.classList.remove('active');
-                });
+                document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target === this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
+                document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target === this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
+                document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
 
-                // Logout desktop com URL absoluto
                 const logoutBtn = document.getElementById('logout-btn');
                 if (logoutBtn) {
                     logoutBtn.addEventListener('click', () => {
@@ -2971,79 +2598,32 @@
                     });
                 }
                 const homeBtns = document.querySelectorAll('.home-btn');
-                homeBtns.forEach(btn => {
-                    btn.addEventListener('click', () => window.location.href = BASE_URL + '/');
-                });
+                homeBtns.forEach(btn => { btn.addEventListener('click', () => window.location.href = BASE_URL + '/'); });
 
-                // ══════════════ EVENTO DO BOTÃO PDF ══════════════
+                // Evento do botão PDF
                 document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
 
-                // ══════════════ MOBILE EVENT LISTENERS (com URLs absolutos) ══════════════
-                // Hamburger
+                // Mobile
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
+                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens.html'; });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/6hp7vx6_buscador_de_custos/consulta_vendas'; });
+                document.getElementById('menu-leads').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/h6p2w9k4t1y8_leads/leads'; });
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = BASE_URL + '/index.html?reason=logged_out'; });
 
-                // Menu items
-                document.getElementById('menu-home').addEventListener('click', () => {
-                    closeHamburger();
-                    window.location.href = BASE_URL + '/';
-                });
-                document.getElementById('menu-feed').addEventListener('click', () => {
-                    closeHamburger();
-                    window.location.href = BASE_URL + '/hpvx5_postagens/postagens.html';
-                });
-                document.getElementById('menu-custos').addEventListener('click', () => {
-                    closeHamburger();
-                    window.location.href = BASE_URL + '/6hp7vx6_buscador_de_custos/consulta_vendas';
-                });
-                document.getElementById('menu-leads').addEventListener('click', () => {
-                    closeHamburger();
-                    window.location.href = BASE_URL + '/h6p2w9k4t1y8_leads/leads';
-                });
-                document.getElementById('menu-dashboard').addEventListener('click', () => {
-                    closeHamburger();
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                });
-                document.getElementById('menu-notifications-side').addEventListener('click', () => {
-                    closeHamburger();
-                    abrirModalNotificacoes();
-                });
-                document.getElementById('menu-logout').addEventListener('click', () => {
-                    closeHamburger();
-                    localStorage.setItem('radar_logged_out', 'true');
-                    localStorage.removeItem('radar_usuario');
-                    localStorage.removeItem('ultimo_acesso_radar');
-                    window.location.href = BASE_URL + '/index.html?reason=logged_out';
-                });
-
-                // Bottom bar
                 setActiveBottomBar('home');
-                document.getElementById('bb-feed').addEventListener('click', () => {
-                    setActiveBottomBar('feed');
-                    window.location.href = BASE_URL + '/hpvx5_postagens/postagens';
-                });
-                document.getElementById('bb-custos').addEventListener('click', () => {
-                    setActiveBottomBar('custos');
-                    window.location.href = BASE_URL + '/6hp7vx6_buscador_de_custos/consulta_vendas';
-                });
-                document.getElementById('bb-leads').addEventListener('click', () => {
-                    setActiveBottomBar('leads');
-                    window.location.href = BASE_URL + '/h6p2w9k4t1y8_leads/leads';
-                });
-                document.getElementById('bb-home').addEventListener('click', () => {
-                    setActiveBottomBar('home');
-                    window.location.href = BASE_URL + '/';
-                });
-                document.getElementById('bb-alertas').addEventListener('click', () => {
-                    setActiveBottomBar('alertas');
-                    abrirModalNotificacoes();
-                });
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = BASE_URL + '/6hp7vx6_buscador_de_custos/consulta_vendas'; });
+                document.getElementById('bb-leads').addEventListener('click', () => { setActiveBottomBar('leads'); window.location.href = BASE_URL + '/h6p2w9k4t1y8_leads/leads'; });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
+                document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirModalNotificacoes(); });
 
-                // Footer year
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-                // Atualiza status no menu hambúrguer periodicamente
                 setInterval(() => {
                     const badgeText = document.getElementById('last-update-text');
                     const menuStatus = document.getElementById('menu-update-status');
