@@ -1334,9 +1334,10 @@
             </div>
         </header>
 
-        <!-- MONTH FILTER -->
+        <!-- MONTH FILTER (com seletor de ano) -->
         <div class="month-filter no-print" id="month-filter">
             <i class="fas fa-calendar-alt"></i>
+            <select id="year-select" style="border-radius:24px; padding:6px 12px; border:1px solid #e5e7eb; background:white; font-weight:600;"></select>
             <div class="month-grid" id="month-grid"></div>
         </div>
 
@@ -1444,19 +1445,16 @@
         </div>
     </div>
     
-    
     <span style="position: relative;" class="no-print">
-    <i class="fas fa-bell"></i>
-    <span class="badge-mobile" id="mobile-notification-badge" style="position: absolute; top: -8px; right: -12px; background: #d32f2f; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 0.6rem; display: none; align-items: center; justify-content: center;">0</span>
-</span>
-<div id="mobileNotificationsModal" class="modal no-print">
-    <div class="modal-content" style="max-width: 500px;">
-        <span class="close-modal-btn" id="closeMobileNotifModal">&times;</span>
-
-        <div id="mobileNotificationsList" style="max-height: 60vh; overflow-y: auto;"></div>
+        <i class="fas fa-bell"></i>
+        <span class="badge-mobile" id="mobile-notification-badge" style="position: absolute; top: -8px; right: -12px; background: #d32f2f; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 0.6rem; display: none; align-items: center; justify-content: center;">0</span>
+    </span>
+    <div id="mobileNotificationsModal" class="modal no-print">
+        <div class="modal-content" style="max-width: 500px;">
+            <span class="close-modal-btn" id="closeMobileNotifModal">&times;</span>
+            <div id="mobileNotificationsList" style="max-height: 60vh; overflow-y: auto;"></div>
+        </div>
     </div>
-</div>
-    
     
     <div id="notif-modal" class="modal">
         <div class="modal-content" id="notif-modal-body"></div>
@@ -1464,597 +1462,617 @@
 
     <script>
         (function() {
-    // ==================== URLs absolutos para redirecionamento ====================
-    const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
+            // ==================== URLs absolutos para redirecionamento ====================
+            const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
 
-    // ==================== VERIFICAÇÃO DE SESSÃO (padrão Radar) ====================
-    if (localStorage.getItem('radar_logged_out') === 'true') {
-        window.location.href = BASE_URL + '/index.html?reason=logged_out';
-        return;
-    }
-    if (!localStorage.getItem('radar_usuario')) {
-        window.location.href = BASE_URL + '/index.html?reason=expired';
-        return;
-    }
-    const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
-    const nowDate = Date.now();
-    if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
-        localStorage.removeItem('radar_usuario');
-        window.location.href = BASE_URL + '/index.html?reason=expired';
-        return;
-    }
-    localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
+            // ==================== VERIFICAÇÃO DE SESSÃO (padrão Radar) ====================
+            if (localStorage.getItem('radar_logged_out') === 'true') {
+                window.location.href = BASE_URL + '/index.html?reason=logged_out';
+                return;
+            }
+            if (!localStorage.getItem('radar_usuario')) {
+                window.location.href = BASE_URL + '/index.html?reason=expired';
+                return;
+            }
+            const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
+            const nowDate = Date.now();
+            if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
+                localStorage.removeItem('radar_usuario');
+                window.location.href = BASE_URL + '/index.html?reason=expired';
+                return;
+            }
+            localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
-    const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
-    const URL_FATURADOS = `https://opensheet.elk.sh/${SHEET_ID}/faturados`;
-    const URL_APROVADOSFATURADOS = `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`;
-    const URL_APROVADOS = `https://opensheet.elk.sh/${SHEET_ID}/aprovados`;
-    const URL_DOLAR = `https://opensheet.elk.sh/${SHEET_ID}/dolar`;
-    const URL_METAS = `https://opensheet.elk.sh/${SHEET_ID}/Metas`;
-    const URL_POSTAGENS = `https://opensheet.elk.sh/${SHEET_ID}/postagens`;
+            const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+            const URL_FATURADOS = `https://opensheet.elk.sh/${SHEET_ID}/faturados`;
+            const URL_APROVADOSFATURADOS = `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`;
+            const URL_APROVADOS = `https://opensheet.elk.sh/${SHEET_ID}/aprovados`;
+            const URL_DOLAR = `https://opensheet.elk.sh/${SHEET_ID}/dolar`;
+            const URL_METAS = `https://opensheet.elk.sh/${SHEET_ID}/Metas`;
+            const URL_POSTAGENS = `https://opensheet.elk.sh/${SHEET_ID}/postagens`;
 
-    let registros = [];
-    let metasMensais = {};
-    let notificacoes = [];
-    let readNotifications = JSON.parse(localStorage.getItem('readNotifications_fat')) || [];
-    let currentMonthKey = null;
-
-    function parseBRL(val) {
-        if (!val) return 0;
-        let str = String(val).replace(/[R$\s%]/g, '');
-        const hasComma = str.includes(','),
-            hasDot = str.includes('.');
-        if (hasComma && hasDot) str = str.replace(/\./g, '').replace(',', '.');
-        else if (hasComma) str = str.replace(',', '.');
-        else if (hasDot && str.indexOf('.') !== str.lastIndexOf('.')) str = str.replace(/\.(?=\d{3}(?:\.|$))/g, '');
-        return parseFloat(str) || 0;
-    }
-
-    function formatBRL(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
-
-    function extractMonthYear(dateStr) {
-        if (!dateStr) return null;
-        const p = dateStr.split('/');
-        if (p.length === 3) {
-            const d = parseInt(p[0]),
-                m = parseInt(p[1]),
-                y = parseInt(p[2]);
-            if (!isNaN(d) && !isNaN(m) && !isNaN(y) && m >= 1 && m <= 12) return { month: m, year: y };
-        }
-        return null;
-    }
-
-    function monthKeyFromDate(d) {
-        const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-        return `${meses[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`;
-    }
-
-    let msgTimeout;
-
-    function showMessage(msg, isError = false) {
-        const box = document.getElementById('messageBox');
-        if (!box) return;
-        box.textContent = msg;
-        box.className = `fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-3xl shadow-lg z-[1000] transition-opacity duration-300 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white opacity-100`;
-        clearTimeout(msgTimeout);
-        msgTimeout = setTimeout(() => { box.classList.remove('opacity-100'); box.classList.add('opacity-0'); }, 2000);
-    }
-
-    function atualizarBadge(dataHora = null) {
-        const badge = document.getElementById('last-update-badge');
-        const icon = document.getElementById('last-update-icon');
-        const text = document.getElementById('last-update-text');
-        if (!dataHora) { badge.style.display = 'none'; return; }
-        badge.style.display = 'flex';
-        icon.classList.remove('spin-slow');
-        text.textContent = `Atualizado em: ${dataHora}`;
-    }
-
-    function badgeLoading() {
-        const badge = document.getElementById('last-update-badge');
-        const icon = document.getElementById('last-update-icon');
-        const text = document.getElementById('last-update-text');
-        badge.style.display = 'flex';
-        icon.classList.add('spin-slow');
-        text.textContent = 'Atualizando...';
-    }
-
-    async function carregarDados(mostrar = true) {
-        if (mostrar) badgeLoading();
-        try {
-            const [fat, apvFat, apv, dol] = await Promise.all([
-                fetch(URL_FATURADOS).then(r => r.json()),
-                fetch(URL_APROVADOSFATURADOS).then(r => r.json()),
-                fetch(URL_APROVADOS).then(r => r.json()),
-                fetch(URL_DOLAR).then(r => r.json())
-            ]);
-            const mapNF = {}, mapApvFat = {}, mapApv = {}, mapDolar = {};
-            fat.forEach(item => { const d = item.Data; if (d) mapNF[d] = (mapNF[d] || 0) + parseBRL(item["Valor Mercadoria"]); });
-            apvFat.forEach(item => { const d = item.Data; if (d) mapApvFat[d] = (mapApvFat[d] || 0) + parseBRL(item["Total Bruto"]); });
-            apv.forEach(item => { const d = item.Data; if (d) mapApv[d] = (mapApv[d] || 0) + parseBRL(item["Total Bruto"]); });
-            dol.forEach(item => { const d = item.Data; if (d) mapDolar[d] = parseFloat(String(item.valor).replace(',', '.')) || 0; });
+            let registros = [];
+            let metasMensais = {};
+            let notificacoes = [];
+            let readNotifications = JSON.parse(localStorage.getItem('readNotifications_fat')) || [];
+            let currentMonthKey = null;
             
-            const allDates = new Set([...Object.keys(mapNF), ...Object.keys(mapApvFat), ...Object.keys(mapApv), ...Object.keys(mapDolar)]);
-            registros = [];
-            allDates.forEach(data => { registros.push({ data, faturamentoNF: mapNF[data] || 0, pedidosAprovFat: mapApvFat[data] || 0, pedidosAprov: mapApv[data] || 0, dolar: mapDolar[data] || 0 }); });
-            registros.sort((a, b) => {
-                const [da, ma, aa] = a.data.split('/');
-                const [db, mb, ab] = b.data.split('/');
-                return new Date(`${aa}-${ma}-${da}`) - new Date(`${ab}-${mb}-${db}`);
-            });
-            
-            try {
-                const respMetas = await fetch(URL_METAS);
-                if (respMetas.ok) {
-                    const metasJson = await respMetas.json();
-                    metasMensais = {};
-                    metasJson.forEach(item => { metasMensais[item.Mês] = parseBRL(item["Meta (R$)"]); });
+            // Novas variáveis para controle de ano/mês
+            let selectedYear = new Date().getFullYear();
+            let selectedMonthIndex = new Date().getMonth(); // 0=janeiro
+
+            function updateCurrentMonthKey() {
+                const m = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+                currentMonthKey = `${m[selectedMonthIndex]}/${String(selectedYear).slice(-2)}`;
+            }
+
+            function parseBRL(val) {
+                if (!val) return 0;
+                let str = String(val).replace(/[R$\s%]/g, '');
+                const hasComma = str.includes(','),
+                    hasDot = str.includes('.');
+                if (hasComma && hasDot) str = str.replace(/\./g, '').replace(',', '.');
+                else if (hasComma) str = str.replace(',', '.');
+                else if (hasDot && str.indexOf('.') !== str.lastIndexOf('.')) str = str.replace(/\.(?=\d{3}(?:\.|$))/g, '');
+                return parseFloat(str) || 0;
+            }
+
+            function formatBRL(v) { return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }); }
+
+            function extractMonthYear(dateStr) {
+                if (!dateStr) return null;
+                const p = dateStr.split('/');
+                if (p.length === 3) {
+                    const d = parseInt(p[0]),
+                        m = parseInt(p[1]),
+                        y = parseInt(p[2]);
+                    if (!isNaN(d) && !isNaN(m) && !isNaN(y) && m >= 1 && m <= 12) return { month: m, year: y };
                 }
-            } catch (e) {}
-            
-            localStorage.setItem('cache_fat_diario', JSON.stringify({ registros, metas: metasMensais, timestamp: Date.now() }));
-            const agora = new Date();
-            atualizarBadge(`${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')} às ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')} hrs aprox.`);
-            if (mostrar) showMessage('Dados carregados com sucesso!');
-            carregarTabela();
-            gerarNotificacoesInsight();
-        } catch (e) {
-            console.error(e);
-            const cached = localStorage.getItem('cache_fat_diario');
-            if (cached) {
+                return null;
+            }
+
+            function monthKeyFromDate(d) {
+                const meses = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+                return `${meses[d.getMonth()]}/${d.getFullYear().toString().slice(-2)}`;
+            }
+
+            let msgTimeout;
+
+            function showMessage(msg, isError = false) {
+                const box = document.getElementById('messageBox');
+                if (!box) return;
+                box.textContent = msg;
+                box.className = `fixed top-5 left-1/2 -translate-x-1/2 px-6 py-3 rounded-3xl shadow-lg z-[1000] transition-opacity duration-300 ${isError ? 'bg-red-500' : 'bg-green-500'} text-white opacity-100`;
+                clearTimeout(msgTimeout);
+                msgTimeout = setTimeout(() => { box.classList.remove('opacity-100'); box.classList.add('opacity-0'); }, 2000);
+            }
+
+            function atualizarBadge(dataHora = null) {
+                const badge = document.getElementById('last-update-badge');
+                const icon = document.getElementById('last-update-icon');
+                const text = document.getElementById('last-update-text');
+                if (!dataHora) { badge.style.display = 'none'; return; }
+                badge.style.display = 'flex';
+                icon.classList.remove('spin-slow');
+                text.textContent = `Atualizado em: ${dataHora}`;
+            }
+
+            function badgeLoading() {
+                const badge = document.getElementById('last-update-badge');
+                const icon = document.getElementById('last-update-icon');
+                const text = document.getElementById('last-update-text');
+                badge.style.display = 'flex';
+                icon.classList.add('spin-slow');
+                text.textContent = 'Atualizando...';
+            }
+
+            async function carregarDados(mostrar = true) {
+                if (mostrar) badgeLoading();
                 try {
-                    const data = JSON.parse(cached);
-                    registros = data.registros;
-                    metasMensais = data.metas;
-                    atualizarBadge('último cache');
-                    showMessage('Erro na nuvem. Exibindo cache.', true);
+                    const [fat, apvFat, apv, dol] = await Promise.all([
+                        fetch(URL_FATURADOS).then(r => r.json()),
+                        fetch(URL_APROVADOSFATURADOS).then(r => r.json()),
+                        fetch(URL_APROVADOS).then(r => r.json()),
+                        fetch(URL_DOLAR).then(r => r.json())
+                    ]);
+                    const mapNF = {}, mapApvFat = {}, mapApv = {}, mapDolar = {};
+                    fat.forEach(item => { const d = item.Data; if (d) mapNF[d] = (mapNF[d] || 0) + parseBRL(item["Valor Mercadoria"]); });
+                    apvFat.forEach(item => { const d = item.Data; if (d) mapApvFat[d] = (mapApvFat[d] || 0) + parseBRL(item["Total Bruto"]); });
+                    apv.forEach(item => { const d = item.Data; if (d) mapApv[d] = (mapApv[d] || 0) + parseBRL(item["Total Bruto"]); });
+                    dol.forEach(item => { const d = item.Data; if (d) mapDolar[d] = parseFloat(String(item.valor).replace(',', '.')) || 0; });
+                    
+                    const allDates = new Set([...Object.keys(mapNF), ...Object.keys(mapApvFat), ...Object.keys(mapApv), ...Object.keys(mapDolar)]);
+                    registros = [];
+                    allDates.forEach(data => { registros.push({ data, faturamentoNF: mapNF[data] || 0, pedidosAprovFat: mapApvFat[data] || 0, pedidosAprov: mapApv[data] || 0, dolar: mapDolar[data] || 0 }); });
+                    registros.sort((a, b) => {
+                        const [da, ma, aa] = a.data.split('/');
+                        const [db, mb, ab] = b.data.split('/');
+                        return new Date(`${aa}-${ma}-${da}`) - new Date(`${ab}-${mb}-${db}`);
+                    });
+                    
+                    try {
+                        const respMetas = await fetch(URL_METAS);
+                        if (respMetas.ok) {
+                            const metasJson = await respMetas.json();
+                            metasMensais = {};
+                            metasJson.forEach(item => { metasMensais[item.Mês] = parseBRL(item["Meta (R$)"]); });
+                        }
+                    } catch (e) {}
+                    
+                    localStorage.setItem('cache_fat_diario', JSON.stringify({ registros, metas: metasMensais, timestamp: Date.now() }));
+                    const agora = new Date();
+                    atualizarBadge(`${String(agora.getDate()).padStart(2,'0')}/${String(agora.getMonth()+1).padStart(2,'0')} às ${String(agora.getHours()).padStart(2,'0')}:${String(agora.getMinutes()).padStart(2,'0')} hrs aprox.`);
+                    if (mostrar) showMessage('Dados carregados com sucesso!');
+                    popularAnos(); // <-- ADICIONADO AQUI
                     carregarTabela();
-                } catch (e2) {}
-            } else {
-                showMessage('Falha ao carregar dados.', true);
+                    gerarNotificacoesInsight();
+                } catch (e) {
+                    console.error(e);
+                    const cached = localStorage.getItem('cache_fat_diario');
+                    if (cached) {
+                        try {
+                            const data = JSON.parse(cached);
+                            registros = data.registros;
+                            metasMensais = data.metas;
+                            atualizarBadge('último cache');
+                            showMessage('Erro na nuvem. Exibindo cache.', true);
+                            popularAnos(); // <-- ADICIONADO AQUI
+                            carregarTabela();
+                        } catch (e2) {}
+                    } else {
+                        showMessage('Falha ao carregar dados.', true);
+                    }
+                }
             }
-        }
-    }
 
-    function carregarTabela() {
-        const tbody = document.querySelector('#tabelaRegistros tbody');
-        tbody.innerHTML = '';
-        if (!registros.length || !currentMonthKey) return;
-        
-        const [mesStr, anoStr] = currentMonthKey.split('/');
-        const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
-        const mes = mesesMap[mesStr];
-        const ano = 2000 + parseInt(anoStr);
-        
-        const filtrados = registros.filter(r => {
-            const my = extractMonthYear(r.data);
-            return my && my.month === mes + 1 && my.year === ano;
-        });
-        
-        // Cálculo do dólar (último valor disponível)
-        const dolarOrdenados = [...registros].filter(r => r.dolar > 0).sort((a, b) => {
-            const [da, ma, aa] = a.data.split('/');
-            const [db, mb, ab] = b.data.split('/');
-            return new Date(`${ab}-${mb}-${db}`) - new Date(`${aa}-${ma}-${da}`);
-        });
-        const ultimoDolar = dolarOrdenados.length > 0 ? dolarOrdenados[0].dolar : 0;
-        
-        let somaDolar = 0, contadorDolar = 0;
-        registros.forEach(r => { if (r.dolar > 0) { somaDolar += r.dolar; contadorDolar++; } });
-        const mediaDolarTodos = contadorDolar > 0 ? somaDolar / contadorDolar : 0;
-        
-        const mediaDolarElement = document.getElementById('mediaDolarHeader');
-        if (mediaDolarElement) mediaDolarElement.textContent = formatBRL(ultimoDolar);
-        
-        const dolarPill = document.querySelector('.pill.blue');
-        if (dolarPill) {
-            dolarPill.innerHTML = `<i class="fas fa-dollar-sign"></i> Dólar: <strong>${formatBRL(ultimoDolar)}</strong> <span style="font-size:0.65rem; opacity:0.8;">(média: ${formatBRL(mediaDolarTodos)})</span>`;
-        }
-        
-        let totalNF = 0, totalApv = 0, totalPedFat = 0, acum = 0;
-        const meta = metasMensais[`${ano}-${String(mes + 1).padStart(2, '0')}`] || 0;
-        
-        filtrados.forEach(r => {
-            totalNF += r.faturamentoNF;
-            totalApv += r.pedidosAprov;
-            totalPedFat += r.pedidosAprovFat;
-            acum += r.faturamentoNF + r.pedidosAprov;
-            const perc = meta > 0 ? (acum / meta) * 100 : 0;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `<td>${r.data}</td><td>${formatBRL(r.faturamentoNF)}</td><td>${formatBRL(r.pedidosAprovFat)}</td><td>${formatBRL(r.pedidosAprov)}</td><td>${perc.toFixed(1)}%</td><td>${formatBRL(r.dolar)}</td></tr>`;
-            tbody.appendChild(tr);
-        });
-        
-        const metaElement = document.getElementById('metaMensalTexto');
-        if (metaElement) metaElement.textContent = formatBRL(meta);
-        
-        const projTotal = totalNF + totalApv;
-        const percMeta = meta > 0 ? (projTotal / meta) * 100 : 0;
-        
-        const statusPill = document.getElementById('status-pill');
-        const statusText = document.getElementById('status-text');
-        if (statusPill && statusText) {
-            statusPill.className = 'pill';
-            if (percMeta >= 100) { statusPill.classList.add('green'); statusText.innerHTML = 'Atingida 🎉'; }
-            else if (percMeta >= 90) { statusPill.classList.add('yellow'); statusText.innerHTML = 'Excelente ✅'; }
-            else if (percMeta >= 70) { statusPill.classList.add('yellow'); statusText.innerHTML = 'Boa 👍'; }
-            else { statusPill.classList.add('red'); statusText.innerHTML = 'A Melhorar ⚠️'; }
-        }
-        
-        const percentHeader = document.getElementById('percentAtingidoHeader');
-        if (percentHeader) percentHeader.textContent = percMeta.toFixed(1) + '%';
-        
-        const percentPill = document.getElementById('percent-pill');
-        if (percentPill) percentPill.className = 'pill ' + (percMeta >= 100 ? 'green' : percMeta >= 70 ? 'yellow' : 'red');
-        
-        renderizarKPIs(projTotal, totalNF, totalApv, meta);
-        atualizarCharts(filtrados, meta);
-    }
-
-    function renderizarKPIs(proj, nf, apv, meta) {
-        const falta = Math.max(0, meta - proj);
-        const perc = meta > 0 ? (proj / meta) * 100 : 0;
-        const dolarMedio = document.getElementById('mediaDolarHeader')?.textContent || 'R$ 0,00';
-        const kpiContainer = document.getElementById('kpi-cards');
-        if (kpiContainer) {
-            kpiContainer.innerHTML = `
-                <div class="mini-card-kpi"><div class="label">Projeção Total</div><div class="value blue">${formatBRL(proj)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Faturado (NF)</div><div class="value green">${formatBRL(nf)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Aprovados</div><div class="value purple">${formatBRL(apv)}</div></div>
-                <div class="mini-card-kpi"><div class="label">Falta p/ Meta</div><div class="value amber">${formatBRL(falta)}</div></div>
-                <div class="mini-card-kpi"><div class="label">% Atingido</div><div class="value blue">${perc.toFixed(1)}%</div></div>
+            function carregarTabela() {
+                const tbody = document.querySelector('#tabelaRegistros tbody');
+                tbody.innerHTML = '';
+                if (!registros.length || !currentMonthKey) return;
                 
-            `;
-        }
-    }
-
-    let charts = {};
-
-    function initCharts() {
-        Chart.register(ChartDataLabels);
-        const donutOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '70%',
-            plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatBRL(ctx.raw)}` } }, datalabels: { display: false } },
-            elements: { arc: { borderWidth: 2, borderColor: 'white', borderRadius: 8 } }
-        };
-        charts.aprovadosNF = new Chart(document.getElementById('aprovadosNFChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
-        charts.faturadosNF = new Chart(document.getElementById('faturadosNFChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
-        charts.aprovadosFaturados = new Chart(document.getElementById('aprovadosFaturadosChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
-        const barOpts = {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatBRL(ctx.parsed.y)}` } }, datalabels: { display: false } },
-            scales: { y: { beginAtZero: true } },
-            elements: { bar: { borderRadius: 8 } }
-        };
-        charts.comparacaoDiaria = new Chart(document.getElementById('comparacaoDiariaChart'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Faturamento NF', backgroundColor: '#2e7d32' }, { label: 'Ped. Aprov+Fat', backgroundColor: '#ed6c02' }] }, options: barOpts });
-        charts.evolucaoDiaria = new Chart(document.getElementById('evolucaoDiariaChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Faturamento NF', borderColor: '#2e7d32', fill: false }, { label: 'Ped. Aprov+Fat', borderColor: '#ed6c02', fill: false }] }, options: { ...barOpts, elements: { line: { tension: 0.4 } } } });
-    }
-
-    function atualizarCharts(regsFiltrados, meta) {
-        if (!charts.aprovadosNF) return;
-        const labels = regsFiltrados.map(r => r.data);
-        const fatNF = regsFiltrados.map(r => r.faturamentoNF);
-        const pedFat = regsFiltrados.map(r => r.pedidosAprovFat);
-        const totalNF = fatNF.reduce((a, b) => a + b, 0);
-        const totalApv = regsFiltrados.reduce((s, r) => s + r.pedidosAprov, 0);
-        const proj = totalNF + totalApv;
-        charts.aprovadosNF.data.datasets[0].data = [proj, Math.max(0, meta - proj)];
-        charts.faturadosNF.data.datasets[0].data = [totalNF, Math.max(0, meta - totalNF)];
-        charts.aprovadosFaturados.data.datasets[0].data = [totalApv, Math.max(0, meta - totalApv)];
-        charts.comparacaoDiaria.data.labels = labels;
-        charts.comparacaoDiaria.data.datasets[0].data = fatNF;
-        charts.comparacaoDiaria.data.datasets[1].data = pedFat;
-        charts.evolucaoDiaria.data.labels = labels;
-        charts.evolucaoDiaria.data.datasets[0].data = fatNF;
-        charts.evolucaoDiaria.data.datasets[1].data = pedFat;
-        const percProj = meta > 0 ? (proj / meta) * 100 : 0;
-        document.getElementById('center1').innerHTML = `<strong>${percProj.toFixed(1)}%</strong><br><small>${formatBRL(proj)}</small>`;
-        document.getElementById('center2').innerHTML = `<strong>${(meta>0?(totalNF/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalNF)}</small>`;
-        document.getElementById('center3').innerHTML = `<strong>${(meta>0?(totalApv/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalApv)}</small>`;
-        Object.values(charts).forEach(c => c.update());
-    }
-
-    async function carregarPostagens() {
-        try { notificacoes = await fetch(URL_POSTAGENS).then(r => r.json()); } catch (e) { notificacoes = []; }
-        atualizarBadgeNotificacoes();
-    }
-
-    function atualizarBadgeNotificacoes() {
-        const badge = document.getElementById('notification-badge');
-        const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-        badge.style.display = unread ? 'flex' : 'none';
-        badge.textContent = unread > 9 ? '9+' : unread;
-    }
-
-    function abrirModalNotificacoes() {
-        const modal = document.getElementById('notif-modal');
-        const body = document.getElementById('notif-modal-body');
-        const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-        if (!notificacoes.length) {
-            body.innerHTML = '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span><p class="text-center text-muted p-8">Nenhuma postagem recente.</p>';
-        } else {
-            let html = `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                <h2 style="margin:0;"><i class="fas fa-bell mr-2"></i>Postagens</h2>
-                ${unreadCount > 0 ? `<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>` : ''}
-            </div>`;
-            notificacoes.forEach(p => {
-                const isRead = readNotifications.includes(p.id);
-                const tipo = p.tipo || 'informativo';
-                html += `<div class="notif-card" data-id="${p.id}" style="opacity:${isRead?0.7:1}">
-                    <img src="${p.imagem || 'https://via.placeholder.com/80x60?text=Sem'}" class="notif-thumb" onerror="this.style.display='none'">
-                    <div class="notif-body">
-                        <span class="notif-type" style="background:${tipo==='alerta'?'#fee2e2':'#e0f2fe'};color:${tipo==='alerta'?'#991b1b':'#0369a1'}">${tipo.toUpperCase()}</span>
-                        <div class="notif-title">${p.titulo}</div>
-                        <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${p.data} • <i class="fas fa-user"></i> ${p.autor}</div>
-                        <div class="notif-excerpt">${(p.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div>
-                    </div>
-                </div>`;
-            });
-            body.innerHTML = html;
-            body.querySelectorAll('.notif-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = card.dataset.id;
-                    if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
-                    modal.classList.remove('active');
+                const [mesStr, anoStr] = currentMonthKey.split('/');
+                const mesesMap = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
+                const mes = mesesMap[mesStr];
+                const ano = 2000 + parseInt(anoStr);
+                
+                const filtrados = registros.filter(r => {
+                    const my = extractMonthYear(r.data);
+                    return my && my.month === mes + 1 && my.year === ano;
                 });
-            });
-            const btnMarkAll = document.getElementById('btn-mark-all-read');
-            if (btnMarkAll) {
-                btnMarkAll.addEventListener('click', () => {
-                    readNotifications = notificacoes.map(n => n.id);
-                    localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications));
-                    atualizarBadgeNotificacoes();
-                    abrirModalNotificacoes();
+                
+                // Cálculo do dólar (último valor disponível)
+                const dolarOrdenados = [...registros].filter(r => r.dolar > 0).sort((a, b) => {
+                    const [da, ma, aa] = a.data.split('/');
+                    const [db, mb, ab] = b.data.split('/');
+                    return new Date(`${ab}-${mb}-${db}`) - new Date(`${aa}-${ma}-${da}`);
                 });
+                const ultimoDolar = dolarOrdenados.length > 0 ? dolarOrdenados[0].dolar : 0;
+                
+                let somaDolar = 0, contadorDolar = 0;
+                registros.forEach(r => { if (r.dolar > 0) { somaDolar += r.dolar; contadorDolar++; } });
+                const mediaDolarTodos = contadorDolar > 0 ? somaDolar / contadorDolar : 0;
+                
+                const mediaDolarElement = document.getElementById('mediaDolarHeader');
+                if (mediaDolarElement) mediaDolarElement.textContent = formatBRL(ultimoDolar);
+                
+                const dolarPill = document.querySelector('.pill.blue');
+                if (dolarPill) {
+                    dolarPill.innerHTML = `<i class="fas fa-dollar-sign"></i> Dólar: <strong>${formatBRL(ultimoDolar)}</strong> <span style="font-size:0.65rem; opacity:0.8;">(média: ${formatBRL(mediaDolarTodos)})</span>`;
+                }
+                
+                let totalNF = 0, totalApv = 0, totalPedFat = 0, acum = 0;
+                const meta = metasMensais[`${ano}-${String(mes + 1).padStart(2, '0')}`] || 0;
+                
+                filtrados.forEach(r => {
+                    totalNF += r.faturamentoNF;
+                    totalApv += r.pedidosAprov;
+                    totalPedFat += r.pedidosAprovFat;
+                    acum += r.faturamentoNF + r.pedidosAprov;
+                    const perc = meta > 0 ? (acum / meta) * 100 : 0;
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td>${r.data}</td><td>${formatBRL(r.faturamentoNF)}</td><td>${formatBRL(r.pedidosAprovFat)}</td><td>${formatBRL(r.pedidosAprov)}</td><td>${perc.toFixed(1)}%</td><td>${formatBRL(r.dolar)}</td></tr>`;
+                    tbody.appendChild(tr);
+                });
+                
+                const metaElement = document.getElementById('metaMensalTexto');
+                if (metaElement) metaElement.textContent = formatBRL(meta);
+                
+                const projTotal = totalNF + totalApv;
+                const percMeta = meta > 0 ? (projTotal / meta) * 100 : 0;
+                
+                const statusPill = document.getElementById('status-pill');
+                const statusText = document.getElementById('status-text');
+                if (statusPill && statusText) {
+                    statusPill.className = 'pill';
+                    if (percMeta >= 100) { statusPill.classList.add('green'); statusText.innerHTML = 'Atingida 🎉'; }
+                    else if (percMeta >= 90) { statusPill.classList.add('yellow'); statusText.innerHTML = 'Excelente ✅'; }
+                    else if (percMeta >= 70) { statusPill.classList.add('yellow'); statusText.innerHTML = 'Boa 👍'; }
+                    else { statusPill.classList.add('red'); statusText.innerHTML = 'A Melhorar ⚠️'; }
+                }
+                
+                const percentHeader = document.getElementById('percentAtingidoHeader');
+                if (percentHeader) percentHeader.textContent = percMeta.toFixed(1) + '%';
+                
+                const percentPill = document.getElementById('percent-pill');
+                if (percentPill) percentPill.className = 'pill ' + (percMeta >= 100 ? 'green' : percMeta >= 70 ? 'yellow' : 'red');
+                
+                renderizarKPIs(projTotal, totalNF, totalApv, meta);
+                atualizarCharts(filtrados, meta);
             }
-        }
-        modal.classList.add('active');
-    }
 
-    function gerarNotificacoesInsight() {
-        if (!currentMonthKey) return;
-        const [m, a] = currentMonthKey.split('/');
-        const mes = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 }[m];
-        const ano = 2000 + parseInt(a);
-        const meta = metasMensais[`${ano}-${String(mes+1).padStart(2,'0')}`] || 0;
-        const total = registros.filter(r => { const my = extractMonthYear(r.data); return my && my.month === mes + 1 && my.year === ano; }).reduce((s, r) => s + r.faturamentoNF + r.pedidosAprov, 0);
-        if (meta > 0 && total >= meta) adicionarNotif(`Meta de ${currentMonthKey} atingida! 🎉`);
-        else if (meta > 0 && total / meta >= 0.9) adicionarNotif(`Falta ${formatBRL(meta-total)} para bater a meta de ${currentMonthKey}!`);
-    }
-
-    function adicionarNotif(texto) {
-        notificacoes.unshift({ id: Date.now(), titulo: 'Insight', data: new Date().toLocaleDateString('pt-BR'), autor: 'Sistema', texto_html: texto, tipo: 'novidade' });
-        notificacoes = notificacoes.slice(0, 30);
-        atualizarBadgeNotificacoes();
-    }
-
-    let userProfile = JSON.parse(localStorage.getItem('userProfile')) || { name: 'Relatório Diário', avatarUrl: '', icon: 'fa-chart-line', iconColor: '#1e3a5f', bgUrl: '' };
-
-    function applyProfile() {
-        document.getElementById('greeting-name').textContent = 'Relatório Diário';
-        document.getElementById('topbar-greeting').textContent = 'Faturamento';
-        const avatarContainer = document.getElementById('user-avatar-header');
-        avatarContainer.innerHTML = `<i class="fas fa-chart-line text-lg"></i>`;
-        avatarContainer.style.background = '#1e3a5f';
-        avatarContainer.style.color = '#fff';
-        avatarContainer.style.display = 'flex';
-        avatarContainer.style.alignItems = 'center';
-        avatarContainer.style.justifyContent = 'center';
-        if (userProfile.bgUrl) {
-            document.body.classList.add('custom-bg');
-            document.body.style.setProperty('--custom-bg-url', `url('${userProfile.bgUrl}')`);
-        } else {
-            document.body.classList.remove('custom-bg');
-            document.body.style.removeProperty('--custom-bg-url');
-        }
-    }
-    applyProfile();
-
-    let emailConfig = JSON.parse(localStorage.getItem('emailConfigFaturamento')) || {};
-
-    function openEmailConfigModal() { document.getElementById('emailConfigModal').classList.add('active'); }
-    function closeEmailConfigModal() { document.getElementById('emailConfigModal').classList.remove('active'); }
-    function salvarConfigEmail() {
-        emailConfig = {
-            nomeTratamento: document.getElementById('emailNomeTratamento').value,
-            destino: document.getElementById('emailDestino').value,
-            cc: document.getElementById('emailCc').value,
-            assinatura: document.getElementById('emailAssinatura').value
-        };
-        localStorage.setItem('emailConfigFaturamento', JSON.stringify(emailConfig));
-        closeEmailConfigModal();
-        showMessage('Configuração de e-mail salva!');
-    }
-
-    function buildMonthGrid() {
-        const hoje = new Date();
-        const ano = hoje.getFullYear();
-        const mesAtual = hoje.getMonth();
-        const mesesAbrev = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-        const grid = document.getElementById('month-grid');
-        let html = '';
-        for (let i = 0; i < 12; i++) {
-            const key = `${mesesAbrev[i]}/${ano.toString().slice(-2)}`;
-            const future = i > mesAtual;
-            html += `<span class="month-item ${key===currentMonthKey?'active':''} ${future?'future':''}" data-month="${key}">${mesesAbrev[i].toUpperCase()}</span>`;
-        }
-        grid.innerHTML = html;
-        document.querySelectorAll('.month-item:not(.future)').forEach(item => {
-            item.addEventListener('click', function() {
-                const sel = this.dataset.month;
-                if (sel === currentMonthKey) return;
-                currentMonthKey = sel;
-                buildMonthGrid();
-                carregarTabela();
-                gerarNotificacoesInsight();
-            });
-        });
-    }
-
-    function fazerLogout() {
-        localStorage.setItem('radar_logged_out', 'true');
-        localStorage.removeItem('radar_usuario');
-        localStorage.removeItem('ultimo_acesso_radar');
-        window.location.href = BASE_URL + '/index.html?reason=logged_out';
-    }
-
-    function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
-    function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
-    function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        initCharts();
-        const hoje = new Date();
-        currentMonthKey = monthKeyFromDate(hoje);
-        buildMonthGrid();
-
-        document.getElementById('metaMensalTexto').addEventListener('click', () => {
-            const [m, a] = currentMonthKey.split('/');
-            const mes = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 }[m];
-            const ano = 2000 + parseInt(a);
-            const key = `${ano}-${String(mes+1).padStart(2,'0')}`;
-            const atual = metasMensais[key] || 0;
-            const novo = prompt(`Defina a meta para ${currentMonthKey} (R$)`, atual);
-            if (novo !== null) { const val = parseBRL(novo); if (!isNaN(val)) { metasMensais[key] = val; localStorage.setItem('cache_fat_diario', JSON.stringify({ registros, metas: metasMensais, timestamp: Date.now() })); carregarTabela(); } }
-        });
-
-        document.getElementById('toggle-sidebar-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.toggle('open'));
-        document.getElementById('close-widget-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.remove('open'));
-        document.getElementById('exportarPDF').addEventListener('click', () => window.print());
-        document.getElementById('exportarExcelBtn').addEventListener('click', () => {
-            const wb = XLSX.utils.book_new();
-            const dados = [["Data", "Faturamento NF", "Ped. Aprov+Fat", "Ped. Aprovados", "Dólar"]];
-            registros.forEach(r => dados.push([r.data, r.faturamentoNF, r.pedidosAprovFat, r.pedidosAprov, r.dolar]));
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados), "Dados");
-            if (Object.keys(metasMensais).length) {
-                const metas = [["Mês", "Meta"]];
-                Object.entries(metasMensais).forEach(([k, v]) => metas.push([k, v]));
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(metas), "Metas");
+            function renderizarKPIs(proj, nf, apv, meta) {
+                const falta = Math.max(0, meta - proj);
+                const perc = meta > 0 ? (proj / meta) * 100 : 0;
+                const kpiContainer = document.getElementById('kpi-cards');
+                if (kpiContainer) {
+                    kpiContainer.innerHTML = `
+                        <div class="mini-card-kpi"><div class="label">Projeção Total</div><div class="value blue">${formatBRL(proj)}</div></div>
+                        <div class="mini-card-kpi"><div class="label">Faturado (NF)</div><div class="value green">${formatBRL(nf)}</div></div>
+                        <div class="mini-card-kpi"><div class="label">Aprovados</div><div class="value purple">${formatBRL(apv)}</div></div>
+                        <div class="mini-card-kpi"><div class="label">Falta p/ Meta</div><div class="value amber">${formatBRL(falta)}</div></div>
+                        <div class="mini-card-kpi"><div class="label">% Atingido</div><div class="value blue">${perc.toFixed(1)}%</div></div>
+                    `;
+                }
             }
-            XLSX.writeFile(wb, 'faturamento_diario.xlsx');
-            showMessage('Excel exportado!');
-        });
-        document.getElementById('configurarEmailBtn').addEventListener('click', openEmailConfigModal);
-        document.getElementById('recarregarBtn').addEventListener('click', () => carregarDados(true));
-        document.getElementById('profile-widget-btn').addEventListener('click', () => { document.getElementById('profile-modal').classList.add('active'); document.getElementById('widget-sidebar').classList.remove('open'); });
-        document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
-        document.getElementById('logout-btn').addEventListener('click', fazerLogout);
-        document.getElementById('last-update-badge').addEventListener('click', () => carregarDados(true));
-        document.getElementById('notification-bell').addEventListener('click', (e) => { e.stopPropagation(); abrirModalNotificacoes(); });
-        document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
-        document.getElementById('user-avatar-header').addEventListener('click', () => {
-            document.getElementById('profile-modal').classList.add('active');
-            document.getElementById('profile-name').value = userProfile.name;
-            document.getElementById('profile-avatar-url').value = userProfile.avatarUrl;
-            document.getElementById('profile-icon-color').value = userProfile.iconColor;
-            document.getElementById('profile-bg-url').value = userProfile.bgUrl || '';
-        });
-        document.getElementById('profile-form').addEventListener('submit', (e) => {
-            e.preventDefault();
-            userProfile.name = document.getElementById('profile-name').value;
-            userProfile.avatarUrl = document.getElementById('profile-avatar-url').value;
-            userProfile.iconColor = document.getElementById('profile-icon-color').value;
-            userProfile.bgUrl = document.getElementById('profile-bg-url').value;
-            localStorage.setItem('userProfile', JSON.stringify(userProfile));
+
+            let charts = {};
+
+            function initCharts() {
+                Chart.register(ChartDataLabels);
+                const donutOpts = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => `${ctx.label}: ${formatBRL(ctx.raw)}` } }, datalabels: { display: false } },
+                    elements: { arc: { borderWidth: 2, borderColor: 'white', borderRadius: 8 } }
+                };
+                charts.aprovadosNF = new Chart(document.getElementById('aprovadosNFChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
+                charts.faturadosNF = new Chart(document.getElementById('faturadosNFChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
+                charts.aprovadosFaturados = new Chart(document.getElementById('aprovadosFaturadosChart'), { type: 'doughnut', data: { labels: ['Realizado', 'Falta'], datasets: [{ data: [0, 0], backgroundColor: ['#2e7d32', '#d32f2f'] }] }, options: donutOpts });
+                const barOpts = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'top' }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${formatBRL(ctx.parsed.y)}` } }, datalabels: { display: false } },
+                    scales: { y: { beginAtZero: true } },
+                    elements: { bar: { borderRadius: 8 } }
+                };
+                charts.comparacaoDiaria = new Chart(document.getElementById('comparacaoDiariaChart'), { type: 'bar', data: { labels: [], datasets: [{ label: 'Faturamento NF', backgroundColor: '#2e7d32' }, { label: 'Ped. Aprov+Fat', backgroundColor: '#ed6c02' }] }, options: barOpts });
+                charts.evolucaoDiaria = new Chart(document.getElementById('evolucaoDiariaChart'), { type: 'line', data: { labels: [], datasets: [{ label: 'Faturamento NF', borderColor: '#2e7d32', fill: false }, { label: 'Ped. Aprov+Fat', borderColor: '#ed6c02', fill: false }] }, options: { ...barOpts, elements: { line: { tension: 0.4 } } } });
+            }
+
+            function atualizarCharts(regsFiltrados, meta) {
+                if (!charts.aprovadosNF) return;
+                const labels = regsFiltrados.map(r => r.data);
+                const fatNF = regsFiltrados.map(r => r.faturamentoNF);
+                const pedFat = regsFiltrados.map(r => r.pedidosAprovFat);
+                const totalNF = fatNF.reduce((a, b) => a + b, 0);
+                const totalApv = regsFiltrados.reduce((s, r) => s + r.pedidosAprov, 0);
+                const proj = totalNF + totalApv;
+                charts.aprovadosNF.data.datasets[0].data = [proj, Math.max(0, meta - proj)];
+                charts.faturadosNF.data.datasets[0].data = [totalNF, Math.max(0, meta - totalNF)];
+                charts.aprovadosFaturados.data.datasets[0].data = [totalApv, Math.max(0, meta - totalApv)];
+                charts.comparacaoDiaria.data.labels = labels;
+                charts.comparacaoDiaria.data.datasets[0].data = fatNF;
+                charts.comparacaoDiaria.data.datasets[1].data = pedFat;
+                charts.evolucaoDiaria.data.labels = labels;
+                charts.evolucaoDiaria.data.datasets[0].data = fatNF;
+                charts.evolucaoDiaria.data.datasets[1].data = pedFat;
+                const percProj = meta > 0 ? (proj / meta) * 100 : 0;
+                document.getElementById('center1').innerHTML = `<strong>${percProj.toFixed(1)}%</strong><br><small>${formatBRL(proj)}</small>`;
+                document.getElementById('center2').innerHTML = `<strong>${(meta>0?(totalNF/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalNF)}</small>`;
+                document.getElementById('center3').innerHTML = `<strong>${(meta>0?(totalApv/meta)*100:0).toFixed(1)}%</strong><br><small>${formatBRL(totalApv)}</small>`;
+                Object.values(charts).forEach(c => c.update());
+            }
+
+            async function carregarPostagens() {
+                try { notificacoes = await fetch(URL_POSTAGENS).then(r => r.json()); } catch (e) { notificacoes = []; }
+                atualizarBadgeNotificacoes();
+            }
+
+            function atualizarBadgeNotificacoes() {
+                const badge = document.getElementById('notification-badge');
+                const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                badge.style.display = unread ? 'flex' : 'none';
+                badge.textContent = unread > 9 ? '9+' : unread;
+            }
+
+            function abrirModalNotificacoes() {
+                const modal = document.getElementById('notif-modal');
+                const body = document.getElementById('notif-modal-body');
+                const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                if (!notificacoes.length) {
+                    body.innerHTML = '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span><p class="text-center text-muted p-8">Nenhuma postagem recente.</p>';
+                } else {
+                    let html = `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h2 style="margin:0;"><i class="fas fa-bell mr-2"></i>Postagens</h2>
+                        ${unreadCount > 0 ? `<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>` : ''}
+                    </div>`;
+                    notificacoes.forEach(p => {
+                        const isRead = readNotifications.includes(p.id);
+                        const tipo = p.tipo || 'informativo';
+                        html += `<div class="notif-card" data-id="${p.id}" style="opacity:${isRead?0.7:1}">
+                            <img src="${p.imagem || 'https://via.placeholder.com/80x60?text=Sem'}" class="notif-thumb" onerror="this.style.display='none'">
+                            <div class="notif-body">
+                                <span class="notif-type" style="background:${tipo==='alerta'?'#fee2e2':'#e0f2fe'};color:${tipo==='alerta'?'#991b1b':'#0369a1'}">${tipo.toUpperCase()}</span>
+                                <div class="notif-title">${p.titulo}</div>
+                                <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${p.data} • <i class="fas fa-user"></i> ${p.autor}</div>
+                                <div class="notif-excerpt">${(p.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div>
+                            </div>
+                        </div>`;
+                    });
+                    body.innerHTML = html;
+                    body.querySelectorAll('.notif-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const id = card.dataset.id;
+                            if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
+                            modal.classList.remove('active');
+                        });
+                    });
+                    const btnMarkAll = document.getElementById('btn-mark-all-read');
+                    if (btnMarkAll) {
+                        btnMarkAll.addEventListener('click', () => {
+                            readNotifications = notificacoes.map(n => n.id);
+                            localStorage.setItem('readNotifications_fat', JSON.stringify(readNotifications));
+                            atualizarBadgeNotificacoes();
+                            abrirModalNotificacoes();
+                        });
+                    }
+                }
+                modal.classList.add('active');
+            }
+
+            function gerarNotificacoesInsight() {
+                if (!currentMonthKey) return;
+                const [m, a] = currentMonthKey.split('/');
+                const mes = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 }[m];
+                const ano = 2000 + parseInt(a);
+                const meta = metasMensais[`${ano}-${String(mes+1).padStart(2,'0')}`] || 0;
+                const total = registros.filter(r => { const my = extractMonthYear(r.data); return my && my.month === mes + 1 && my.year === ano; }).reduce((s, r) => s + r.faturamentoNF + r.pedidosAprov, 0);
+                if (meta > 0 && total >= meta) adicionarNotif(`Meta de ${currentMonthKey} atingida! 🎉`);
+                else if (meta > 0 && total / meta >= 0.9) adicionarNotif(`Falta ${formatBRL(meta-total)} para bater a meta de ${currentMonthKey}!`);
+            }
+
+            function adicionarNotif(texto) {
+                notificacoes.unshift({ id: Date.now(), titulo: 'Insight', data: new Date().toLocaleDateString('pt-BR'), autor: 'Sistema', texto_html: texto, tipo: 'novidade' });
+                notificacoes = notificacoes.slice(0, 30);
+                atualizarBadgeNotificacoes();
+            }
+
+            let userProfile = JSON.parse(localStorage.getItem('userProfile')) || { name: 'Relatório Diário', avatarUrl: '', icon: 'fa-chart-line', iconColor: '#1e3a5f', bgUrl: '' };
+
+            function applyProfile() {
+                document.getElementById('greeting-name').textContent = 'Relatório Diário';
+                document.getElementById('topbar-greeting').textContent = 'Faturamento';
+                const avatarContainer = document.getElementById('user-avatar-header');
+                avatarContainer.innerHTML = `<i class="fas fa-chart-line text-lg"></i>`;
+                avatarContainer.style.background = '#1e3a5f';
+                avatarContainer.style.color = '#fff';
+                avatarContainer.style.display = 'flex';
+                avatarContainer.style.alignItems = 'center';
+                avatarContainer.style.justifyContent = 'center';
+                if (userProfile.bgUrl) {
+                    document.body.classList.add('custom-bg');
+                    document.body.style.setProperty('--custom-bg-url', `url('${userProfile.bgUrl}')`);
+                } else {
+                    document.body.classList.remove('custom-bg');
+                    document.body.style.removeProperty('--custom-bg-url');
+                }
+            }
             applyProfile();
-            document.getElementById('profile-modal').classList.remove('active');
-            showMessage('Perfil atualizado!');
-        });
 
-        window.closeEmailConfigModal = closeEmailConfigModal;
-        window.salvarConfigEmail = salvarConfigEmail;
+            let emailConfig = JSON.parse(localStorage.getItem('emailConfigFaturamento')) || {};
 
-        document.querySelectorAll('.modal-close').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); btn.closest('.modal').classList.remove('active'); }); });
-
-        document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
-        document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
-        document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-
-        document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
-        document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
-        document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-        document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
-        document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx67_vendas/vendas'; });
-        document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
-        document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); fazerLogout(); });
-
-        setActiveBottomBar('home');
-        document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
-        document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
-        document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
-
-        document.getElementById('footer-year').textContent = new Date().getFullYear();
-
-        await carregarPostagens();
-        if (localStorage.getItem('cache_fat_diario')) {
-            const cache = JSON.parse(localStorage.getItem('cache_fat_diario'));
-            registros = cache.registros;
-            metasMensais = cache.metas;
-            carregarTabela();
-        }
-        carregarDados(true);
-    });
-            
-    // Função para preparar os gráficos para impressão
-function prepararGraficosParaImpressao() {
-    // Força a atualização de todos os gráficos
-    if (charts) {
-        Object.values(charts).forEach(chart => {
-            if (chart && typeof chart.resize === 'function') {
-                chart.resize();
+            function openEmailConfigModal() { document.getElementById('emailConfigModal').classList.add('active'); }
+            function closeEmailConfigModal() { document.getElementById('emailConfigModal').classList.remove('active'); }
+            function salvarConfigEmail() {
+                emailConfig = {
+                    nomeTratamento: document.getElementById('emailNomeTratamento').value,
+                    destino: document.getElementById('emailDestino').value,
+                    cc: document.getElementById('emailCc').value,
+                    assinatura: document.getElementById('emailAssinatura').value
+                };
+                localStorage.setItem('emailConfigFaturamento', JSON.stringify(emailConfig));
+                closeEmailConfigModal();
+                showMessage('Configuração de e-mail salva!');
             }
-            if (chart && typeof chart.update === 'function') {
-                chart.update();
-            }
-        });
-    }
-    
-    // Ajusta os containers dos gráficos para impressão
-    const chartContainers = document.querySelectorAll('.chart-container');
-    chartContainers.forEach(container => {
-        // Salva as dimensões originais
-        const originalHeight = container.style.height;
-        const originalWidth = container.style.width;
-        
-        // Força dimensões fixas para impressão
-        container.style.height = '200px';
-        container.style.width = '100%';
-        
-        // Restaura após a impressão
-        setTimeout(() => {
-            container.style.height = originalHeight;
-            container.style.width = originalWidth;
-        }, 100);
-    });
-}
 
-// Substitui o evento do botão PDF
-const botaoPDF = document.getElementById('exportarPDF');
-if (botaoPDF) {
-    const novoBotao = botaoPDF.cloneNode(true);
-    botaoPDF.parentNode.replaceChild(novoBotao, botaoPDF);
-    novoBotao.addEventListener('click', function(e) {
-        e.preventDefault();
-        
-        // Mostra um indicador de carregamento
-        showMessage('Preparando PDF...', false);
-        
-        // Prepara os gráficos
-        prepararGraficosParaImpressao();
-        
-        // Pequeno delay para garantir que os gráficos foram atualizados
-        setTimeout(() => {
-            window.print();
-        }, 300);
-    });
-}        
-            
-            
-})();
+            function popularAnos() {
+                const anos = new Set();
+                registros.forEach(r => {
+                    const my = extractMonthYear(r.data);
+                    if (my) anos.add(my.year);
+                });
+                const select = document.getElementById('year-select');
+                if (!select) return;
+                select.innerHTML = '';
+                Array.from(anos).sort((a,b) => b - a).forEach(y => {
+                    const opt = document.createElement('option');
+                    opt.value = y;
+                    opt.textContent = y;
+                    if (y === selectedYear) opt.selected = true;
+                    select.appendChild(opt);
+                });
+
+                select.addEventListener('change', () => {
+                    selectedYear = parseInt(select.value);
+                    updateCurrentMonthKey();
+                    buildMonthGrid();
+                    carregarTabela();
+                });
+            }
+
+            function buildMonthGrid() {
+                const hoje = new Date();
+                const anoAtual = hoje.getFullYear();
+                const mesAtual = hoje.getMonth();
+                const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+                const grid = document.getElementById('month-grid');
+                let html = '';
+
+                for (let i = 0; i < 12; i++) {
+                    const key = `${mesesAbrev[i]}/${selectedYear.toString().slice(-2)}`;
+                    const future = (selectedYear === anoAtual) ? i > mesAtual : false;
+                    const active = (i === selectedMonthIndex && selectedYear === (2000 + parseInt(currentMonthKey.split('/')[1])));
+                    html += `<span class="month-item ${active?'active':''} ${future?'future':''}" data-month="${key}">${mesesAbrev[i].toUpperCase()}</span>`;
+                }
+                grid.innerHTML = html;
+
+                document.querySelectorAll('.month-item:not(.future)').forEach(item => {
+                    item.addEventListener('click', function() {
+                        const [mesStr, anoStr] = this.dataset.month.split('/');
+                        selectedMonthIndex = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'].indexOf(mesStr);
+                        selectedYear = 2000 + parseInt(anoStr);
+                        updateCurrentMonthKey();
+                        buildMonthGrid();
+                        carregarTabela();
+                        gerarNotificacoesInsight();
+                    });
+                });
+            }
+
+            function fazerLogout() {
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href = BASE_URL + '/index.html?reason=logged_out';
+            }
+
+            function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
+            function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
+            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
+
+            document.addEventListener('DOMContentLoaded', async () => {
+                initCharts();
+                const hoje = new Date();
+                selectedYear = hoje.getFullYear();
+                selectedMonthIndex = hoje.getMonth();
+                updateCurrentMonthKey();
+                buildMonthGrid();
+
+                document.getElementById('metaMensalTexto').addEventListener('click', () => {
+                    const [m, a] = currentMonthKey.split('/');
+                    const mes = { jan:0, fev:1, mar:2, abr:3, mai:4, jun:5, jul:6, ago:7, set:8, out:9, nov:10, dez:11 }[m];
+                    const ano = 2000 + parseInt(a);
+                    const key = `${ano}-${String(mes+1).padStart(2,'0')}`;
+                    const atual = metasMensais[key] || 0;
+                    const novo = prompt(`Defina a meta para ${currentMonthKey} (R$)`, atual);
+                    if (novo !== null) { const val = parseBRL(novo); if (!isNaN(val)) { metasMensais[key] = val; localStorage.setItem('cache_fat_diario', JSON.stringify({ registros, metas: metasMensais, timestamp: Date.now() })); carregarTabela(); } }
+                });
+
+                document.getElementById('toggle-sidebar-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.toggle('open'));
+                document.getElementById('close-widget-btn').addEventListener('click', () => document.getElementById('widget-sidebar').classList.remove('open'));
+                document.getElementById('exportarPDF').addEventListener('click', () => { prepararGraficosParaImpressao(); setTimeout(() => window.print(), 300); });
+                document.getElementById('exportarExcelBtn').addEventListener('click', () => {
+                    const wb = XLSX.utils.book_new();
+                    const dados = [["Data", "Faturamento NF", "Ped. Aprov+Fat", "Ped. Aprovados", "Dólar"]];
+                    registros.forEach(r => dados.push([r.data, r.faturamentoNF, r.pedidosAprovFat, r.pedidosAprov, r.dolar]));
+                    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(dados), "Dados");
+                    if (Object.keys(metasMensais).length) {
+                        const metas = [["Mês", "Meta"]];
+                        Object.entries(metasMensais).forEach(([k, v]) => metas.push([k, v]));
+                        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(metas), "Metas");
+                    }
+                    XLSX.writeFile(wb, 'faturamento_diario.xlsx');
+                    showMessage('Excel exportado!');
+                });
+                document.getElementById('configurarEmailBtn').addEventListener('click', openEmailConfigModal);
+                document.getElementById('recarregarBtn').addEventListener('click', () => carregarDados(true));
+                document.getElementById('profile-widget-btn').addEventListener('click', () => { document.getElementById('profile-modal').classList.add('active'); document.getElementById('widget-sidebar').classList.remove('open'); });
+                document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
+                document.getElementById('logout-btn').addEventListener('click', fazerLogout);
+                document.getElementById('last-update-badge').addEventListener('click', () => carregarDados(true));
+                document.getElementById('notification-bell').addEventListener('click', (e) => { e.stopPropagation(); abrirModalNotificacoes(); });
+                document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+                document.getElementById('user-avatar-header').addEventListener('click', () => {
+                    document.getElementById('profile-modal').classList.add('active');
+                    document.getElementById('profile-name').value = userProfile.name;
+                    document.getElementById('profile-avatar-url').value = userProfile.avatarUrl;
+                    document.getElementById('profile-icon-color').value = userProfile.iconColor;
+                    document.getElementById('profile-bg-url').value = userProfile.bgUrl || '';
+                });
+                document.getElementById('profile-form').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    userProfile.name = document.getElementById('profile-name').value;
+                    userProfile.avatarUrl = document.getElementById('profile-avatar-url').value;
+                    userProfile.iconColor = document.getElementById('profile-icon-color').value;
+                    userProfile.bgUrl = document.getElementById('profile-bg-url').value;
+                    localStorage.setItem('userProfile', JSON.stringify(userProfile));
+                    applyProfile();
+                    document.getElementById('profile-modal').classList.remove('active');
+                    showMessage('Perfil atualizado!');
+                });
+
+                window.closeEmailConfigModal = closeEmailConfigModal;
+                window.salvarConfigEmail = salvarConfigEmail;
+
+                document.querySelectorAll('.modal-close').forEach(btn => { btn.addEventListener('click', (e) => { e.stopPropagation(); btn.closest('.modal').classList.remove('active'); }); });
+
+                document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
+                document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+                document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+
+                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/'; });
+                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvx67_vendas/vendas'; });
+                document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = '/hpvxz_pedidos/pedidos'; });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); fazerLogout(); });
+
+                setActiveBottomBar('home');
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = BASE_URL + '/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = '/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = BASE_URL + '/'; });
+
+                document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                await carregarPostagens();
+                if (localStorage.getItem('cache_fat_diario')) {
+                    const cache = JSON.parse(localStorage.getItem('cache_fat_diario'));
+                    registros = cache.registros;
+                    metasMensais = cache.metas;
+                    carregarTabela();
+                    popularAnos(); // <-- ADICIONADO AQUI
+                }
+                carregarDados(true);
+            });
+
+            function prepararGraficosParaImpressao() {
+                if (charts) {
+                    Object.values(charts).forEach(chart => {
+                        if (chart && typeof chart.resize === 'function') chart.resize();
+                        if (chart && typeof chart.update === 'function') chart.update();
+                    });
+                }
+                const chartContainers = document.querySelectorAll('.chart-container');
+                chartContainers.forEach(container => {
+                    const originalHeight = container.style.height;
+                    const originalWidth = container.style.width;
+                    container.style.height = '200px';
+                    container.style.width = '100%';
+                    setTimeout(() => {
+                        container.style.height = originalHeight;
+                        container.style.width = originalWidth;
+                    }, 100);
+                });
+            }
+
+            const botaoPDF = document.getElementById('exportarPDF');
+            if (botaoPDF) {
+                const novoBotao = botaoPDF.cloneNode(true);
+                botaoPDF.parentNode.replaceChild(novoBotao, botaoPDF);
+                novoBotao.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    showMessage('Preparando PDF...', false);
+                    prepararGraficosParaImpressao();
+                    setTimeout(() => {
+                        window.print();
+                    }, 300);
+                });
+            }
+
+        })();
     </script>
 </body>
 </html>
