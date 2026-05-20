@@ -354,25 +354,35 @@
             grid-template-columns: 1fr 1fr;
             gap: 24px;
             margin-bottom: 28px;
+            align-items: stretch;
         }
         @media (max-width: 1000px) {
             .dashboard-grid {
                 grid-template-columns: 1fr;
             }
         }
-        .table-card {
+        .table-card,
+        .insight-card {
             background: var(--card-bg);
             backdrop-filter: var(--blur);
             border-radius: var(--radius-lg);
             padding: 20px;
             border: 1px solid var(--border-light);
             box-shadow: var(--shadow-sm);
-            max-height: 460px;
-            overflow-y: auto;
             display: flex;
             flex-direction: column;
+            height: 100%;
         }
-        .table-card h3 {
+        .table-card {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+        .insight-card {
+            overflow-y: auto;
+            max-height: 500px;
+        }
+        .table-card h3,
+        .insight-card .insight-title {
             font-size: 1.1rem;
             font-weight: 700;
             margin-bottom: 14px;
@@ -426,23 +436,9 @@
             font-size: 0.7rem;
         }
         .insight-card {
-            background: var(--card-bg);
-            backdrop-filter: var(--blur);
-            border-radius: var(--radius-lg);
-            padding: 20px;
-            border: 1px solid var(--border-light);
-            box-shadow: var(--shadow-sm);
             display: flex;
             flex-direction: column;
-            gap: 16px;
-        }
-        .insight-title {
-            font-weight: 700;
-            font-size: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--text-dark);
+            gap: 12px;
         }
         .orders-table {
             width: 100%;
@@ -477,6 +473,25 @@
             font-size: 1.2rem;
             color: var(--text-dark);
             text-align: center;
+        }
+        .btn-acessar-pedidos {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            padding: 10px 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            align-self: flex-start;
+            margin-top: auto;
+        }
+        .btn-acessar-pedidos:hover {
+            background: var(--primary-light);
         }
         .chart-evolution {
             background: var(--card-bg);
@@ -915,7 +930,7 @@
     <!-- Cabeçalho e área de impressão -->
     <div id="print-header">
         <h1>Alyssa - Recepção</h1>
-        <p id="print-header-periodo">Relatório - Gerado em <span id="print-date"></span></p>
+        <p id="print-header-periodo"></p>
     </div>
     <div id="print-area"></div>
 
@@ -941,6 +956,7 @@
             <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
             <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
             <button class="menu-item" id="menu-custos"><i class="fas fa-box"></i> Custos / Compras</button>
+            <button class="menu-item" id="menu-pedidos-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
@@ -957,6 +973,7 @@
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item active" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
         <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-box"></i><span>Custos</span></button>
+        <button class="bb-item" data-nav="compras" id="bb-compras"><i class="fas fa-shopping-cart"></i><span>Compras</span></button>
         <button class="bb-item" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
     </div>
@@ -990,6 +1007,7 @@
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens_recepcao"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_compras"><div class="tool-icon"><i class="fas fa-box"></i></div><div class="tool-label">Custos / Compras</div></a>
+            <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos"><div class="tool-icon"><i class="fas fa-shopping-cart"></i></div><div class="tool-label">Compras</div></a>
         </div>
 
         <!-- Filtros -->
@@ -1002,7 +1020,7 @@
             <button class="btn-pdf" id="gerar-pdf-btn"><i class="fas fa-file-pdf"></i> Gerar Relatório PDF</button>
         </div>
 
-        <!-- KPIs (8 cards) -->
+        <!-- KPIs -->
         <div class="kpi-row" id="kpi-row">
             <div class="kpi-card"><div class="kpi-label">Total de NFs</div><div class="kpi-number" id="kpi-total-nf">--</div></div>
             <div class="kpi-card"><div class="kpi-label">Canhoto SIM</div><div class="kpi-number" style="color:#2e7d32;" id="kpi-sim">--</div></div>
@@ -1018,7 +1036,7 @@
         <div class="dashboard-grid" id="dashboard-grid">
             <div class="table-card">
                 <h3><i class="fas fa-file-invoice"></i> Faturamento NFs</h3>
-                <div style="overflow-x:auto;">
+                <div style="overflow-x:auto; flex:1;">
                     <table class="nf-table" id="nf-table">
                         <thead><tr><th>Data</th><th>N° Nota</th><th>Pedido</th><th>Canhoto</th><th>Obs.</th></tr></thead>
                         <tbody id="nf-tbody"><tr><td colspan="5">Carregando...</td></tr></tbody>
@@ -1027,13 +1045,16 @@
             </div>
             <div class="insight-card">
                 <div class="insight-title"><i class="fas fa-truck"></i> Últimos Pedidos / Compras</div>
-                <div style="overflow-x:auto;">
+                <div style="overflow-x:auto; flex:1;">
                     <table class="orders-table" id="recent-orders-table">
                         <thead><tr><th>Número</th><th>Empresa</th><th>Valor</th><th>Receb.</th></tr></thead>
                         <tbody id="pedidos-tbody"><tr><td colspan="4">Carregando...</td></tr></tbody>
                     </table>
                 </div>
                 <div class="donut-container"><canvas id="recebimentoDonut" width="160" height="160"></canvas><div class="donut-center-text" id="donut-center-text">--</div></div>
+                <a href="https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos" class="btn-acessar-pedidos">
+                    <i class="fas fa-shopping-cart"></i> Acessar Pedidos de Compras
+                </a>
             </div>
         </div>
 
@@ -1063,14 +1084,18 @@
         <div class="modal-content">
             <span class="modal-close" onclick="document.getElementById('pdf-modal').classList.remove('active')">&times;</span>
             <h2><i class="fas fa-file-pdf" style="color:#d32f2f;"></i> Gerar Relatório PDF</h2>
-            <p style="font-size:0.85rem;color:var(--muted);">Selecione o tipo e período:</p>
+            <p style="font-size:0.85rem;color:var(--muted);">Selecione o tipo e o período:</p>
             <div class="pdf-modal-options" id="pdf-options">
                 <button class="pdf-option-btn active" data-pdf="nf"><i class="fas fa-file-invoice"></i> Faturamento NFs</button>
                 <button class="pdf-option-btn" data-pdf="pedidos"><i class="fas fa-truck"></i> Pedidos de Compras</button>
             </div>
             <div class="pdf-modal-select-row">
-                <label>Período:</label>
-                <select id="pdf-month-select"></select>
+                <label>De:</label>
+                <select id="pdf-de-mes"></select>
+            </div>
+            <div class="pdf-modal-select-row">
+                <label>Até:</label>
+                <select id="pdf-ate-mes"></select>
             </div>
             <button class="btn-pdf pdf-generate-btn" id="pdf-confirm-btn"><i class="fas fa-print"></i> Gerar PDF Agora</button>
         </div>
@@ -1109,16 +1134,19 @@
             const clean = v => { if(v===null||v===undefined||v==='') return 0; if(typeof v==='number') return v; return parseFloat(String(v).replace(/[R\$\s]/g,'').replace(/\./g,'').replace(',','.'))||0; };
             const fm = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2});
 
-            function getNFs(ano,mes) {
+            function getNFs(ano,mesIni,mesFim) {
+                // se mesFim não definido, usa mesIni
+                const fim = mesFim || mesIni;
                 return faturamentoRaw.filter(f=>{
                     const d=parseDataBR(f['Coluna 1']||f['Data']);
-                    return d && d.getFullYear()===ano && d.getMonth()+1===mes && String(f['Responsável']||'').toLowerCase().includes('alyssa');
+                    return d && d.getFullYear()===ano && d.getMonth()+1>=mesIni && d.getMonth()+1<=fim && String(f['Responsável']||'').toLowerCase().includes('alyssa');
                 }).sort((a,b)=>parseDataBR(b['Coluna 1']||b['Data'])-parseDataBR(a['Coluna 1']||a['Data']));
             }
-            function getPedidos(ano,mes) {
+            function getPedidos(ano,mesIni,mesFim) {
+                const fim = mesFim || mesIni;
                 return pedidosRaw.filter(p=>{
                     const d=parseDataBR(p['Data']);
-                    return d && d.getFullYear()===ano && d.getMonth()+1===mes && String(p['Responsável']||'').toLowerCase().includes('alyssa');
+                    return d && d.getFullYear()===ano && d.getMonth()+1>=mesIni && d.getMonth()+1<=fim && String(p['Responsável']||'').toLowerCase().includes('alyssa');
                 }).sort((a,b)=>parseDataBR(b['Data'])-parseDataBR(a['Data']));
             }
 
@@ -1213,7 +1241,8 @@
                 renderTabelaPedidos(ano,mes);
                 renderDonut(ano,mes);
                 renderEvolution(ano,mes);
-                document.getElementById('pdf-month-select').value = mes;
+                document.getElementById('pdf-de-mes').value = mes;
+                document.getElementById('pdf-ate-mes').value = mes;
             }
 
             function populateMonth() {
@@ -1225,7 +1254,13 @@
                 for(let m=1;m<=12;m++) opts += `<option value="${m}" ${m===mesAtual?'selected':''} ${m>mesAtual?'disabled':''}>${m.toString().padStart(2,'0')}/${anoAtual}</option>`;
                 select.innerHTML = opts;
                 select.addEventListener('change', e=>{ currentMonth=parseInt(e.target.value); atualizarTudo(anoAtual,currentMonth); });
-                document.getElementById('pdf-month-select').innerHTML = opts;
+
+                const pdfDe = document.getElementById('pdf-de-mes');
+                const pdfAte = document.getElementById('pdf-ate-mes');
+                pdfDe.innerHTML = opts;
+                pdfAte.innerHTML = opts;
+                pdfDe.value = mesAtual;
+                pdfAte.value = mesAtual;
                 currentMonth=mesAtual; currentYear=anoAtual;
                 atualizarTudo(anoAtual,currentMonth);
             }
@@ -1297,18 +1332,22 @@
                 modal.addEventListener('click',e=>{ if(e.target===modal) modal.classList.remove('active'); });
             }
 
-            // PDF funcional
+            // PDF funcional com período De/Até
             function gerarPDF() {
                 try {
-                    const mes = parseInt(document.getElementById('pdf-month-select').value);
+                    const de = parseInt(document.getElementById('pdf-de-mes').value);
+                    const ate = parseInt(document.getElementById('pdf-ate-mes').value);
+                    if (de > ate) {
+                        alert('O mês "De" deve ser menor ou igual ao mês "Até".');
+                        return;
+                    }
                     const ano = currentYear;
                     const hoje = new Date();
-                    document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR')+' às '+hoje.toLocaleTimeString('pt-BR');
-                    document.getElementById('print-header-periodo').innerHTML = `Relatório de ${pdfTipoSelecionado==='nf'?'Faturamento NFs':'Pedidos de Compras'} • ${nomeMes(mes)}/${ano}`;
+                    document.getElementById('print-header-periodo').textContent = `Relatório de ${pdfTipoSelecionado==='nf'?'Faturamento NFs':'Pedidos de Compras'} • ${nomeMes(de)} a ${nomeMes(ate)} de ${ano} – Gerado em ${hoje.toLocaleDateString('pt-BR')} às ${hoje.toLocaleTimeString('pt-BR')}`;
                     const printArea = document.getElementById('print-area');
                     let conteudo = '';
                     if (pdfTipoSelecionado === 'nf') {
-                        const nfs = getNFs(ano,mes);
+                        const nfs = getNFs(ano, de, ate);
                         const total=nfs.length, sim=nfs.filter(f=>String(f['Canhoto']||'').toUpperCase().trim()==='SIM').length;
                         conteudo = `<div class="kpi-print-grid">
                             <div class="kpi-print-item"><strong>Total NFs</strong><br>${total}</div>
@@ -1320,7 +1359,7 @@
                         ${nfs.map(f=>`<tr><td>${f['Coluna 1']||''}</td><td>${f['N° da nota']||''}</td><td>${f['Pedido']||''}</td><td>${String(f['Canhoto']||'').toUpperCase().trim()}</td><td>${f['Obs.']||''}</td></tr>`).join('')}
                         </tbody></table>`;
                     } else {
-                        const pedidos = getPedidos(ano,mes);
+                        const pedidos = getPedidos(ano, de, ate);
                         const aprov = pedidos.filter(p=>String(p['Situação']||'').toUpperCase().trim()==='APROVADO');
                         const rec = pedidos.filter(p=>String(p['Recebimento']||'').toUpperCase().trim()==='SIM');
                         conteudo = `<div class="kpi-print-grid">
@@ -1336,7 +1375,7 @@
                     setTimeout(() => window.print(), 200);
                 } catch(e) {
                     console.error('Erro ao gerar PDF:', e);
-                    alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
+                    alert('Ocorreu um erro ao gerar o PDF.');
                 }
             }
 
@@ -1349,7 +1388,8 @@
             document.getElementById('home-btn').addEventListener('click',()=>window.location.href=BASE_URL+'/');
             document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
             document.getElementById('gerar-pdf-btn').addEventListener('click',()=>{
-                document.getElementById('pdf-month-select').value = currentMonth;
+                document.getElementById('pdf-de-mes').value = currentMonth;
+                document.getElementById('pdf-ate-mes').value = currentMonth;
                 document.querySelectorAll('#pdf-options .pdf-option-btn').forEach(b=>b.classList.remove('active'));
                 document.querySelector(`#pdf-options .pdf-option-btn[data-pdf="${pdfTipoSelecionado}"]`).classList.add('active');
                 document.getElementById('pdf-modal').classList.add('active');
@@ -1370,23 +1410,19 @@
                 document.getElementById('hamburger-menu').classList.add('active');
                 document.getElementById('hamburger-overlay').classList.add('active');
             });
-            document.getElementById('menu-close-btn').addEventListener('click',()=>{
-                document.getElementById('hamburger-menu').classList.remove('active');
-                document.getElementById('hamburger-overlay').classList.remove('active');
-            });
-            document.getElementById('hamburger-overlay').addEventListener('click',()=>{
-                document.getElementById('hamburger-menu').classList.remove('active');
-                document.getElementById('hamburger-overlay').classList.remove('active');
-            });
-            document.getElementById('menu-home').addEventListener('click',()=>{ closeHamburger(); window.location.href=BASE_URL+'/'; });
-            document.getElementById('menu-feed').addEventListener('click',()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens_recepcao'; });
-            document.getElementById('menu-custos').addEventListener('click',()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_compras'; });
-            document.getElementById('menu-notifications-side').addEventListener('click',()=>{ closeHamburger(); abrirNotificacoes(); });
-            document.getElementById('menu-logout').addEventListener('click',()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href=BASE_URL+'/index.html?reason=logged_out'; });
+            document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+            document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
             function closeHamburger() {
                 document.getElementById('hamburger-menu').classList.remove('active');
                 document.getElementById('hamburger-overlay').classList.remove('active');
             }
+            document.getElementById('menu-home').addEventListener('click',()=>{ closeHamburger(); window.location.href=BASE_URL+'/'; });
+            document.getElementById('menu-feed').addEventListener('click',()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens_recepcao'; });
+            document.getElementById('menu-custos').addEventListener('click',()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_compras'; });
+            document.getElementById('menu-pedidos-compras').addEventListener('click',()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos'; });
+            document.getElementById('menu-notifications-side').addEventListener('click',()=>{ closeHamburger(); abrirNotificacoes(); });
+            document.getElementById('menu-logout').addEventListener('click',()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href=BASE_URL+'/index.html?reason=logged_out'; });
+
             function setActiveBottomBar(nav) {
                 document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el=>el.classList.remove('active'));
                 document.getElementById('bb-'+nav)?.classList.add('active');
@@ -1394,6 +1430,7 @@
             setActiveBottomBar('feed');
             document.getElementById('bb-feed').addEventListener('click',()=>{ setActiveBottomBar('feed'); window.location.href='https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens_recepcao'; });
             document.getElementById('bb-custos').addEventListener('click',()=>{ setActiveBottomBar('custos'); window.location.href='https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_compras'; });
+            document.getElementById('bb-compras').addEventListener('click',()=>{ setActiveBottomBar('compras'); window.location.href='https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos'; });
             document.getElementById('bb-home').addEventListener('click',()=>{ setActiveBottomBar('home'); window.scrollTo({top:0,behavior:'smooth'}); });
             document.getElementById('bb-alertas').addEventListener('click',()=>{ setActiveBottomBar('alertas'); abrirNotificacoes(); });
 
