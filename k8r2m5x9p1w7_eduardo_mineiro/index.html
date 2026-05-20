@@ -1682,18 +1682,13 @@
                         <div class="progress-circle-container"><canvas id="progress-circle" width="120" height="120"></canvas></div>
                     </div>
                     <div class="analysis-panel">
-                        <div class="panel-title"><i class="fas fa-building"></i> Visão Geral</div>
-                        <div class="monthly-stats">
-                            <div class="stat-item"><div class="stat-label">Total acumulado</div><div class="stat-number" id="total-revenue">R$ 0</div></div>
-                            <div class="stat-item"><div class="stat-label">Este ano</div><div class="stat-number" id="year-revenue">R$ 0</div></div>
-                            <div class="stat-item"><div class="stat-label">Este mês</div><div class="stat-number" id="month-revenue">R$ 0</div></div>
-                            <div class="stat-item"><div class="stat-label">Dias com venda</div><div class="stat-number" id="total-orders">0</div></div>
-                        </div>
-                        <div>
-                            <div style="display:flex;justify-content:space-between;"><span>Progresso da meta anual</span><span id="year-goal-percent">0%</span></div>
-                            <div class="progress-bar-bg"><div class="progress-bar-fill fill-info" id="year-goal-bar" style="width:0%"></div></div>
-                        </div>
-                    </div>
+    <div class="panel-title"><i class="fas fa-building"></i> Visão Geral</div>
+    <div class="monthly-stats">
+        <div class="stat-item"><div class="stat-label">Ano Atual</div><div class="stat-number" id="overview-year">R$ 0</div></div>
+        <div class="stat-item"><div class="stat-label">Faturamento Atual do Mês</div><div class="stat-number" id="overview-month">R$ 0</div></div>
+        <div class="stat-item"><div class="stat-label">Faturamento Atual do Semestre</div><div class="stat-number" id="overview-semester">R$ 0</div></div>
+    </div>
+</div>
                 </div>
             </div>
             <div data-section-id="charts">
@@ -2211,19 +2206,32 @@
             }
 
             function updateOverview() {
-                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
-                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
-                let totalGeral = 0; for (let a = 2025; a <= 2026; a++) for (let m = 1; m <= 12; m++) totalGeral += Object.values(getFaturamentoPorVendedorMes(a, m, vendCode)).reduce((s, v) => s + v, 0);
-                const yearRev = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
-                const yearGoal = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
-                const perc = yearGoal ? (yearRev / yearGoal) * 100 : 0;
-                document.getElementById('total-revenue').innerHTML = `R$ ${formatCurrency(totalGeral)}`;
-                document.getElementById('year-revenue').innerHTML = `R$ ${formatCurrency(yearRev)}`;
-                document.getElementById('month-revenue').innerHTML = `R$ ${formatCurrency(yearRev)}`;
-                document.getElementById('total-orders').innerText = new Set(allFaturados.filter(f => { const cod = f['Cod. Vendedor']?.trim(); return cod !== '80' && (!vendCode || vendCode == 'all' || cod === vendCode); }).map(f => f['Data'])).size;
-                document.getElementById('year-goal-percent').innerText = perc.toFixed(1) + '%';
-                document.getElementById('year-goal-bar').style.width = Math.min(perc, 100) + '%';
-            }
+    const now = new Date();
+    const ano = now.getFullYear();
+    const mes = now.getMonth() + 1; // 1 a 12
+    const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+
+    // --- Ano atual (acumulado de janeiro até o mês atual) ---
+    let fatAno = 0;
+    for (let m = 1; m <= mes; m++) {
+        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+    }
+
+    // --- Mês atual ---
+    const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((s, v) => s + v, 0);
+
+    // --- Semestre atual (acumulado no semestre corrente) ---
+    let fatSemestre = 0;
+    const inicioSemestre = mes <= 6 ? 1 : 7;   // primeiro ou segundo semestre
+    for (let m = inicioSemestre; m <= mes; m++) {
+        fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+    }
+
+    // Atualiza o DOM
+    document.getElementById('overview-year').innerHTML = `R$ ${formatCurrency(fatAno)}`;
+    document.getElementById('overview-month').innerHTML = `R$ ${formatCurrency(fatMes)}`;
+    document.getElementById('overview-semester').innerHTML = `R$ ${formatCurrency(fatSemestre)}`;
+}
 
             function updateCharts() {
                 const ano = new Date().getFullYear();
