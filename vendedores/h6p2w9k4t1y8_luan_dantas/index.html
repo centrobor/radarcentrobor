@@ -7,6 +7,9 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Adicionado: html2canvas e jspdf para geração de PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --bg: #f0f4f8;
@@ -620,6 +623,8 @@
         .month-filter {
             display: flex;
             align-items: center;
+            justify-content: space-between; /* Alterado para space-between para caber o botão */
+            flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 28px;
             background: var(--card-bg);
@@ -627,8 +632,14 @@
             border-radius: 60px;
             padding: 10px 24px;
             border: 1px solid var(--border-light);
-            width: fit-content;
+            width: 100%; /* Garante largura total */
             box-shadow: var(--shadow-sm);
+        }
+        .filter-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
         }
         .month-filter i {
             color: var(--primary);
@@ -665,6 +676,26 @@
             background: var(--primary-soft);
             border-color: var(--primary-light);
             color: var(--primary);
+        }
+        /* Estilo do botão PDF */
+        .btn-pdf {
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 40px;
+            padding: 8px 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+        .btn-pdf:hover {
+            background: var(--primary-light);
+            transform: translateY(-2px);
         }
 
         /* MAIN SPLIT */
@@ -1145,6 +1176,11 @@
             padding-top: 14px;
         }
 
+        /* ══════════════ CABEÇALHO DE IMPRESSÃO (OCULTO NA TELA) ══════════════ */
+        #print-header {
+            display: none;
+        }
+
         /* ══════════════════════════════════════════════
            MEDIA QUERIES – MOBILE & TABLET (≤1000px)
            ══════════════════════════════════════════════ */
@@ -1157,33 +1193,27 @@
                 padding: 0 12px;
             }
 
-            /* Esconde header desktop */
             .header {
                 display: none !important;
             }
 
-            /* Mostra topbar mobile */
             .mobile-topbar {
                 display: flex;
                 margin-bottom: 12px;
             }
 
-            /* Mostra bottom bar */
             .mobile-bottom-bar {
                 display: flex;
             }
 
-            /* Hamburger overlay visível quando ativo */
             .hamburger-overlay {
                 display: block;
             }
 
-            /* OCULTA FERRAMENTAS RÁPIDAS (Feed/Custos/Leads) no mobile */
             .tools-grid {
                 display: none !important;
             }
 
-            /* Carrossel mais imersivo */
             .carousel-section {
                 border-radius: 20px;
                 margin-bottom: 20px;
@@ -1221,7 +1251,6 @@
                 height: 7px;
             }
 
-            /* KPI row mais compacto */
             .kpi-row {
                 grid-template-columns: repeat(2, 1fr);
                 gap: 8px;
@@ -1238,12 +1267,17 @@
                 font-size: 9px;
             }
 
-            /* Month filter */
             .month-filter {
                 width: 100%;
                 border-radius: 20px;
                 padding: 8px 14px;
                 margin-bottom: 18px;
+                justify-content: flex-start;
+                overflow-x: auto;
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .filter-left {
                 justify-content: flex-start;
                 overflow-x: auto;
             }
@@ -1256,8 +1290,12 @@
                 font-size: 0.65rem;
                 white-space: nowrap;
             }
+            .btn-pdf {
+                align-self: center;
+                width: 100%;
+                justify-content: center;
+            }
 
-            /* Main split já é 1 coluna pelo @media existente */
             .main-split {
                 gap: 12px;
                 margin-bottom: 18px;
@@ -1271,7 +1309,6 @@
                 margin-bottom: 10px;
             }
 
-            /* Meta cards mais compactos */
             .meta-card-full {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1298,7 +1335,6 @@
                 font-size: 0.75rem;
             }
 
-            /* Campaign cards */
             .campaign-card {
                 padding: 12px 10px;
                 border-radius: 14px;
@@ -1308,13 +1344,11 @@
                 font-size: 0.8rem;
             }
 
-            /* Chart */
             .chart-container {
                 min-height: 230px;
                 margin-bottom: 10px;
             }
 
-            /* Tabelas com scroll horizontal mantido */
             .table-wrapper {
                 padding: 8px;
                 border-radius: 16px;
@@ -1329,7 +1363,6 @@
                 padding: 5px 4px;
             }
 
-            /* Notificações em modal */
             .notif-card {
                 flex-direction: row;
                 gap: 10px;
@@ -1359,7 +1392,6 @@
                 padding: 6px 12px;
             }
 
-            /* Modal geral */
             .modal-content {
                 width: 94%;
                 max-width: 94vw;
@@ -1373,7 +1405,6 @@
                 font-size: 1.3rem;
             }
 
-            /* Post modal */
             #post-modal .modal-content {
                 padding: 16px;
                 border-radius: 20px;
@@ -1386,13 +1417,11 @@
                 font-size: 1rem;
             }
 
-            /* Notif modal */
             #notif-modal .modal-content {
                 padding: 14px;
                 border-radius: 20px;
             }
 
-            /* Carteira */
             #carteira-metricas>div {
                 grid-template-columns: repeat(3, 1fr) !important;
                 gap: 6px !important;
@@ -1402,7 +1431,6 @@
                 gap: 6px !important;
             }
 
-            /* Badge list */
             .badge-list {
                 gap: 4px;
             }
@@ -1411,7 +1439,6 @@
                 padding: 3px 8px;
             }
 
-            /* FOOTER mobile – simplificado */
             .footer {
                 border-radius: 24px 24px 0 0;
                 padding: 20px 16px 100px;
@@ -1527,9 +1554,139 @@
                 font-size: 0.55rem;
             }
         }
+
+        /* ══════════════════════════════════════════════
+           ESTILOS DE IMPRESSÃO (GERAÇÃO DE PDF)
+           ══════════════════════════════════════════════ */
+        @media print {
+            /* Esconde tudo que não é conteúdo principal */
+            .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
+            .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
+            .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
+            .footer-bottom, .last-update-badge, .logout-btn, .home-btn, .notification-bell,
+            .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
+            .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
+            .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
+            .footer .footer-bottom, .month-filter .filter-left i, .footer {
+                display: none !important;
+            }
+
+            /* Mostra cabeçalho de impressão */
+            #print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--primary);
+                padding-bottom: 10px;
+            }
+            #print-header h1 {
+                font-size: 18pt;
+                color: var(--primary);
+                margin: 0;
+            }
+            #print-header p {
+                font-size: 10pt;
+                color: #333;
+                margin: 5px 0 0;
+            }
+
+            /* Reset de fundo e sombras */
+            body, .wrapper {
+                background: white;
+                padding: 0;
+                margin: 0;
+                color: black;
+            }
+            .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
+                background: white !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+                page-break-inside: avoid;
+                margin-bottom: 12px;
+            }
+
+            /* Força cores exatas em canvas e barras de progresso */
+            canvas, .meta-progress-fill {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            /* Ajustes de fonte e layout */
+            body {
+                font-size: 10pt;
+                line-height: 1.3;
+            }
+            .mini-card-kpi .value {
+                font-size: 14pt;
+            }
+            .section-title {
+                font-size: 12pt;
+                margin-bottom: 8px;
+            }
+
+            /* Tabelas otimizadas para impressão */
+            table {
+                font-size: 8pt;
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th, td {
+                padding: 4px 2px;
+                border: 1px solid #ddd;
+                white-space: normal;
+                word-break: break-word;
+            }
+            th {
+                background: #f5f5f5;
+            }
+
+            /* Carteira de clientes */
+            #carteira-detalhes > div {
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+                break-inside: avoid;
+            }
+            .badge-list {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+                margin: 6px 0;
+            }
+            .group-badge {
+                display: inline-block;
+                background: #f0f0f0;
+                border-left: 4px solid;
+                padding: 2px 6px;
+                font-size: 7pt;
+                white-space: nowrap;
+            }
+            .table-wrapper table {
+                font-size: 7pt;
+            }
+            tr {
+                page-break-inside: avoid;
+            }
+
+            /* Remove ícones Font Awesome (podem não imprimir bem) */
+            .fa, .fas, .far {
+                display: none !important;
+            }
+            /* Adiciona um bullet point simples no lugar dos ícones nos títulos */
+            .section-title::before {
+                content: "● ";
+                font-weight: bold;
+            }
+        }
     </style>
 </head>
 <body>
+
+    <!-- ══════════════ CABEÇALHO DE IMPRESSÃO (VISÍVEL APENAS NA IMPRESSÃO/PDF) ══════════════ -->
+    <div id="print-header">
+        <h1 id="print-vendor-name">Luan Dantas</h1>
+        <p>Relatório Diário de Vendas - Gerado em <span id="print-date"></span></p>
+    </div>
 
     <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
     <div class="mobile-topbar" id="mobile-topbar">
@@ -1582,7 +1739,7 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR (Feed, Custos, Leads, Home, Alertas) ══════════════ -->
+    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" data-nav="feed" id="bb-feed">
             <i class="fas fa-newspaper"></i><span>Feed</span>
@@ -1643,10 +1800,13 @@
         <!-- KPIs -->
         <div class="kpi-row" id="kpi-cards"></div>
 
-        <!-- Filtro mensal -->
+        <!-- Filtro mensal COM BOTÃO PDF -->
         <div class="month-filter" id="month-filter">
-            <i class="fas fa-calendar-alt"></i>
-            <div class="month-grid" id="month-grid"></div>
+            <div class="filter-left">
+                <i class="fas fa-calendar-alt"></i>
+                <div class="month-grid" id="month-grid"></div>
+            </div>
+            <button class="btn-pdf" id="gerar-pdf-btn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
         </div>
 
         <!-- Metas & Gráfico -->
@@ -1946,121 +2106,114 @@
             }
 
             function abrirModalNotificacoes() {
-    const modal = document.getElementById('notif-modal');
-    const body = document.getElementById('notif-modal-body');
-
-    if (modal.classList.contains('active')) {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            preencherListaNotificacoes(modal, body);
-        }, 300);
-    } else {
-        preencherListaNotificacoes(modal, body);
-    }
-}
-
-function preencherListaNotificacoes(modal, body) {
-    const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-    if (notificacoes.length === 0) {
-        body.innerHTML = `
-            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                    &times;
-                </button>
-            </div>
-            <p style="text-align:center;padding:40px;color:var(--muted);">Nenhum alerta recente.</p>`;
-    } else {
-        let html = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    ${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}
-                    <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                            style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                        &times;
-                    </button>
-                </div>
-            </div>`;
-        notificacoes.forEach(n => {
-            const isRead = readNotifications.includes(n.id);
-            const plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...';
-            const tipo = n.tipo || 'informativo';
-            const bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' : '#f3f4f6';
-            const textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' : '#374151';
-            html += `
-            <div class="notif-card" data-id="${n.id}">
-                <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
-                <div class="notif-body">
-                    <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
-                    <div class="notif-title">${n.titulo}</div>
-                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
-                    <div class="notif-excerpt">${plainText}</div>
-                    <span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'}; display:inline-block; margin-top:4px;">${isRead ? '✔ Lida' : '● Nova'}</span>
-                </div>
-            </div>`;
-        });
-        body.innerHTML = html;
-        const btnMarkAll = document.getElementById('btn-mark-all-read');
-        if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
-        body.querySelectorAll('.notif-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const id = card.dataset.id;
-                if (!readNotifications.includes(id)) { 
-                    readNotifications.push(id); 
-                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); 
-                    atualizarBadgeNotificacoes(); 
+                const modal = document.getElementById('notif-modal');
+                const body = document.getElementById('notif-modal-body');
+                if (modal.classList.contains('active')) {
+                    modal.classList.remove('active');
+                    setTimeout(() => { preencherListaNotificacoes(modal, body); }, 300);
+                } else {
+                    preencherListaNotificacoes(modal, body);
                 }
-                const post = notificacoes.find(p => p.id == id);
-                if (post) exibirPostagemDetalhe(post);
-            });
-        });
-    }
-    modal.classList.add('active');
-    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
-}
+            }
+
+            function preencherListaNotificacoes(modal, body) {
+                const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                if (notificacoes.length === 0) {
+                    body.innerHTML = `
+                        <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
+                            <button onclick="document.getElementById('notif-modal').classList.remove('active')"
+                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                                &times;
+                            </button>
+                        </div>
+                        <p style="text-align:center;padding:40px;color:var(--muted);">Nenhum alerta recente.</p>`;
+                } else {
+                    let html = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                ${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}
+                                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
+                                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                                    &times;
+                                </button>
+                            </div>
+                        </div>`;
+                    notificacoes.forEach(n => {
+                        const isRead = readNotifications.includes(n.id);
+                        const plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...';
+                        const tipo = n.tipo || 'informativo';
+                        const bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' : '#f3f4f6';
+                        const textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' : '#374151';
+                        html += `
+                        <div class="notif-card" data-id="${n.id}">
+                            <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
+                            <div class="notif-body">
+                                <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
+                                <div class="notif-title">${n.titulo}</div>
+                                <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
+                                <div class="notif-excerpt">${plainText}</div>
+                                <span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'}; display:inline-block; margin-top:4px;">${isRead ? '✔ Lida' : '● Nova'}</span>
+                            </div>
+                        </div>`;
+                    });
+                    body.innerHTML = html;
+                    const btnMarkAll = document.getElementById('btn-mark-all-read');
+                    if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
+                    body.querySelectorAll('.notif-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const id = card.dataset.id;
+                            if (!readNotifications.includes(id)) {
+                                readNotifications.push(id);
+                                localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                                atualizarBadgeNotificacoes();
+                            }
+                            const post = notificacoes.find(p => p.id == id);
+                            if (post) exibirPostagemDetalhe(post);
+                        });
+                    });
+                }
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
 
             function exibirPostagemDetalhe(post) {
-    const body = document.getElementById('notif-modal-body');
-    const modal = document.getElementById('notif-modal');
-
-    modal.classList.remove('active');
-
-    setTimeout(() => {
-        const tipo = post.tipo || 'informativo';
-        const corTipo = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
-        const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
-        body.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;">
-                    <i class="fas fa-arrow-left"></i> Voltar
-                </button>
-                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                    &times;
-                </button>
-            </div>
-            <div style="display:flex; gap:14px; margin-bottom:16px; align-items:flex-start; flex-wrap:wrap;">
-                ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px;max-height:220px;border-radius:14px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
-                <div>
-                    <span class="notif-type" style="background:${corTipo}; color:${corTexto}; font-size:0.62rem; padding:2px 8px; border-radius:20px; font-weight:700; text-transform:uppercase;">${tipo.toUpperCase()}</span>
-                    <h3 style="margin:6px 0 2px;">${post.titulo}</h3>
-                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div>
-                </div>
-            </div>
-            <div style="line-height:1.6; font-size:0.9rem; border-top:1px solid #e5e7eb; padding-top:12px;">
-                ${post.texto_html || '<p>Sem conteúdo adicional.</p>'}
-            </div>
-        `;
-        document.getElementById('voltar-lista-btn').addEventListener('click', () => {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                abrirModalNotificacoes();
-            }, 300);
-        });
-        modal.classList.add('active');
-    }, 300);
-}
+                const body = document.getElementById('notif-modal-body');
+                const modal = document.getElementById('notif-modal');
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    const tipo = post.tipo || 'informativo';
+                    const corTipo = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+                    const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+                    body.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                            <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;">
+                                <i class="fas fa-arrow-left"></i> Voltar
+                            </button>
+                            <button onclick="document.getElementById('notif-modal').classList.remove('active')"
+                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                                &times;
+                            </button>
+                        </div>
+                        <div style="display:flex; gap:14px; margin-bottom:16px; align-items:flex-start; flex-wrap:wrap;">
+                            ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px;max-height:220px;border-radius:14px;object-fit:cover;" onerror="this.style.display='none'">` : ''}
+                            <div>
+                                <span class="notif-type" style="background:${corTipo}; color:${corTexto}; font-size:0.62rem; padding:2px 8px; border-radius:20px; font-weight:700; text-transform:uppercase;">${tipo.toUpperCase()}</span>
+                                <h3 style="margin:6px 0 2px;">${post.titulo}</h3>
+                                <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div>
+                            </div>
+                        </div>
+                        <div style="line-height:1.6; font-size:0.9rem; border-top:1px solid #e5e7eb; padding-top:12px;">
+                            ${post.texto_html || '<p>Sem conteúdo adicional.</p>'}
+                        </div>
+                    `;
+                    document.getElementById('voltar-lista-btn').addEventListener('click', () => {
+                        modal.classList.remove('active');
+                        setTimeout(() => { abrirModalNotificacoes(); }, 300);
+                    });
+                    modal.classList.add('active');
+                }, 300);
+            }
 
             // ---------- CARROSSEL ----------
             let currentCarouselIndex = 0;
@@ -2186,6 +2339,9 @@ function preencherListaNotificacoes(modal, body) {
                     document.getElementById('greeting-name').textContent = nomeVendedor;
                     document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
                     document.getElementById('menu-user-name').textContent = nomeVendedor;
+                    // Atualiza cabeçalho de impressão
+                    document.getElementById('print-vendor-name').textContent = nomeVendedor;
+                    document.getElementById('print-date').textContent = new Date().toLocaleDateString('pt-BR');
 
                     const metaArr = metaRawArr.filter(m => String(m.id_vendedor || '').trim() === codVendedor);
                     const meta = metaArr.length > 0 ? metaArr[0] : {};
@@ -2490,89 +2646,64 @@ function preencherListaNotificacoes(modal, body) {
                     });
 
                     function abrirFicha(dados) {
-    const icones = {
-        'competência': 'fa-calendar-alt',
-        'data': 'fa-calendar-day',
-        'vendedor': 'fa-user-tie',
-        'cliente': 'fa-building',
-        'razão social': 'fa-building',
-        'produto': 'fa-box',
-        'quantidade': 'fa-hashtag',
-        'valor unitário': 'fa-dollar-sign',
-        'total bruto': 'fa-file-invoice-dollar',
-        'total líquido': 'fa-hand-holding-usd',
-        'valor mercadoria': 'fa-tag',
-        'custo': 'fa-coins',
-        'margem': 'fa-percent',
-        'depósito': 'fa-warehouse',
-        'país': 'fa-globe-americas',
-        'moeda': 'fa-money-bill',
-        '% icms': 'fa-percent',
-        '% ipi': 'fa-percent',
-        '% iss': 'fa-percent',
-        'empresa': 'fa-industry',
-        'nome chave': 'fa-id-card',
-        'número': 'fa-hashtag',
-        'data criação': 'fa-calendar-plus',
-        'situação versão': 'fa-info-circle',
-        'representante': 'fa-user-tie',
-        'cidade': 'fa-city',
-        'uf': 'fa-map-marker-alt',
-        'código': 'fa-barcode',
-        'descrição': 'fa-align-left',
-        'observação': 'fa-comment',
-        'status': 'fa-check-circle',
-        'tipo': 'fa-tag',
-        'grupo': 'fa-layer-group',
-        'filial': 'fa-code-branch',
-        'transportadora': 'fa-truck',
-        'pedido': 'fa-clipboard-list',
-        'nota fiscal': 'fa-file-invoice',
-        'volume': 'fa-cube',
-        'peso': 'fa-weight-hanging'
-    };
-    const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
-    const linhas = Object.entries(dados).map(([chave, valor]) => {
-        const chaveLower = chave.toLowerCase().trim();
-        const icone = icones[chaveLower] || 'fa-file-alt';
-        const isDestaque = camposDestaque.includes(chaveLower);
-        const valorFormatado = valor || '—';
-        return `
-        <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
-            <i class="fas ${icone} ficha-icone"></i>
-            <div class="ficha-conteudo">
-                <span class="ficha-label">${chave}</span>
-                <span class="ficha-valor">${valorFormatado}</span>
-            </div>
-        </div>`;
-    }).join('');
-    const html = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
-        </h3>
-        <button onclick="document.getElementById('detail-modal').classList.remove('active')"
-                style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-            &times;
-        </button>
-    </div>
-    <div class="ficha-lista">
-        ${linhas}
-    </div>
-    <style>
-        .ficha-lista { display: flex; flex-direction: column; gap: 8px; }
-        .ficha-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f9fafb; border-radius: 12px; border: 1px solid #edf2f7; }
-        .ficha-item-destaque { background: #f0fdf4; border-color: #bbf7d0; }
-        .ficha-icone { color: var(--primary); font-size: 1rem; width: 20px; text-align: center; margin-top: 2px; }
-        .ficha-conteudo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
-        .ficha-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
-        .ficha-valor { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); }
-        .ficha-item-destaque .ficha-valor { font-size: 1.05rem; color: var(--success); }
-    </style>
-    `;
-    document.getElementById('modal-body').innerHTML = html;
-    document.getElementById('detail-modal').classList.add('active');
-}
+                        const icones = {
+                            'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
+                            'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
+                            'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign',
+                            'total bruto': 'fa-file-invoice-dollar', 'total líquido': 'fa-hand-holding-usd',
+                            'valor mercadoria': 'fa-tag', 'custo': 'fa-coins', 'margem': 'fa-percent',
+                            'depósito': 'fa-warehouse', 'país': 'fa-globe-americas', 'moeda': 'fa-money-bill',
+                            '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
+                            'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
+                            'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
+                            'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
+                            'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
+                            'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
+                            'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
+                            'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
+                        };
+                        const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
+                        const linhas = Object.entries(dados).map(([chave, valor]) => {
+                            const chaveLower = chave.toLowerCase().trim();
+                            const icone = icones[chaveLower] || 'fa-file-alt';
+                            const isDestaque = camposDestaque.includes(chaveLower);
+                            const valorFormatado = valor || '—';
+                            return `
+                            <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
+                                <i class="fas ${icone} ficha-icone"></i>
+                                <div class="ficha-conteudo">
+                                    <span class="ficha-label">${chave}</span>
+                                    <span class="ficha-valor">${valorFormatado}</span>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        const html = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                            <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
+                            </h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')"
+                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                                &times;
+                            </button>
+                        </div>
+                        <div class="ficha-lista">
+                            ${linhas}
+                        </div>
+                        <style>
+                            .ficha-lista { display: flex; flex-direction: column; gap: 8px; }
+                            .ficha-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f9fafb; border-radius: 12px; border: 1px solid #edf2f7; }
+                            .ficha-item-destaque { background: #f0fdf4; border-color: #bbf7d0; }
+                            .ficha-icone { color: var(--primary); font-size: 1rem; width: 20px; text-align: center; margin-top: 2px; }
+                            .ficha-conteudo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+                            .ficha-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+                            .ficha-valor { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); }
+                            .ficha-item-destaque .ficha-valor { font-size: 1.05rem; color: var(--success); }
+                        </style>
+                        `;
+                        document.getElementById('modal-body').innerHTML = html;
+                        document.getElementById('detail-modal').classList.add('active');
+                    }
                     document.querySelectorAll(
                             '#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-cotacoes table tbody tr, #tabela-aprovadosfaturados table tbody tr'
                         )
@@ -2710,6 +2841,63 @@ function preencherListaNotificacoes(modal, body) {
                 });
             }
 
+            // ══════════════ FUNÇÃO DE GERAR PDF ══════════════
+            async function gerarPDF() {
+                const btn = document.getElementById('gerar-pdf-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Gerando...';
+                btn.disabled = true;
+
+                try {
+                    const element = document.querySelector('.wrapper');
+                    // Força o cabeçalho de impressão a ficar visível para o canvas
+                    const printHeader = document.getElementById('print-header');
+                    printHeader.style.display = 'block';
+
+                    const canvas = await html2canvas(element, {
+                        scale: 2,
+                        useCORS: true,
+                        logging: false,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff',
+                    });
+
+                    // Esconde o cabeçalho de impressão novamente
+                    printHeader.style.display = 'none';
+
+                    const imgData = canvas.toDataURL('image/png');
+                    const { jsPDF } = window.jspdf;
+                    const pdf = new jsPDF('p', 'mm', 'a4');
+
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const imgWidth = pageWidth - 20; // margem de 10mm de cada lado
+                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+                    let heightLeft = imgHeight;
+                    let position = 10; // margem superior
+
+                    pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                    heightLeft -= (pageHeight - 20);
+
+                    while (heightLeft > 0) {
+                        position = heightLeft - imgHeight + 10;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 10, position, imgWidth, imgHeight);
+                        heightLeft -= (pageHeight - 20);
+                    }
+
+                    const dataHoje = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+                    pdf.save(`Relatorio_Diario_${nomeVendedor.replace(/\s/g, '_')}_${dataHoje}.pdf`);
+                } catch (err) {
+                    console.error('Erro ao gerar PDF:', err);
+                    alert('Ocorreu um erro ao gerar o PDF. Verifique o console.');
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            }
+
             // ══════════════ HAMBURGER MENU CONTROLS ══════════════
             function openHamburger() {
                 document.getElementById('hamburger-menu').classList.add('active');
@@ -2787,6 +2975,9 @@ function preencherListaNotificacoes(modal, body) {
                     btn.addEventListener('click', () => window.location.href = BASE_URL + '/');
                 });
 
+                // ══════════════ EVENTO DO BOTÃO PDF ══════════════
+                document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
+
                 // ══════════════ MOBILE EVENT LISTENERS (com URLs absolutos) ══════════════
                 // Hamburger
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
@@ -2800,7 +2991,7 @@ function preencherListaNotificacoes(modal, body) {
                 });
                 document.getElementById('menu-feed').addEventListener('click', () => {
                     closeHamburger();
-                    window.location.href = BASE_URL + 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html';
+                    window.location.href = BASE_URL + '/hpvx5_postagens/postagens.html';
                 });
                 document.getElementById('menu-custos').addEventListener('click', () => {
                     closeHamburger();
@@ -2808,7 +2999,7 @@ function preencherListaNotificacoes(modal, body) {
                 });
                 document.getElementById('menu-leads').addEventListener('click', () => {
                     closeHamburger();
-                    window.location.href = BASE_URL + 'h6p2w9k4t1y8_leads/leads';
+                    window.location.href = BASE_URL + '/h6p2w9k4t1y8_leads/leads';
                 });
                 document.getElementById('menu-dashboard').addEventListener('click', () => {
                     closeHamburger();
@@ -2823,7 +3014,7 @@ function preencherListaNotificacoes(modal, body) {
                     localStorage.setItem('radar_logged_out', 'true');
                     localStorage.removeItem('radar_usuario');
                     localStorage.removeItem('ultimo_acesso_radar');
-                    window.location.href = BASE_URL + 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out';
+                    window.location.href = BASE_URL + '/index.html?reason=logged_out';
                 });
 
                 // Bottom bar
