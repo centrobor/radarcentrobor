@@ -419,6 +419,13 @@
         table.nf-table tr:hover td {
             background: rgba(30, 58, 95, 0.03);
         }
+        table.nf-table tbody tr {
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        table.nf-table tbody tr:hover {
+            background: rgba(30, 58, 95, 0.06);
+        }
         .badge-sim {
             background: #e8f5e9;
             color: #2e7d32;
@@ -695,6 +702,136 @@
             padding: 12px;
             font-weight: 700;
             font-size: 0.9rem;
+        }
+        /* Modal de detalhes da NF - estilo comprovante amarelado */
+        .nf-detail-modal .modal-content {
+            background: linear-gradient(145deg, #fff9e6 0%, #fef7e0 40%, #fdf3d0 100%);
+            border: 2px solid #e6c97e;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2), inset 0 0 0 2px #fdf0c0;
+            border-radius: 24px;
+            position: relative;
+            overflow: visible;
+        }
+        .nf-detail-modal .modal-close {
+            color: #8b6914;
+            background: rgba(230, 201, 126, 0.2);
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .nf-detail-modal .modal-close:hover {
+            background: #e6c97e;
+            color: #5c3d0e;
+        }
+        .nf-comprovante {
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+            padding: 10px 0;
+        }
+        .nf-header-icon {
+            text-align: center;
+            font-size: 3rem;
+            color: #b8860b;
+            margin-bottom: 4px;
+        }
+        .nf-header-icon i {
+            filter: drop-shadow(0 4px 4px rgba(184,134,11,0.3));
+        }
+        .nf-titulo-comprovante {
+            text-align: center;
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #5c3d0e;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            border-bottom: 2px dashed #d4a843;
+            padding-bottom: 12px;
+        }
+        .nf-grid-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+            background: rgba(255,255,255,0.6);
+            border-radius: 16px;
+            padding: 16px;
+            border: 1px solid #e6d38b;
+        }
+        .nf-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .nf-info-item.full-width {
+            grid-column: 1 / -1;
+        }
+        .nf-info-label {
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: #8b6914;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .nf-info-label i {
+            color: #b8860b;
+            width: 18px;
+            text-align: center;
+        }
+        .nf-info-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #3e2c0b;
+            background: #fef9e7;
+            border-radius: 8px;
+            padding: 8px 12px;
+            border: 1px solid #ecd896;
+            word-break: break-word;
+        }
+        .nf-badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .nf-badge-sim {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .nf-badge-nao {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .nf-obs-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            color: #856404;
+            font-style: italic;
+        }
+        .nf-obs-box i {
+            margin-right: 6px;
+            color: #ffc107;
+        }
+        .nf-footer-nf {
+            text-align: center;
+            font-size: 0.7rem;
+            color: #8b7d5e;
+            margin-top: 8px;
+            border-top: 1px dashed #d4a843;
+            padding-top: 10px;
         }
         /* Impressão */
         #print-header { display: none; }
@@ -1124,6 +1261,11 @@
         </div>
     </div>
 
+    <!-- Modal de detalhes da NF (comprovante) -->
+    <div class="modal nf-detail-modal" id="nf-modal">
+        <div class="modal-content" id="nf-modal-body"></div>
+    </div>
+
     <script>
         (function() {
             const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
@@ -1198,10 +1340,85 @@
                 const nfs = getNFs(ano,mes);
                 const tbody = document.getElementById('nf-tbody');
                 if(!nfs.length) { tbody.innerHTML='<tr><td colspan="5">Nenhuma NF.</td></tr>'; return; }
-                tbody.innerHTML = nfs.map(f=>{
+                tbody.innerHTML = nfs.map((f, idx)=>{
                     const c=String(f['Canhoto']||'').toUpperCase().trim();
-                    return `<tr><td>${f['Coluna 1']||''}</td><td><strong>${f['N° da nota']||''}</strong></td><td>${f['Pedido']||''}</td><td><span class="${c==='SIM'?'badge-sim':'badge-nao'}">${c||'--'}</span></td><td style="font-size:0.7rem;">${f['Obs.']||''}</td></tr>`;
+                    return `<tr data-nf-index="${idx}" style="cursor:pointer;"><td>${f['Coluna 1']||''}</td><td><strong>${f['N° da nota']||''}</strong></td><td>${f['Pedido']||''}</td><td><span class="${c==='SIM'?'badge-sim':'badge-nao'}">${c||'--'}</span></td><td style="font-size:0.7rem;">${f['Obs.']||''}</td></tr>`;
                 }).join('');
+
+                // Adiciona evento de clique nas linhas
+                tbody.querySelectorAll('tr[data-nf-index]').forEach(tr => {
+                    tr.addEventListener('click', function() {
+                        const idx = parseInt(this.dataset.nfIndex);
+                        const nf = getNFs(ano, mes)[idx];
+                        if (nf) abrirDetalhesNF(nf);
+                    });
+                });
+            }
+
+            function abrirDetalhesNF(nf) {
+                const modal = document.getElementById('nf-modal');
+                const body = document.getElementById('nf-modal-body');
+                const canhoto = String(nf['Canhoto']||'').toUpperCase().trim();
+                const badgeClass = canhoto === 'SIM' ? 'nf-badge-sim' : 'nf-badge-nao';
+                const badgeIcon = canhoto === 'SIM' ? 'fa-check-circle' : 'fa-times-circle';
+                const obs = nf['Obs.'] ? nf['Obs.'].trim() : '';
+
+                body.innerHTML = `
+                    <span class="modal-close" id="nf-modal-close-btn">&times;</span>
+                    <div class="nf-comprovante">
+                        <div class="nf-header-icon">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                        </div>
+                        <div class="nf-titulo-comprovante">
+                            <i class="fas fa-receipt"></i> Comprovante de Nota Fiscal
+                        </div>
+                        <div class="nf-grid-info">
+                            <div class="nf-info-item">
+                                <div class="nf-info-label"><i class="fas fa-calendar-day"></i> Data</div>
+                                <div class="nf-info-value">${nf['Coluna 1']||'--'}</div>
+                            </div>
+                            <div class="nf-info-item">
+                                <div class="nf-info-label"><i class="fas fa-hashtag"></i> Nº da Nota</div>
+                                <div class="nf-info-value">${nf['N° da nota']||'--'}</div>
+                            </div>
+                            <div class="nf-info-item">
+                                <div class="nf-info-label"><i class="fas fa-box"></i> Pedido</div>
+                                <div class="nf-info-value">${nf['Pedido']||'--'}</div>
+                            </div>
+                            <div class="nf-info-item">
+                                <div class="nf-info-label"><i class="fas fa-user-check"></i> Responsável</div>
+                                <div class="nf-info-value">${nf['Responsável']||'Alyssa'}</div>
+                            </div>
+                            <div class="nf-info-item full-width">
+                                <div class="nf-info-label"><i class="fas fa-stamp"></i> Canhoto</div>
+                                <div class="nf-info-value" style="padding:4px 12px;">
+                                    <span class="nf-badge-status ${badgeClass}">
+                                        <i class="fas ${badgeIcon}"></i> ${canhoto||'--'}
+                                    </span>
+                                </div>
+                            </div>
+                            ${obs ? `
+                            <div class="nf-info-item full-width">
+                                <div class="nf-obs-box">
+                                    <i class="fas fa-comment-alt"></i> <strong>Observação:</strong> ${obs}
+                                </div>
+                            </div>` : ''}
+                        </div>
+                        <div class="nf-footer-nf">
+                            <i class="fas fa-shield-alt"></i> Documento interno • Radar Centrobor • ${new Date().toLocaleDateString('pt-BR')}
+                        </div>
+                    </div>
+                `;
+                modal.classList.add('active');
+
+                // Fechar ao clicar no X
+                document.getElementById('nf-modal-close-btn').addEventListener('click', () => {
+                    modal.classList.remove('active');
+                });
+                // Fechar ao clicar fora
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.classList.remove('active');
+                });
             }
 
             function renderTabelaPedidos(ano,mes) {
