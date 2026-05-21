@@ -1945,18 +1945,15 @@
         }
         
         // 🔥 PROCESSAMENTO EM LOTES (CHUNKS)
-        const CHUNK_SIZE = 1000; // Processa 1000 linhas por vez
+        const CHUNK_SIZE = 1000;
         const totalRows = rawJSON.length;
         const parsed = [];
         let processedCount = 0;
         
         syncStatus.innerText = `Processando 0/${totalRows}...`;
         
-        // Usa setTimeout para liberar a interface a cada lote
         for (let i = 0; i < totalRows; i += CHUNK_SIZE) {
             const chunk = rawJSON.slice(i, Math.min(i + CHUNK_SIZE, totalRows));
-            
-            // Aguarda brevemente para permitir que o navegador respire
             await new Promise(resolve => setTimeout(resolve, 10));
             
             for (const row of chunk) {
@@ -1994,18 +1991,19 @@
         }
         
         rawData = parsed;
-        localStorage.setItem('salesRawData', JSON.stringify(rawData));
+        // ❌ REMOVIDO: localStorage.setItem('salesRawData', JSON.stringify(rawData));
         
         syncIcon.className = "fas fa-cloud-upload-alt";
         syncStatus.innerText = `✔ ${totalRows} linhas sincronizadas`;
         
     } catch (err) {
         console.error("Falha ao buscar dados:", err);
+        // Tenta carregar do cache antigo se existir (não salvaremos mais, então essa parte é mantida)
         const cached = localStorage.getItem('salesRawData');
         if (cached) {
             rawData = JSON.parse(cached);
             syncIcon.className = "fas fa-database";
-            syncStatus.innerText = "⚠️ Offline (dados em cache)";
+            syncStatus.innerText = "⚠️ Offline (dados em cache antigo)";
         } else {
             rawData = [];
             syncIcon.className = "fas fa-exclamation-triangle";
