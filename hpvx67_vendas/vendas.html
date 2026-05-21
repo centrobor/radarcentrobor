@@ -1272,7 +1272,7 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
                 <div class="action-buttons">
                     <button id="toggleChartsBtn" class="hide-charts-btn"><i class="fas fa-chart-line"></i> Ocultar gráficos</button>
-                    <button id="clearAllFiltersBtn" class="btn-icon btn-icon-danger"><i class="fas fa-trash-alt"></i> Limpar Filtros</button>
+                    <button id="clearAllFiltersBtn" class="btn-icon btn-icon-danger"><i class="fas fa-trash-alt"></i> Limpar Filtros (reset ano atual)</button>
                 </div>
             </div>
 
@@ -1334,7 +1334,7 @@
     <button class="floating-btn" id="toggleFilterBtn"><i class="fas fa-sliders-h"></i></button>
     <div class="filter-sidebar" id="filterSidebar">
         <div class="sidebar-header"><h3><i class="fas fa-filter"></i> Filtros Rápidos</h3><button class="close-sidebar" id="closeFilterBtn">&times;</button></div>
-        <div class="special-filter" id="specialContinentalGoodyear"><i class="fas fa-tag"></i> Continental / Goodyear (Grupo)</div>
+        <div class="special-filter" id="specialContinentalGoodyear"><i class="fas fa-tag"></i> Continental / Goodyear (Grupo + últimos 2 anos)</div>
         <div class="filter-group"><h3><i class="fas fa-building"></i> Cliente / Empresa</h3><input type="text" id="searchEmpresa" class="search-filter" placeholder="Buscar..."><div id="empresaList" class="multiselect-list"></div></div>
         <div class="filter-group"><h3><i class="fas fa-layer-group"></i> Grupo</h3><input type="text" id="searchMarca" class="search-filter" placeholder="Buscar..."><div id="marcaList" class="multiselect-list"></div></div>
         <div class="filter-group"><h3><i class="fas fa-calendar"></i> Ano</h3><div id="anoList" class="multiselect-list"></div></div>
@@ -1403,9 +1403,8 @@
         let chartsVisible = true;
         let comparisonVisible = true;
 
-        // Conjuntos de filtros ativos – usaremos "activeSelectedMarcas" para Grupo
         let activeSelectedEmpresas = new Set();
-        let activeSelectedMarcas = new Set();   // na verdade guarda Grupos
+        let activeSelectedMarcas = new Set();   
         let activeSelectedAnos = new Set();
         let activeAdvancedFilters = {
             codigo: new Set(), descricao: new Set(), vendedor: new Set(),
@@ -1430,7 +1429,6 @@
         let notifications = JSON.parse(localStorage.getItem('notifications')) || [];
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
 
-        // ==================== NOME DO USUÁRIO ====================
         function obterNomeBaseRadar() {
             try {
                 const usuarioRaw = localStorage.getItem('radar_usuario');
@@ -1455,7 +1453,6 @@
             return 'Usuário';
         }
 
-        // ==================== UTILITÁRIOS ====================
         function formatMoney(v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 2 }); }
         function parseBrazilianNumber(str) {
             if (!str) return 0;
@@ -1479,7 +1476,6 @@
         function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
         function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
 
-        // ==================== NOTIFICAÇÕES ====================
         function addActionNotification(text) {
             const id = 'action-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
             notifications.unshift({ id, text, date: new Date().toISOString() });
@@ -1509,8 +1505,6 @@
             updateNotificationBadge();
             renderNotificationDropdown();
         }
-
-        // ==================== PERFIL ====================
         function applyUserProfile() {
             document.getElementById('greeting').innerText = `${getNomeExibicao()}`;
             document.getElementById('topbar-greeting').textContent = getNomeExibicao().split(' ')[0];
@@ -1533,9 +1527,8 @@
             applyUserProfile(); 
         }
 
-        // ==================== PERSISTÊNCIA DOS FILTROS ====================
         function saveFilterState() {
-            const state = { currentSort, chartsVisible, comparisonVisible };
+            const state = { currentSort, chartsVisible, comparisonVisible, selectedCompareYears: Array.from(selectedCompareYears) };
             localStorage.setItem('dashboardFilters', JSON.stringify(state));
         }
         function loadFilterState() {
@@ -1546,14 +1539,14 @@
                 if (state.currentSort) currentSort = state.currentSort;
                 if (typeof state.chartsVisible === 'boolean') chartsVisible = state.chartsVisible;
                 if (typeof state.comparisonVisible === 'boolean') comparisonVisible = state.comparisonVisible;
+                if (state.selectedCompareYears) selectedCompareYears = new Set(state.selectedCompareYears);
                 return true;
             } catch(e) { return false; }
         }
 
-        // ==================== FAVORITOS ====================
         function saveCurrentFilterAsFavorite() {
             let name = '';
-            const brands = Array.from(activeSelectedMarcas);  // grupos
+            const brands = Array.from(activeSelectedMarcas);
             if (brands.length) name = brands.slice(0,2).join(', ') + (brands.length > 2 ? '...' : '');
             else name = 'Sem grupos';
             const years = Array.from(activeSelectedAnos);
@@ -1593,7 +1586,7 @@
         function applyFavorite(fav) {
             const f = fav.filters;
             activeSelectedEmpresas = new Set(f.empresas);
-            activeSelectedMarcas = new Set(f.marcas);  // grupos
+            activeSelectedMarcas = new Set(f.marcas);
             activeSelectedAnos = new Set(f.anos);
             activeAdvancedFilters = {
                 codigo: new Set(f.advanced.codigo),
@@ -1630,7 +1623,6 @@
         window.applyFavoriteById = (id) => { const fav = favorites.find(f => f.id === id); if (fav) applyFavorite(fav); };
         window.deleteFavoriteById = (id) => { deleteFavorite(id); };
 
-        // ==================== FILTROS ====================
         function applyFullFilterAndRender() {
             showLoading();
             setTimeout(() => {
@@ -1648,19 +1640,64 @@
                 hideLoading();
             }, 30);
         }
-        function clearAllFilters() {
-            activeSelectedEmpresas.clear(); activeSelectedMarcas.clear(); activeSelectedAnos.clear();
-            Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
-            tempSelectedEmpresas.clear(); tempSelectedMarcas.clear(); tempSelectedAnos.clear();
-            document.querySelectorAll('.empresa-cb, .marca-cb, .ano-cb').forEach(cb => cb.checked = false);
-            if (rawData.length) {
-                const anos = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
-                selectedCompareYears.clear();
-                if (anos[0]) selectedCompareYears.add(anos[0]);
-                if (anos[1]) selectedCompareYears.add(anos[1]);
-            }
-            applyFullFilterAndRender();
+
+        // DEFAULT: ANO ATUAL (2026) OU O MAIS RECENTE DISPONÍVEL
+        function setDefaultYearFilter() {
+            if (!rawData.length) return;
+            const availableYears = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+            let currentYear = new Date().getFullYear(); // 2026
+            let defaultYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
+            activeSelectedAnos.clear();
+            activeSelectedAnos.add(defaultYear);
+            tempSelectedAnos = new Set(activeSelectedAnos);
+            // atualizar checkboxes depois que forem criados
+            setTimeout(() => {
+                document.querySelectorAll('.ano-cb').forEach(cb => {
+                    let val = parseInt(cb.value);
+                    cb.checked = activeSelectedAnos.has(val);
+                });
+            }, 50);
         }
+
+        function setDefaultCompareYears() {
+            if (!rawData.length) return;
+            const years = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+            selectedCompareYears.clear();
+            let currentYear = new Date().getFullYear();
+            if (years.includes(currentYear)) selectedCompareYears.add(currentYear);
+            if (years.includes(currentYear-1)) selectedCompareYears.add(currentYear-1);
+            if (selectedCompareYears.size === 0 && years.length) selectedCompareYears.add(years[0]);
+            if (selectedCompareYears.size === 1 && years.length >=2) selectedCompareYears.add(years[1]);
+            renderCompareYearsSelector();
+        }
+
+        function clearAllFilters() {
+            activeSelectedEmpresas.clear();
+            activeSelectedMarcas.clear();
+            Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
+            // reset ano para o ano atual (padrão)
+            if (rawData.length) {
+                const availableYears = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+                let currentYear = new Date().getFullYear();
+                let defaultYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
+                activeSelectedAnos.clear();
+                activeSelectedAnos.add(defaultYear);
+                tempSelectedAnos = new Set(activeSelectedAnos);
+                setTimeout(() => {
+                    document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+                    document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = false);
+                    document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = false);
+                }, 50);
+            } else {
+                activeSelectedAnos.clear();
+                tempSelectedAnos.clear();
+            }
+            tempSelectedEmpresas.clear();
+            tempSelectedMarcas.clear();
+            applyFullFilterAndRender();
+            addActionNotification('🔄 Filtros resetados para ano atual');
+        }
+
         function smartContinentalGoodyear() {
             const targetBrands = ['continental', 'contitech', 'goodyear'];
             const gruposSet = new Set();
@@ -1670,21 +1707,25 @@
             });
             activeSelectedMarcas.clear();
             gruposSet.forEach(g => activeSelectedMarcas.add(g));
-            const currentYear = new Date().getFullYear();
-            const prevYear = currentYear - 1;
+            
+            // anos: ano atual + ano anterior
             const availableYears = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
-            const yearsToSelect = [currentYear, prevYear].filter(y => availableYears.includes(y));
+            const currentYear = new Date().getFullYear();
+            let yearsToSelect = [currentYear, currentYear-1].filter(y => availableYears.includes(y));
+            if (yearsToSelect.length === 0 && availableYears.length) yearsToSelect = [availableYears[availableYears.length-1]];
             activeSelectedAnos.clear();
             yearsToSelect.forEach(y => activeSelectedAnos.add(y));
+            
             tempSelectedMarcas = new Set(gruposSet);
-            tempSelectedAnos = new Set(yearsToSelect);
+            tempSelectedAnos = new Set(activeSelectedAnos);
             setTimeout(() => {
                 document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = gruposSet.has(cb.value));
                 document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = yearsToSelect.includes(val); });
             }, 100);
             applyFullFilterAndRender();
-            addActionNotification('🔍 Filtro Continental/Goodyear (Grupo) aplicado');
+            addActionNotification(`🔍 Continental/Goodyear aplicado (últimos 2 anos: ${yearsToSelect.join(', ')})`);
         }
+
         function applyQuickFilters() {
             activeSelectedEmpresas = new Set(tempSelectedEmpresas);
             activeSelectedMarcas = new Set(tempSelectedMarcas);
@@ -1697,7 +1738,6 @@
             document.querySelectorAll('.empresa-cb, .marca-cb, .ano-cb').forEach(cb => cb.checked = false);
         }
 
-        // ==================== DASHBOARD ====================
         function renderKPIs(data) {
             const totalRevenueFiltered = data.reduce((sum, d) => sum + d.valorMercadoria, 0);
             let qty = 0;
@@ -1710,7 +1750,7 @@
             const kpiMap = [
                 { label: 'Faturamento Total', value: `R$ ${formatMoney(totalRevenueFiltered)}`, icon: 'dollar-sign', color: '#2563eb', footnote: 'No filtro atual' },
                 { label: 'Quantidade Vendida', value: qty.toLocaleString('pt-BR'), icon: 'boxes', color: '#10b981', footnote: 'No filtro atual' },
-                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b', footnote: 'Média por item no filtro atual' },
+                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b', footnote: 'Média por item' },
                 { label: 'Notas Fiscais', value: notas.size, icon: 'file-invoice', color: '#8b5cf6', footnote: 'No filtro atual' },
                 { label: 'Itens Vendidos', value: data.length, icon: 'list-ul', color: '#ef4444', footnote: 'No filtro atual' }
             ];
@@ -1842,7 +1882,6 @@
                 { icon: 'fa-calendar', label: 'Data', value: item.dataRaw },
                 { icon: 'fa-barcode', label: 'Código', value: item.codigo },
                 { icon: 'fa-layer-group', label: 'Grupo', value: item.grupo || '-' },
-                { icon: 'fa-layer-group', label: 'Grupo (extras)', value: item.grupo || '-' },  // ajuste visual
                 { icon: 'fa-tag', label: 'Descrição', value: item.descricao },
                 { icon: 'fa-chart-line', label: 'Quantidade', value: item.quantidade.toLocaleString('pt-BR') },
                 { icon: 'fa-coins', label: 'Valor Total', value: `R$ ${formatMoney(item.valorMercadoria)}` },
@@ -1870,7 +1909,6 @@
             renderCompareYearsSelector();
         }
 
-        // ==================== EXPORTAÇÕES (mantidas) ====================
         function exportToExcel() {
             const data = activeSelectedEmpresas.size || activeSelectedMarcas.size || activeSelectedAnos.size || Object.values(activeAdvancedFilters).some(s=>s.size) ? filteredData : rawData;
             const wsData = [['Código','Descrição','Grupo','Quantidade','Valor Unitário','Valor Mercadoria','Data','Nota Fiscal','Cliente','Vendedor','Grupo']];
@@ -1890,7 +1928,6 @@
             addActionNotification('📄 Solicitação de PDF enviada');
         }
 
-        // ==================== FILTROS AVANÇADOS ====================
         function buildAdvancedModalOnce() {
             if (!rawData.length) return;
             const fields = [
@@ -1927,122 +1964,73 @@
             });
         }
 
-        // ==================== CARREGAMENTO DOS DADOS ====================
         async function fetchData() {
-    const syncIcon = document.getElementById('syncIcon');
-    const syncStatus = document.getElementById('syncStatusText');
-    
-    syncIcon.className = "fas fa-spinner fa-pulse";
-    syncStatus.innerText = "Sincronizando...";
-    
-    try {
-        const res = await fetch(SHEET_URL);
-        if (!res.ok) throw new Error(`Erro ${res.status} ao acessar OpenSheet`);
-        
-        const rawJSON = await res.json();
-        if (!Array.isArray(rawJSON) || rawJSON.length === 0) {
-            throw new Error("Planilha vazia ou formato inválido");
-        }
-        
-        // 🔥 PROCESSAMENTO EM LOTES (CHUNKS)
-        const CHUNK_SIZE = 1000;
-        const totalRows = rawJSON.length;
-        const parsed = [];
-        let processedCount = 0;
-        
-        syncStatus.innerText = `Processando 0/${totalRows}...`;
-        
-        for (let i = 0; i < totalRows; i += CHUNK_SIZE) {
-            const chunk = rawJSON.slice(i, Math.min(i + CHUNK_SIZE, totalRows));
-            await new Promise(resolve => setTimeout(resolve, 10));
-            
-            for (const row of chunk) {
-                const dataRaw = row['Data'] || '';
-                const quantidade = parseBrazilianNumber(row['Quantidade']);
-                let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
-                
-                if (isNaN(valorMerc) || valorMerc === 0) {
-                    valorMerc = parseBrazilianNumber(row[' Valor Mercadoria']);
+            const syncIcon = document.getElementById('syncIcon');
+            const syncStatus = document.getElementById('syncStatusText');
+            syncIcon.className = "fas fa-spinner fa-pulse";
+            syncStatus.innerText = "Sincronizando...";
+            try {
+                const res = await fetch(SHEET_URL);
+                if (!res.ok) throw new Error(`Erro ${res.status} ao acessar OpenSheet`);
+                const rawJSON = await res.json();
+                if (!Array.isArray(rawJSON) || rawJSON.length === 0) throw new Error("Planilha vazia");
+                const parsed = [];
+                for (const row of rawJSON) {
+                    const dataRaw = row['Data'] || '';
+                    const quantidade = parseBrazilianNumber(row['Quantidade']);
+                    let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
+                    if (isNaN(valorMerc) || valorMerc === 0) valorMerc = parseBrazilianNumber(row[' Valor Mercadoria']);
+                    if (quantidade === 0 && valorMerc === 0) continue;
+                    const { year, month } = extractYearMonth(dataRaw);
+                    if (!year || !month) continue;
+                    parsed.push({
+                        codigo: row['Código'] || '',
+                        descricao: row['Descrição'] || '',
+                        grupo: row['Grupo'] || '',
+                        notaFiscal: row['Nota Fiscal'] || '',
+                        nomeChave: row['Nome Chave'] || '',
+                        empresa: row['Empresa'] || '',
+                        vendedor: row['Vendedor'] || '',
+                        dataRaw: dataRaw,
+                        quantidade: quantidade,
+                        valorUnitario: parseBrazilianNumber(row['Valor Unitário']),
+                        valorMercadoria: valorMerc,
+                        year: year,
+                        month: month
+                    });
                 }
-                if (quantidade === 0 && valorMerc === 0) continue;
-                
-                const { year, month } = extractYearMonth(dataRaw);
-                if (!year || !month) continue;
-                
-                parsed.push({
-                    codigo: row['Código'] || '',
-                    descricao: row['Descrição'] || '',
-                    grupo: row['Grupo'] || '',
-                    notaFiscal: row['Nota Fiscal'] || '',
-                    nomeChave: row['Nome Chave'] || '',
-                    empresa: row['Empresa'] || '',
-                    vendedor: row['Vendedor'] || '',
-                    dataRaw: dataRaw,
-                    quantidade: quantidade,
-                    valorUnitario: parseBrazilianNumber(row['Valor Unitário']),
-                    valorMercadoria: valorMerc,
-                    year: year,
-                    month: month
-                });
+                rawData = parsed;
+                syncIcon.className = "fas fa-cloud-upload-alt";
+                syncStatus.innerText = `✔ ${rawData.length} linhas carregadas`;
+            } catch (err) {
+                console.error(err);
+                const cached = localStorage.getItem('salesRawData');
+                if (cached) { rawData = JSON.parse(cached); syncIcon.className = "fas fa-database"; syncStatus.innerText = "⚠️ Offline (cache)"; }
+                else { rawData = []; syncIcon.className = "fas fa-exclamation-triangle"; syncStatus.innerText = "❌ Falha ao carregar"; }
             }
-            
-            processedCount += chunk.length;
-            syncStatus.innerText = `Processando ${processedCount}/${totalRows}...`;
+            loadFilterState();
+            activeSelectedEmpresas.clear();
+            activeSelectedMarcas.clear();
+            activeSelectedAnos.clear();
+            Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
+            if (rawData.length) {
+                setDefaultYearFilter();
+                setDefaultCompareYears();
+            }
+            filteredData = rawData;
+            updateDashboard();
+            initFiltersFromData();
+            buildAdvancedModalOnce();
+            renderFavorites();
+            applyUserProfile();
+            updateNotificationBadge();
+            document.getElementById('footer-year').textContent = new Date().getFullYear();
         }
-        
-        rawData = parsed;
-        // ❌ REMOVIDO: localStorage.setItem('salesRawData', JSON.stringify(rawData));
-        
-        syncIcon.className = "fas fa-cloud-upload-alt";
-        syncStatus.innerText = `✔ ${totalRows} linhas sincronizadas`;
-        
-    } catch (err) {
-        console.error("Falha ao buscar dados:", err);
-        // Tenta carregar do cache antigo se existir (não salvaremos mais, então essa parte é mantida)
-        const cached = localStorage.getItem('salesRawData');
-        if (cached) {
-            rawData = JSON.parse(cached);
-            syncIcon.className = "fas fa-database";
-            syncStatus.innerText = "⚠️ Offline (dados em cache antigo)";
-        } else {
-            rawData = [];
-            syncIcon.className = "fas fa-exclamation-triangle";
-            syncStatus.innerText = "❌ Falha ao carregar";
-        }
-    }
-    
-    // Inicializa o restante do dashboard
-    loadFilterState();
-    activeSelectedEmpresas.clear();
-    activeSelectedMarcas.clear();
-    activeSelectedAnos.clear();
-    Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
-    
-    if (rawData.length) {
-        const anosDisponiveis = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
-        selectedCompareYears.clear();
-        if (anosDisponiveis.length >= 2) {
-            selectedCompareYears.add(anosDisponiveis[0]);
-            selectedCompareYears.add(anosDisponiveis[1]);
-        } else if (anosDisponiveis.length === 1) {
-            selectedCompareYears.add(anosDisponiveis[0]);
-        }
-    }
-    
-    filteredData = rawData;
-    updateDashboard();
-    initFiltersFromData();
-    buildAdvancedModalOnce();
-    renderFavorites();
-    applyUserProfile();
-    updateNotificationBadge();
-    document.getElementById('footer-year').textContent = new Date().getFullYear();
-}
 
         function initFiltersFromData() {
             if (!rawData.length) return;
             const empresas = [...new Set(rawData.map(d=>d.empresa).filter(e=>e))].sort();
-            const marcas = [...new Set(rawData.map(d=>d.grupo).filter(m=>m))].sort(); // grupos
+            const marcas = [...new Set(rawData.map(d=>d.grupo).filter(m=>m))].sort();
             const anos = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
             document.getElementById('empresaList').innerHTML = empresas.map(e => `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`).join('');
             document.getElementById('marcaList').innerHTML = marcas.map(m => `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join('');
@@ -2052,15 +2040,17 @@
             document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', (e) => { let val = parseInt(e.target.value); if(e.target.checked) tempSelectedAnos.add(val); else tempSelectedAnos.delete(val); }));
             document.getElementById('searchEmpresa').addEventListener('input', (e) => filterList('empresaList', e.target.value));
             document.getElementById('searchMarca').addEventListener('input', (e) => filterList('marcaList', e.target.value));
+            // sincronizar checkboxes com os filtros ativos (ano default)
+            setTimeout(() => {
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+            }, 50);
         }
         function filterList(containerId, term) {
             const container = document.getElementById(containerId);
             container.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent.toLowerCase().includes(term.toLowerCase()) ? 'flex' : 'none');
         }
 
-        // ==================== SETUP UI ====================
         function setupUI() {
-            // Sidebar
             document.getElementById('toggleFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.add('open'));
             document.getElementById('closeFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.remove('open'));
             document.getElementById('resetFiltersBtn').addEventListener('click', resetQuickFilters);
@@ -2070,8 +2060,6 @@
             document.getElementById('sidebarPdfBtn').addEventListener('click', generateProfessionalPDF);
             document.getElementById('sidebarExcelBtn').addEventListener('click', exportToExcel);
             document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
-
-            // Gráficos e tabela
             document.getElementById('toggleChartsBtn').addEventListener('click', () => {
                 chartsVisible = !chartsVisible;
                 document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none';
@@ -2087,60 +2075,36 @@
                 document.getElementById('toggleComparisonBtn').innerHTML = comparisonVisible ? '<i class="fas fa-table"></i> Ocultar tabela' : '<i class="fas fa-table"></i> Exibir tabela';
                 saveFilterState();
             });
-
-            // Modais
             document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => { syncAdvancedModalCheckboxes(); document.getElementById('advancedModal').style.display = 'flex'; });
             document.getElementById('closeAdvModal').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
             document.getElementById('cancelAdvFilters').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
             document.getElementById('applyAdvFilters').addEventListener('click', () => { applyFullFilterAndRender(); document.getElementById('advancedModal').style.display = 'none'; });
-
             document.getElementById('sortModalBtn').addEventListener('click', () => { document.getElementById('sortColumnSelect').value = currentSort.field; document.querySelector(`input[name="sortOrder"][value="${currentSort.order}"]`).checked = true; document.getElementById('sortModal').style.display = 'flex'; });
             document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal').style.display = 'none');
             document.getElementById('applySortBtn').addEventListener('click', () => { const col = document.getElementById('sortColumnSelect').value; const order = document.querySelector('input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col, order: order }; saveFilterState(); renderDetailTable(); } document.getElementById('sortModal').style.display = 'none'; });
             document.getElementById('closeDetailModal').addEventListener('click', () => document.getElementById('rowDetailModal').style.display = 'none');
             document.getElementById('exportPdfBtn').addEventListener('click', generateProfessionalPDF);
-
-            // Perfil
             document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById('profileName').value = getNomeExibicao(); document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl; document.getElementById('profileBgUrl').value = userProfile.bgUrl || ''; document.getElementById('profileModal').style.display = 'flex'; });
             document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById('profileModal').style.display = 'none');
             document.getElementById('profileForm').addEventListener('submit', (e) => { e.preventDefault(); userProfile.name = document.getElementById('profileName').value; userProfile.avatarUrl = document.getElementById('profileAvatarUrl').value; userProfile.bgUrl = document.getElementById('profileBgUrl').value; saveUserProfile(); addActionNotification('👤 Perfil atualizado'); document.getElementById('profileModal').style.display = 'none'; });
-
-            // Notificações
             const bell = document.getElementById('notification-bell');
             const dropdown = document.getElementById('notification-dropdown');
             bell.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('show'); if (dropdown.classList.contains('show')) { markNotificationsAsRead(); const rect = bell.getBoundingClientRect(); dropdown.style.top = (rect.bottom + window.scrollY) + 'px'; dropdown.style.right = (window.innerWidth - rect.right) + 'px'; } });
             document.addEventListener('click', (e) => { if (!bell.contains(e.target)) dropdown.classList.remove('show'); });
             window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
-
-            // Home e Logout (desktop) - URLs absolutas
             document.getElementById('home-btn').addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-            document.getElementById('logout-btn').addEventListener('click', () => { 
-                localStorage.setItem('radar_logged_out', 'true'); 
-                localStorage.removeItem('radar_usuario'); 
-                localStorage.removeItem('ultimo_acesso_radar'); 
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; 
-            });
-
-            // ══════════════ MOBILE EVENT LISTENERS (com URLs absolutas) ══════════════
+            document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
             function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
             function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
             function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
-
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-
             document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
             document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
             document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); });
-            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); 
-                localStorage.setItem('radar_logged_out', 'true'); 
-                localStorage.removeItem('radar_usuario'); 
-                localStorage.removeItem('ultimo_acesso_radar'); 
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; 
-            });
-
+            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
             setActiveBottomBar('home');
             document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
