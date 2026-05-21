@@ -1154,28 +1154,7 @@ const faturamentoAcumulado = fatFull.filter(item => {
                         });
                     });
 
-                    // Carteira
-                    const interacoes = new Map();
-                    const registrar = (lista,campoNome,campoData) => lista.forEach(item => { const nome=(item[campoNome]||'').toUpperCase().trim(); if(nome){ const d=parseDataBR(item[campoData]); if(d && (!interacoes.has(nome)||d>interacoes.get(nome))) interacoes.set(nome,d); } });
-                    registrar(aprovFull,'Cliente','Data'); registrar(fatFull,'Nome Chave','Data');
-                    const clientesStatus = carteiraFull.map(cli => {
-                        const nome=(cli['Nome Chave']||'').toUpperCase().trim();
-                        const ultima=interacoes.get(nome);
-                        let status='red', ultimaStr='Sem Interação';
-                        if(ultima){ const dias=Math.floor((today-ultima)/(1000*60*60*24)); ultimaStr=formatarData(ultima); if(dias<=30) status='green'; else if(dias<=90) status='yellow'; }
-                        return { nome, status, ultima:ultimaStr, cidade:cli['Cidade']||'', uf:cli['UF']||'', ativo:(cli['ATivo/Inativo']||'').toLowerCase()==='ativo' };
-                    });
-                    const totalFiliais = clientesStatus.length;
-                    const ativosCount = clientesStatus.filter(c=>c.ativo).length;
-                    const ufSet = new Set(clientesStatus.map(c=>c.uf).filter(Boolean));
-                    const cidadeSet = new Set(clientesStatus.map(c=>c.cidade).filter(Boolean));
-                    document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
-                    const contagem = {green:0,yellow:0,red:0};
-                    const grupos = {green:new Map(), yellow:new Map(), red:new Map()};
-                    clientesStatus.forEach(c => { contagem[c.status]++; const key=c.nome.split(' ')[0].toUpperCase(); grupos[c.status].set(key,(grupos[c.status].get(key)||0)+1); });
-                    const percCont = (c) => totalFiliais?((c/totalFiliais)*100).toFixed(1):0;
-                    document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
-                                        // Carteira
+              // Carteira
  /*
  * =============================================================================
  * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
