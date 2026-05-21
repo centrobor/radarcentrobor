@@ -1154,8 +1154,7 @@ const faturamentoAcumulado = fatFull.filter(item => {
                         });
                     });
 
-              // Carteira
- /*
+/*
  * =============================================================================
  * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
  * =============================================================================
@@ -1188,7 +1187,7 @@ const faturamentoAcumulado = fatFull.filter(item => {
  */
 
 // Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
-// Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
+// 1. Mapa global de interações (todos os vendedores)
 const interacoesGlobais = new Map(); // chave: nome, valor: { data: Date, vendedor: string }
 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
     lista.forEach(item => {
@@ -1207,7 +1206,7 @@ const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
 registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
-// Criar mapa da carteira oficial (já existente)
+// 2. Mapa da carteira oficial (todos os clientes cadastrados, independentemente de interação)
 const carteiraMap = new Map();
 carteiraFull.forEach(cli => {
     const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
@@ -1221,15 +1220,13 @@ carteiraFull.forEach(cli => {
     }
 });
 
-// Adicionar clientes não cadastrados cuja interação mais recente é do vendedor atual e dentro de 12 meses
-const hoje = new Date(); // 'today' já existe, mas garantimos aqui para evitar referência incorreta
-hoje.setHours(0, 0, 0, 0);
-const umAnoAtras = new Date(hoje);
+// 3. Adicionar clientes NÃO cadastrados que têm interação recente (12 meses) com o vendedor atual
+const umAnoAtras = new Date(today);
 umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
 
 interacoesGlobais.forEach((info, nome) => {
-    if (carteiraMap.has(nome)) return;
-    if (info.data < umAnoAtras) return;
+    if (carteiraMap.has(nome)) return;           // já está na carteira oficial
+    if (info.data < umAnoAtras) return;          // interação muito antiga
 
     const vendedorInteracao = info.vendedor;
     const isVendedorAtual = (vendedorInteracao === codVendedor) ||
@@ -1239,12 +1236,12 @@ interacoesGlobais.forEach((info, nome) => {
             cidade: '',
             uf: '',
             ativo: true,
-            cadastrado: false
+            cadastrado: false                     // atribuído automaticamente
         });
     }
 });
 
-// Gerar status com base na última interação (usa 'today' já definida)
+// 4. Gerar status (cor do farol) baseado na última interação
 const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
     const ultima = interacoesGlobais.get(nome)?.data || null;
     let status = 'red';
@@ -1262,11 +1259,11 @@ const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
         cidade: dados.cidade,
         uf: dados.uf,
         ativo: dados.ativo,
-        cadastrado: dados.cadastrado   // true = veio da planilha oficial
+        cadastrado: dados.cadastrado
     };
 });
 
-// Métricas, semáforo e tabelas
+// 5. Métricas, semáforo e tabelas
 const totalFiliais = clientesStatus.length;
 const ativosCount = clientesStatus.filter(c => c.ativo).length;
 const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
@@ -1318,6 +1315,7 @@ function gerarTabelaClientes(status) {
     </div>`;
 }
 document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
+
 
                     // Meses
                     const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
