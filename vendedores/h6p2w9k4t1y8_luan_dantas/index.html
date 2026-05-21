@@ -2286,15 +2286,13 @@
                         const year = 2000 + parseInt(anoStr);
                         if (monthIdx !== undefined) cutoffDate = lastBusinessDayOfMonth(year, monthIdx);
                     }
-                    const sumUntil = (lista, campoData, campoValor) => {
-                        return lista.reduce((acc, item) => {
-                            const d = parseDataBR(item[campoData]);
-                            if (!d || d > cutoffDate) return acc;
-                            return acc + cleanNumber(item[campoValor]);
-                        }, 0);
-                    };
-                    const acumFat = sumUntil(fatFull, 'Data', 'Valor Mercadoria');
-                    const faturamentoAcumulado = acumFat;
+                    // Calcula o acumulado apenas do ano do mês selecionado
+const year = cutoffDate.getFullYear();
+const startOfYear = firstBusinessDayOfMonth(year, 0); // primeiro dia útil de janeiro do ano em questão
+const faturamentoAcumulado = fatFull.filter(item => {
+    const d = parseDataBR(item['Data']);
+    return d && d >= startOfYear && d <= cutoffDate;
+}).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
 
                     const metaMensal = cleanNumber(meta.meta_mensal);
                     const metaSemestral = cleanNumber(meta.meta_semestral);

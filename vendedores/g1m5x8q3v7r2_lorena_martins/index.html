@@ -906,7 +906,13 @@ function exibirPostagemDetalhe(post) {
                         if (monthIdx!==undefined) cutoffDate = lastBusinessDayOfMonth(year,monthIdx);
                     }
                     const sumUntil = (lista,campoData,campoValor) => lista.reduce((acc,item)=>{ const d=parseDataBR(item[campoData]); if(!d||d>cutoffDate) return acc; return acc+cleanNumber(item[campoValor]); },0);
-                    const faturamentoAcumulado = sumUntil(fatFull,'Data','Valor Mercadoria');
+                    // Calcula o acumulado apenas do ano do mês selecionado
+const year = cutoffDate.getFullYear();
+const startOfYear = firstBusinessDayOfMonth(year, 0); // primeiro dia útil de janeiro
+const faturamentoAcumulado = fatFull.filter(item => {
+    const d = parseDataBR(item['Data']);
+    return d && d >= startOfYear && d <= cutoffDate;
+}).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
                     const metaMensal = cleanNumber(meta.meta_mensal);
                     const metaSemestral = cleanNumber(meta.meta_semestral);
                     const metaAnual = cleanNumber(meta.meta_anual);
