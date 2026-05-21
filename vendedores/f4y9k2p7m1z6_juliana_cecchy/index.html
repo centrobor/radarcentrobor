@@ -1176,7 +1176,40 @@ const faturamentoAcumulado = fatFull.filter(item => {
                     const percCont = (c) => totalFiliais?((c/totalFiliais)*100).toFixed(1):0;
                     document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
                                         // Carteira
-                    // Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
+/*
+ * =============================================================================
+ * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
+ * =============================================================================
+ * Objetivo: exibir todos os clientes que estão interagindo com o vendedor,
+ * mesmo que não estejam formalmente cadastrados na planilha 'carteiraclientes'.
+ *
+ * Funcionamento:
+ * 1. Monta um mapa GLOBAL de interações (aprovados + faturados de TODOS os vendedores),
+ *    armazenando a data mais recente e o vendedor responsável.
+ * 2. Preserva os clientes já cadastrados na carteira oficial, com seus dados originais.
+ * 3. Para clientes NÃO cadastrados, verifica:
+ *    a) Se a interação mais recente (global) ocorreu nos ÚLTIMOS 12 MESES.
+ *    b) Se o vendedor dessa interação é o VENDEDOR ATUAL (código ou nome).
+ *    Se ambos forem verdadeiros, o cliente é incluído como "atribuído" (cadastrado=false).
+ * 4. A cor do farol (verde/amarelo/vermelho) é baseada na data da última interação:
+ *    - Verde: <= 30 dias
+ *    - Amarelo: 31 a 90 dias
+ *    - Vermelho: > 90 dias ou sem interação
+ * 5. Na tabela, clientes atribuídos recebem selos visuais:
+ *    - "Novo": interação nos últimos 30 dias
+ *    - "Atribuído": interação entre 31 e 365 dias
+ *    Isso evita poluição com dados antigos e mostra a dinâmica real do relacionamento.
+ *
+ * Benefícios:
+ * - Não depende exclusivamente da planilha de carteira (muitas vezes desatualizada).
+ * - Resolve conflitos de atribuição: se outro vendedor teve interação mais recente,
+ *   o cliente NÃO aparece para o vendedor atual (evita falsos positivos).
+ * - Fornece um radar vivo, que reflete quem realmente está comprando ou cotando.
+ * =============================================================================
+ */
+
+// Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
+// 1. Mapa global de interações (todos os vendedores)
 const interacoesGlobais = new Map(); // chave: nome, valor: { data: Date, vendedor: string }
 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
     lista.forEach(item => {
@@ -1195,7 +1228,7 @@ const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
 registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
-// Criar mapa da carteira oficial (já existente)
+// 2. Mapa da carteira oficial (todos os clientes cadastrados, independentemente de interação)
 const carteiraMap = new Map();
 carteiraFull.forEach(cli => {
     const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
@@ -1209,15 +1242,13 @@ carteiraFull.forEach(cli => {
     }
 });
 
-// Adicionar clientes não cadastrados cuja interação mais recente é do vendedor atual e dentro de 12 meses
-const hoje = new Date(); // 'today' já existe, mas garantimos aqui para evitar referência incorreta
-hoje.setHours(0, 0, 0, 0);
-const umAnoAtras = new Date(hoje);
+// 3. Adicionar clientes NÃO cadastrados que têm interação recente (12 meses) com o vendedor atual
+const umAnoAtras = new Date(today);
 umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
 
 interacoesGlobais.forEach((info, nome) => {
-    if (carteiraMap.has(nome)) return;
-    if (info.data < umAnoAtras) return;
+    if (carteiraMap.has(nome)) return;           // já está na carteira oficial
+    if (info.data < umAnoAtras) return;          // interação muito antiga
 
     const vendedorInteracao = info.vendedor;
     const isVendedorAtual = (vendedorInteracao === codVendedor) ||
@@ -1227,12 +1258,12 @@ interacoesGlobais.forEach((info, nome) => {
             cidade: '',
             uf: '',
             ativo: true,
-            cadastrado: false
+            cadastrado: false                     // atribuído automaticamente
         });
     }
 });
 
-// Gerar status com base na última interação (usa 'today' já definida)
+// 4. Gerar status (cor do farol) baseado na última interação
 const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
     const ultima = interacoesGlobais.get(nome)?.data || null;
     let status = 'red';
@@ -1250,11 +1281,11 @@ const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
         cidade: dados.cidade,
         uf: dados.uf,
         ativo: dados.ativo,
-        cadastrado: dados.cadastrado   // true = veio da planilha oficial
+        cadastrado: dados.cadastrado
     };
 });
 
-// Métricas, semáforo e tabelas
+// 5. Métricas, semáforo e tabelas
 const totalFiliais = clientesStatus.length;
 const ativosCount = clientesStatus.filter(c => c.ativo).length;
 const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
@@ -1306,39 +1337,6 @@ function gerarTabelaClientes(status) {
     </div>`;
 }
 document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
-                    
-                    /*
- * =============================================================================
- * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
- * =============================================================================
- * Objetivo: exibir todos os clientes que estão interagindo com o vendedor,
- * mesmo que não estejam formalmente cadastrados na planilha 'carteiraclientes'.
- *
- * Funcionamento:
- * 1. Monta um mapa GLOBAL de interações (aprovados + faturados de TODOS os vendedores),
- *    armazenando a data mais recente e o vendedor responsável.
- * 2. Preserva os clientes já cadastrados na carteira oficial, com seus dados originais.
- * 3. Para clientes NÃO cadastrados, verifica:
- *    a) Se a interação mais recente (global) ocorreu nos ÚLTIMOS 12 MESES.
- *    b) Se o vendedor dessa interação é o VENDEDOR ATUAL (código ou nome).
- *    Se ambos forem verdadeiros, o cliente é incluído como "atribuído" (cadastrado=false).
- * 4. A cor do farol (verde/amarelo/vermelho) é baseada na data da última interação:
- *    - Verde: <= 30 dias
- *    - Amarelo: 31 a 90 dias
- *    - Vermelho: > 90 dias ou sem interação
- * 5. Na tabela, clientes atribuídos recebem selos visuais:
- *    - "Novo": interação nos últimos 30 dias
- *    - "Atribuído": interação entre 31 e 365 dias
- *    Isso evita poluição com dados antigos e mostra a dinâmica real do relacionamento.
- *
- * Benefícios:
- * - Não depende exclusivamente da planilha de carteira (muitas vezes desatualizada).
- * - Resolve conflitos de atribuição: se outro vendedor teve interação mais recente,
- *   o cliente NÃO aparece para o vendedor atual (evita falsos positivos).
- * - Fornece um radar vivo, que reflete quem realmente está comprando ou cotando.
- * =============================================================================
- */
-
                     // Meses
                     const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
                     const anoAtual = today.getFullYear();
