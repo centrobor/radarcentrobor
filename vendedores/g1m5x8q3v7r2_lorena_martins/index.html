@@ -1174,12 +1174,169 @@ const faturamentoAcumulado = fatFull.filter(item => {
                     clientesStatus.forEach(c => { contagem[c.status]++; const key=c.nome.split(' ')[0].toUpperCase(); grupos[c.status].set(key,(grupos[c.status].get(key)||0)+1); });
                     const percCont = (c) => totalFiliais?((c/totalFiliais)*100).toFixed(1):0;
                     document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
-                    function gerarTabelaClientes(status) {
-                        const filtrados = clientesStatus.filter(c=>c.status===status).sort((a,b)=>a.nome.localeCompare(b.nome));
-                        if (!filtrados.length) return '';
-                        return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status==='green'?'success':status==='yellow'?'warning':'danger'});">${status==='green'?'🟢 Verdes':status==='yellow'?'🟡 Amarelos':'🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${Array.from(grupos[status],([k,v])=>`<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c=>`<tr><td>${c.nome}</td><td>${c.cidade}</td><td>${c.uf}</td><td>${c.ultima}</td><td>${c.ativo?'<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo':'<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`).join('')}</tbody></table></div></div>`;
+                                        // Carteira
+                    // Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
+const interacoesGlobais = new Map(); // chave: nome, valor: { data: Date, vendedor: string }
+const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
+    lista.forEach(item => {
+        const nome = (item[campoNome] || '').toUpperCase().trim();
+        if (!nome) return;
+        const d = parseDataBR(item[campoData]);
+        if (!d) return;
+        const vendedor = String(item[campoVendedor] || '').trim();
+        if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
+            interacoesGlobais.set(nome, { data: d, vendedor });
+        }
+    });
+};
+
+// Usar os dados brutos (sem filtro) para análise global
+registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
+registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
+
+// Criar mapa da carteira oficial (já existente)
+const carteiraMap = new Map();
+carteiraFull.forEach(cli => {
+    const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
+    if (nome) {
+        carteiraMap.set(nome, {
+            cidade: cli['Cidade'] || '',
+            uf: cli['UF'] || '',
+            ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+            cadastrado: true
+        });
+    }
+});
+
+// Adicionar clientes não cadastrados cuja interação mais recente é do vendedor atual e dentro de 12 meses
+const hoje = new Date(); // 'today' já existe, mas garantimos aqui para evitar referência incorreta
+hoje.setHours(0, 0, 0, 0);
+const umAnoAtras = new Date(hoje);
+umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+
+interacoesGlobais.forEach((info, nome) => {
+    if (carteiraMap.has(nome)) return;
+    if (info.data < umAnoAtras) return;
+
+    const vendedorInteracao = info.vendedor;
+    const isVendedorAtual = (vendedorInteracao === codVendedor) ||
+                            (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+    if (isVendedorAtual) {
+        carteiraMap.set(nome, {
+            cidade: '',
+            uf: '',
+            ativo: true,
+            cadastrado: false
+        });
+    }
+});
+
+// Gerar status com base na última interação (usa 'today' já definida)
+const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
+    const ultima = interacoesGlobais.get(nome)?.data || null;
+    let status = 'red';
+    let ultimaStr = 'Sem Interação';
+    if (ultima) {
+        const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
+        ultimaStr = formatarData(ultima);
+        if (dias <= 30) status = 'green';
+        else if (dias <= 90) status = 'yellow';
+    }
+    return {
+        nome,
+        status,
+        ultima: ultimaStr,
+        cidade: dados.cidade,
+        uf: dados.uf,
+        ativo: dados.ativo,
+        cadastrado: dados.cadastrado   // true = veio da planilha oficial
+    };
+});
+
+// Métricas, semáforo e tabelas
+const totalFiliais = clientesStatus.length;
+const ativosCount = clientesStatus.filter(c => c.ativo).length;
+const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
+const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
+document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
+
+const contagem = { green: 0, yellow: 0, red: 0 };
+const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
+clientesStatus.forEach(c => {
+    contagem[c.status]++;
+    const key = c.nome.split(' ')[0].toUpperCase();
+    grupos[c.status].set(key, (grupos[c.status].get(key) || 0) + 1);
+});
+const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
+document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
+
+function gerarTabelaClientes(status) {
+    const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
+    if (!filtrados.length) return '';
+    return `<div style="margin-bottom:22px;">
+        <h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4>
+        <div class="badge-list">${Array.from(grupos[status], ([k, v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div>
+        <div class="table-wrapper">
+            <table>
+                <thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead>
+                <tbody>${filtrados.map(c => {
+                    let statusExtra = '';
+                    if (!c.cadastrado) {
+                        const ultimaData = interacoesGlobais.get(c.nome)?.data;
+                        if (ultimaData) {
+                            const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
+                            if (diasDesdeUltima <= 30) {
+                                statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
+                            } else {
+                                statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
+                            }
+                        }
                     }
-                    document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green')+gerarTabelaClientes('yellow')+gerarTabelaClientes('red');
+                    return `<tr>
+                        <td>${c.nome} ${statusExtra}</td>
+                        <td>${c.cidade || '—'}</td>
+                        <td>${c.uf || '—'}</td>
+                        <td>${c.ultima}</td>
+                        <td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td>
+                    </tr>`;
+                }).join('')}</tbody>
+            </table>
+        </div>
+    </div>`;
+}
+document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
+                    
+                    /*
+ * =============================================================================
+ * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
+ * =============================================================================
+ * Objetivo: exibir todos os clientes que estão interagindo com o vendedor,
+ * mesmo que não estejam formalmente cadastrados na planilha 'carteiraclientes'.
+ *
+ * Funcionamento:
+ * 1. Monta um mapa GLOBAL de interações (aprovados + faturados de TODOS os vendedores),
+ *    armazenando a data mais recente e o vendedor responsável.
+ * 2. Preserva os clientes já cadastrados na carteira oficial, com seus dados originais.
+ * 3. Para clientes NÃO cadastrados, verifica:
+ *    a) Se a interação mais recente (global) ocorreu nos ÚLTIMOS 12 MESES.
+ *    b) Se o vendedor dessa interação é o VENDEDOR ATUAL (código ou nome).
+ *    Se ambos forem verdadeiros, o cliente é incluído como "atribuído" (cadastrado=false).
+ * 4. A cor do farol (verde/amarelo/vermelho) é baseada na data da última interação:
+ *    - Verde: <= 30 dias
+ *    - Amarelo: 31 a 90 dias
+ *    - Vermelho: > 90 dias ou sem interação
+ * 5. Na tabela, clientes atribuídos recebem selos visuais:
+ *    - "Novo": interação nos últimos 30 dias
+ *    - "Atribuído": interação entre 31 e 365 dias
+ *    Isso evita poluição com dados antigos e mostra a dinâmica real do relacionamento.
+ *
+ * Benefícios:
+ * - Não depende exclusivamente da planilha de carteira (muitas vezes desatualizada).
+ * - Resolve conflitos de atribuição: se outro vendedor teve interação mais recente,
+ *   o cliente NÃO aparece para o vendedor atual (evita falsos positivos).
+ * - Fornece um radar vivo, que reflete quem realmente está comprando ou cotando.
+ * =============================================================================
+ */
 
                     // Meses
                     const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
