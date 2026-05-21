@@ -374,7 +374,7 @@
 
     <!-- Cabeçalho de impressão (visível apenas na impressão) -->
     <div id="print-header">
-        <h1 id="print-vendor-name">Hélio</h1>
+        <h1 id="print-vendor-name">Hélio Coelho</h1>
         <p>Relatório Diário de Vendas - Gerado em <span id="print-date"></span></p>
     </div>
 
@@ -382,7 +382,7 @@
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img src="img/perfil.png" alt="Hélio" class="topbar-avatar" id="topbar-avatar">
-            <span class="topbar-greeting" id="topbar-greeting">Hélio Coelho</span>
+            <span class="topbar-greeting" id="topbar-greeting">Hélio</span>
         </div>
         <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
     </div>
@@ -588,10 +588,7 @@
                 const str = String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
                 return parseFloat(str) || 0;
             };
-            const extrairCodigo = (str) => { 
-    const match = String(str || '').match(/^(\d+)/); 
-    return match ? String(parseInt(match[1], 10)) : null; 
-};
+            const extrairCodigo = (str) => { const match = String(str || '').match(/^(\d+)/); return match ? match[1] : null; };
             const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
@@ -876,17 +873,18 @@ function exibirPostagemDetalhe(post) {
                         if (!selectedMonth) return lista;
                         return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
                     };
-                    const aprov = filterByMonth(aprovFull,'Data');
+                                       const aprov = filterByMonth(aprovFull,'Data');
                     const fat = filterByMonth(fatFull,'Data');
                     const cot = filterByMonth(cotFull,'Data Criação');
                     const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                                                            const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+                                        const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
 
                     // Pedidos Aprov+Fat: soma do mês selecionado
                     const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
 
                     const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
+
                     const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                     const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
@@ -1155,7 +1153,8 @@ const faturamentoAcumulado = fatFull.filter(item => {
                             if (lista && lista[idx]) abrirFicha(lista[idx]);
                         });
                     });
-                   // Carteira
+
+                    // Carteira
                     const interacoes = new Map();
                     const registrar = (lista,campoNome,campoData) => lista.forEach(item => { const nome=(item[campoNome]||'').toUpperCase().trim(); if(nome){ const d=parseDataBR(item[campoData]); if(d && (!interacoes.has(nome)||d>interacoes.get(nome))) interacoes.set(nome,d); } });
                     registrar(aprovFull,'Cliente','Data'); registrar(fatFull,'Nome Chave','Data');
