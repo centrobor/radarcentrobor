@@ -588,7 +588,10 @@
                 const str = String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
                 return parseFloat(str) || 0;
             };
-            const extrairCodigo = (str) => { const match = String(str || '').match(/^(\d+)/); return match ? match[1] : null; };
+            const extrairCodigo = (str) => { 
+    const match = String(str || '').match(/^(\d+)/); 
+    return match ? parseInt(match[1], 10) : null; 
+};
             const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
@@ -826,7 +829,9 @@ function exibirPostagemDetalhe(post) {
                 try {
                     const campanhas = await carregarJSON(BASES.campanhas_especiais);
                     const hoje = new Date(); hoje.setHours(0,0,0,0);
-                    const minhas = campanhas.filter(c => (extrairCodigo(c.vendedor_cod)||c.vendedor_cod)==codVendedor && cleanNumber(c.meta_valor)>0);
+                    const minhas = campanhas.filter(c => 
+    extrairCodigo(c.vendedor_cod) === vendedorNum && cleanNumber(c.meta_valor)>0
+);
                     if (!minhas.length) {
                         document.getElementById('campanhas-especiais-container').innerHTML = '<p style="color:var(--muted);">Nenhuma campanha especial ativa.</p>';
                         return;
@@ -860,8 +865,19 @@ function exibirPostagemDetalhe(post) {
 
                     const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
                     const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
-                    const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
+                    const vendedorNum = Number(codVendedor); // calcula uma vez
 
+const filtrarPorCodExtraido = (lista, campo) =>
+    lista.filter(i => extrairCodigo(i[campo]) === vendedorNum);
+
+const filtrarPorCod = (lista, campo) =>
+    lista.filter(i => {
+        const val = String(i[campo] || '').trim();
+        // se o campo for puramente numérico (ex.: "03") compare como número
+        if (/^\d+$/.test(val)) return parseInt(val, 10) === vendedorNum;
+        // fallback: comparação exata de string
+        return val === codVendedor;
+    });
                     const aprovFull = filtrarPorNome(aprovRaw,'Vendedor');
                     const fatFull = filtrarPorCod(fatRaw,'Cod. Vendedor');
                     const cotFull = filtrarPorCodExtraido(cotRaw,'Vendedor');

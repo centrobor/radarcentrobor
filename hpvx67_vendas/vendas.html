@@ -719,7 +719,6 @@
         .adv-list label:last-child {
             border-bottom: none;
         }
-        /* Checkbox customizado */
         .adv-cb,
         .empresa-cb,
         .marca-cb,
@@ -767,7 +766,6 @@
         .btn-outline:hover {
             background: var(--primary-soft);
         }
-        /* Comprovante fiscal elegante */
         .receipt {
             background: var(--receipt-bg);
             border-radius: 20px;
@@ -1701,7 +1699,7 @@
             </div>
             <div class="charts-grid" id="chartsGrid">
                 <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-line"></i> Evolução Mensal</div><div class="chart-container"><canvas id="monthlyChart"></canvas></div></div>
-                <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-bar"></i> Comparativo Anos<div class="year-selector-group" id="compareYearsGroup"></div></div><div class="chart-container"><canvas id="yearCompareChart"></canvas></div></div>
+                <div class="chart-card"><div class="chart-title"><i class="fas fa-chart-bar"></i> Comparativo Anos</div><div class="chart-container"><canvas id="yearCompareChart"></canvas></div></div>
             </div>
             <div class="comparison-section">
                 <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -1824,7 +1822,8 @@
         const SHEET_URL = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/faturados";
         let rawData = [];
         let filteredData = [];
-        let currentSort = { field: 'quantidade', order: 'desc' };
+        // Ordenação padrão: Data decrescente
+        let currentSort = { field: 'data', order: 'desc' };
         let chartsVisible = true;
         let comparisonVisible = true;
         let currentDetailItem = null; // guarda o item do comprovante aberto
@@ -1844,7 +1843,6 @@
         let tempSelectedEmpresas = new Set();
         let tempSelectedMarcas = new Set();
         let tempSelectedAnos = new Set();
-        let selectedCompareYears = new Set();
 
         let monthlyChart = null;
         let compareChart = null;
@@ -1993,8 +1991,7 @@
             applyUserProfile(); }
 
         function saveFilterState() {
-            const state = { currentSort, chartsVisible, comparisonVisible, selectedCompareYears: Array.from(
-                    selectedCompareYears) };
+            const state = { currentSort, chartsVisible, comparisonVisible };
             localStorage.setItem('dashboardFilters', JSON.stringify(state));
         }
 
@@ -2006,7 +2003,6 @@
                 if (state.currentSort) currentSort = state.currentSort;
                 if (typeof state.chartsVisible === 'boolean') chartsVisible = state.chartsVisible;
                 if (typeof state.comparisonVisible === 'boolean') comparisonVisible = state.comparisonVisible;
-                if (state.selectedCompareYears) selectedCompareYears = new Set(state.selectedCompareYears);
                 return true;
             } catch (e) { return false; }
         }
@@ -2096,6 +2092,24 @@
             fav); };
         window.deleteFavoriteById = (id) => { deleteFavorite(id); };
 
+        // ==================== FILTROS E RENDERIZAÇÃO ====================
+        function getDefaultCompareYears() {
+            if (!rawData.length) return new Set();
+            const years = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
+            const currentYear = new Date().getFullYear();
+            const set = new Set();
+            if (years.includes(currentYear)) set.add(currentYear);
+            if (years.includes(currentYear - 1)) set.add(currentYear - 1);
+            if (set.size === 0 && years.length) set.add(years[0]);
+            if (set.size === 1 && years.length >= 2) set.add(years[1]);
+            return set;
+        }
+
+        function getActiveCompareYears() {
+            if (activeSelectedAnos.size > 0) return new Set(activeSelectedAnos);
+            return getDefaultCompareYears();
+        }
+
         function applyFullFilterAndRender() {
             showLoading();
             setTimeout(() => {
@@ -2128,18 +2142,6 @@
                 document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
                     cb.checked = activeSelectedAnos.has(val); });
             }, 50);
-        }
-
-        function setDefaultCompareYears() {
-            if (!rawData.length) return;
-            const years = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
-            selectedCompareYears.clear();
-            let currentYear = new Date().getFullYear();
-            if (years.includes(currentYear)) selectedCompareYears.add(currentYear);
-            if (years.includes(currentYear - 1)) selectedCompareYears.add(currentYear - 1);
-            if (selectedCompareYears.size === 0 && years.length) selectedCompareYears.add(years[0]);
-            if (selectedCompareYears.size === 1 && years.length >= 2) selectedCompareYears.add(years[1]);
-            renderCompareYearsSelector();
         }
 
         function clearAllFilters() {
@@ -2205,6 +2207,339 @@
             tempSelectedMarcas.clear();
             tempSelectedAnos.clear();
             document.querySelectorAll('.empresa-cb, .marca-cb, .ano-cb').forEach(cb => cb.checked = false);
+        }
+
+        // ==================== RENDERIZAÇÕES GRÁFICAS ====================
+        function renderKPIs(data) {
+            const totalRevenueFiltered = data.reduce((sum, d) => sum + d.valorMercadoria, 0);
+            let qty = 0;
+            let notas = new Set();
+            data.forEach(d => { qty += d.quantidade; if (d.notaFiscal) notas.add(d.notaFiscal); });
+            const avgTicket = qty ? totalRevenueFiltered / qty : 0;
+            const kpiMap = [
+                { label: 'Faturamento Total', value: `R$ ${formatMoney(totalRevenueFiltered)}`, icon: 'dollar-sign',
+                    color: '#2563eb', footnote: 'No filtro atual' },
+                { label: 'Quantidade Vendida', value: qty.toLocaleString('pt-BR'), icon: 'boxes', color: '#10b981',
+                    footnote: 'No filtro atual' },
+                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b',
+                    footnote: 'Média por item' },
+                { label: 'Notas Fiscais', value: notas.size, icon: 'file-invoice', color: '#8b5cf6',
+                    footnote: 'No filtro atual' },
+                { label: 'Itens Vendidos', value: data.length, icon: 'list-ul', color: '#ef4444',
+                    footnote: 'No filtro atual' }
+            ];
+            document.getElementById('kpiContainer').innerHTML = kpiMap.map(k =>
+                `<div class="kpi-card glass" style="border-left-color:${k.color}"><div class="kpi-main-row"><div class="kpi-info"><h4>${k.label}</h4><div class="kpi-number">${k.value}</div></div><div class="kpi-icon"><i class="fas fa-${k.icon}"></i></div></div><div class="kpi-footnote"><i class="fas fa-asterisk"></i> ${k.footnote}</div></div>`
+                ).join('');
+        }
+
+        function renderMonthlyEvolution() {
+            if (!filteredData.length) return;
+            if (monthlyChart) monthlyChart.destroy();
+            const monthly = new Map();
+            filteredData.forEach(d => { if (d.year && d.month) { const key = `${d.year}-${d.month}`;
+                    monthly.set(key, (monthly.get(key) || 0) + d.valorMercadoria); } });
+            const sorted = Array.from(monthly.keys()).sort();
+            const labels = sorted.map(k => { let [y, m] = k.split('-'); return `${m}/${y.slice(-2)}`; });
+            const values = sorted.map(k => monthly.get(k));
+            const ctx = document.getElementById('monthlyChart').getContext('2d');
+            monthlyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Faturamento (R$)',
+                        data: values, borderColor: '#1e3a5f', tension: 0.3, fill: true,
+                        backgroundColor: 'rgba(30,58,95,0.05)', pointRadius: 3,
+                        pointBackgroundColor: '#1e3a5f' }] }, options: { responsive: true,
+                    maintainAspectRatio: true, plugins: { legend: { display: false } } } });
+        }
+
+        function renderComparisonChart() {
+            if (!filteredData.length) return;
+            if (compareChart) compareChart.destroy();
+            const years = Array.from(getActiveCompareYears()).sort();
+            if (!years.length) return;
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const colorPalette = ['#1e3a5f', '#e67e22', '#2ecc71', '#e74c3c', '#9b59b6', '#1abc9c'];
+            const datasets = years.map((year, i) => {
+                const monthlyData = new Array(12).fill(0);
+                filteredData.forEach(d => { if (d.year === year && d.month >= 1 && d.month <= 12)
+                        monthlyData[d.month - 1] += d.valorMercadoria; });
+                return { label: `${year}`, data: monthlyData,
+                    backgroundColor: colorPalette[i % colorPalette.length], borderRadius: 4,
+                    borderSkipped: false };
+            });
+            const ctx = document.getElementById('yearCompareChart').getContext('2d');
+            compareChart = new Chart(ctx, { type: 'bar', data: { labels: months, datasets },
+                options: { responsive: true, maintainAspectRatio: true,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { ticks: { callback: (v) => 'R$ ' + v.toLocaleString('pt-BR') } } } } });
+        }
+
+        function renderComparison() {
+            const container = document.getElementById('comparisonContainer');
+            const thead = document.getElementById('comparisonThead');
+            const tbody = document.getElementById('compTableBody');
+            if (!container || !thead || !tbody) return;
+            if (!comparisonVisible) { container.style.display = 'none'; return; }
+            container.style.display = 'block';
+            const years = Array.from(getActiveCompareYears()).sort();
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
+                'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+            ];
+            if (years.length === 0) { thead.innerHTML =
+                '<th>Mês</th><th>Selecione anos no filtro</th>';
+                tbody.innerHTML =
+                '<tr><td colspan="2" class="empty-message">Aplique filtros de ano para visualizar</td></tr>'
+                ; return; }
+            const dataSource = filteredData.length ? filteredData : rawData;
+            thead.innerHTML = `<th>Mês</th>${years.map(y => `<th>${y} (R$)</th>`).join('')}`;
+            let html = '';
+            for (let i = 0; i < 12; i++) {
+                let row = `<td><strong>${months[i]}</strong></td>`;
+                for (let y of years) {
+                    let total = dataSource.filter(d => d.year === y && d.month === i + 1).reduce((a, b) => a +
+                        b.valorMercadoria, 0);
+                    row += `<td>R$ ${formatMoney(total)}</td>`;
+                }
+                html += `<tr>${row}</tr>`;
+            }
+            tbody.innerHTML = html;
+        }
+
+        function renderDetailTable() {
+            let dataSource = [...filteredData];
+            dataSource.sort((a, b) => {
+                let aVal = a[currentSort.field],
+                    bVal = b[currentSort.field];
+                if (currentSort.field === 'data') {
+                    aVal = a.dataRaw ? new Date(a.dataRaw.split('/').reverse().join('-')) : new Date(0);
+                    bVal = b.dataRaw ? new Date(b.dataRaw.split('/').reverse().join('-')) : new Date(0);
+                } else if (['quantidade', 'valorUnitario', 'valorMercadoria'].includes(currentSort.field)) {
+                    aVal = Number(aVal);
+                    bVal = Number(bVal);
+                } else if (typeof aVal === 'string') { aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase(); }
+                return currentSort.order === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
+            });
+            const tbody = document.getElementById('tableBody');
+            if (!dataSource.length) { tbody.innerHTML =
+                    '<tr><td colspan="10" class="empty-message">Nenhum dado com os filtros atuais</td></tr>'
+                    ; return; }
+            tbody.innerHTML = dataSource.map((item, idx) =>
+                `<tr data-item='${escapeHtml(JSON.stringify(item))}' style="cursor:pointer;">
+                <td>${escapeHtml(item.codigo)}</td><td title="${escapeHtml(item.descricao)}">${escapeHtml(item.descricao.substring(0,55))}${item.descricao.length>55?'…':''}</td><td>${escapeHtml(item.grupo)}</td>
+                <td>${item.quantidade.toLocaleString('pt-BR')}</td><td>R$ ${formatMoney(item.valorUnitario)}</td>
+                <td><strong>R$ ${formatMoney(item.valorMercadoria)}</strong></td><td>${escapeHtml(item.dataRaw)}</td>
+                <td>${escapeHtml(item.notaFiscal)}</td><td title="${escapeHtml(item.nomeChave)}">${escapeHtml(item.nomeChave.substring(0,25))}${item.nomeChave.length>25?'…':''}</td><td>${escapeHtml(item.vendedor)}</td>
+            </tr>`).join('');
+            document.querySelectorAll('#tableBody tr').forEach(row => row.addEventListener('click', () => { const
+                    raw = row.getAttribute('data-item'); if (raw) showDetailModal(JSON.parse(raw)); }));
+            if (!window._sortHeadersAttached) {
+                window._sortHeadersAttached = true;
+                document.querySelectorAll('#detailTable th').forEach(th => {
+                    let field = th.dataset.sort;
+                    if (field) th.addEventListener('click', () => {
+                        if (currentSort.field === field) currentSort.order = currentSort.order ===
+                            'asc' ? 'desc' : 'asc';
+                        else { currentSort.field = field;
+                            currentSort.order = 'desc'; }
+                        saveFilterState();
+                        renderDetailTable();
+                    });
+                });
+            }
+        }
+
+        function showDetailModal(item) {
+            currentDetailItem = item;
+            const modal = document.getElementById('rowDetailModal');
+            const content = document.getElementById('detailModalContent');
+            const fields = [
+                { icon: 'fa-barcode', label: 'Código', value: item.codigo },
+                { icon: 'fa-align-left', label: 'Descrição', value: item.descricao },
+                { icon: 'fa-layer-group', label: 'Grupo', value: item.grupo },
+                { icon: 'fa-cubes', label: 'Quantidade', value: item.quantidade.toLocaleString('pt-BR') },
+                { icon: 'fa-tag', label: 'Valor Unitário', value: `R$ ${formatMoney(item.valorUnitario)}` },
+                { icon: 'fa-money-bill-wave', label: 'Valor Total',
+                    value: `<strong>R$ ${formatMoney(item.valorMercadoria)}</strong>` },
+                { icon: 'fa-calendar-alt', label: 'Data', value: item.dataRaw },
+                { icon: 'fa-file-invoice', label: 'Nota Fiscal', value: item.notaFiscal },
+                { icon: 'fa-building', label: 'Cliente', value: item.nomeChave },
+                { icon: 'fa-user-tie', label: 'Vendedor', value: item.vendedor }
+            ];
+            content.innerHTML = `
+                <div class="receipt-header">
+                    <i class="fas fa-receipt"></i> REGISTRO DE VENDA
+                </div>
+                <div class="receipt-body">
+                    ${fields.map(f => `
+                        <div class="receipt-item">
+                            <div class="receipt-icon"><i class="fas ${f.icon}"></i></div>
+                            <div class="receipt-info">
+                                <div class="receipt-label">${f.label}</div>
+                                <div class="receipt-value">${f.value}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="receipt-footer">
+                    <i class="fas fa-clock"></i> Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                </div>
+            `;
+            const btnCopy = document.getElementById('btnCopyReceipt');
+            if (btnCopy) {
+                btnCopy.classList.remove('copied');
+                btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+            }
+            modal.style.display = 'flex';
+        }
+
+        function copyReceiptToClipboard() {
+            if (!currentDetailItem) return;
+            const item = currentDetailItem;
+            const text = [
+                '═══════════════════════════════════',
+                '       REGISTRO DE VENDA',
+                '═══════════════════════════════════',
+                '',
+                `  Código........: ${item.codigo}`,
+                `  Descrição.....: ${item.descricao}`,
+                `  Grupo.........: ${item.grupo}`,
+                `  Quantidade....: ${item.quantidade.toLocaleString('pt-BR')}`,
+                `  Valor Unitário: R$ ${formatMoney(item.valorUnitario)}`,
+                `  Valor Total...: R$ ${formatMoney(item.valorMercadoria)}`,
+                `  Data..........: ${item.dataRaw}`,
+                `  Nota Fiscal...: ${item.notaFiscal}`,
+                `  Cliente.......: ${item.nomeChave}`,
+                `  Vendedor......: ${item.vendedor}`,
+                '',
+                '───────────────────────────────────',
+                `  Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR')}`,
+                '═══════════════════════════════════'
+            ].join('\n');
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const btnCopy = document.getElementById('btnCopyReceipt');
+                    if (btnCopy) {
+                        btnCopy.classList.add('copied');
+                        btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                        setTimeout(() => {
+                            btnCopy.classList.remove('copied');
+                            btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+                        }, 2500);
+                    }
+                    addActionNotification('📋 Registro copiado para a área de transferência');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const btnCopy = document.getElementById('btnCopyReceipt');
+                if (btnCopy) {
+                    btnCopy.classList.add('copied');
+                    btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                    setTimeout(() => {
+                        btnCopy.classList.remove('copied');
+                        btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+                    }, 2500);
+                }
+                addActionNotification('📋 Registro copiado para a área de transferência');
+            } catch (err) {
+                alert('Não foi possível copiar. Tente novamente.');
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function updateDashboard() {
+            renderKPIs(filteredData);
+            if (chartsVisible && filteredData.length) { renderMonthlyEvolution();
+                renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart)
+                    compareChart.destroy();
+                monthlyChart = compareChart = null; }
+            renderComparison();
+            renderDetailTable();
+        }
+
+        function exportToExcel() {
+            const data = filteredData;
+            const wsData = [
+                ['Código', 'Descrição', 'Grupo', 'Quantidade', 'Valor Unitário', 'Valor Mercadoria', 'Data',
+                    'Nota Fiscal', 'Cliente', 'Vendedor'
+                ]
+            ];
+            data.forEach(item => wsData.push([item.codigo, item.descricao, item.grupo, item.quantidade, item
+                .valorUnitario, item.valorMercadoria, item.dataRaw, item.notaFiscal, item.nomeChave, item
+                .vendedor
+            ]));
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Vendas');
+            XLSX.writeFile(wb, `vendas_${new Date().toISOString().slice(0,19)}.xlsx`);
+            addActionNotification('📊 Excel exportado');
+        }
+
+        function gerarRelatorioImpressao() {
+            window.print();
+            addActionNotification('🖨️ Abrindo impressão do relatório (use Ctrl+P para salvar como PDF)');
+        }
+
+        // ==================== INICIALIZAÇÃO DOS FILTROS RÁPIDOS ====================
+        function initFiltersFromData() {
+            if (!rawData.length) return;
+            const empresas = [...new Set(rawData.map(d => d.empresa).filter(e => e))].sort();
+            const marcas = [...new Set(rawData.map(d => d.grupo).filter(m => m))].sort();
+            const anos = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
+            const empresaDiv = document.getElementById('empresaList');
+            const marcaDiv = document.getElementById('marcaList');
+            const anoDiv = document.getElementById('anoList');
+            if (empresaDiv) empresaDiv.innerHTML = empresas.map(e =>
+                `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`
+                ).join('');
+            if (marcaDiv) marcaDiv.innerHTML = marcas.map(m =>
+                `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join(
+                '');
+            if (anoDiv) anoDiv.innerHTML = anos.map(a =>
+                `<label><input type="checkbox" value="${a}" class="ano-cb"> ${a}</label>`).join('');
+            document.querySelectorAll('.empresa-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
+                    .checked) tempSelectedEmpresas.add(e.target.value);
+                else tempSelectedEmpresas.delete(e.target.value); }));
+            document.querySelectorAll('.marca-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
+                    .checked) tempSelectedMarcas.add(e.target.value);
+                else tempSelectedMarcas.delete(e.target.value); }));
+            document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', (e) => { let val =
+                    parseInt(e.target.value); if (e.target.checked) tempSelectedAnos.add(val);
+                else tempSelectedAnos.delete(val); }));
+            const searchEmpresa = document.getElementById('searchEmpresa');
+            const searchMarca = document.getElementById('searchMarca');
+            if (searchEmpresa) searchEmpresa.addEventListener('input', (e) => filterList('empresaList', e.target
+            .value));
+            if (searchMarca) searchMarca.addEventListener('input', (e) => filterList('marcaList', e.target.value));
+            setTimeout(() => {
+                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(cb
+                    .value));
+                document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = activeSelectedMarcas.has(cb
+                .value));
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                    cb.checked = activeSelectedAnos.has(val); });
+            }, 50);
+        }
+
+        function filterList(containerId, term) {
+            const container = document.getElementById(containerId);
+            if (container) container.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent
+                .toLowerCase().includes(term.toLowerCase()) ? 'flex' : 'none');
         }
 
         // ==================== MODAL AVANÇADO DINÂMICO ====================
@@ -2295,357 +2630,6 @@
             });
         }
 
-        // ==================== RENDERIZAÇÕES PRINCIPAIS ====================
-        function renderKPIs(data) {
-            const totalRevenueFiltered = data.reduce((sum, d) => sum + d.valorMercadoria, 0);
-            let qty = 0;
-            let notas = new Set();
-            data.forEach(d => { qty += d.quantidade; if (d.notaFiscal) notas.add(d.notaFiscal); });
-            const avgTicket = qty ? totalRevenueFiltered / qty : 0;
-            const kpiMap = [
-                { label: 'Faturamento Total', value: `R$ ${formatMoney(totalRevenueFiltered)}`, icon: 'dollar-sign',
-                    color: '#2563eb', footnote: 'No filtro atual' },
-                { label: 'Quantidade Vendida', value: qty.toLocaleString('pt-BR'), icon: 'boxes', color: '#10b981',
-                    footnote: 'No filtro atual' },
-                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b',
-                    footnote: 'Média por item' },
-                { label: 'Notas Fiscais', value: notas.size, icon: 'file-invoice', color: '#8b5cf6',
-                footnote: 'No filtro atual' },
-                { label: 'Itens Vendidos', value: data.length, icon: 'list-ul', color: '#ef4444',
-                    footnote: 'No filtro atual' }
-            ];
-            document.getElementById('kpiContainer').innerHTML = kpiMap.map(k =>
-                `<div class="kpi-card glass" style="border-left-color:${k.color}"><div class="kpi-main-row"><div class="kpi-info"><h4>${k.label}</h4><div class="kpi-number">${k.value}</div></div><div class="kpi-icon"><i class="fas fa-${k.icon}"></i></div></div><div class="kpi-footnote"><i class="fas fa-asterisk"></i> ${k.footnote}</div></div>`
-                ).join('');
-        }
-
-        function renderMonthlyEvolution() {
-            if (!filteredData.length) return;
-            if (monthlyChart) monthlyChart.destroy();
-            const monthly = new Map();
-            filteredData.forEach(d => { if (d.year && d.month) { const key = `${d.year}-${d.month}`;
-                    monthly.set(key, (monthly.get(key) || 0) + d.valorMercadoria); } });
-            const sorted = Array.from(monthly.keys()).sort();
-            const labels = sorted.map(k => { let [y, m] = k.split('-'); return `${m}/${y.slice(-2)}`; });
-            const values = sorted.map(k => monthly.get(k));
-            const ctx = document.getElementById('monthlyChart').getContext('2d');
-            monthlyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Faturamento (R$)',
-                        data: values, borderColor: '#1e3a5f', tension: 0.3, fill: true,
-                        backgroundColor: 'rgba(30,58,95,0.05)', pointRadius: 3, pointBackgroundColor: '#1e3a5f'
-                    }] }, options: { responsive: true, maintainAspectRatio: true,
-                    plugins: { legend: { display: false } } } });
-        }
-
-        function renderComparisonChart() {
-            if (!filteredData.length) return;
-            if (compareChart) compareChart.destroy();
-            const years = Array.from(selectedCompareYears).sort();
-            if (!years.length) return;
-            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-            const colorPalette = ['#1e3a5f', '#e67e22', '#2ecc71', '#e74c3c', '#9b59b6', '#1abc9c'];
-            const datasets = years.map((year, i) => {
-                const monthlyData = new Array(12).fill(0);
-                filteredData.forEach(d => { if (d.year === year && d.month >= 1 && d.month <= 12)
-                        monthlyData[d.month - 1] += d.valorMercadoria; });
-                return { label: `${year}`, data: monthlyData,
-                    backgroundColor: colorPalette[i % colorPalette.length],
-                    borderRadius: 4, borderSkipped: false };
-            });
-            const ctx = document.getElementById('yearCompareChart').getContext('2d');
-            compareChart = new Chart(ctx, { type: 'bar', data: { labels: months, datasets }, options: { responsive: true,
-                    maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } },
-                    scales: { y: { ticks: { callback: (v) => 'R$ ' + v.toLocaleString('pt-BR') } } } } });
-        }
-
-        function renderComparison() {
-            const container = document.getElementById('comparisonContainer');
-            const thead = document.getElementById('comparisonThead');
-            const tbody = document.getElementById('compTableBody');
-            if (!container || !thead || !tbody) return;
-            if (!comparisonVisible) { container.style.display = 'none'; return; }
-            container.style.display = 'block';
-            const years = Array.from(selectedCompareYears).sort();
-            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro',
-                'Outubro', 'Novembro', 'Dezembro'
-            ];
-            if (years.length === 0) { thead.innerHTML =
-                '<th>Mês</th><th>Selecione anos acima</th>';
-                tbody.innerHTML =
-                '<tr><td colspan="2" class="empty-message">Marque os anos desejados nos checkboxes acima</td></tr>'
-                ; return; }
-            const dataSource = filteredData.length ? filteredData : rawData;
-            thead.innerHTML = `<th>Mês</th>${years.map(y => `<th>${y} (R$)</th>`).join('')}`;
-            let html = '';
-            for (let i = 0; i < 12; i++) {
-                let row = `<td><strong>${months[i]}</strong></td>`;
-                for (let y of years) {
-                    let total = dataSource.filter(d => d.year === y && d.month === i + 1).reduce((a, b) => a + b
-                        .valorMercadoria, 0);
-                    row += `<td>R$ ${formatMoney(total)}</td>`;
-                }
-                html += `<tr>${row}</tr>`;
-            }
-            tbody.innerHTML = html;
-        }
-
-        function renderCompareYearsSelector() {
-            const anos = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
-            const container = document.getElementById('compareYearsGroup');
-            if (!container) return;
-            container.innerHTML = anos.map(y =>
-                `<label style="margin-left:8px;font-size:0.75rem;cursor:pointer;"><input type="checkbox" value="${y}" class="compare-year-cb" ${selectedCompareYears.has(y) ? 'checked' : ''}> ${y}</label>`
-                ).join('');
-            document.querySelectorAll('.compare-year-cb').forEach(cb => {
-                cb.removeEventListener('change', handleCompareYearChange);
-                cb.addEventListener('change', handleCompareYearChange);
-            });
-        }
-
-        function handleCompareYearChange(e) {
-            let val = parseInt(e.target.value);
-            if (e.target.checked) selectedCompareYears.add(val);
-            else selectedCompareYears.delete(val);
-            saveFilterState();
-            renderComparisonChart();
-            renderComparison();
-        }
-
-        function renderDetailTable() {
-            let dataSource = [...filteredData];
-            dataSource.sort((a, b) => {
-                let aVal = a[currentSort.field],
-                    bVal = b[currentSort.field];
-                if (currentSort.field === 'data') {
-                    aVal = a.dataRaw ? new Date(a.dataRaw.split('/').reverse().join('-')) : new Date(0);
-                    bVal = b.dataRaw ? new Date(b.dataRaw.split('/').reverse().join('-')) : new Date(0);
-                } else if (['quantidade', 'valorUnitario', 'valorMercadoria'].includes(currentSort.field)) {
-                    aVal = Number(aVal);
-                    bVal = Number(bVal);
-                } else if (typeof aVal === 'string') { aVal = aVal.toLowerCase();
-                    bVal = bVal.toLowerCase(); }
-                return currentSort.order === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
-            });
-            const tbody = document.getElementById('tableBody');
-            if (!dataSource.length) { tbody.innerHTML =
-                    '<tr><td colspan="10" class="empty-message">Nenhum dado com os filtros atuais</td></tr>'; return; }
-            tbody.innerHTML = dataSource.map((item, idx) => `<tr data-item='${escapeHtml(JSON.stringify(item))}' style="cursor:pointer;">
-                <td>${escapeHtml(item.codigo)}</td><td title="${escapeHtml(item.descricao)}">${escapeHtml(item.descricao.substring(0,55))}${item.descricao.length>55?'…':''}</td><td>${escapeHtml(item.grupo)}</td>
-                <td>${item.quantidade.toLocaleString('pt-BR')}</td><td>R$ ${formatMoney(item.valorUnitario)}</td>
-                <td><strong>R$ ${formatMoney(item.valorMercadoria)}</strong></td><td>${escapeHtml(item.dataRaw)}</td>
-                <td>${escapeHtml(item.notaFiscal)}</td><td title="${escapeHtml(item.nomeChave)}">${escapeHtml(item.nomeChave.substring(0,25))}${item.nomeChave.length>25?'…':''}</td><td>${escapeHtml(item.vendedor)}</td>
-            </tr>`).join('');
-            document.querySelectorAll('#tableBody tr').forEach(row => row.addEventListener('click', () => { const raw = row
-                    .getAttribute('data-item'); if (raw) showDetailModal(JSON.parse(raw)); }));
-            if (!window._sortHeadersAttached) {
-                window._sortHeadersAttached = true;
-                document.querySelectorAll('#detailTable th').forEach(th => {
-                    let field = th.dataset.sort;
-                    if (field) th.addEventListener('click', () => {
-                        if (currentSort.field === field) currentSort.order = currentSort.order ===
-                            'asc' ? 'desc' : 'asc';
-                        else { currentSort.field = field;
-                            currentSort.order = 'desc'; }
-                        saveFilterState();
-                        renderDetailTable();
-                    });
-                });
-            }
-        }
-
-        function showDetailModal(item) {
-            currentDetailItem = item;
-            const modal = document.getElementById('rowDetailModal');
-            const content = document.getElementById('detailModalContent');
-            const fields = [
-                { icon: 'fa-barcode', label: 'Código', value: item.codigo },
-                { icon: 'fa-align-left', label: 'Descrição', value: item.descricao },
-                { icon: 'fa-layer-group', label: 'Grupo', value: item.grupo },
-                { icon: 'fa-cubes', label: 'Quantidade', value: item.quantidade.toLocaleString('pt-BR') },
-                { icon: 'fa-tag', label: 'Valor Unitário', value: `R$ ${formatMoney(item.valorUnitario)}` },
-                { icon: 'fa-money-bill-wave', label: 'Valor Total', value: `<strong>R$ ${formatMoney(item.valorMercadoria)}</strong>` },
-                { icon: 'fa-calendar-alt', label: 'Data', value: item.dataRaw },
-                { icon: 'fa-file-invoice', label: 'Nota Fiscal', value: item.notaFiscal },
-                { icon: 'fa-building', label: 'Cliente', value: item.nomeChave },
-                { icon: 'fa-user-tie', label: 'Vendedor', value: item.vendedor }
-            ];
-            content.innerHTML = `
-                <div class="receipt-header">
-                    <i class="fas fa-receipt"></i> REGISTRO DE VENDA
-                </div>
-                <div class="receipt-body">
-                    ${fields.map(f => `
-                        <div class="receipt-item">
-                            <div class="receipt-icon"><i class="fas ${f.icon}"></i></div>
-                            <div class="receipt-info">
-                                <div class="receipt-label">${f.label}</div>
-                                <div class="receipt-value">${f.value}</div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                <div class="receipt-footer">
-                    <i class="fas fa-clock"></i> Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
-                </div>
-            `;
-            // reseta o botão copiar
-            const btnCopy = document.getElementById('btnCopyReceipt');
-            if (btnCopy) {
-                btnCopy.classList.remove('copied');
-                btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
-            }
-            modal.style.display = 'flex';
-        }
-
-        function copyReceiptToClipboard() {
-            if (!currentDetailItem) return;
-            const item = currentDetailItem;
-            const text = [
-                '═══════════════════════════════════',
-                '       REGISTRO DE VENDA',
-                '═══════════════════════════════════',
-                '',
-                `  Código........: ${item.codigo}`,
-                `  Descrição.....: ${item.descricao}`,
-                `  Grupo.........: ${item.grupo}`,
-                `  Quantidade....: ${item.quantidade.toLocaleString('pt-BR')}`,
-                `  Valor Unitário: R$ ${formatMoney(item.valorUnitario)}`,
-                `  Valor Total...: R$ ${formatMoney(item.valorMercadoria)}`,
-                `  Data..........: ${item.dataRaw}`,
-                `  Nota Fiscal...: ${item.notaFiscal}`,
-                `  Cliente.......: ${item.nomeChave}`,
-                `  Vendedor......: ${item.vendedor}`,
-                '',
-                '───────────────────────────────────',
-                `  Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR')}`,
-                '═══════════════════════════════════'
-            ].join('\n');
-
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
-                    const btnCopy = document.getElementById('btnCopyReceipt');
-                    if (btnCopy) {
-                        btnCopy.classList.add('copied');
-                        btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-                        setTimeout(() => {
-                            btnCopy.classList.remove('copied');
-                            btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
-                        }, 2500);
-                    }
-                    addActionNotification('📋 Regristro copiado para a área de transferência');
-                }).catch(() => {
-                    fallbackCopy(text);
-                });
-            } else {
-                fallbackCopy(text);
-            }
-        }
-
-        function fallbackCopy(text) {
-            const textarea = document.createElement('textarea');
-            textarea.value = text;
-            textarea.style.position = 'fixed';
-            textarea.style.left = '-9999px';
-            textarea.style.top = '-9999px';
-            document.body.appendChild(textarea);
-            textarea.focus();
-            textarea.select();
-            try {
-                document.execCommand('copy');
-                const btnCopy = document.getElementById('btnCopyReceipt');
-                if (btnCopy) {
-                    btnCopy.classList.add('copied');
-                    btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
-                    setTimeout(() => {
-                        btnCopy.classList.remove('copied');
-                        btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
-                    }, 2500);
-                }
-                addActionNotification('📋 Regristro copiado para a área de transferência');
-            } catch (err) {
-                alert('Não foi possível copiar. Tente novamente.');
-            }
-            document.body.removeChild(textarea);
-        }
-
-        function updateDashboard() {
-            renderKPIs(filteredData);
-            if (chartsVisible && filteredData.length) { renderMonthlyEvolution();
-                renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart)
-                    compareChart.destroy();
-                monthlyChart = compareChart = null; }
-            renderComparison();
-            renderDetailTable();
-            renderCompareYearsSelector();
-        }
-
-        function exportToExcel() {
-            const data = filteredData;
-            const wsData = [
-                ['Código', 'Descrição', 'Grupo', 'Quantidade', 'Valor Unitário', 'Valor Mercadoria', 'Data',
-                    'Nota Fiscal', 'Cliente', 'Vendedor'
-                ]
-            ];
-            data.forEach(item => wsData.push([item.codigo, item.descricao, item.grupo, item.quantidade, item
-                .valorUnitario, item.valorMercadoria, item.dataRaw, item.notaFiscal, item.nomeChave, item
-                .vendedor
-            ]));
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'Vendas');
-            XLSX.writeFile(wb, `vendas_${new Date().toISOString().slice(0,19)}.xlsx`);
-            addActionNotification('📊 Excel exportado');
-        }
-
-        function gerarRelatorioImpressao() {
-            window.print();
-            addActionNotification('🖨️ Abrindo impressão do relatório (use Ctrl+P para salvar como PDF)');
-        }
-
-        // ==================== INICIALIZAÇÃO DOS FILTROS RÁPIDOS ====================
-        function initFiltersFromData() {
-            if (!rawData.length) return;
-            const empresas = [...new Set(rawData.map(d => d.empresa).filter(e => e))].sort();
-            const marcas = [...new Set(rawData.map(d => d.grupo).filter(m => m))].sort();
-            const anos = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
-            const empresaDiv = document.getElementById('empresaList');
-            const marcaDiv = document.getElementById('marcaList');
-            const anoDiv = document.getElementById('anoList');
-            if (empresaDiv) empresaDiv.innerHTML = empresas.map(e =>
-                `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`)
-                .join('');
-            if (marcaDiv) marcaDiv.innerHTML = marcas.map(m =>
-                `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join(
-                '');
-            if (anoDiv) anoDiv.innerHTML = anos.map(a =>
-                `<label><input type="checkbox" value="${a}" class="ano-cb"> ${a}</label>`).join('');
-            document.querySelectorAll('.empresa-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
-                    .checked) tempSelectedEmpresas.add(e.target.value);
-                else tempSelectedEmpresas.delete(e.target.value); }));
-            document.querySelectorAll('.marca-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
-                    .checked) tempSelectedMarcas.add(e.target.value);
-                else tempSelectedMarcas.delete(e.target.value); }));
-            document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', (e) => { let val =
-                    parseInt(e.target.value); if (e.target.checked) tempSelectedAnos.add(val);
-                else tempSelectedAnos.delete(val); }));
-            const searchEmpresa = document.getElementById('searchEmpresa');
-            const searchMarca = document.getElementById('searchMarca');
-            if (searchEmpresa) searchEmpresa.addEventListener('input', (e) => filterList('empresaList', e.target.value));
-            if (searchMarca) searchMarca.addEventListener('input', (e) => filterList('marcaList', e.target.value));
-            setTimeout(() => {
-                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(cb
-                    .value));
-                document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = activeSelectedMarcas.has(cb.value));
-                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
-                    cb.checked = activeSelectedAnos.has(val); });
-            }, 50);
-        }
-
-        function filterList(containerId, term) {
-            const container = document.getElementById(containerId);
-            if (container) container.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent
-                .toLowerCase().includes(term.toLowerCase()) ? 'flex' : 'none');
-        }
-
         // ==================== CARREGAMENTO DE DADOS ====================
         async function fetchData() {
             const syncIcon = document.getElementById('syncIcon');
@@ -2706,14 +2690,16 @@
                     '<tr><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>'
                     ; return; }
             loadFilterState();
+            if (!localStorage.getItem('dashboardFilters')) {
+                currentSort = { field: 'data', order: 'desc' };
+            }
             activeSelectedEmpresas.clear();
             activeSelectedMarcas.clear();
             activeSelectedAnos.clear();
             Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
-            if (rawData.length) { setDefaultYearFilter();
-                setDefaultCompareYears(); }
-            filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year))
-                    return false; return true; });
+            if (rawData.length) { setDefaultYearFilter(); }
+            filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item
+                    .year)) return false; return true; });
             updateDashboard();
             initFiltersFromData();
             buildAdvancedModalDOM();
@@ -2731,25 +2717,45 @@
                 'filterSidebar').classList.remove('open'));
             document.getElementById('resetFiltersBtn').addEventListener('click', resetQuickFilters);
             document.getElementById('applyQuickFiltersBtn').addEventListener('click', applyQuickFilters);
-            document.getElementById('specialContinentalGoodyear').addEventListener('click', smartContinentalGoodyear);
+            document.getElementById('specialContinentalGoodyear').addEventListener('click',
+            smartContinentalGoodyear);
             document.getElementById('saveFavoriteBtn').addEventListener('click', saveCurrentFilterAsFavorite);
             document.getElementById('sidebarPdfBtn').addEventListener('click', gerarRelatorioImpressao);
             document.getElementById('sidebarExcelBtn').addEventListener('click', exportToExcel);
             document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
-            document.getElementById('toggleChartsBtn').addEventListener('click', () => { chartsVisible = !
-                chartsVisible;
-                document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none'; if (
-                    chartsVisible && filteredData.length) { renderMonthlyEvolution();
-                    renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart)
-                        compareChart.destroy();
+
+            // Botões de alternância com texto dinâmico
+            const toggleChartsBtn = document.getElementById('toggleChartsBtn');
+            const toggleComparisonBtn = document.getElementById('toggleComparisonBtn');
+            const updateChartsButtonText = () => {
+                toggleChartsBtn.innerHTML = chartsVisible ? '<i class="fas fa-chart-line"></i> Ocultar gráficos' :
+                    '<i class="fas fa-chart-line"></i> Exibir gráficos';
+            };
+            const updateComparisonButtonText = () => {
+                toggleComparisonBtn.innerHTML = comparisonVisible ? '<i class="fas fa-table"></i> Ocultar tabela' :
+                    '<i class="fas fa-table"></i> Exibir tabela';
+            };
+            toggleChartsBtn.addEventListener('click', () => {
+                chartsVisible = !chartsVisible;
+                document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none';
+                if (chartsVisible && filteredData.length) { renderMonthlyEvolution();
+                    renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (
+                        compareChart) compareChart.destroy();
                     monthlyChart = compareChart = null; }
-                saveFilterState(); });
-            document.getElementById('toggleComparisonBtn').addEventListener('click', () => { comparisonVisible = !
-                comparisonVisible;
+                updateChartsButtonText();
+                saveFilterState();
+            });
+            toggleComparisonBtn.addEventListener('click', () => {
+                comparisonVisible = !comparisonVisible;
                 document.getElementById('comparisonContainer').style.display = comparisonVisible ? 'block' :
-                'none';
+                    'none';
                 renderComparison();
-                saveFilterState(); });
+                updateComparisonButtonText();
+                saveFilterState();
+            });
+            updateChartsButtonText();
+            updateComparisonButtonText();
+
             document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => {
                 if (!document.getElementById('adv-list-codigo')) buildAdvancedModalDOM();
                 syncAdvancedModalCheckboxes();
@@ -2765,12 +2771,12 @@
                     'sortColumnSelect').value = currentSort.field;
                 document.querySelector(`input[name="sortOrder"][value="${currentSort.order}"]`).checked = true;
                 document.getElementById('sortModal').style.display = 'flex'; });
-            document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal')
-                .style.display = 'none');
-            document.getElementById('applySortBtn').addEventListener('click', () => { const col = document.getElementById(
-                    'sortColumnSelect').value; const order = document.querySelector(
-                    'input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col,
-                        order: order };
+            document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById(
+                'sortModal').style.display = 'none');
+            document.getElementById('applySortBtn').addEventListener('click', () => { const col = document
+                    .getElementById('sortColumnSelect').value; const order = document.querySelector(
+                        'input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col,
+                            order: order };
                     saveFilterState();
                     renderDetailTable(); } document.getElementById('sortModal').style.display = 'none'; });
             document.getElementById('closeDetailModal').addEventListener('click', () => { document.getElementById(
@@ -2778,8 +2784,8 @@
                 currentDetailItem = null; });
             document.getElementById('btnCopyReceipt').addEventListener('click', copyReceiptToClipboard);
             document.getElementById('exportPdfBtn').addEventListener('click', gerarRelatorioImpressao);
-            document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById('profileName')
-                    .value = getNomeExibicao();
+            document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById(
+                    'profileName').value = getNomeExibicao();
                 document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl;
                 document.getElementById('profileBgUrl').value = userProfile.bgUrl || '';
                 document.getElementById('profileModal').style.display = 'flex'; });
@@ -2819,9 +2825,9 @@
                 document.getElementById('hamburger-overlay').classList.remove('active');
                 document.body.style.overflow = ''; }
 
-            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el
-                    .classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl)
-                    activeEl.classList.add('active'); }
+            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el =>
+                    el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (
+                    activeEl) activeEl.classList.add('active'); }
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
