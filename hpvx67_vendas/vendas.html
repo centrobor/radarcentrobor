@@ -6,9 +6,12 @@
     <title>Vendas • Performance + Filtros Inteligentes</title>
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js">
+    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
+    </script>
     <style>
         * {
             margin: 0;
@@ -44,6 +47,9 @@
             --bottom-bar-height: 62px;
             --mobile-topbar-height: 56px;
             --safe-bottom: env(safe-area-inset-bottom, 8px);
+            --accent-gold: #c8963e;
+            --receipt-bg: #fdfaf5;
+            --receipt-border: #e8dcc8;
         }
         .glass {
             background: var(--card-bg);
@@ -322,11 +328,20 @@
             font-weight: 600;
             color: #1e3a5f;
             border-bottom: 1px solid #e6edf5;
+            cursor: pointer;
+            user-select: none;
+        }
+        .data-table th:hover {
+            background: #e8eff8;
         }
         .data-table td {
             padding: 8px 12px;
             border-bottom: 1px solid #eef2f6;
             color: #2c3e50;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }
         .data-table tr:hover td {
             background: #f7fbff;
@@ -415,6 +430,11 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            transition: 0.2s;
+        }
+        .floating-btn:hover {
+            background: var(--primary-light);
+            transform: scale(1.05);
         }
         .filter-sidebar {
             position: fixed;
@@ -557,11 +577,20 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(6px);
+            background: rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(8px);
             align-items: center;
             justify-content: center;
             z-index: 2000;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
         }
         .modal-content {
             background: white;
@@ -570,8 +599,19 @@
             width: 90%;
             max-height: 85vh;
             overflow-y: auto;
-            padding: 24px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            padding: 28px 24px;
+            box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2);
+            animation: slideUp 0.25s ease;
+        }
+        @keyframes slideUp {
+            from {
+                transform: translateY(30px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
         .modal-header {
             display: flex;
@@ -579,12 +619,46 @@
             align-items: center;
             margin-bottom: 20px;
             border-bottom: 2px solid #eef2f8;
-            padding-bottom: 12px;
+            padding-bottom: 14px;
+        }
+        .modal-header h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        /* Botão X circular elegante */
+        .close-btn-circle {
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: #f1f5f9;
+            border: none;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: 0.25s;
+            color: #5e6f82;
+            flex-shrink: 0;
+        }
+        .close-btn-circle:hover {
+            background: #e74c3c;
+            color: white;
+            transform: rotate(90deg);
+            box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
         }
         .filter-adv-group {
             margin-bottom: 24px;
             border-bottom: 1px solid #eef2f8;
             padding-bottom: 16px;
+            background: #fafbfd;
+            border-radius: 16px;
+            padding: 14px 16px;
+            border: 1px solid #eef2f8;
         }
         .filter-adv-group h4 {
             font-size: 0.9rem;
@@ -592,16 +666,32 @@
             color: var(--primary);
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
+            font-weight: 700;
+        }
+        .filter-adv-group h4 .badge-count {
+            background: var(--primary-soft);
+            color: var(--primary);
+            font-size: 0.7rem;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-left: auto;
         }
         .adv-search {
             margin-bottom: 8px;
             width: 100%;
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 40px;
-            border: 1px solid #cbdde9;
+            border: 1px solid #dde5ef;
             font-size: 0.8rem;
             background: white;
+            transition: 0.2s;
+        }
+        .adv-search:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(30, 58, 95, 0.08);
         }
         .adv-list {
             max-height: 200px;
@@ -616,13 +706,29 @@
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 5px 0;
+            padding: 6px 8px;
             cursor: pointer;
             font-size: 0.75rem;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid #f0f0f0;
+            border-radius: 6px;
+            transition: 0.15s;
+        }
+        .adv-list label:hover {
+            background: #eef3f9;
         }
         .adv-list label:last-child {
             border-bottom: none;
+        }
+        /* Checkbox customizado */
+        .adv-cb,
+        .empresa-cb,
+        .marca-cb,
+        .ano-cb,
+        .compare-year-cb {
+            accent-color: var(--primary);
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
         }
         .modal-actions {
             display: flex;
@@ -636,50 +742,141 @@
             background: var(--primary);
             color: white;
             border: none;
-            padding: 10px 24px;
+            padding: 12px 28px;
             border-radius: 40px;
             cursor: pointer;
             font-weight: 600;
+            transition: 0.2s;
+            font-size: 0.9rem;
+        }
+        .btn-primary:hover {
+            background: var(--primary-light);
+            box-shadow: 0 4px 14px rgba(30, 58, 95, 0.3);
         }
         .btn-outline {
             background: transparent;
-            border: 1px solid var(--primary);
-            padding: 10px 24px;
+            border: 1.5px solid var(--primary);
+            padding: 12px 28px;
             border-radius: 40px;
             cursor: pointer;
             color: var(--primary);
             font-weight: 600;
+            transition: 0.2s;
+            font-size: 0.9rem;
         }
+        .btn-outline:hover {
+            background: var(--primary-soft);
+        }
+        /* Comprovante fiscal elegante */
         .receipt {
-            background: #fff;
-            border-radius: 24px;
-            padding: 1.5rem;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.05);
-            border: 1px solid #eef2f8;
+            background: var(--receipt-bg);
+            border-radius: 20px;
+            padding: 0;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.06);
+            border: 1.5px solid var(--receipt-border);
+            overflow: hidden;
+        }
+        .receipt-header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2b4c7a 100%);
+            color: white;
+            padding: 18px 20px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 1rem;
+            letter-spacing: 1px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .receipt-body {
+            padding: 18px 20px;
         }
         .receipt-item {
             display: flex;
-            padding: 0.75rem 0;
-            border-bottom: 1px dashed #e9edf2;
-            align-items: baseline;
-            gap: 1rem;
+            padding: 10px 0;
+            border-bottom: 1px dashed #e8dcc8;
+            align-items: flex-start;
+            gap: 12px;
+            transition: 0.15s;
+        }
+        .receipt-item:hover {
+            background: rgba(200, 150, 62, 0.04);
+            border-radius: 6px;
+            padding-left: 6px;
+            padding-right: 6px;
         }
         .receipt-item:last-child {
             border-bottom: none;
         }
-        .receipt-label {
-            width: 110px;
-            font-weight: 600;
-            color: var(--primary);
+        .receipt-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #fdf3e0;
+            color: var(--accent-gold);
+            display: flex;
+            align-items: center;
+            justify-content: center;
             font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+        .receipt-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .receipt-label {
+            font-weight: 600;
+            color: #8b7355;
+            font-size: 0.7rem;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.8px;
+            margin-bottom: 2px;
         }
         .receipt-value {
-            flex: 1;
-            color: var(--text-dark);
+            color: #1a2b3c;
             font-weight: 500;
+            font-size: 0.9rem;
             word-break: break-word;
+        }
+        .receipt-value strong {
+            color: #0f2b3d;
+            font-size: 1rem;
+        }
+        .receipt-footer {
+            background: #fdf3e0;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 0.7rem;
+            color: #8b7355;
+            border-top: 1px dashed #e8dcc8;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+        .btn-copy-receipt {
+            background: var(--accent-gold);
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.2s;
+            margin-top: 14px;
+        }
+        .btn-copy-receipt:hover {
+            background: #b07d2e;
+            box-shadow: 0 4px 14px rgba(200, 150, 62, 0.3);
+            transform: translateY(-1px);
+        }
+        .btn-copy-receipt.copied {
+            background: #2e7d32;
         }
         .loading-overlay {
             position: fixed;
@@ -711,11 +908,17 @@
                 right: -100%;
             }
             .receipt-label {
-                width: 90px;
+                width: auto;
             }
             .modal-content {
                 max-width: 95vw;
-                padding: 16px;
+                padding: 20px 16px;
+                border-radius: 24px;
+            }
+            .receipt-icon {
+                width: 28px;
+                height: 28px;
+                font-size: 0.75rem;
             }
         }
         .action-buttons {
@@ -896,7 +1099,7 @@
         }
         .hamburger-menu .menu-user-info span {
             font-size: 0.72rem;
-            color: var(--muted);
+            color: var(--text-light);
         }
         .hamburger-menu .menu-section {
             margin-bottom: 14px;
@@ -1101,14 +1304,18 @@
             }
             .modal-content {
                 border-radius: 24px;
-                padding: 16px;
+                padding: 18px 14px;
                 width: 94vw;
                 max-width: 94vw;
                 max-height: 85vh;
             }
-            .receipt-label {
-                width: 80px;
-                font-size: 0.75rem;
+            .receipt-icon {
+                width: 26px;
+                height: 26px;
+                font-size: 0.7rem;
+            }
+            .receipt-value {
+                font-size: 0.8rem;
             }
             .notification-dropdown {
                 width: 90vw;
@@ -1201,64 +1408,201 @@
                 font-size: 0.55rem;
             }
         }
+        /* =============== IMPRESSÃO / PDF OTIMIZADO =============== */
         @media print {
+            @page {
+                size: A4 landscape;
+                margin: 8mm;
+            }
             body {
                 background: white;
-                padding: 0.5cm;
+                padding: 0;
                 margin: 0;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                font-size: 10pt;
             }
-            .header, .mobile-topbar, .mobile-bottom-bar, .floating-btn, .filter-sidebar,
-            .action-buttons, .btn-icon, .export-group, .notification-bell, .notification-dropdown,
-            .hamburger-menu, .hamburger-overlay, .icon-btn, .header-actions, .last-update-badge,
-            .floating-btn, .btn-reset, .btn-apply, .btn-advanced, .modal, .footer .footer-social,
-            .footer-logo-section .footer-tagline, .section-header button, .table-toolbar button,
-            #toggleChartsBtn, #clearAllFiltersBtn, #toggleComparisonBtn, .year-selector-group label input,
-            .action-buttons, .comparison-section .section-header button, .btn-icon, .hide-charts-btn,
-            .hide-compare-btn, #sidebarPdfBtn, #sidebarExcelBtn, .export-group, .btn-primary {
+            .header,
+            .mobile-topbar,
+            .mobile-bottom-bar,
+            .floating-btn,
+            .filter-sidebar,
+            .action-buttons,
+            .btn-icon,
+            .export-group,
+            .notification-bell,
+            .notification-dropdown,
+            .hamburger-menu,
+            .hamburger-overlay,
+            .icon-btn,
+            .header-actions,
+            .last-update-badge,
+            .floating-btn,
+            .btn-reset,
+            .btn-apply,
+            .btn-advanced,
+            .modal,
+            .footer .footer-social,
+            .footer-logo-section .footer-tagline,
+            .section-header button,
+            .table-toolbar button,
+            #toggleChartsBtn,
+            #clearAllFiltersBtn,
+            #toggleComparisonBtn,
+            .year-selector-group label input,
+            .action-buttons,
+            .comparison-section .section-header button,
+            .btn-icon,
+            .hide-charts-btn,
+            .hide-compare-btn,
+            #sidebarPdfBtn,
+            #sidebarExcelBtn,
+            .export-group,
+            .btn-primary,
+            .btn-copy-receipt,
+            .btn-outline,
+            .close-btn-circle,
+            #sortModalBtn,
+            #exportPdfBtn {
                 display: none !important;
             }
             .dashboard-wrapper {
                 margin: 0;
                 padding: 0;
                 max-width: 100%;
+                gap: 12px;
             }
-            .kpi-grid, .charts-grid, .comparison-table-wrapper, .table-wrapper {
+            .kpi-grid {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 6px;
                 break-inside: avoid;
                 page-break-inside: avoid;
-                margin-bottom: 20px;
+                margin-bottom: 10px;
             }
             .kpi-card {
                 border: 1px solid #ddd;
                 background: white;
                 box-shadow: none;
                 break-inside: avoid;
+                padding: 8px;
+                border-radius: 8px;
+            }
+            .kpi-number {
+                font-size: 1rem;
+            }
+            .kpi-info h4 {
+                font-size: 0.55rem;
+            }
+            .kpi-icon {
+                font-size: 1.2rem;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+                break-inside: avoid;
+                page-break-inside: avoid;
             }
             .chart-card {
                 background: white;
                 border: 1px solid #ccc;
-                break-inside: avoid;
+                border-radius: 10px;
+                padding: 8px;
+                aspect-ratio: auto;
+                min-height: 180px;
             }
             canvas {
-                max-height: 200px !important;
+                height: 160px !important;
+                max-height: 160px !important;
             }
-            .comparison-table, .data-table {
-                font-size: 10pt;
+            .comparison-table-wrapper {
+                border-radius: 8px;
+                padding: 4px;
+                overflow-x: visible;
+                break-inside: avoid;
+                page-break-inside: avoid;
+            }
+            .comparison-table {
+                font-size: 7pt;
                 border: 1px solid #ccc;
             }
-            .comparison-table th, .data-table th {
+            .comparison-table th,
+            .comparison-table td {
+                padding: 3px 5px;
+            }
+            .table-wrapper {
+                border-radius: 8px;
+                overflow-x: visible;
+                break-inside: auto;
+                page-break-inside: auto;
+                box-shadow: none;
+            }
+            .data-table {
+                font-size: 7pt;
+                border: 1px solid #ccc;
+                table-layout: fixed;
+                width: 100%;
+            }
+            .data-table th,
+            .data-table td {
+                padding: 3px 4px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: none;
+            }
+            .data-table th:nth-child(1) {
+                width: 8%;
+            }
+            .data-table th:nth-child(2) {
+                width: 18%;
+            }
+            .data-table th:nth-child(3) {
+                width: 8%;
+            }
+            .data-table th:nth-child(4) {
+                width: 6%;
+            }
+            .data-table th:nth-child(5) {
+                width: 9%;
+            }
+            .data-table th:nth-child(6) {
+                width: 10%;
+            }
+            .data-table th:nth-child(7) {
+                width: 8%;
+            }
+            .data-table th:nth-child(8) {
+                width: 8%;
+            }
+            .data-table th:nth-child(9) {
+                width: 14%;
+            }
+            .data-table th:nth-child(10) {
+                width: 11%;
+            }
+            .data-table td {
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+            .comparison-table th,
+            .data-table th {
                 background: #f0f0f0 !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+                font-weight: 700;
+            }
+            .data-table tr:nth-child(even) td {
+                background: #fafafa !important;
             }
             .footer {
                 background: #f8f8f8;
                 color: #333;
                 border-top: 1px solid #ccc;
-                margin-top: 30px;
-                padding: 10px;
+                margin-top: 20px;
+                padding: 6px;
                 text-align: center;
+                border-radius: 0;
             }
             .footer .footer-inner {
                 display: block;
@@ -1266,14 +1610,24 @@
             .footer .footer-logo-img {
                 display: none;
             }
-            h3, h2, .kpi-number {
+            .footer-bottom {
+                font-size: 7pt;
+                padding-top: 4px;
+                margin-top: 6px;
+            }
+            h3,
+            h2,
+            .kpi-number,
+            .chart-title {
                 color: black !important;
             }
-            a, button {
+            a,
+            button {
                 text-decoration: none;
             }
             .receipt {
                 border: 1px solid #aaa;
+                break-inside: avoid;
             }
             .modal-content {
                 display: none;
@@ -1381,7 +1735,7 @@
 
     <button class="floating-btn" id="toggleFilterBtn"><i class="fas fa-sliders-h"></i></button>
     <div class="filter-sidebar" id="filterSidebar">
-        <div class="sidebar-header"><h3><i class="fas fa-filter"></i> Filtros Rápidos</h3><button class="close-sidebar" id="closeFilterBtn">&times;</button></div>
+        <div class="sidebar-header"><h3><i class="fas fa-filter"></i> Filtros Rápidos</h3><button class="close-sidebar close-btn-circle" id="closeFilterBtn">&times;</button></div>
         <div class="special-filter" id="specialContinentalGoodyear"><i class="fas fa-tag"></i> Continental / Goodyear (Grupo + últimos 2 anos)</div>
         <div class="filter-group"><h3><i class="fas fa-building"></i> Cliente / Empresa</h3><input type="text" id="searchEmpresa" class="search-filter" placeholder="Buscar..."><div id="empresaList" class="multiselect-list"></div></div>
         <div class="filter-group"><h3><i class="fas fa-layer-group"></i> Grupo</h3><input type="text" id="searchMarca" class="search-filter" placeholder="Buscar..."><div id="marcaList" class="multiselect-list"></div></div>
@@ -1394,24 +1748,50 @@
         <div id="favoritesSection" style="margin-top: 20px;"></div>
     </div>
 
-    <!-- MODAL AVANÇADO DINÂMICO (busca sob demanda) -->
+    <!-- MODAL AVANÇADO DINÂMICO -->
     <div id="advancedModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
                 <h2><i class="fas fa-sliders-h"></i> Filtros Avançados</h2>
-                <button class="close-modal-btn" id="closeAdvModal">&times;</button>
+                <button class="close-btn-circle" id="closeAdvModal">&times;</button>
             </div>
             <div id="advancedFiltersContainer" style="max-height: 60vh; overflow-y: auto; padding-right: 5px;"></div>
             <div class="modal-actions">
-                <button id="applyAdvFilters" class="btn-primary">Aplicar filtros</button>
+                <button id="applyAdvFilters" class="btn-primary"><i class="fas fa-check"></i> Aplicar filtros</button>
                 <button id="cancelAdvFilters" class="btn-outline">Cancelar</button>
             </div>
         </div>
     </div>
 
-    <div id="sortModal" class="modal"><div class="modal-content" style="max-width: 450px;"><div class="modal-header"><h2><i class="fas fa-sort"></i> Ordenar Tabela</h2><button class="close-modal-btn" id="closeSortModal">&times;</button></div><div style="margin-bottom: 20px;"><label>Coluna:</label><select id="sortColumnSelect" class="search-filter" style="width:100%; margin-top:6px;"><option value="codigo">Código</option><option value="descricao">Descrição</option><option value="grupo">Grupo</option><option value="quantidade">Quantidade</option><option value="valorUnitario">Valor Unitário</option><option value="valorMercadoria">Valor Mercadoria</option><option value="data">Data</option><option value="notaFiscal">Nota Fiscal</option><option value="nomeChave">Nome Chave</option><option value="vendedor">Vendedor</option></select></div><div><label>Ordem:</label><div style="display:flex; gap:16px; margin-top:8px;"><label><input type="radio" name="sortOrder" value="asc"> Crescente</label><label><input type="radio" name="sortOrder" value="desc"> Decrescente</label></div></div><div class="modal-actions"><button id="applySortBtn" class="btn-primary">Aplicar</button></div></div></div>
-    <div id="rowDetailModal" class="modal"><div class="modal-content" style="max-width: 700px;"><div class="modal-header"><h2><i class="fas fa-receipt"></i> Comprovante de Venda</h2><button class="close-modal-btn" id="closeDetailModal">&times;</button></div><div id="detailModalContent" class="receipt"></div></div></div>
-    <div id="profileModal" class="modal"><div class="modal-content profile-modal-content"><div class="modal-header"><h2><i class="fas fa-user-cog"></i> Editar Perfil</h2><button class="close-modal-btn" id="closeProfileModalBtn">&times;</button></div><form id="profileForm"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profileName" class="form-control" value="Usuário"></div><div class="form-group"><label>URL da foto do perfil</label><input type="url" id="profileAvatarUrl" class="form-control" placeholder="https://exemplo.com/avatar.jpg"></div><div class="form-group"><label>Background personalizado (URL da imagem)</label><input type="url" id="profileBgUrl" class="form-control" placeholder="https://exemplo.com/bg.jpg"><small>Deixe em branco para o gradiente padrão</small></div><div class="modal-actions"><button type="submit" class="btn-primary">Salvar</button></div></form></div></div>
+    <div id="sortModal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header"><h2><i class="fas fa-sort"></i> Ordenar Tabela</h2><button class="close-btn-circle" id="closeSortModal">&times;</button></div>
+            <div style="margin-bottom: 20px;"><label>Coluna:</label><select id="sortColumnSelect" class="search-filter" style="width:100%; margin-top:6px;"><option value="codigo">Código</option><option value="descricao">Descrição</option><option value="grupo">Grupo</option><option value="quantidade">Quantidade</option><option value="valorUnitario">Valor Unitário</option><option value="valorMercadoria">Valor Mercadoria</option><option value="data">Data</option><option value="notaFiscal">Nota Fiscal</option><option value="nomeChave">Nome Chave</option><option value="vendedor">Vendedor</option></select></div>
+            <div><label>Ordem:</label><div style="display:flex; gap:16px; margin-top:8px;"><label><input type="radio" name="sortOrder" value="asc"> Crescente</label><label><input type="radio" name="sortOrder" value="desc"> Decrescente</label></div></div>
+            <div class="modal-actions"><button id="applySortBtn" class="btn-primary">Aplicar</button></div>
+        </div>
+    </div>
+
+    <!-- MODAL COMPROVANTE DE VENDA ELEGANTE -->
+    <div id="rowDetailModal" class="modal">
+        <div class="modal-content" style="max-width: 600px; padding: 0; overflow: hidden; border-radius: 24px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; background: white; border-bottom: 1px solid #eef2f8;">
+                <h2 style="margin:0; font-size:1.1rem; color: var(--primary);"><i class="fas fa-receipt"></i> Comprovante de Venda</h2>
+                <button class="close-btn-circle" id="closeDetailModal">&times;</button>
+            </div>
+            <div id="detailModalContent" class="receipt" style="border-radius: 0; border: none; box-shadow: none;"></div>
+            <div style="padding: 14px 20px; text-align: center; background: white; border-top: 1px solid #eef2f8;">
+                <button class="btn-copy-receipt" id="btnCopyReceipt"><i class="fas fa-copy"></i> Copiar informações</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="profileModal" class="modal">
+        <div class="modal-content profile-modal-content">
+            <div class="modal-header"><h2><i class="fas fa-user-cog"></i> Editar Perfil</h2><button class="close-btn-circle" id="closeProfileModalBtn">&times;</button></div>
+            <form id="profileForm"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profileName" class="form-control" value="Usuário"></div><div class="form-group"><label>URL da foto do perfil</label><input type="url" id="profileAvatarUrl" class="form-control" placeholder="https://exemplo.com/avatar.jpg"></div><div class="form-group"><label>Background personalizado (URL da imagem)</label><input type="url" id="profileBgUrl" class="form-control" placeholder="https://exemplo.com/bg.jpg"><small>Deixe em branco para o gradiente padrão</small></div><div class="modal-actions"><button type="submit" class="btn-primary">Salvar</button></div></form>
+        </div>
+    </div>
     <div id="loadingOverlay" class="loading-overlay"><i class="fas fa-spinner fa-pulse fa-2x"></i><div>Preparando relatório, aguarde...</div></div>
     <div class="notification-dropdown" id="notification-dropdown"></div>
 
@@ -1424,7 +1804,7 @@
     </footer>
 
     <script>
-        // ==================== VERIFICAÇÃO DE SESSÃO (padrão Radar) ====================
+        // ==================== VERIFICAÇÃO DE SESSÃO ====================
         const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
         if (localStorage.getItem('radar_logged_out') === 'true') {
             window.location.href = BASE_URL + '/index.html?reason=logged_out';
@@ -1447,13 +1827,18 @@
         let currentSort = { field: 'quantidade', order: 'desc' };
         let chartsVisible = true;
         let comparisonVisible = true;
+        let currentDetailItem = null; // guarda o item do comprovante aberto
 
         let activeSelectedEmpresas = new Set();
-        let activeSelectedMarcas = new Set();   
+        let activeSelectedMarcas = new Set();
         let activeSelectedAnos = new Set();
         let activeAdvancedFilters = {
-            codigo: new Set(), descricao: new Set(), vendedor: new Set(),
-            grupo: new Set(), notaFiscal: new Set(), nomeChave: new Set()
+            codigo: new Set(),
+            descricao: new Set(),
+            vendedor: new Set(),
+            grupo: new Set(),
+            notaFiscal: new Set(),
+            nomeChave: new Set()
         };
 
         let tempSelectedEmpresas = new Set();
@@ -1464,7 +1849,8 @@
         let monthlyChart = null;
         let compareChart = null;
         let favorites = JSON.parse(localStorage.getItem('dashboardFavorites')) || [];
-        let userProfile = JSON.parse(localStorage.getItem('userProfile')) || { name: '', avatarUrl: 'https://cdn-icons-png.flaticon.com/512/12225/12225881.png', bgUrl: '' };
+        let userProfile = JSON.parse(localStorage.getItem('userProfile')) || { name: '',
+            avatarUrl: 'https://cdn-icons-png.flaticon.com/512/12225/12225881.png', bgUrl: '' };
         let notifications = JSON.parse(localStorage.getItem('notifications')) || [];
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
 
@@ -1472,6 +1858,7 @@
         const DB_NAME = 'VendasDB';
         const STORE_NAME = 'rawData';
         const DB_VERSION = 1;
+
         function openDB() {
             return new Promise((resolve, reject) => {
                 const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -1506,42 +1893,49 @@
                 const usuarioRaw = localStorage.getItem('radar_usuario');
                 if (usuarioRaw) {
                     let nomeExibicao = usuarioRaw;
-                    try {
-                        const usuarioObj = JSON.parse(usuarioRaw);
-                        if (usuarioObj && usuarioObj.nome_usuario) nomeExibicao = usuarioObj.nome_usuario;
-                    } catch(e) { nomeExibicao = usuarioRaw; }
+                    try { const usuarioObj = JSON.parse(usuarioRaw); if (usuarioObj && usuarioObj.nome_usuario)
+                            nomeExibicao = usuarioObj.nome_usuario; } catch (e) { nomeExibicao = usuarioRaw; }
                     return nomeExibicao.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
                 }
-            } catch(e) {}
+            } catch (e) {}
             return null;
         }
+
         function getNomeExibicao() {
             if (userProfile.name && userProfile.name.trim() !== '') return userProfile.name;
             const nomeRadar = obterNomeBaseRadar();
             return nomeRadar || 'Usuário';
         }
+
         function formatMoney(v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 2 }); }
+
         function parseBrazilianNumber(str) {
             if (!str) return 0;
             let cleaned = str.toString().trim().replace(/\./g, '').replace(',', '.');
             let n = parseFloat(cleaned);
             return isNaN(n) ? 0 : n;
         }
+
         function extractYearMonth(dateStr) {
             if (!dateStr) return { year: null, month: null };
             let parts = dateStr.split('/');
             if (parts.length !== 3) return { year: null, month: null };
-            let y = parseInt(parts[2]), m = parseInt(parts[1]);
+            let y = parseInt(parts[2]),
+                m = parseInt(parts[1]);
             if (isNaN(y) || isNaN(m)) return { year: null, month: null };
             if (y < 100) y += 2000;
             return { year: y, month: m };
         }
+
         function escapeHtml(str) {
             if (!str) return '';
-            return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+            return str.replace(/[&<>]/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
         }
+
         function showLoading() { document.getElementById('loadingOverlay').style.display = 'flex'; }
+
         function hideLoading() { document.getElementById('loadingOverlay').style.display = 'none'; }
+
         function addActionNotification(text) {
             const id = 'action-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5);
             notifications.unshift({ id, text, date: new Date().toISOString() });
@@ -1550,6 +1944,7 @@
             updateNotificationBadge();
             renderNotificationDropdown();
         }
+
         function updateNotificationBadge() {
             const badge = document.getElementById('notification-badge');
             if (!badge) return;
@@ -1557,12 +1952,17 @@
             badge.style.display = unreadCount > 0 ? 'flex' : 'none';
             badge.textContent = unreadCount > 9 ? '9+' : unreadCount;
         }
+
         function renderNotificationDropdown() {
             const dropdown = document.getElementById('notification-dropdown');
             if (!dropdown) return;
-            dropdown.innerHTML = notifications.length === 0 ? '<div class="notification-item">Nenhuma notificação</div>' :
-                notifications.slice(0,5).map(n => `<div class="notification-item ${readNotifications.includes(String(n.id)) ? 'read' : 'unread'}"><div>${n.text}</div><div class="date">${new Date(n.date).toLocaleDateString('pt-BR')}</div></div>`).join('');
+            dropdown.innerHTML = notifications.length === 0 ?
+                '<div class="notification-item">Nenhuma notificação</div>' :
+                notifications.slice(0, 5).map(n =>
+                    `<div class="notification-item ${readNotifications.includes(String(n.id)) ? 'read' : 'unread'}"><div>${n.text}</div><div class="date">${new Date(n.date).toLocaleDateString('pt-BR')}</div></div>`
+                    ).join('');
         }
+
         function markNotificationsAsRead() {
             const unreadIds = notifications.map(n => String(n.id)).filter(id => !readNotifications.includes(id));
             readNotifications = [...readNotifications, ...unreadIds];
@@ -1570,6 +1970,7 @@
             updateNotificationBadge();
             renderNotificationDropdown();
         }
+
         function applyUserProfile() {
             document.getElementById('greeting').innerText = `${getNomeExibicao()}`;
             document.getElementById('topbar-greeting').textContent = getNomeExibicao().split(' ')[0];
@@ -1587,11 +1988,16 @@
                 document.body.style.background = 'linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%)';
             }
         }
-        function saveUserProfile() { localStorage.setItem('userProfile', JSON.stringify(userProfile)); applyUserProfile(); }
+
+        function saveUserProfile() { localStorage.setItem('userProfile', JSON.stringify(userProfile));
+            applyUserProfile(); }
+
         function saveFilterState() {
-            const state = { currentSort, chartsVisible, comparisonVisible, selectedCompareYears: Array.from(selectedCompareYears) };
+            const state = { currentSort, chartsVisible, comparisonVisible, selectedCompareYears: Array.from(
+                    selectedCompareYears) };
             localStorage.setItem('dashboardFilters', JSON.stringify(state));
         }
+
         function loadFilterState() {
             const saved = localStorage.getItem('dashboardFilters');
             if (!saved) return false;
@@ -1602,12 +2008,13 @@
                 if (typeof state.comparisonVisible === 'boolean') comparisonVisible = state.comparisonVisible;
                 if (state.selectedCompareYears) selectedCompareYears = new Set(state.selectedCompareYears);
                 return true;
-            } catch(e) { return false; }
+            } catch (e) { return false; }
         }
+
         function saveCurrentFilterAsFavorite() {
             let name = '';
             const brands = Array.from(activeSelectedMarcas);
-            if (brands.length) name = brands.slice(0,2).join(', ') + (brands.length > 2 ? '...' : '');
+            if (brands.length) name = brands.slice(0, 2).join(', ') + (brands.length > 2 ? '...' : '');
             else name = 'Sem grupos';
             const years = Array.from(activeSelectedAnos);
             if (years.length) name += ` (${years.join(', ')})`;
@@ -1636,6 +2043,7 @@
             renderFavorites();
             addActionNotification(`⭐ Favorito "${name}" salvo`);
         }
+
         function deleteFavorite(id) {
             if (!confirm('Excluir este favorito?')) return;
             favorites = favorites.filter(f => f.id !== id);
@@ -1643,6 +2051,7 @@
             renderFavorites();
             addActionNotification('🗑️ Favorito removido');
         }
+
         function applyFavorite(fav) {
             const f = fav.filters;
             activeSelectedEmpresas = new Set(f.empresas);
@@ -1660,32 +2069,44 @@
             tempSelectedMarcas = new Set(activeSelectedMarcas);
             tempSelectedAnos = new Set(activeSelectedAnos);
             setTimeout(() => {
-                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(cb.value));
-                document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = activeSelectedMarcas.has(cb.value));
-                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(
+                    cb.value));
+                document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = activeSelectedMarcas.has(cb
+                .value));
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                    cb.checked = activeSelectedAnos.has(val); });
             }, 100);
             applyFullFilterAndRender();
             addActionNotification(`📌 Favorito "${fav.name}" aplicado`);
         }
+
         function renderFavorites() {
             const container = document.getElementById('favoritesSection');
             if (!container) return;
-            if (favorites.length === 0) { container.innerHTML = '<div class="filter-group"><h3><i class="fas fa-star"></i> Filtros Salvos</h3><div class="empty-message" style="padding: 8px;">Nenhum favorito salvo</div></div>'; return; }
-            container.innerHTML = `<div class="filter-group"><h3><i class="fas fa-star"></i> Filtros Salvos</h3><div style="max-height:220px;overflow-y:auto;">` +
-                favorites.map(fav => `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #eee;"><div style="flex:1;cursor:pointer;" onclick="applyFavoriteById('${fav.id}')"><strong>${escapeHtml(fav.name)}</strong><br><small>${new Date(fav.id.split('-')[1]).toLocaleDateString('pt-BR')}</small></div><button onclick="deleteFavoriteById('${fav.id}');event.stopPropagation()" style="background:none;border:none;color:#c62828;font-size:1.2rem;cursor:pointer;">×</button></div>`).join('') + `</div></div>`;
+            if (favorites.length === 0) { container.innerHTML =
+                    '<div class="filter-group"><h3><i class="fas fa-star"></i> Filtros Salvos</h3><div class="empty-message" style="padding: 8px;">Nenhum favorito salvo</div></div>'
+                    ; return; }
+            container.innerHTML =
+                `<div class="filter-group"><h3><i class="fas fa-star"></i> Filtros Salvos</h3><div style="max-height:220px;overflow-y:auto;">` +
+                favorites.map(fav =>
+                    `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-bottom:1px solid #eee;"><div style="flex:1;cursor:pointer;" onclick="applyFavoriteById('${fav.id}')"><strong>${escapeHtml(fav.name)}</strong><br><small>${new Date(fav.id.split('-')[1]).toLocaleDateString('pt-BR')}</small></div><button onclick="deleteFavoriteById('${fav.id}');event.stopPropagation()" style="background:none;border:none;color:#c62828;font-size:1.2rem;cursor:pointer;">×</button></div>`
+                    ).join('') + `</div></div>`;
         }
-        window.applyFavoriteById = (id) => { const fav = favorites.find(f => f.id === id); if (fav) applyFavorite(fav); };
+        window.applyFavoriteById = (id) => { const fav = favorites.find(f => f.id === id); if (fav) applyFavorite(
+            fav); };
         window.deleteFavoriteById = (id) => { deleteFavorite(id); };
 
         function applyFullFilterAndRender() {
             showLoading();
             setTimeout(() => {
                 filteredData = rawData.filter(item => {
-                    if (activeSelectedEmpresas.size && !activeSelectedEmpresas.has(item.empresa)) return false;
+                    if (activeSelectedEmpresas.size && !activeSelectedEmpresas.has(item.empresa))
+                        return false;
                     if (activeSelectedMarcas.size && !activeSelectedMarcas.has(item.grupo)) return false;
                     if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false;
                     for (let key in activeAdvancedFilters) {
-                        if (activeAdvancedFilters[key].size && !activeAdvancedFilters[key].has(item[key] || '')) return false;
+                        if (activeAdvancedFilters[key].size && !activeAdvancedFilters[key].has(item[
+                                key] || '')) return false;
                     }
                     return true;
                 });
@@ -1695,73 +2116,82 @@
             }, 30);
         }
 
-        // ==================== FILTRO PADRÃO: ANO ATUAL ====================
         function setDefaultYearFilter() {
             if (!rawData.length) return;
-            const availableYears = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+            const availableYears = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
             let currentYear = new Date().getFullYear();
             let defaultYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
             activeSelectedAnos.clear();
             activeSelectedAnos.add(defaultYear);
             tempSelectedAnos = new Set(activeSelectedAnos);
             setTimeout(() => {
-                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                    cb.checked = activeSelectedAnos.has(val); });
             }, 50);
         }
+
         function setDefaultCompareYears() {
             if (!rawData.length) return;
-            const years = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+            const years = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
             selectedCompareYears.clear();
             let currentYear = new Date().getFullYear();
             if (years.includes(currentYear)) selectedCompareYears.add(currentYear);
-            if (years.includes(currentYear-1)) selectedCompareYears.add(currentYear-1);
+            if (years.includes(currentYear - 1)) selectedCompareYears.add(currentYear - 1);
             if (selectedCompareYears.size === 0 && years.length) selectedCompareYears.add(years[0]);
-            if (selectedCompareYears.size === 1 && years.length >=2) selectedCompareYears.add(years[1]);
+            if (selectedCompareYears.size === 1 && years.length >= 2) selectedCompareYears.add(years[1]);
             renderCompareYearsSelector();
         }
+
         function clearAllFilters() {
             activeSelectedEmpresas.clear();
             activeSelectedMarcas.clear();
             Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
             if (rawData.length) {
-                const availableYears = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+                const availableYears = [...new Set(rawData.map(d => d.year))].sort((a, b) => b - a);
                 let currentYear = new Date().getFullYear();
                 let defaultYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
                 activeSelectedAnos.clear();
                 activeSelectedAnos.add(defaultYear);
                 tempSelectedAnos = new Set(activeSelectedAnos);
                 setTimeout(() => {
-                    document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+                    document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                        cb.checked = activeSelectedAnos.has(val); });
                     document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = false);
                     document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = false);
                 }, 50);
-            } else { activeSelectedAnos.clear(); tempSelectedAnos.clear(); }
+            } else { activeSelectedAnos.clear();
+                tempSelectedAnos.clear(); }
             tempSelectedEmpresas.clear();
             tempSelectedMarcas.clear();
             applyFullFilterAndRender();
             addActionNotification('🔄 Filtros resetados para ano atual');
         }
+
         function smartContinentalGoodyear() {
             const targetBrands = ['continental', 'contitech', 'goodyear'];
             const gruposSet = new Set();
-            rawData.forEach(d => { const lowerGrupo = d.grupo.toLowerCase(); if (targetBrands.some(b => lowerGrupo.includes(b))) gruposSet.add(d.grupo); });
+            rawData.forEach(d => { const lowerGrupo = d.grupo.toLowerCase(); if (targetBrands.some(b =>
+                    lowerGrupo.includes(b))) gruposSet.add(d.grupo); });
             activeSelectedMarcas.clear();
             gruposSet.forEach(g => activeSelectedMarcas.add(g));
-            const availableYears = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
+            const availableYears = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
             const currentYear = new Date().getFullYear();
-            let yearsToSelect = [currentYear, currentYear-1].filter(y => availableYears.includes(y));
-            if (yearsToSelect.length === 0 && availableYears.length) yearsToSelect = [availableYears[availableYears.length-1]];
+            let yearsToSelect = [currentYear, currentYear - 1].filter(y => availableYears.includes(y));
+            if (yearsToSelect.length === 0 && availableYears.length) yearsToSelect = [availableYears[
+                availableYears.length - 1]];
             activeSelectedAnos.clear();
             yearsToSelect.forEach(y => activeSelectedAnos.add(y));
             tempSelectedMarcas = new Set(gruposSet);
             tempSelectedAnos = new Set(activeSelectedAnos);
             setTimeout(() => {
                 document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = gruposSet.has(cb.value));
-                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = yearsToSelect.includes(val); });
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                    cb.checked = yearsToSelect.includes(val); });
             }, 100);
             applyFullFilterAndRender();
             addActionNotification(`🔍 Continental/Goodyear aplicado (últimos 2 anos: ${yearsToSelect.join(', ')})`);
         }
+
         function applyQuickFilters() {
             activeSelectedEmpresas = new Set(tempSelectedEmpresas);
             activeSelectedMarcas = new Set(tempSelectedMarcas);
@@ -1769,88 +2199,99 @@
             applyFullFilterAndRender();
             document.getElementById('filterSidebar').classList.remove('open');
         }
+
         function resetQuickFilters() {
-            tempSelectedEmpresas.clear(); tempSelectedMarcas.clear(); tempSelectedAnos.clear();
+            tempSelectedEmpresas.clear();
+            tempSelectedMarcas.clear();
+            tempSelectedAnos.clear();
             document.querySelectorAll('.empresa-cb, .marca-cb, .ano-cb').forEach(cb => cb.checked = false);
         }
 
-        // ==================== MODAL AVANÇADO DINÂMICO (sob demanda com busca) ====================
-        // Estrutura dos campos que serão usados
+        // ==================== MODAL AVANÇADO DINÂMICO ====================
         const advFields = [
-            { id: 'codigo', label: 'Código', getValue: (item) => item.codigo },
-            { id: 'descricao', label: 'Descrição', getValue: (item) => item.descricao },
-            { id: 'vendedor', label: 'Vendedor', getValue: (item) => item.vendedor },
-            { id: 'grupo', label: 'Grupo', getValue: (item) => item.grupo },
-            { id: 'notaFiscal', label: 'Nota Fiscal', getValue: (item) => item.notaFiscal },
-            { id: 'nomeChave', label: 'Nome Chave', getValue: (item) => item.nomeChave }
+            { id: 'codigo', label: 'Código', icon: 'fa-barcode', getValue: (item) => item.codigo },
+            { id: 'descricao', label: 'Descrição', icon: 'fa-align-left', getValue: (item) => item.descricao },
+            { id: 'vendedor', label: 'Vendedor', icon: 'fa-user-tie', getValue: (item) => item.vendedor },
+            { id: 'grupo', label: 'Grupo', icon: 'fa-layer-group', getValue: (item) => item.grupo },
+            { id: 'notaFiscal', label: 'Nota Fiscal', icon: 'fa-file-invoice', getValue: (item) => item.notaFiscal },
+            { id: 'nomeChave', label: 'Nome Chave', icon: 'fa-building', getValue: (item) => item.nomeChave }
         ];
 
         function buildAdvancedModalDOM() {
             const container = document.getElementById('advancedFiltersContainer');
             if (!container) return;
-            // Cria a estrutura vazia para cada campo (sem checkboxes ainda)
             container.innerHTML = advFields.map(f => `
                 <div class="filter-adv-group" data-field="${f.id}">
-                    <h4><i class="fas fa-filter"></i> ${f.label}</h4>
-                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:8px; width:100%; padding:8px 12px; border-radius:40px; border:1px solid #ccc;">
+                    <h4><i class="fas ${f.icon}"></i> ${f.label} <span class="badge-count" id="badge-${f.id}">0 selecionados</span></h4>
+                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:8px; width:100%; padding:10px 14px; border-radius:40px; border:1px solid #dde5ef; background:white;">
                     <div class="adv-list" id="adv-list-${f.id}" style="max-height: 200px; overflow-y: auto;"></div>
                 </div>
             `).join('');
-            // Para cada campo, adiciona evento de busca e carrega os checkboxes já selecionados (inicialmente vazios)
+
             advFields.forEach(f => {
                 const searchInput = container.querySelector(`.adv-search[data-field="${f.id}"]`);
                 const listDiv = document.getElementById(`adv-list-${f.id}`);
+                const badgeEl = document.getElementById(`badge-${f.id}`);
                 if (!searchInput || !listDiv) return;
-                // Função que atualiza a lista com base no termo de busca
+
                 const updateList = (searchTerm = '') => {
-                    // Obtém todos os valores únicos do campo nos dados brutos (rawData)
-                    const allValues = [...new Set(rawData.map(item => f.getValue(item)).filter(v => v && v.trim() !== ''))].sort();
+                    const allValues = [...new Set(rawData.map(item => f.getValue(item)).filter(v => v &&
+                        v.trim() !== ''))].sort();
                     let filteredValues = allValues;
                     if (searchTerm.trim() !== '') {
                         const termLower = searchTerm.trim().toLowerCase();
                         filteredValues = allValues.filter(val => val.toLowerCase().includes(termLower));
                     }
-                    // Limita a 200 para performance (exibe uma mensagem se houver mais)
                     const showLimited = filteredValues.length > 200;
                     const limitedValues = filteredValues.slice(0, 200);
                     listDiv.innerHTML = limitedValues.map(val => `
-                        <label style="display:flex; gap:6px; align-items:center;">
+                        <label>
                             <input type="checkbox" value="${escapeHtml(val)}" class="adv-cb" data-field="${f.id}">
-                            <span style="font-size:0.75rem;">${escapeHtml(val)}</span>
+                            <span>${escapeHtml(val)}</span>
                         </label>
                     `).join('');
                     if (showLimited) {
-                        listDiv.innerHTML += `<div style="padding:6px; color:#888; text-align:center; font-size:0.7rem;">+ ${filteredValues.length - 200} outros. Refine a busca.</div>`;
+                        listDiv.innerHTML +=
+                            `<div style="padding:6px; color:#888; text-align:center; font-size:0.7rem;">+ ${filteredValues.length - 200} outros. Refine a busca.</div>`;
                     }
-                    // Marca os checkboxes conforme o estado atual dos filtros ativos
                     listDiv.querySelectorAll('.adv-cb').forEach(cb => {
                         cb.checked = activeAdvancedFilters[f.id].has(cb.value);
                         cb.addEventListener('change', (e) => {
-                            if (e.target.checked) activeAdvancedFilters[f.id].add(e.target.value);
+                            if (e.target.checked) activeAdvancedFilters[f.id].add(e.target
+                                .value);
                             else activeAdvancedFilters[f.id].delete(e.target.value);
+                            updateBadgeCount(f.id);
                         });
                     });
+                    updateBadgeCount(f.id);
                 };
-                // Atualiza ao digitar (debounce para evitar muitas renderizações)
+
+                const updateBadgeCount = (fieldId) => {
+                    const count = activeAdvancedFilters[fieldId].size;
+                    const b = document.getElementById(`badge-${fieldId}`);
+                    if (b) b.textContent = count > 0 ? `${count} selecionado(s)` : '0 selecionados';
+                };
+
                 let debounceTimer;
                 searchInput.addEventListener('input', (e) => {
                     clearTimeout(debounceTimer);
                     debounceTimer = setTimeout(() => updateList(e.target.value), 300);
                 });
-                // Primeira atualização com busca vazia (mostra os primeiros 200 itens)
                 updateList('');
             });
         }
 
-        // Sincroniza checkboxes com os filtros ativos (quando o modal já está aberto e o usuário altera algo fora)
         function syncAdvancedModalCheckboxes() {
             advFields.forEach(f => {
                 const listDiv = document.getElementById(`adv-list-${f.id}`);
+                const badgeEl = document.getElementById(`badge-${f.id}`);
                 if (listDiv) {
                     listDiv.querySelectorAll('.adv-cb').forEach(cb => {
                         cb.checked = activeAdvancedFilters[f.id].has(cb.value);
                     });
                 }
+                if (badgeEl) badgeEl.textContent = activeAdvancedFilters[f.id].size > 0 ?
+                    `${activeAdvancedFilters[f.id].size} selecionado(s)` : '0 selecionados';
             });
         }
 
@@ -1862,39 +2303,60 @@
             data.forEach(d => { qty += d.quantidade; if (d.notaFiscal) notas.add(d.notaFiscal); });
             const avgTicket = qty ? totalRevenueFiltered / qty : 0;
             const kpiMap = [
-                { label: 'Faturamento Total', value: `R$ ${formatMoney(totalRevenueFiltered)}`, icon: 'dollar-sign', color: '#2563eb', footnote: 'No filtro atual' },
-                { label: 'Quantidade Vendida', value: qty.toLocaleString('pt-BR'), icon: 'boxes', color: '#10b981', footnote: 'No filtro atual' },
-                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b', footnote: 'Média por item' },
-                { label: 'Notas Fiscais', value: notas.size, icon: 'file-invoice', color: '#8b5cf6', footnote: 'No filtro atual' },
-                { label: 'Itens Vendidos', value: data.length, icon: 'list-ul', color: '#ef4444', footnote: 'No filtro atual' }
+                { label: 'Faturamento Total', value: `R$ ${formatMoney(totalRevenueFiltered)}`, icon: 'dollar-sign',
+                    color: '#2563eb', footnote: 'No filtro atual' },
+                { label: 'Quantidade Vendida', value: qty.toLocaleString('pt-BR'), icon: 'boxes', color: '#10b981',
+                    footnote: 'No filtro atual' },
+                { label: 'Ticket Médio', value: `R$ ${formatMoney(avgTicket)}`, icon: 'receipt', color: '#f59e0b',
+                    footnote: 'Média por item' },
+                { label: 'Notas Fiscais', value: notas.size, icon: 'file-invoice', color: '#8b5cf6',
+                footnote: 'No filtro atual' },
+                { label: 'Itens Vendidos', value: data.length, icon: 'list-ul', color: '#ef4444',
+                    footnote: 'No filtro atual' }
             ];
-            document.getElementById('kpiContainer').innerHTML = kpiMap.map(k => `<div class="kpi-card glass" style="border-left-color:${k.color}"><div class="kpi-main-row"><div class="kpi-info"><h4>${k.label}</h4><div class="kpi-number">${k.value}</div></div><div class="kpi-icon"><i class="fas fa-${k.icon}"></i></div></div><div class="kpi-footnote"><i class="fas fa-asterisk"></i> ${k.footnote}</div></div>`).join('');
+            document.getElementById('kpiContainer').innerHTML = kpiMap.map(k =>
+                `<div class="kpi-card glass" style="border-left-color:${k.color}"><div class="kpi-main-row"><div class="kpi-info"><h4>${k.label}</h4><div class="kpi-number">${k.value}</div></div><div class="kpi-icon"><i class="fas fa-${k.icon}"></i></div></div><div class="kpi-footnote"><i class="fas fa-asterisk"></i> ${k.footnote}</div></div>`
+                ).join('');
         }
+
         function renderMonthlyEvolution() {
             if (!filteredData.length) return;
             if (monthlyChart) monthlyChart.destroy();
             const monthly = new Map();
-            filteredData.forEach(d => { if (d.year && d.month) { const key = `${d.year}-${d.month}`; monthly.set(key, (monthly.get(key)||0) + d.valorMercadoria); } });
+            filteredData.forEach(d => { if (d.year && d.month) { const key = `${d.year}-${d.month}`;
+                    monthly.set(key, (monthly.get(key) || 0) + d.valorMercadoria); } });
             const sorted = Array.from(monthly.keys()).sort();
-            const labels = sorted.map(k => { let [y,m] = k.split('-'); return `${m}/${y.slice(-2)}`; });
+            const labels = sorted.map(k => { let [y, m] = k.split('-'); return `${m}/${y.slice(-2)}`; });
             const values = sorted.map(k => monthly.get(k));
             const ctx = document.getElementById('monthlyChart').getContext('2d');
-            monthlyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Faturamento (R$)', data: values, borderColor: '#1e3a5f', tension: 0.3, fill: true }] }, options: { responsive: true, maintainAspectRatio: true } });
+            monthlyChart = new Chart(ctx, { type: 'line', data: { labels, datasets: [{ label: 'Faturamento (R$)',
+                        data: values, borderColor: '#1e3a5f', tension: 0.3, fill: true,
+                        backgroundColor: 'rgba(30,58,95,0.05)', pointRadius: 3, pointBackgroundColor: '#1e3a5f'
+                    }] }, options: { responsive: true, maintainAspectRatio: true,
+                    plugins: { legend: { display: false } } } });
         }
+
         function renderComparisonChart() {
             if (!filteredData.length) return;
             if (compareChart) compareChart.destroy();
             const years = Array.from(selectedCompareYears).sort();
             if (!years.length) return;
-            const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-            const datasets = years.map(year => {
+            const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+            const colorPalette = ['#1e3a5f', '#e67e22', '#2ecc71', '#e74c3c', '#9b59b6', '#1abc9c'];
+            const datasets = years.map((year, i) => {
                 const monthlyData = new Array(12).fill(0);
-                filteredData.forEach(d => { if (d.year === year && d.month >= 1 && d.month <= 12) monthlyData[d.month-1] += d.valorMercadoria; });
-                return { label: `${year}`, data: monthlyData, backgroundColor: `rgba(${Math.floor(Math.random()*155)+100},${Math.floor(Math.random()*155)+100},200,0.7)` };
+                filteredData.forEach(d => { if (d.year === year && d.month >= 1 && d.month <= 12)
+                        monthlyData[d.month - 1] += d.valorMercadoria; });
+                return { label: `${year}`, data: monthlyData,
+                    backgroundColor: colorPalette[i % colorPalette.length],
+                    borderRadius: 4, borderSkipped: false };
             });
             const ctx = document.getElementById('yearCompareChart').getContext('2d');
-            compareChart = new Chart(ctx, { type: 'bar', data: { labels: months, datasets }, options: { responsive: true, maintainAspectRatio: true, scales: { y: { ticks: { callback: (v) => 'R$ '+v.toLocaleString('pt-BR') } } } } });
+            compareChart = new Chart(ctx, { type: 'bar', data: { labels: months, datasets }, options: { responsive: true,
+                    maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { ticks: { callback: (v) => 'R$ ' + v.toLocaleString('pt-BR') } } } } });
         }
+
         function renderComparison() {
             const container = document.getElementById('comparisonContainer');
             const thead = document.getElementById('comparisonThead');
@@ -1903,31 +2365,42 @@
             if (!comparisonVisible) { container.style.display = 'none'; return; }
             container.style.display = 'block';
             const years = Array.from(selectedCompareYears).sort();
-            const months = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-            if (years.length === 0) { thead.innerHTML = '<th>Mês</th><th>Selecione anos acima</th>'; tbody.innerHTML = '<tr><td colspan="2" class="empty-message">Marque os anos desejados nos checkboxes acima</td></tr>'; return; }
+            const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro',
+                'Outubro', 'Novembro', 'Dezembro'
+            ];
+            if (years.length === 0) { thead.innerHTML =
+                '<th>Mês</th><th>Selecione anos acima</th>';
+                tbody.innerHTML =
+                '<tr><td colspan="2" class="empty-message">Marque os anos desejados nos checkboxes acima</td></tr>'
+                ; return; }
             const dataSource = filteredData.length ? filteredData : rawData;
             thead.innerHTML = `<th>Mês</th>${years.map(y => `<th>${y} (R$)</th>`).join('')}`;
             let html = '';
             for (let i = 0; i < 12; i++) {
-                let row = `<td>${months[i]}</td>`;
+                let row = `<td><strong>${months[i]}</strong></td>`;
                 for (let y of years) {
-                    let total = dataSource.filter(d => d.year === y && d.month === i + 1).reduce((a, b) => a + b.valorMercadoria, 0);
+                    let total = dataSource.filter(d => d.year === y && d.month === i + 1).reduce((a, b) => a + b
+                        .valorMercadoria, 0);
                     row += `<td>R$ ${formatMoney(total)}</td>`;
                 }
                 html += `<tr>${row}</tr>`;
             }
             tbody.innerHTML = html;
         }
+
         function renderCompareYearsSelector() {
-            const anos = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
+            const anos = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
             const container = document.getElementById('compareYearsGroup');
             if (!container) return;
-            container.innerHTML = anos.map(y => `<label><input type="checkbox" value="${y}" class="compare-year-cb" ${selectedCompareYears.has(y) ? 'checked' : ''}> ${y}</label>`).join('');
+            container.innerHTML = anos.map(y =>
+                `<label style="margin-left:8px;font-size:0.75rem;cursor:pointer;"><input type="checkbox" value="${y}" class="compare-year-cb" ${selectedCompareYears.has(y) ? 'checked' : ''}> ${y}</label>`
+                ).join('');
             document.querySelectorAll('.compare-year-cb').forEach(cb => {
                 cb.removeEventListener('change', handleCompareYearChange);
                 cb.addEventListener('change', handleCompareYearChange);
             });
         }
+
         function handleCompareYearChange(e) {
             let val = parseInt(e.target.value);
             if (e.target.checked) selectedCompareYears.add(val);
@@ -1936,104 +2409,241 @@
             renderComparisonChart();
             renderComparison();
         }
+
         function renderDetailTable() {
             let dataSource = [...filteredData];
-            dataSource.sort((a,b)=>{
-                let aVal = a[currentSort.field], bVal = b[currentSort.field];
+            dataSource.sort((a, b) => {
+                let aVal = a[currentSort.field],
+                    bVal = b[currentSort.field];
                 if (currentSort.field === 'data') {
                     aVal = a.dataRaw ? new Date(a.dataRaw.split('/').reverse().join('-')) : new Date(0);
                     bVal = b.dataRaw ? new Date(b.dataRaw.split('/').reverse().join('-')) : new Date(0);
-                } else if (['quantidade','valorUnitario','valorMercadoria'].includes(currentSort.field)) {
-                    aVal = Number(aVal); bVal = Number(bVal);
-                } else if (typeof aVal === 'string') { aVal = aVal.toLowerCase(); bVal = bVal.toLowerCase(); }
+                } else if (['quantidade', 'valorUnitario', 'valorMercadoria'].includes(currentSort.field)) {
+                    aVal = Number(aVal);
+                    bVal = Number(bVal);
+                } else if (typeof aVal === 'string') { aVal = aVal.toLowerCase();
+                    bVal = bVal.toLowerCase(); }
                 return currentSort.order === 'asc' ? (aVal > bVal ? 1 : -1) : (aVal < bVal ? 1 : -1);
             });
             const tbody = document.getElementById('tableBody');
-            if (!dataSource.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty-message">Nenhum dado com os filtros atuais</td></tr>'; return; }
-            tbody.innerHTML = dataSource.map(item => `<tr data-item='${escapeHtml(JSON.stringify(item))}'>
-                <td>${escapeHtml(item.codigo)}</td><td>${escapeHtml(item.descricao.substring(0,60))}</td><td>${escapeHtml(item.grupo)}</td>
+            if (!dataSource.length) { tbody.innerHTML =
+                    '<tr><td colspan="10" class="empty-message">Nenhum dado com os filtros atuais</td></tr>'; return; }
+            tbody.innerHTML = dataSource.map((item, idx) => `<tr data-item='${escapeHtml(JSON.stringify(item))}' style="cursor:pointer;">
+                <td>${escapeHtml(item.codigo)}</td><td title="${escapeHtml(item.descricao)}">${escapeHtml(item.descricao.substring(0,55))}${item.descricao.length>55?'…':''}</td><td>${escapeHtml(item.grupo)}</td>
                 <td>${item.quantidade.toLocaleString('pt-BR')}</td><td>R$ ${formatMoney(item.valorUnitario)}</td>
                 <td><strong>R$ ${formatMoney(item.valorMercadoria)}</strong></td><td>${escapeHtml(item.dataRaw)}</td>
-                <td>${escapeHtml(item.notaFiscal)}</td><td>${escapeHtml(item.nomeChave)}</td><td>${escapeHtml(item.vendedor)}</td>
+                <td>${escapeHtml(item.notaFiscal)}</td><td title="${escapeHtml(item.nomeChave)}">${escapeHtml(item.nomeChave.substring(0,25))}${item.nomeChave.length>25?'…':''}</td><td>${escapeHtml(item.vendedor)}</td>
             </tr>`).join('');
-            document.querySelectorAll('#tableBody tr').forEach(row => row.addEventListener('click', () => { const raw = row.getAttribute('data-item'); if (raw) showDetailModal(JSON.parse(raw)); }));
+            document.querySelectorAll('#tableBody tr').forEach(row => row.addEventListener('click', () => { const raw = row
+                    .getAttribute('data-item'); if (raw) showDetailModal(JSON.parse(raw)); }));
             if (!window._sortHeadersAttached) {
                 window._sortHeadersAttached = true;
                 document.querySelectorAll('#detailTable th').forEach(th => {
                     let field = th.dataset.sort;
                     if (field) th.addEventListener('click', () => {
-                        if (currentSort.field === field) currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
-                        else { currentSort.field = field; currentSort.order = 'desc'; }
-                        saveFilterState(); renderDetailTable();
+                        if (currentSort.field === field) currentSort.order = currentSort.order ===
+                            'asc' ? 'desc' : 'asc';
+                        else { currentSort.field = field;
+                            currentSort.order = 'desc'; }
+                        saveFilterState();
+                        renderDetailTable();
                     });
                 });
             }
         }
+
         function showDetailModal(item) {
+            currentDetailItem = item;
             const modal = document.getElementById('rowDetailModal');
             const content = document.getElementById('detailModalContent');
+            const fields = [
+                { icon: 'fa-barcode', label: 'Código', value: item.codigo },
+                { icon: 'fa-align-left', label: 'Descrição', value: item.descricao },
+                { icon: 'fa-layer-group', label: 'Grupo', value: item.grupo },
+                { icon: 'fa-cubes', label: 'Quantidade', value: item.quantidade.toLocaleString('pt-BR') },
+                { icon: 'fa-tag', label: 'Valor Unitário', value: `R$ ${formatMoney(item.valorUnitario)}` },
+                { icon: 'fa-money-bill-wave', label: 'Valor Total', value: `<strong>R$ ${formatMoney(item.valorMercadoria)}</strong>` },
+                { icon: 'fa-calendar-alt', label: 'Data', value: item.dataRaw },
+                { icon: 'fa-file-invoice', label: 'Nota Fiscal', value: item.notaFiscal },
+                { icon: 'fa-building', label: 'Cliente', value: item.nomeChave },
+                { icon: 'fa-user-tie', label: 'Vendedor', value: item.vendedor }
+            ];
             content.innerHTML = `
-                <div class="receipt-item"><div class="receipt-label">Código</div><div class="receipt-value">${escapeHtml(item.codigo)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Descrição</div><div class="receipt-value">${escapeHtml(item.descricao)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Grupo</div><div class="receipt-value">${escapeHtml(item.grupo)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Quantidade</div><div class="receipt-value">${item.quantidade.toLocaleString('pt-BR')}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Valor Unitário</div><div class="receipt-value">R$ ${formatMoney(item.valorUnitario)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Total</div><div class="receipt-value"><strong>R$ ${formatMoney(item.valorMercadoria)}</strong></div></div>
-                <div class="receipt-item"><div class="receipt-label">Data</div><div class="receipt-value">${escapeHtml(item.dataRaw)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Nota Fiscal</div><div class="receipt-value">${escapeHtml(item.notaFiscal)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Cliente</div><div class="receipt-value">${escapeHtml(item.nomeChave)}</div></div>
-                <div class="receipt-item"><div class="receipt-label">Vendedor</div><div class="receipt-value">${escapeHtml(item.vendedor)}</div></div>
+                <div class="receipt-header">
+                    <i class="fas fa-receipt"></i> COMPROVANTE DE VENDA
+                </div>
+                <div class="receipt-body">
+                    ${fields.map(f => `
+                        <div class="receipt-item">
+                            <div class="receipt-icon"><i class="fas ${f.icon}"></i></div>
+                            <div class="receipt-info">
+                                <div class="receipt-label">${f.label}</div>
+                                <div class="receipt-value">${f.value}</div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                <div class="receipt-footer">
+                    <i class="fas fa-clock"></i> Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
+                </div>
             `;
+            // reseta o botão copiar
+            const btnCopy = document.getElementById('btnCopyReceipt');
+            if (btnCopy) {
+                btnCopy.classList.remove('copied');
+                btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+            }
             modal.style.display = 'flex';
         }
+
+        function copyReceiptToClipboard() {
+            if (!currentDetailItem) return;
+            const item = currentDetailItem;
+            const text = [
+                '═══════════════════════════════════',
+                '       COMPROVANTE DE VENDA',
+                '═══════════════════════════════════',
+                '',
+                `  Código........: ${item.codigo}`,
+                `  Descrição.....: ${item.descricao}`,
+                `  Grupo.........: ${item.grupo}`,
+                `  Quantidade....: ${item.quantidade.toLocaleString('pt-BR')}`,
+                `  Valor Unitário: R$ ${formatMoney(item.valorUnitario)}`,
+                `  Valor Total...: R$ ${formatMoney(item.valorMercadoria)}`,
+                `  Data..........: ${item.dataRaw}`,
+                `  Nota Fiscal...: ${item.notaFiscal}`,
+                `  Cliente.......: ${item.nomeChave}`,
+                `  Vendedor......: ${item.vendedor}`,
+                '',
+                '───────────────────────────────────',
+                `  Emitido por Centrobor • ${new Date().toLocaleDateString('pt-BR')}`,
+                '═══════════════════════════════════'
+            ].join('\n');
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text).then(() => {
+                    const btnCopy = document.getElementById('btnCopyReceipt');
+                    if (btnCopy) {
+                        btnCopy.classList.add('copied');
+                        btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                        setTimeout(() => {
+                            btnCopy.classList.remove('copied');
+                            btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+                        }, 2500);
+                    }
+                    addActionNotification('📋 Comprovante copiado para a área de transferência');
+                }).catch(() => {
+                    fallbackCopy(text);
+                });
+            } else {
+                fallbackCopy(text);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '-9999px';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const btnCopy = document.getElementById('btnCopyReceipt');
+                if (btnCopy) {
+                    btnCopy.classList.add('copied');
+                    btnCopy.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                    setTimeout(() => {
+                        btnCopy.classList.remove('copied');
+                        btnCopy.innerHTML = '<i class="fas fa-copy"></i> Copiar informações';
+                    }, 2500);
+                }
+                addActionNotification('📋 Comprovante copiado para a área de transferência');
+            } catch (err) {
+                alert('Não foi possível copiar. Tente novamente.');
+            }
+            document.body.removeChild(textarea);
+        }
+
         function updateDashboard() {
             renderKPIs(filteredData);
-            if (chartsVisible && filteredData.length) { renderMonthlyEvolution(); renderComparisonChart(); } 
-            else { if (monthlyChart) monthlyChart.destroy(); if (compareChart) compareChart.destroy(); monthlyChart = compareChart = null; }
+            if (chartsVisible && filteredData.length) { renderMonthlyEvolution();
+                renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart)
+                    compareChart.destroy();
+                monthlyChart = compareChart = null; }
             renderComparison();
             renderDetailTable();
             renderCompareYearsSelector();
         }
+
         function exportToExcel() {
             const data = filteredData;
-            const wsData = [['Código','Descrição','Grupo','Quantidade','Valor Unitário','Valor Mercadoria','Data','Nota Fiscal','Cliente','Vendedor']];
-            data.forEach(item => wsData.push([item.codigo, item.descricao, item.grupo, item.quantidade, item.valorUnitario, item.valorMercadoria, item.dataRaw, item.notaFiscal, item.nomeChave, item.vendedor]));
+            const wsData = [
+                ['Código', 'Descrição', 'Grupo', 'Quantidade', 'Valor Unitário', 'Valor Mercadoria', 'Data',
+                    'Nota Fiscal', 'Cliente', 'Vendedor'
+                ]
+            ];
+            data.forEach(item => wsData.push([item.codigo, item.descricao, item.grupo, item.quantidade, item
+                .valorUnitario, item.valorMercadoria, item.dataRaw, item.notaFiscal, item.nomeChave, item
+                .vendedor
+            ]));
             const ws = XLSX.utils.aoa_to_sheet(wsData);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'Vendas');
             XLSX.writeFile(wb, `vendas_${new Date().toISOString().slice(0,19)}.xlsx`);
             addActionNotification('📊 Excel exportado');
         }
-        function gerarRelatorioImpressao() { window.print(); addActionNotification('🖨️ Abrindo impressão do relatório (use Ctrl+P para salvar como PDF)'); }
+
+        function gerarRelatorioImpressao() {
+            window.print();
+            addActionNotification('🖨️ Abrindo impressão do relatório (use Ctrl+P para salvar como PDF)');
+        }
 
         // ==================== INICIALIZAÇÃO DOS FILTROS RÁPIDOS ====================
         function initFiltersFromData() {
             if (!rawData.length) return;
-            const empresas = [...new Set(rawData.map(d=>d.empresa).filter(e=>e))].sort();
-            const marcas = [...new Set(rawData.map(d=>d.grupo).filter(m=>m))].sort();
-            const anos = [...new Set(rawData.map(d=>d.year))].sort((a,b)=>a-b);
+            const empresas = [...new Set(rawData.map(d => d.empresa).filter(e => e))].sort();
+            const marcas = [...new Set(rawData.map(d => d.grupo).filter(m => m))].sort();
+            const anos = [...new Set(rawData.map(d => d.year))].sort((a, b) => a - b);
             const empresaDiv = document.getElementById('empresaList');
             const marcaDiv = document.getElementById('marcaList');
             const anoDiv = document.getElementById('anoList');
-            if (empresaDiv) empresaDiv.innerHTML = empresas.map(e => `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`).join('');
-            if (marcaDiv) marcaDiv.innerHTML = marcas.map(m => `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join('');
-            if (anoDiv) anoDiv.innerHTML = anos.map(a => `<label><input type="checkbox" value="${a}" class="ano-cb"> ${a}</label>`).join('');
-            document.querySelectorAll('.empresa-cb').forEach(cb => cb.addEventListener('change', (e) => { if(e.target.checked) tempSelectedEmpresas.add(e.target.value); else tempSelectedEmpresas.delete(e.target.value); }));
-            document.querySelectorAll('.marca-cb').forEach(cb => cb.addEventListener('change', (e) => { if(e.target.checked) tempSelectedMarcas.add(e.target.value); else tempSelectedMarcas.delete(e.target.value); }));
-            document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', (e) => { let val = parseInt(e.target.value); if(e.target.checked) tempSelectedAnos.add(val); else tempSelectedAnos.delete(val); }));
+            if (empresaDiv) empresaDiv.innerHTML = empresas.map(e =>
+                `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`)
+                .join('');
+            if (marcaDiv) marcaDiv.innerHTML = marcas.map(m =>
+                `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join(
+                '');
+            if (anoDiv) anoDiv.innerHTML = anos.map(a =>
+                `<label><input type="checkbox" value="${a}" class="ano-cb"> ${a}</label>`).join('');
+            document.querySelectorAll('.empresa-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
+                    .checked) tempSelectedEmpresas.add(e.target.value);
+                else tempSelectedEmpresas.delete(e.target.value); }));
+            document.querySelectorAll('.marca-cb').forEach(cb => cb.addEventListener('change', (e) => { if (e.target
+                    .checked) tempSelectedMarcas.add(e.target.value);
+                else tempSelectedMarcas.delete(e.target.value); }));
+            document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', (e) => { let val =
+                    parseInt(e.target.value); if (e.target.checked) tempSelectedAnos.add(val);
+                else tempSelectedAnos.delete(val); }));
             const searchEmpresa = document.getElementById('searchEmpresa');
             const searchMarca = document.getElementById('searchMarca');
             if (searchEmpresa) searchEmpresa.addEventListener('input', (e) => filterList('empresaList', e.target.value));
             if (searchMarca) searchMarca.addEventListener('input', (e) => filterList('marcaList', e.target.value));
             setTimeout(() => {
-                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(cb.value));
+                document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = activeSelectedEmpresas.has(cb
+                    .value));
                 document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = activeSelectedMarcas.has(cb.value));
-                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = activeSelectedAnos.has(val); });
+                document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value);
+                    cb.checked = activeSelectedAnos.has(val); });
             }, 50);
         }
+
         function filterList(containerId, term) {
             const container = document.getElementById(containerId);
-            if (container) container.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent.toLowerCase().includes(term.toLowerCase()) ? 'flex' : 'none');
+            if (container) container.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent
+                .toLowerCase().includes(term.toLowerCase()) ? 'flex' : 'none');
         }
 
         // ==================== CARREGAMENTO DE DADOS ====================
@@ -2059,7 +2669,8 @@
                         const dataRaw = row['Data'] || '';
                         const quantidade = parseBrazilianNumber(row['Quantidade']);
                         let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
-                        if (isNaN(valorMerc) || valorMerc === 0) valorMerc = parseBrazilianNumber(row[' Valor Mercadoria']);
+                        if (isNaN(valorMerc) || valorMerc === 0) valorMerc = parseBrazilianNumber(row[
+                            ' Valor Mercadoria']);
                         if (quantidade === 0 && valorMerc === 0) continue;
                         const { year, month } = extractYearMonth(dataRaw);
                         if (!year || !month) continue;
@@ -2091,17 +2702,21 @@
                 }
             }
             rawData = parsed;
-            if (!rawData.length) { document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>'; return; }
+            if (!rawData.length) { document.getElementById('tableBody').innerHTML =
+                    '<tr><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>'
+                    ; return; }
             loadFilterState();
             activeSelectedEmpresas.clear();
             activeSelectedMarcas.clear();
             activeSelectedAnos.clear();
             Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
-            if (rawData.length) { setDefaultYearFilter(); setDefaultCompareYears(); }
-            filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false; return true; });
+            if (rawData.length) { setDefaultYearFilter();
+                setDefaultCompareYears(); }
+            filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year))
+                    return false; return true; });
             updateDashboard();
             initFiltersFromData();
-            buildAdvancedModalDOM(); // Constroi o modal dinâmico com busca sob demanda
+            buildAdvancedModalDOM();
             renderFavorites();
             applyUserProfile();
             updateNotificationBadge();
@@ -2110,8 +2725,10 @@
 
         // ==================== SETUP UI ====================
         function setupUI() {
-            document.getElementById('toggleFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.add('open'));
-            document.getElementById('closeFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.remove('open'));
+            document.getElementById('toggleFilterBtn').addEventListener('click', () => document.getElementById(
+                'filterSidebar').classList.add('open'));
+            document.getElementById('closeFilterBtn').addEventListener('click', () => document.getElementById(
+                'filterSidebar').classList.remove('open'));
             document.getElementById('resetFiltersBtn').addEventListener('click', resetQuickFilters);
             document.getElementById('applyQuickFiltersBtn').addEventListener('click', applyQuickFilters);
             document.getElementById('specialContinentalGoodyear').addEventListener('click', smartContinentalGoodyear);
@@ -2119,46 +2736,115 @@
             document.getElementById('sidebarPdfBtn').addEventListener('click', gerarRelatorioImpressao);
             document.getElementById('sidebarExcelBtn').addEventListener('click', exportToExcel);
             document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
-            document.getElementById('toggleChartsBtn').addEventListener('click', () => { chartsVisible = !chartsVisible; document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none'; if (chartsVisible && filteredData.length) { renderMonthlyEvolution(); renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart) compareChart.destroy(); monthlyChart = compareChart = null; } saveFilterState(); });
-            document.getElementById('toggleComparisonBtn').addEventListener('click', () => { comparisonVisible = !comparisonVisible; document.getElementById('comparisonContainer').style.display = comparisonVisible ? 'block' : 'none'; renderComparison(); saveFilterState(); });
-            document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => { 
-                // Garante que o modal tenha a estrutura (caso ainda não tenha sido construída)
+            document.getElementById('toggleChartsBtn').addEventListener('click', () => { chartsVisible = !
+                chartsVisible;
+                document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none'; if (
+                    chartsVisible && filteredData.length) { renderMonthlyEvolution();
+                    renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart)
+                        compareChart.destroy();
+                    monthlyChart = compareChart = null; }
+                saveFilterState(); });
+            document.getElementById('toggleComparisonBtn').addEventListener('click', () => { comparisonVisible = !
+                comparisonVisible;
+                document.getElementById('comparisonContainer').style.display = comparisonVisible ? 'block' :
+                'none';
+                renderComparison();
+                saveFilterState(); });
+            document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => {
                 if (!document.getElementById('adv-list-codigo')) buildAdvancedModalDOM();
-                syncAdvancedModalCheckboxes(); 
-                document.getElementById('advancedModal').style.display = 'flex'; 
+                syncAdvancedModalCheckboxes();
+                document.getElementById('advancedModal').style.display = 'flex';
             });
-            document.getElementById('closeAdvModal').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
-            document.getElementById('cancelAdvFilters').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
-            document.getElementById('applyAdvFilters').addEventListener('click', () => { applyFullFilterAndRender(); document.getElementById('advancedModal').style.display = 'none'; });
-            document.getElementById('sortModalBtn').addEventListener('click', () => { document.getElementById('sortColumnSelect').value = currentSort.field; document.querySelector(`input[name="sortOrder"][value="${currentSort.order}"]`).checked = true; document.getElementById('sortModal').style.display = 'flex'; });
-            document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal').style.display = 'none');
-            document.getElementById('applySortBtn').addEventListener('click', () => { const col = document.getElementById('sortColumnSelect').value; const order = document.querySelector('input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col, order: order }; saveFilterState(); renderDetailTable(); } document.getElementById('sortModal').style.display = 'none'; });
-            document.getElementById('closeDetailModal').addEventListener('click', () => document.getElementById('rowDetailModal').style.display = 'none');
+            document.getElementById('closeAdvModal').addEventListener('click', () => document.getElementById(
+                'advancedModal').style.display = 'none');
+            document.getElementById('cancelAdvFilters').addEventListener('click', () => document.getElementById(
+                'advancedModal').style.display = 'none');
+            document.getElementById('applyAdvFilters').addEventListener('click', () => { applyFullFilterAndRender();
+                document.getElementById('advancedModal').style.display = 'none'; });
+            document.getElementById('sortModalBtn').addEventListener('click', () => { document.getElementById(
+                    'sortColumnSelect').value = currentSort.field;
+                document.querySelector(`input[name="sortOrder"][value="${currentSort.order}"]`).checked = true;
+                document.getElementById('sortModal').style.display = 'flex'; });
+            document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal')
+                .style.display = 'none');
+            document.getElementById('applySortBtn').addEventListener('click', () => { const col = document.getElementById(
+                    'sortColumnSelect').value; const order = document.querySelector(
+                    'input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col,
+                        order: order };
+                    saveFilterState();
+                    renderDetailTable(); } document.getElementById('sortModal').style.display = 'none'; });
+            document.getElementById('closeDetailModal').addEventListener('click', () => { document.getElementById(
+                    'rowDetailModal').style.display = 'none';
+                currentDetailItem = null; });
+            document.getElementById('btnCopyReceipt').addEventListener('click', copyReceiptToClipboard);
             document.getElementById('exportPdfBtn').addEventListener('click', gerarRelatorioImpressao);
-            document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById('profileName').value = getNomeExibicao(); document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl; document.getElementById('profileBgUrl').value = userProfile.bgUrl || ''; document.getElementById('profileModal').style.display = 'flex'; });
-            document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById('profileModal').style.display = 'none');
-            document.getElementById('profileForm').addEventListener('submit', (e) => { e.preventDefault(); userProfile.name = document.getElementById('profileName').value; userProfile.avatarUrl = document.getElementById('profileAvatarUrl').value; userProfile.bgUrl = document.getElementById('profileBgUrl').value; saveUserProfile(); addActionNotification('👤 Perfil atualizado'); document.getElementById('profileModal').style.display = 'none'; });
+            document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById('profileName')
+                    .value = getNomeExibicao();
+                document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl;
+                document.getElementById('profileBgUrl').value = userProfile.bgUrl || '';
+                document.getElementById('profileModal').style.display = 'flex'; });
+            document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById(
+                'profileModal').style.display = 'none');
+            document.getElementById('profileForm').addEventListener('submit', (e) => { e.preventDefault();
+                userProfile.name = document.getElementById('profileName').value;
+                userProfile.avatarUrl = document.getElementById('profileAvatarUrl').value;
+                userProfile.bgUrl = document.getElementById('profileBgUrl').value;
+                saveUserProfile();
+                addActionNotification('👤 Perfil atualizado');
+                document.getElementById('profileModal').style.display = 'none'; });
             const bell = document.getElementById('notification-bell');
             const dropdown = document.getElementById('notification-dropdown');
-            bell.addEventListener('click', (e) => { e.stopPropagation(); dropdown.classList.toggle('show'); if (dropdown.classList.contains('show')) { markNotificationsAsRead(); const rect = bell.getBoundingClientRect(); dropdown.style.top = (rect.bottom + window.scrollY) + 'px'; dropdown.style.right = (window.innerWidth - rect.right) + 'px'; } });
-            document.addEventListener('click', (e) => { if (!bell.contains(e.target)) dropdown.classList.remove('show'); });
+            bell.addEventListener('click', (e) => { e.stopPropagation();
+                dropdown.classList.toggle('show'); if (dropdown.classList.contains('show')) {
+                    markNotificationsAsRead(); const rect = bell.getBoundingClientRect();
+                    dropdown.style.top = (rect.bottom + window.scrollY) + 'px';
+                    dropdown.style.right = (window.innerWidth - rect.right) + 'px'; } });
+            document.addEventListener('click', (e) => { if (!bell.contains(e.target)) dropdown.classList.remove(
+                'show'); });
             window.onclick = (e) => { if (e.target.classList.contains('modal')) e.target.style.display = 'none'; };
-            document.getElementById('home-btn').addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-            document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
-            function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
-            function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
-            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
+            document.getElementById('home-btn').addEventListener('click', () => { window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/'; });
+            document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem(
+                    'radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
+
+            function openHamburger() { document.getElementById('hamburger-menu').classList.add('active');
+                document.getElementById('hamburger-overlay').classList.add('active');
+                document.body.style.overflow = 'hidden'; }
+
+            function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active');
+                document.getElementById('hamburger-overlay').classList.remove('active');
+                document.body.style.overflow = ''; }
+
+            function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el
+                    .classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl)
+                    activeEl.classList.add('active'); }
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-            document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
+                window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+            document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
+                window.scrollTo({ top: 0, behavior: 'smooth' }); });
             document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); });
-            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
+            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
+                localStorage.setItem('radar_logged_out', 'true');
+                localStorage.removeItem('radar_usuario');
+                localStorage.removeItem('ultimo_acesso_radar');
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
             setActiveBottomBar('home');
-            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
+                window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
         }
 
         fetchData();
