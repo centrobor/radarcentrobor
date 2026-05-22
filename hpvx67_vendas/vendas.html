@@ -1429,6 +1429,41 @@
         let notifications = JSON.parse(localStorage.getItem('notifications')) || [];
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
 
+        // ==================== INDEXEDDB WRAPPER (cache robusto) ====================
+        const DB_NAME = 'VendasDB';
+        const STORE_NAME = 'rawData';
+        const DB_VERSION = 1;
+
+        function openDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => resolve(request.result);
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(STORE_NAME)) {
+                        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+                    }
+                };
+            });
+        }
+
+        async function saveRawDataToIndexedDB(data) {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readwrite');
+            const store = tx.objectStore(STORE_NAME);
+            await store.put({ id: 'salesData', data });
+            return tx.done;
+        }
+
+        async function loadRawDataFromIndexedDB() {
+            const db = await openDB();
+            const tx = db.transaction(STORE_NAME, 'readonly');
+            const store = tx.objectStore(STORE_NAME);
+            const result = await store.get('salesData');
+            return result ? result.data : null;
+        }
+
         function obterNomeBaseRadar() {
             try {
                 const usuarioRaw = localStorage.getItem('radar_usuario');
@@ -1626,7 +1661,6 @@
         function applyFullFilterAndRender() {
             showLoading();
             setTimeout(() => {
-                // Filtro sempre sobre rawData (completo, mas leve porque rawData é cacheado)
                 filteredData = rawData.filter(item => {
                     if (activeSelectedEmpresas.size && !activeSelectedEmpresas.has(item.empresa)) return false;
                     if (activeSelectedMarcas.size && !activeSelectedMarcas.has(item.grupo)) return false;
@@ -1646,7 +1680,7 @@
         function setDefaultYearFilter() {
             if (!rawData.length) return;
             const availableYears = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
-            let currentYear = new Date().getFullYear(); // 2026
+            let currentYear = new Date().getFullYear(); // 2026 automaticamente
             let defaultYear = availableYears.includes(currentYear) ? currentYear : availableYears[0];
             activeSelectedAnos.clear();
             activeSelectedAnos.add(defaultYear);
@@ -1671,7 +1705,6 @@
             renderCompareYearsSelector();
         }
 
-        // ==================== BOTÃO LIMPAR FILTROS (reset para ano atual) ====================
         function clearAllFilters() {
             activeSelectedEmpresas.clear();
             activeSelectedMarcas.clear();
@@ -1698,7 +1731,6 @@
             addActionNotification('🔄 Filtros resetados para ano atual');
         }
 
-        // ==================== CONTINENTAL/GOODYEAR (últimos 2 anos) ====================
         function smartContinentalGoodyear() {
             const targetBrands = ['continental', 'contitech', 'goodyear'];
             const gruposSet = new Set();
@@ -1840,7 +1872,6 @@
         }
 
         function renderDetailTable() {
-            // Sempre usa filteredData (já filtrado)
             let dataSource = [...filteredData];
             dataSource.sort((a,b)=>{
                 let aVal = a[currentSort.field], bVal = b[currentSort.field];
@@ -1877,7 +1908,24 @@
             }
         }
 
-        function showDetailModal(item) { /* ... igual original ... */ }
+        function showDetailModal(item) {
+            const modal = document.getElementById('rowDetailModal');
+            const content = document.getElementById('detailModalContent');
+            content.innerHTML = `
+                <div class="receipt-item"><div class="receipt-label">Código</div><div class="receipt-value">${escapeHtml(item.codigo)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Descrição</div><div class="receipt-value">${escapeHtml(item.descricao)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Grupo</div><div class="receipt-value">${escapeHtml(item.grupo)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Quantidade</div><div class="receipt-value">${item.quantidade.toLocaleString('pt-BR')}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Valor Unitário</div><div class="receipt-value">R$ ${formatMoney(item.valorUnitario)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Total</div><div class="receipt-value"><strong>R$ ${formatMoney(item.valorMercadoria)}</strong></div></div>
+                <div class="receipt-item"><div class="receipt-label">Data</div><div class="receipt-value">${escapeHtml(item.dataRaw)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Nota Fiscal</div><div class="receipt-value">${escapeHtml(item.notaFiscal)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Cliente</div><div class="receipt-value">${escapeHtml(item.nomeChave)}</div></div>
+                <div class="receipt-item"><div class="receipt-label">Vendedor</div><div class="receipt-value">${escapeHtml(item.vendedor)}</div></div>
+            `;
+            modal.style.display = 'flex';
+        }
+
         function updateDashboard() {
             renderKPIs(filteredData);
             if (chartsVisible && filteredData.length) {
@@ -1894,7 +1942,7 @@
         }
 
         function exportToExcel() {
-            const data = filteredData; // sempre filteredData
+            const data = filteredData;
             const wsData = [['Código','Descrição','Grupo','Quantidade','Valor Unitário','Valor Mercadoria','Data','Nota Fiscal','Cliente','Vendedor']];
             data.forEach(item => wsData.push([item.codigo, item.descricao, item.grupo, item.quantidade, item.valorUnitario, item.valorMercadoria, item.dataRaw, item.notaFiscal, item.nomeChave, item.vendedor]));
             const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -1913,75 +1961,92 @@
             addActionNotification('📄 Solicitação de PDF enviada');
         }
 
-        function buildAdvancedModalOnce() { /* ... igual original ... */ }
-        function syncAdvancedModalCheckboxes() { /* ... */ }
-        function initFiltersFromData() { /* ... */ }
-        function filterList(containerId, term) { /* ... */ }
-
-        // ==================== FETCH DE DADOS (com cache e filtro inicial) ====================
+        // ==================== FETCH DE DADOS COM INDEXEDDB ====================
         async function fetchData() {
             const syncIcon = document.getElementById('syncIcon');
             const syncStatus = document.getElementById('syncStatusText');
             syncIcon.className = "fas fa-spinner fa-pulse";
             syncStatus.innerText = "Sincronizando...";
-            try {
-                const res = await fetch(SHEET_URL);
-                if (!res.ok) throw new Error(`Erro ${res.status}`);
-                const rawJSON = await res.json();
-                if (!Array.isArray(rawJSON) || rawJSON.length === 0) throw new Error("Planilha vazia");
-                const parsed = [];
-                for (const row of rawJSON) {
-                    const dataRaw = row['Data'] || '';
-                    const quantidade = parseBrazilianNumber(row['Quantidade']);
-                    let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
-                    if (isNaN(valorMerc) || valorMerc === 0) valorMerc = parseBrazilianNumber(row[' Valor Mercadoria']);
-                    if (quantidade === 0 && valorMerc === 0) continue;
-                    const { year, month } = extractYearMonth(dataRaw);
-                    if (!year || !month) continue;
-                    parsed.push({
-                        codigo: row['Código'] || '',
-                        descricao: row['Descrição'] || '',
-                        grupo: row['Grupo'] || '',
-                        notaFiscal: row['Nota Fiscal'] || '',
-                        nomeChave: row['Nome Chave'] || '',
-                        empresa: row['Empresa'] || '',
-                        vendedor: row['Vendedor'] || '',
-                        dataRaw: dataRaw,
-                        quantidade: quantidade,
-                        valorUnitario: parseBrazilianNumber(row['Valor Unitário']),
-                        valorMercadoria: valorMerc,
-                        year: year,
-                        month: month
-                    });
+
+            let parsed = [];
+
+            // 1. Tentar carregar do IndexedDB
+            const cachedData = await loadRawDataFromIndexedDB();
+            if (cachedData && cachedData.length) {
+                parsed = cachedData;
+                syncIcon.className = "fas fa-database";
+                syncStatus.innerText = `✔ ${parsed.length} linhas (cache offline)`;
+                console.log('✅ Dados carregados do IndexedDB');
+            } else {
+                // 2. Buscar da planilha online
+                try {
+                    const res = await fetch(SHEET_URL);
+                    if (!res.ok) throw new Error(`Erro ${res.status}`);
+                    const rawJSON = await res.json();
+                    if (!Array.isArray(rawJSON) || rawJSON.length === 0) throw new Error("Planilha vazia");
+
+                    for (const row of rawJSON) {
+                        const dataRaw = row['Data'] || '';
+                        const quantidade = parseBrazilianNumber(row['Quantidade']);
+                        let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
+                        if (isNaN(valorMerc) || valorMerc === 0) valorMerc = parseBrazilianNumber(row[' Valor Mercadoria']);
+                        if (quantidade === 0 && valorMerc === 0) continue;
+                        const { year, month } = extractYearMonth(dataRaw);
+                        if (!year || !month) continue;
+                        parsed.push({
+                            codigo: row['Código'] || '',
+                            descricao: row['Descrição'] || '',
+                            grupo: row['Grupo'] || '',
+                            notaFiscal: row['Nota Fiscal'] || '',
+                            nomeChave: row['Nome Chave'] || '',
+                            empresa: row['Empresa'] || '',
+                            vendedor: row['Vendedor'] || '',
+                            dataRaw: dataRaw,
+                            quantidade: quantidade,
+                            valorUnitario: parseBrazilianNumber(row['Valor Unitário']),
+                            valorMercadoria: valorMerc,
+                            year: year,
+                            month: month
+                        });
+                    }
+
+                    await saveRawDataToIndexedDB(parsed);
+                    syncIcon.className = "fas fa-cloud-upload-alt";
+                    syncStatus.innerText = `✔ ${parsed.length} linhas carregadas (online)`;
+                    console.log('🌐 Dados salvos no IndexedDB');
+                } catch (err) {
+                    console.error(err);
+                    syncIcon.className = "fas fa-exclamation-triangle";
+                    syncStatus.innerText = "❌ Falha ao carregar";
+                    parsed = [];
                 }
-                rawData = parsed;
-                localStorage.setItem('salesRawData', JSON.stringify(rawData));
-                syncIcon.className = "fas fa-cloud-upload-alt";
-                syncStatus.innerText = `✔ ${rawData.length} linhas carregadas`;
-            } catch (err) {
-                console.error(err);
-                const cached = localStorage.getItem('salesRawData');
-                if (cached) { rawData = JSON.parse(cached); syncIcon.className = "fas fa-database"; syncStatus.innerText = "⚠️ Offline (cache)"; }
-                else { rawData = []; syncIcon.className = "fas fa-exclamation-triangle"; syncStatus.innerText = "❌ Falha ao carregar"; }
+            }
+
+            rawData = parsed;
+
+            if (!rawData.length) {
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>';
+                return;
             }
 
             loadFilterState();
 
-            // ★★★ CORREÇÃO DE PERFORMANCE: define o ano padrão e JÁ APLICA O FILTRO ★★★
+            // Reset dos filtros ativos
             activeSelectedEmpresas.clear();
             activeSelectedMarcas.clear();
             activeSelectedAnos.clear();
             Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
 
+            // Define filtro padrão: ano atual (2026)
             if (rawData.length) {
                 setDefaultYearFilter();
                 setDefaultCompareYears();
             }
 
-            // Aplica o filtro padrão (ano atual) imediatamente
+            // Aplica filtro inicial (ano atual)
             filteredData = rawData.filter(item => {
-                // Se não há ano selecionado (fallback), mostra tudo; senão filtra pelo ano
-                return activeSelectedAnos.size === 0 || activeSelectedAnos.has(item.year);
+                if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false;
+                return true;
             });
 
             updateDashboard();
@@ -1993,10 +2058,163 @@
             document.getElementById('footer-year').textContent = new Date().getFullYear();
         }
 
-        function setupUI() {
-            // (toda a lógica de eventos idêntica ao original)
+        function initFiltersFromData() {
+            const empresas = [...new Set(rawData.map(d => d.empresa))].sort();
+            const marcas = [...new Set(rawData.map(d => d.grupo))].sort();
+            const anos = [...new Set(rawData.map(d => d.year))].sort((a,b)=>b-a);
+            const empresaDiv = document.getElementById('empresaList');
+            const marcaDiv = document.getElementById('marcaList');
+            const anoDiv = document.getElementById('anoList');
+            empresaDiv.innerHTML = empresas.map(e => `<label><input type="checkbox" value="${escapeHtml(e)}" class="empresa-cb"> ${escapeHtml(e)}</label>`).join('');
+            marcaDiv.innerHTML = marcas.map(m => `<label><input type="checkbox" value="${escapeHtml(m)}" class="marca-cb"> ${escapeHtml(m)}</label>`).join('');
+            anoDiv.innerHTML = anos.map(a => `<label><input type="checkbox" value="${a}" class="ano-cb"> ${a}</label>`).join('');
+            document.querySelectorAll('.empresa-cb').forEach(cb => cb.addEventListener('change', e => { if(e.target.checked) tempSelectedEmpresas.add(e.target.value); else tempSelectedEmpresas.delete(e.target.value); }));
+            document.querySelectorAll('.marca-cb').forEach(cb => cb.addEventListener('change', e => { if(e.target.checked) tempSelectedMarcas.add(e.target.value); else tempSelectedMarcas.delete(e.target.value); }));
+            document.querySelectorAll('.ano-cb').forEach(cb => cb.addEventListener('change', e => { let val = parseInt(e.target.value); if(e.target.checked) tempSelectedAnos.add(val); else tempSelectedAnos.delete(val); }));
+            // sync temp sets
+            tempSelectedEmpresas = new Set(activeSelectedEmpresas);
+            tempSelectedMarcas = new Set(activeSelectedMarcas);
+            tempSelectedAnos = new Set(activeSelectedAnos);
+            document.querySelectorAll('.empresa-cb').forEach(cb => cb.checked = tempSelectedEmpresas.has(cb.value));
+            document.querySelectorAll('.marca-cb').forEach(cb => cb.checked = tempSelectedMarcas.has(cb.value));
+            document.querySelectorAll('.ano-cb').forEach(cb => { let val = parseInt(cb.value); cb.checked = tempSelectedAnos.has(val); });
         }
 
+        function buildAdvancedModalOnce() {
+            const container = document.getElementById('advancedFiltersContainer');
+            if (!container || container.children.length) return;
+            const codigos = [...new Set(rawData.map(d => d.codigo))].sort();
+            const descricoes = [...new Set(rawData.map(d => d.descricao))].sort();
+            const vendedores = [...new Set(rawData.map(d => d.vendedor))].sort();
+            const grupos = [...new Set(rawData.map(d => d.grupo))].sort();
+            const notas = [...new Set(rawData.map(d => d.notaFiscal))].sort();
+            const nomes = [...new Set(rawData.map(d => d.nomeChave))].sort();
+            const html = `
+                <div class="filter-adv-group"><h3>Código</h3><div class="adv-list" id="advCodigoList">${codigos.map(c => `<label><input type="checkbox" value="${escapeHtml(c)}" class="adv-codigo-cb"> ${escapeHtml(c)}</label>`).join('')}</div></div>
+                <div class="filter-adv-group"><h3>Descrição</h3><div class="adv-list" id="advDescricaoList">${descricoes.map(d => `<label><input type="checkbox" value="${escapeHtml(d)}" class="adv-descricao-cb"> ${escapeHtml(d)}</label>`).join('')}</div></div>
+                <div class="filter-adv-group"><h3>Vendedor</h3><div class="adv-list" id="advVendedorList">${vendedores.map(v => `<label><input type="checkbox" value="${escapeHtml(v)}" class="adv-vendedor-cb"> ${escapeHtml(v)}</label>`).join('')}</div></div>
+                <div class="filter-adv-group"><h3>Grupo</h3><div class="adv-list" id="advGrupoList">${grupos.map(g => `<label><input type="checkbox" value="${escapeHtml(g)}" class="adv-grupo-cb"> ${escapeHtml(g)}</label>`).join('')}</div></div>
+                <div class="filter-adv-group"><h3>Nota Fiscal</h3><div class="adv-list" id="advNotaList">${notas.map(n => `<label><input type="checkbox" value="${escapeHtml(n)}" class="adv-nota-cb"> ${escapeHtml(n)}</label>`).join('')}</div></div>
+                <div class="filter-adv-group"><h3>Nome Chave</h3><div class="adv-list" id="advNomeList">${nomes.map(nm => `<label><input type="checkbox" value="${escapeHtml(nm)}" class="adv-nome-cb"> ${escapeHtml(nm)}</label>`).join('')}</div></div>
+            `;
+            container.innerHTML = html;
+        }
+
+        function syncAdvancedModalCheckboxes() {
+            if(!document.getElementById('advancedFiltersContainer')) return;
+            document.querySelectorAll('.adv-codigo-cb').forEach(cb => cb.checked = activeAdvancedFilters.codigo.has(cb.value));
+            document.querySelectorAll('.adv-descricao-cb').forEach(cb => cb.checked = activeAdvancedFilters.descricao.has(cb.value));
+            document.querySelectorAll('.adv-vendedor-cb').forEach(cb => cb.checked = activeAdvancedFilters.vendedor.has(cb.value));
+            document.querySelectorAll('.adv-grupo-cb').forEach(cb => cb.checked = activeAdvancedFilters.grupo.has(cb.value));
+            document.querySelectorAll('.adv-nota-cb').forEach(cb => cb.checked = activeAdvancedFilters.notaFiscal.has(cb.value));
+            document.querySelectorAll('.adv-nome-cb').forEach(cb => cb.checked = activeAdvancedFilters.nomeChave.has(cb.value));
+        }
+
+        function applyAdvancedFiltersFromModal() {
+            activeAdvancedFilters.codigo.clear();
+            activeAdvancedFilters.descricao.clear();
+            activeAdvancedFilters.vendedor.clear();
+            activeAdvancedFilters.grupo.clear();
+            activeAdvancedFilters.notaFiscal.clear();
+            activeAdvancedFilters.nomeChave.clear();
+            document.querySelectorAll('.adv-codigo-cb:checked').forEach(cb => activeAdvancedFilters.codigo.add(cb.value));
+            document.querySelectorAll('.adv-descricao-cb:checked').forEach(cb => activeAdvancedFilters.descricao.add(cb.value));
+            document.querySelectorAll('.adv-vendedor-cb:checked').forEach(cb => activeAdvancedFilters.vendedor.add(cb.value));
+            document.querySelectorAll('.adv-grupo-cb:checked').forEach(cb => activeAdvancedFilters.grupo.add(cb.value));
+            document.querySelectorAll('.adv-nota-cb:checked').forEach(cb => activeAdvancedFilters.notaFiscal.add(cb.value));
+            document.querySelectorAll('.adv-nome-cb:checked').forEach(cb => activeAdvancedFilters.nomeChave.add(cb.value));
+            applyFullFilterAndRender();
+            document.getElementById('advancedModal').style.display = 'none';
+            addActionNotification('🔧 Filtros avançados aplicados');
+        }
+
+        // ==================== EVENTOS E SETUP UI ====================
+        function setupUI() {
+            document.getElementById('toggleFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.add('open'));
+            document.getElementById('closeFilterBtn').addEventListener('click', () => document.getElementById('filterSidebar').classList.remove('open'));
+            document.getElementById('resetFiltersBtn').addEventListener('click', resetQuickFilters);
+            document.getElementById('applyQuickFiltersBtn').addEventListener('click', applyQuickFilters);
+            document.getElementById('saveFavoriteBtn').addEventListener('click', saveCurrentFilterAsFavorite);
+            document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
+            document.getElementById('specialContinentalGoodyear').addEventListener('click', smartContinentalGoodyear);
+            document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => { syncAdvancedModalCheckboxes(); document.getElementById('advancedModal').style.display = 'flex'; });
+            document.getElementById('applyAdvFilters').addEventListener('click', applyAdvancedFiltersFromModal);
+            document.getElementById('cancelAdvFilters').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
+            document.getElementById('closeAdvModal').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
+            document.getElementById('sortModalBtn').addEventListener('click', () => document.getElementById('sortModal').style.display = 'flex');
+            document.getElementById('applySortBtn').addEventListener('click', () => {
+                const col = document.getElementById('sortColumnSelect').value;
+                const order = document.querySelector('input[name="sortOrder"]:checked').value;
+                currentSort = { field: col, order };
+                saveFilterState();
+                renderDetailTable();
+                document.getElementById('sortModal').style.display = 'none';
+            });
+            document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal').style.display = 'none');
+            document.getElementById('exportPdfBtn').addEventListener('click', generateProfessionalPDF);
+            document.getElementById('sidebarPdfBtn').addEventListener('click', generateProfessionalPDF);
+            document.getElementById('sidebarExcelBtn').addEventListener('click', exportToExcel);
+            document.getElementById('home-btn').addEventListener('click', () => clearAllFilters());
+            document.getElementById('logout-btn').addEventListener('click', () => { localStorage.removeItem('radar_usuario'); localStorage.setItem('radar_logged_out', 'true'); window.location.href = BASE_URL + '/index.html'; });
+            document.getElementById('menu-logout').addEventListener('click', () => { localStorage.removeItem('radar_usuario'); localStorage.setItem('radar_logged_out', 'true'); window.location.href = BASE_URL + '/index.html'; });
+            document.getElementById('notification-bell').addEventListener('click', (e) => {
+                e.stopPropagation();
+                const dropdown = document.getElementById('notification-dropdown');
+                dropdown.classList.toggle('show');
+                markNotificationsAsRead();
+                const rect = document.getElementById('notification-bell').getBoundingClientRect();
+                dropdown.style.top = rect.bottom + 8 + 'px';
+                dropdown.style.right = (window.innerWidth - rect.right) + 'px';
+            });
+            document.addEventListener('click', () => document.getElementById('notification-dropdown').classList.remove('show'));
+            document.querySelectorAll('.close-modal-btn').forEach(btn => btn.addEventListener('click', function() { this.closest('.modal').style.display = 'none'; }));
+            document.getElementById('toggleChartsBtn').addEventListener('click', () => {
+                chartsVisible = !chartsVisible;
+                document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none';
+                if(chartsVisible && filteredData.length){ renderMonthlyEvolution(); renderComparisonChart();}
+                else { if(monthlyChart) monthlyChart.destroy(); if(compareChart) compareChart.destroy(); monthlyChart=compareChart=null; }
+                saveFilterState();
+            });
+            document.getElementById('toggleComparisonBtn').addEventListener('click', () => {
+                comparisonVisible = !comparisonVisible;
+                document.getElementById('comparisonContainer').style.display = comparisonVisible ? 'block' : 'none';
+                saveFilterState();
+            });
+            document.getElementById('profileForm').addEventListener('submit', (e) => {
+                e.preventDefault();
+                userProfile.name = document.getElementById('profileName').value;
+                userProfile.avatarUrl = document.getElementById('profileAvatarUrl').value || 'https://cdn-icons-png.flaticon.com/512/12225/12225881.png';
+                userProfile.bgUrl = document.getElementById('profileBgUrl').value;
+                saveUserProfile();
+                document.getElementById('profileModal').style.display = 'none';
+                addActionNotification('👤 Perfil atualizado');
+            });
+            document.getElementById('user-avatar').addEventListener('click', () => {
+                document.getElementById('profileName').value = userProfile.name;
+                document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl;
+                document.getElementById('profileBgUrl').value = userProfile.bgUrl || '';
+                document.getElementById('profileModal').style.display = 'flex';
+            });
+            document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById('profileModal').style.display = 'none');
+            // mobile hamburger
+            const hamburgerBtn = document.getElementById('hamburger-btn');
+            const hamburgerMenu = document.getElementById('hamburger-menu');
+            const hamburgerOverlay = document.getElementById('hamburger-overlay');
+            const closeMenuBtn = document.getElementById('menu-close-btn');
+            function openMenu() { hamburgerMenu.classList.add('active'); hamburgerOverlay.classList.add('active'); }
+            function closeMenu() { hamburgerMenu.classList.remove('active'); hamburgerOverlay.classList.remove('active'); }
+            hamburgerBtn.addEventListener('click', openMenu);
+            closeMenuBtn.addEventListener('click', closeMenu);
+            hamburgerOverlay.addEventListener('click', closeMenu);
+            document.getElementById('menu-home').addEventListener('click', () => { clearAllFilters(); closeMenu(); });
+            document.getElementById('menu-feed').addEventListener('click', () => { alert("Feed de notificações em desenvolvimento"); closeMenu(); });
+            document.getElementById('menu-dashboard').addEventListener('click', () => { clearAllFilters(); closeMenu(); });
+            document.getElementById('menu-vendas').addEventListener('click', () => { clearAllFilters(); closeMenu(); });
+            document.getElementById('bb-home').addEventListener('click', () => { clearAllFilters(); });
+            document.getElementById('bb-feed').addEventListener('click', () => { alert("Feed em breve"); });
+        }
+
+        // Inicialização
         fetchData();
         setupUI();
     </script>
