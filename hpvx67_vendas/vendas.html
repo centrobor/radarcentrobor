@@ -604,7 +604,7 @@
             background: white;
         }
         .adv-list {
-            max-height: 180px;
+            max-height: 200px;
             overflow-y: auto;
             background: #f9fafc;
             border-radius: 14px;
@@ -1394,7 +1394,7 @@
         <div id="favoritesSection" style="margin-top: 20px;"></div>
     </div>
 
-    <!-- MODAL AVANÇADO (estrutura melhorada) -->
+    <!-- MODAL AVANÇADO DINÂMICO (busca sob demanda) -->
     <div id="advancedModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1774,52 +1774,83 @@
             document.querySelectorAll('.empresa-cb, .marca-cb, .ano-cb').forEach(cb => cb.checked = false);
         }
 
-        // ==================== MONTAGEM DO MODAL AVANÇADO (dinâmico e funcional) ====================
-        function renderAdvancedModalContent() {
-            if (!rawData.length) return;
-            const fields = [
-                { id:'codigo', label:'Código', vals:[...new Set(rawData.map(d=>d.codigo).filter(v=>v))].sort() },
-                { id:'descricao', label:'Descrição', vals:[...new Set(rawData.map(d=>d.descricao).filter(v=>v))].sort() },
-                { id:'vendedor', label:'Vendedor', vals:[...new Set(rawData.map(d=>d.vendedor).filter(v=>v))].sort() },
-                { id:'grupo', label:'Grupo', vals:[...new Set(rawData.map(d=>d.grupo).filter(v=>v))].sort() },
-                { id:'notaFiscal', label:'Nota Fiscal', vals:[...new Set(rawData.map(d=>d.notaFiscal).filter(v=>v))].sort() },
-                { id:'nomeChave', label:'Nome Chave', vals:[...new Set(rawData.map(d=>d.nomeChave).filter(v=>v))].sort() }
-            ];
+        // ==================== MODAL AVANÇADO DINÂMICO (sob demanda com busca) ====================
+        // Estrutura dos campos que serão usados
+        const advFields = [
+            { id: 'codigo', label: 'Código', getValue: (item) => item.codigo },
+            { id: 'descricao', label: 'Descrição', getValue: (item) => item.descricao },
+            { id: 'vendedor', label: 'Vendedor', getValue: (item) => item.vendedor },
+            { id: 'grupo', label: 'Grupo', getValue: (item) => item.grupo },
+            { id: 'notaFiscal', label: 'Nota Fiscal', getValue: (item) => item.notaFiscal },
+            { id: 'nomeChave', label: 'Nome Chave', getValue: (item) => item.nomeChave }
+        ];
+
+        function buildAdvancedModalDOM() {
             const container = document.getElementById('advancedFiltersContainer');
             if (!container) return;
-            container.innerHTML = fields.map(f => `
-                <div class="filter-adv-group">
+            // Cria a estrutura vazia para cada campo (sem checkboxes ainda)
+            container.innerHTML = advFields.map(f => `
+                <div class="filter-adv-group" data-field="${f.id}">
                     <h4><i class="fas fa-filter"></i> ${f.label}</h4>
-                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:6px; width:100%; padding:6px 12px; border-radius:40px; border:1px solid #ccc;">
-                    <div class="adv-list" id="adv-list-${f.id}" style="max-height: 180px; overflow-y: auto;"></div>
+                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:8px; width:100%; padding:8px 12px; border-radius:40px; border:1px solid #ccc;">
+                    <div class="adv-list" id="adv-list-${f.id}" style="max-height: 200px; overflow-y: auto;"></div>
                 </div>
             `).join('');
-            fields.forEach(f => {
-                const listDiv = document.getElementById(`adv-list-${f.id}`);
-                if (!listDiv) return;
-                listDiv.innerHTML = f.vals.map(val => `<label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" value="${escapeHtml(val)}" class="adv-cb" data-field="${f.id}"> <span style="font-size:0.75rem;">${escapeHtml(val)}</span></label>`).join('');
-                // Sincronizar estado atual
-                listDiv.querySelectorAll('.adv-cb').forEach(cb => {
-                    cb.checked = activeAdvancedFilters[f.id].has(cb.value);
-                    cb.addEventListener('change', (e) => {
-                        if (e.target.checked) activeAdvancedFilters[f.id].add(e.target.value);
-                        else activeAdvancedFilters[f.id].delete(e.target.value);
-                    });
-                });
+            // Para cada campo, adiciona evento de busca e carrega os checkboxes já selecionados (inicialmente vazios)
+            advFields.forEach(f => {
                 const searchInput = container.querySelector(`.adv-search[data-field="${f.id}"]`);
-                if (searchInput) {
-                    searchInput.addEventListener('input', (e) => {
-                        const term = e.target.value.toLowerCase();
-                        listDiv.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent.toLowerCase().includes(term) ? 'flex' : 'none');
+                const listDiv = document.getElementById(`adv-list-${f.id}`);
+                if (!searchInput || !listDiv) return;
+                // Função que atualiza a lista com base no termo de busca
+                const updateList = (searchTerm = '') => {
+                    // Obtém todos os valores únicos do campo nos dados brutos (rawData)
+                    const allValues = [...new Set(rawData.map(item => f.getValue(item)).filter(v => v && v.trim() !== ''))].sort();
+                    let filteredValues = allValues;
+                    if (searchTerm.trim() !== '') {
+                        const termLower = searchTerm.trim().toLowerCase();
+                        filteredValues = allValues.filter(val => val.toLowerCase().includes(termLower));
+                    }
+                    // Limita a 200 para performance (exibe uma mensagem se houver mais)
+                    const showLimited = filteredValues.length > 200;
+                    const limitedValues = filteredValues.slice(0, 200);
+                    listDiv.innerHTML = limitedValues.map(val => `
+                        <label style="display:flex; gap:6px; align-items:center;">
+                            <input type="checkbox" value="${escapeHtml(val)}" class="adv-cb" data-field="${f.id}">
+                            <span style="font-size:0.75rem;">${escapeHtml(val)}</span>
+                        </label>
+                    `).join('');
+                    if (showLimited) {
+                        listDiv.innerHTML += `<div style="padding:6px; color:#888; text-align:center; font-size:0.7rem;">+ ${filteredValues.length - 200} outros. Refine a busca.</div>`;
+                    }
+                    // Marca os checkboxes conforme o estado atual dos filtros ativos
+                    listDiv.querySelectorAll('.adv-cb').forEach(cb => {
+                        cb.checked = activeAdvancedFilters[f.id].has(cb.value);
+                        cb.addEventListener('change', (e) => {
+                            if (e.target.checked) activeAdvancedFilters[f.id].add(e.target.value);
+                            else activeAdvancedFilters[f.id].delete(e.target.value);
+                        });
                     });
-                }
+                };
+                // Atualiza ao digitar (debounce para evitar muitas renderizações)
+                let debounceTimer;
+                searchInput.addEventListener('input', (e) => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => updateList(e.target.value), 300);
+                });
+                // Primeira atualização com busca vazia (mostra os primeiros 200 itens)
+                updateList('');
             });
         }
+
+        // Sincroniza checkboxes com os filtros ativos (quando o modal já está aberto e o usuário altera algo fora)
         function syncAdvancedModalCheckboxes() {
-            if (!rawData.length) return;
-            document.querySelectorAll('#advancedFiltersContainer .adv-cb').forEach(cb => {
-                const field = cb.dataset.field;
-                cb.checked = activeAdvancedFilters[field]?.has(cb.value) || false;
+            advFields.forEach(f => {
+                const listDiv = document.getElementById(`adv-list-${f.id}`);
+                if (listDiv) {
+                    listDiv.querySelectorAll('.adv-cb').forEach(cb => {
+                        cb.checked = activeAdvancedFilters[f.id].has(cb.value);
+                    });
+                }
             });
         }
 
@@ -2070,7 +2101,7 @@
             filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false; return true; });
             updateDashboard();
             initFiltersFromData();
-            renderAdvancedModalContent(); // Constrói o modal avançado pela primeira vez
+            buildAdvancedModalDOM(); // Constroi o modal dinâmico com busca sob demanda
             renderFavorites();
             applyUserProfile();
             updateNotificationBadge();
@@ -2090,7 +2121,12 @@
             document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
             document.getElementById('toggleChartsBtn').addEventListener('click', () => { chartsVisible = !chartsVisible; document.getElementById('chartsGrid').style.display = chartsVisible ? 'grid' : 'none'; if (chartsVisible && filteredData.length) { renderMonthlyEvolution(); renderComparisonChart(); } else { if (monthlyChart) monthlyChart.destroy(); if (compareChart) compareChart.destroy(); monthlyChart = compareChart = null; } saveFilterState(); });
             document.getElementById('toggleComparisonBtn').addEventListener('click', () => { comparisonVisible = !comparisonVisible; document.getElementById('comparisonContainer').style.display = comparisonVisible ? 'block' : 'none'; renderComparison(); saveFilterState(); });
-            document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => { syncAdvancedModalCheckboxes(); document.getElementById('advancedModal').style.display = 'flex'; });
+            document.getElementById('openAdvancedFiltersBtn').addEventListener('click', () => { 
+                // Garante que o modal tenha a estrutura (caso ainda não tenha sido construída)
+                if (!document.getElementById('adv-list-codigo')) buildAdvancedModalDOM();
+                syncAdvancedModalCheckboxes(); 
+                document.getElementById('advancedModal').style.display = 'flex'; 
+            });
             document.getElementById('closeAdvModal').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
             document.getElementById('cancelAdvFilters').addEventListener('click', () => document.getElementById('advancedModal').style.display = 'none');
             document.getElementById('applyAdvFilters').addEventListener('click', () => { applyFullFilterAndRender(); document.getElementById('advancedModal').style.display = 'none'; });
