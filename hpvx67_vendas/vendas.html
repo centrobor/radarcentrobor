@@ -1167,6 +1167,89 @@
                 font-size: 0.55rem;
             }
         }
+
+        /* ESTILOS EXCLUSIVOS PARA IMPRESSÃO (RELATÓRIO PROFISSIONAL) */
+        @media print {
+            body {
+                background: white;
+                padding: 0.5cm;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .header, .mobile-topbar, .mobile-bottom-bar, .floating-btn, .filter-sidebar,
+            .action-buttons, .btn-icon, .export-group, .notification-bell, .notification-dropdown,
+            .hamburger-menu, .hamburger-overlay, .icon-btn, .header-actions, .last-update-badge,
+            .floating-btn, .btn-reset, .btn-apply, .btn-advanced, .modal, .footer .footer-social,
+            .footer-logo-section .footer-tagline, .section-header button, .table-toolbar button,
+            #toggleChartsBtn, #clearAllFiltersBtn, #toggleComparisonBtn, .year-selector-group label input,
+            .action-buttons, .comparison-section .section-header button, .btn-icon, .hide-charts-btn,
+            .hide-compare-btn, #sidebarPdfBtn, #sidebarExcelBtn, .export-group, .btn-primary {
+                display: none !important;
+            }
+            .dashboard-wrapper {
+                margin: 0;
+                padding: 0;
+                max-width: 100%;
+            }
+            .kpi-grid, .charts-grid, .comparison-table-wrapper, .table-wrapper {
+                break-inside: avoid;
+                page-break-inside: avoid;
+                margin-bottom: 20px;
+            }
+            .kpi-card {
+                border: 1px solid #ddd;
+                background: white;
+                box-shadow: none;
+                break-inside: avoid;
+            }
+            .chart-card {
+                background: white;
+                border: 1px solid #ccc;
+                break-inside: avoid;
+            }
+            canvas {
+                max-height: 200px !important;
+            }
+            .comparison-table, .data-table {
+                font-size: 10pt;
+                border: 1px solid #ccc;
+            }
+            .comparison-table th, .data-table th {
+                background: #f0f0f0 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .footer {
+                background: #f8f8f8;
+                color: #333;
+                border-top: 1px solid #ccc;
+                margin-top: 30px;
+                padding: 10px;
+                text-align: center;
+            }
+            .footer .footer-inner {
+                display: block;
+            }
+            .footer .footer-logo-img {
+                display: none;
+            }
+            h3, h2, .kpi-number {
+                color: black !important;
+            }
+            a, button {
+                text-decoration: none;
+            }
+            .receipt {
+                border: 1px solid #aaa;
+            }
+            .modal-content {
+                display: none;
+            }
+            .receipt-item {
+                break-inside: avoid;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1299,7 +1382,7 @@
                         </tr>
                     </thead>
                     <tbody id="tableBody"><tr><td colspan="10" class="empty-message">Carregando dados......</td></tr></tbody>
-                }</table>
+                </table>
             </div>
         </main>
     </div>
@@ -1320,7 +1403,7 @@
     </div>
 
     <!-- MODAIS -->
-    <div id="advancedModal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-sliders-h"></i> Filtros Avançados</h2><button class="close-modal-btn" id="closeAdvModal">&times;</button></div><div id="advancedFiltersContainer"></div><div class="modal-actions"><button id="applyAdvFilters" class="btn-primary">Aplicar filtros</button><button id="cancelAdvFilters" class="btn-outline-sm" style="border:1px solid #ccc;">Cancelar</button></div></div></div>
+    <div id="advancedModal" class="modal"><div class="modal-content"><div class="modal-header"><h2><i class="fas fa-sliders-h"></i> Filtros Avançados (múltipla seleção)</h2><button class="close-modal-btn" id="closeAdvModal">&times;</button></div><div id="advancedFiltersContainer"></div><div class="modal-actions"><button id="applyAdvFilters" class="btn-primary">Aplicar filtros</button><button id="cancelAdvFilters" class="btn-outline-sm" style="border:1px solid #ccc;">Cancelar</button></div></div></div>
 
     <div id="sortModal" class="modal"><div class="modal-content" style="max-width: 450px;"><div class="modal-header"><h2><i class="fas fa-sort"></i> Ordenar Tabela</h2><button class="close-modal-btn" id="closeSortModal">&times;</button></div><div style="margin-bottom: 20px;"><label>Coluna:</label><select id="sortColumnSelect" class="search-filter" style="width:100%; margin-top:6px;"><option value="codigo">Código</option><option value="descricao">Descrição</option><option value="grupo">Grupo</option><option value="quantidade">Quantidade</option><option value="valorUnitario">Valor Unitário</option><option value="valorMercadoria">Valor Mercadoria</option><option value="data">Data</option><option value="notaFiscal">Nota Fiscal</option><option value="nomeChave">Nome Chave</option><option value="vendedor">Vendedor</option></select></div><div><label>Ordem:</label><div style="display:flex; gap:16px; margin-top:8px;"><label><input type="radio" name="sortOrder" value="asc"> Crescente</label><label><input type="radio" name="sortOrder" value="desc"> Decrescente</label></div></div><div class="modal-actions"><button id="applySortBtn" class="btn-primary">Aplicar</button></div></div></div>
 
@@ -1926,16 +2009,13 @@
             addActionNotification('📊 Excel exportado');
         }
 
-        async function generateProfessionalPDF() {
-            showLoading();
-            setTimeout(() => {
-                alert("Funcionalidade de PDF em desenvolvimento.\nUtilize a opção de impressão do navegador (Ctrl+P).");
-                hideLoading();
-            }, 500);
-            addActionNotification('📄 Solicitação de PDF enviada');
+        // ==================== GERAR PDF = ABRIR IMPRESSÃO (RELATÓRIO OTIMIZADO) ====================
+        function gerarRelatorioImpressao() {
+            window.print();
+            addActionNotification('🖨️ Abrindo impressão do relatório (use Ctrl+P para salvar como PDF)');
         }
 
-        // ==================== FILTROS AVANÇADOS ====================
+        // ==================== FILTROS AVANÇADOS (com busca + múltipla seleção) ====================
         function buildAdvancedModalOnce() {
             if (!rawData.length) return;
             const fields = [
@@ -1950,35 +2030,36 @@
             container.innerHTML = fields.map(f => `
                 <div class="filter-adv-group">
                     <h4><i class="fas fa-filter"></i> ${f.label}</h4>
-                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="Buscar...">
+                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:6px; width:100%; padding:6px; border-radius:40px; border:1px solid #ccc;">
                     <div class="adv-list" id="adv-list-${f.id}"></div>
                 </div>
             `).join('');
             fields.forEach(f => {
                 const listDiv = document.getElementById(`adv-list-${f.id}`);
-                listDiv.innerHTML = f.vals.map(val => `<label><input type="checkbox" value="${escapeHtml(val)}" class="adv-cb" data-field="${f.id}"> ${escapeHtml(val)}</label>`).join('');
-                const searchInput = document.querySelector(`.adv-search[data-field="${f.id}"]`);
+                listDiv.innerHTML = f.vals.map(val => `<label style="display:flex; gap:6px; align-items:center;"><input type="checkbox" value="${escapeHtml(val)}" class="adv-cb" data-field="${f.id}"> <span style="font-size:0.75rem;">${escapeHtml(val)}</span></label>`).join('');
+                const searchInput = container.querySelector(`.adv-search[data-field="${f.id}"]`);
                 if (searchInput) {
                     searchInput.addEventListener('input', (e) => {
                         const term = e.target.value.toLowerCase();
                         listDiv.querySelectorAll('label').forEach(lbl => lbl.style.display = lbl.textContent.toLowerCase().includes(term) ? 'flex' : 'none');
                     });
                 }
-            });
-            // Adiciona listeners para os checkboxes
-            document.querySelectorAll('.adv-cb').forEach(cb => {
-                cb.addEventListener('change', (e) => {
-                    const field = e.target.dataset.field;
-                    if (e.target.checked) activeAdvancedFilters[field].add(e.target.value);
-                    else activeAdvancedFilters[field].delete(e.target.value);
+                // Sincroniza estado atual
+                listDiv.querySelectorAll('.adv-cb').forEach(cb => {
+                    cb.checked = activeAdvancedFilters[f.id].has(cb.value);
+                    cb.addEventListener('change', (e) => {
+                        if (e.target.checked) activeAdvancedFilters[f.id].add(e.target.value);
+                        else activeAdvancedFilters[f.id].delete(e.target.value);
+                    });
                 });
             });
         }
 
         function syncAdvancedModalCheckboxes() {
-            document.querySelectorAll('.adv-cb').forEach(cb => {
+            if (!rawData.length) return;
+            document.querySelectorAll('#advancedFiltersContainer .adv-cb').forEach(cb => {
                 const field = cb.dataset.field;
-                cb.checked = activeAdvancedFilters[field].has(cb.value);
+                cb.checked = activeAdvancedFilters[field]?.has(cb.value) || false;
             });
         }
 
@@ -2044,7 +2125,7 @@
 
             rawData = parsed;
             if (!rawData.length) {
-                document.getElementById('tableBody').innerHTML = '<table><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>';
+                document.getElementById('tableBody').innerHTML = '<tr><td colspan="10" class="empty-message">Sem dados. Verifique sua conexão ou a planilha.</td></tr>';
                 return;
             }
 
@@ -2070,7 +2151,7 @@
 
             updateDashboard();
             initFiltersFromData();
-            buildAdvancedModalOnce();  // Constrói os filtros avançados
+            buildAdvancedModalOnce();  // Constrói os filtros avançados (com campos de busca e múltipla seleção)
             renderFavorites();
             applyUserProfile();
             updateNotificationBadge();
@@ -2118,7 +2199,7 @@
             document.getElementById('applyQuickFiltersBtn').addEventListener('click', applyQuickFilters);
             document.getElementById('specialContinentalGoodyear').addEventListener('click', smartContinentalGoodyear);
             document.getElementById('saveFavoriteBtn').addEventListener('click', saveCurrentFilterAsFavorite);
-            document.getElementById('sidebarPdfBtn').addEventListener('click', generateProfessionalPDF);
+            document.getElementById('sidebarPdfBtn').addEventListener('click', gerarRelatorioImpressao);
             document.getElementById('sidebarExcelBtn').addEventListener('click', exportToExcel);
             document.getElementById('clearAllFiltersBtn').addEventListener('click', clearAllFilters);
             document.getElementById('toggleChartsBtn').addEventListener('click', () => {
@@ -2142,7 +2223,7 @@
             document.getElementById('closeSortModal').addEventListener('click', () => document.getElementById('sortModal').style.display = 'none');
             document.getElementById('applySortBtn').addEventListener('click', () => { const col = document.getElementById('sortColumnSelect').value; const order = document.querySelector('input[name="sortOrder"]:checked').value; if (col && order) { currentSort = { field: col, order: order }; saveFilterState(); renderDetailTable(); } document.getElementById('sortModal').style.display = 'none'; });
             document.getElementById('closeDetailModal').addEventListener('click', () => document.getElementById('rowDetailModal').style.display = 'none');
-            document.getElementById('exportPdfBtn').addEventListener('click', generateProfessionalPDF);
+            document.getElementById('exportPdfBtn').addEventListener('click', gerarRelatorioImpressao);
             document.getElementById('user-avatar').addEventListener('click', () => { document.getElementById('profileName').value = getNomeExibicao(); document.getElementById('profileAvatarUrl').value = userProfile.avatarUrl; document.getElementById('profileBgUrl').value = userProfile.bgUrl || ''; document.getElementById('profileModal').style.display = 'flex'; });
             document.getElementById('closeProfileModalBtn').addEventListener('click', () => document.getElementById('profileModal').style.display = 'none');
             document.getElementById('profileForm').addEventListener('submit', (e) => { e.preventDefault(); userProfile.name = document.getElementById('profileName').value; userProfile.avatarUrl = document.getElementById('profileAvatarUrl').value; userProfile.bgUrl = document.getElementById('profileBgUrl').value; saveUserProfile(); addActionNotification('👤 Perfil atualizado'); document.getElementById('profileModal').style.display = 'none'; });
