@@ -731,8 +731,21 @@
                     document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
                     document.getElementById('menu-user-name').textContent = nomeVendedor;
 
-                    const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
-                    const meta = metaArr.length>0 ? metaArr[0] : {};
+                    // Mapeamento flexível de colunas da planilha
+const metaArr = metaRawArr.filter(m => {
+    const possiveisIds = [m.id_vendedor, m['Código'], m['Cod'], m['codigo'], m['ID'], m['id']];
+    const idStr = possiveisIds.find(v => v !== undefined && v !== null && v !== '');
+    if (!idStr) return false;
+    const codigoExtraido = extrairCodigo(String(idStr));
+    return codigoExtraido === parseInt(codVendedor, 10);
+});
+const metaRaw = metaArr.length > 0 ? metaArr[0] : {};
+// Normaliza os campos de meta (tenta vários nomes de coluna)
+const meta = {
+    meta_mensal: cleanNumber(metaRaw.meta_mensal || metaRaw['Meta Mensal'] || metaRaw['meta_mensal_1'] || metaRaw[Object.keys(metaRaw).find(k => k.toLowerCase().includes('mensal'))] || 0),
+    meta_semestral: cleanNumber(metaRaw.meta_semestral || metaRaw['Meta Semestral'] || metaRaw['meta_semestral_1'] || metaRaw[Object.keys(metaRaw).find(k => k.toLowerCase().includes('semestral'))] || 0),
+    meta_anual: cleanNumber(metaRaw.meta_anual || metaRaw['Meta Anual'] || metaRaw['meta_anual_1'] || metaRaw[Object.keys(metaRaw).find(k => k.toLowerCase().includes('anual'))] || 0)
+};
 
                     // USANDO A NOVA FUNÇÃO UNIFICADA PARA TODAS AS PLANILHAS
                     const aprovFull = filtrarPorVendedor(aprovRaw, 'Vendedor');
