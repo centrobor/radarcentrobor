@@ -247,45 +247,41 @@
         .group-badge.red { border-color:var(--danger); color:var(--danger); background:rgba(211,47,47,0.08); }
 
         /* Modais */
-        /* Modais com animação */
-.modal {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(6px);
-    z-index: 1000;
-    display: flex;                /* sempre flex, mas invisível */
-    justify-content: center;
-    align-items: center;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, visibility 0.3s ease;
-}
-
-.modal.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-.modal-content {
-    background: white;
-    border-radius: 24px;
-    padding: 24px;
-    max-width: 95%;
-    width: 900px;
-    max-height: 90vh;
-    overflow-y: auto;
-    position: relative;
-    transform: scale(0.9);               /* começa um pouco menor */
-    transition: transform 0.3s ease;     /* animação de zoom */
-}
-
-.modal.active .modal-content {
-    transform: scale(1);                 /* volta ao tamanho normal quando ativo */
-}
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+        .modal.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 24px;
+            padding: 24px;
+            max-width: 95%;
+            width: 900px;
+            max-height: 90vh;
+            overflow-y: auto;
+            position: relative;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        .modal.active .modal-content {
+            transform: scale(1);
+        }
 
         /* Notificações */
         .notif-card { display: flex; gap:14px; padding:14px; border-bottom:1px solid var(--line); cursor: pointer; border-radius:12px; }
@@ -520,8 +516,7 @@
         <div class="footer-inner">
             <div class="footer-logo-section">
                 <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img">
-                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.
-</div></div>
+                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div></div>
             </div>
             <div class="footer-social">
                 <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i> Site</a>
@@ -589,9 +584,9 @@
                 return parseFloat(str) || 0;
             };
             const extrairCodigo = (str) => { 
-    const match = String(str || '').match(/^(\d+)/); 
-    return match ? parseInt(match[1], 10) : null; 
-};
+                const match = String(str || '').match(/^(\d+)/); 
+                return match ? parseInt(match[1], 10) : null; 
+            };
             const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
@@ -623,6 +618,24 @@
             const businessDaysPassed = (startDate) => { const today=new Date(); today.setHours(23,59,59,999); if(today<startDate) return 0; return businessDaysBetween(startDate,today); };
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
+
+            // Funções de filtro por código/vendedor (CORRIGIDAS)
+            const filtrarPorCodExtraido = (lista, campo) =>
+                lista.filter(i => extrairCodigo(i[campo]) === Number(codVendedor));
+            const filtrarPorCod = (lista, campo) =>
+                lista.filter(i => {
+                    const val = String(i[campo] || '').trim();
+                    if (/^\d+$/.test(val)) return parseInt(val, 10) === Number(codVendedor);
+                    return val === codVendedor;
+                });
+            // NOVA FUNÇÃO: filtrar por nome (para planilhas que usam nome do vendedor)
+            const filtrarPorNome = (lista, campo) =>
+                lista.filter(i => {
+                    const val = String(i[campo] || '').trim();
+                    return val === nomeVendedor ||
+                           val.toUpperCase() === nomeVendedor.toUpperCase() ||
+                           extrairCodigo(val) === Number(codVendedor);
+                });
 
             // Informações de atualização
             async function carregarInfoAtualizacao() {
@@ -670,134 +683,64 @@
                 abrirModalNotificacoes();
             }
             function abrirModalNotificacoes() {
-    const modal = document.getElementById('notif-modal');
-    const body = document.getElementById('notif-modal-body');
-
-    // Força reanimação se o modal já estiver ativo
-    if (modal.classList.contains('active')) {
-        modal.classList.remove('active');
-        setTimeout(() => {
-            preencherListaNotificacoes(modal, body);
-        }, 300);
-    } else {
-        preencherListaNotificacoes(modal, body);
-    }
-}
-
-// Função auxiliar que realmente monta a lista
-function preencherListaNotificacoes(modal, body) {
-    const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-    if (notificacoes.length === 0) {
-        body.innerHTML = `
-            <div style="display:flex; justify-content:flex-end; margin-bottom:8px;">
-                <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                        style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                    &times;
-                </button>
-            </div>
-            <p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
-    } else {
-        let html = `
-            <!-- Cabeçalho com título + botões (marcar lido e X) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    ${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}
-                    <button onclick="document.getElementById('notif-modal').classList.remove('active')"
-                            style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                        &times;
-                    </button>
-                </div>
-            </div>`;
-        notificacoes.forEach(n => {
-            const isRead = readNotifications.includes(n.id);
-            const tipo = n.tipo || 'informativo';
-            const bgColor = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
-            const textColor = tipo === 'alerta' ? '#991b1b' : '#0369a1';
-            html += `
-            <div class="notif-card" data-id="${n.id}">
-                <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
-                <div class="notif-body">
-                    <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
-                    <div class="notif-title">${n.titulo}</div>
-                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
-                    <div class="notif-excerpt">${(n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120)}...</div>
-                    <span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'};">${isRead ? '✔ Lida' : '● Nova'}</span>
-                </div>
-            </div>`;
-        });
-        body.innerHTML = html;
-        const btnMarkAll = document.getElementById('btn-mark-all-read');
-        if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
-        body.querySelectorAll('.notif-card').forEach(card => {
-            card.addEventListener('click', () => {
-                const id = card.dataset.id;
-                if (!readNotifications.includes(id)) { 
-                    readNotifications.push(id); 
-                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); 
-                    atualizarBadgeNotificacoes(); 
+                const modal = document.getElementById('notif-modal');
+                const body = document.getElementById('notif-modal-body');
+                if (modal.classList.contains('active')) {
+                    modal.classList.remove('active');
+                    setTimeout(() => preencherListaNotificacoes(modal, body), 300);
+                } else {
+                    preencherListaNotificacoes(modal, body);
                 }
-                const post = notificacoes.find(p => p.id == id);
-                if (post) exibirPostagemDetalhe(post);
-            });
-        });
-    }
-    modal.classList.add('active');
-    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
-}
-
-function exibirPostagemDetalhe(post) {
-    const body = document.getElementById('notif-modal-body');
-    const modal = document.getElementById('notif-modal');
-
-    // Fecha o modal atual (inicia fade out)
-    modal.classList.remove('active');
-
-    // Aguarda a transição terminar, troca o conteúdo e reabre com animação
-    setTimeout(() => {
-        const tipo = post.tipo || 'informativo';
-        const corTipo = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
-        const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
-
-        body.innerHTML = `
-            <!-- Cabeçalho com Voltar (esquerda) e X (direita) -->
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                <button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;">
-                    <i class="fas fa-arrow-left"></i> Voltar
-                </button>
-                <button id="fechar-detalhe-btn" style="background:none; border:none; font-size:1.6rem; color: var(--muted); cursor:pointer; line-height:1; padding:0;">
-                    &times;
-                </button>
-            </div>
-            <div style="display:flex; gap:14px; margin-bottom:16px;">
-                ${post.imagem ? `<img src="${post.imagem}" style="max-width:300px; max-height:220px; border-radius:14px;" onerror="this.style.display='none'">` : ''}
-                <div>
-                    <span class="notif-type" style="background:${corTipo}; color:${corTexto}">${tipo.toUpperCase()}</span>
-                    <h3>${post.titulo}</h3>
-                    <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div>
-                </div>
-            </div>
-            <div>${post.texto_html || ''}</div>
-        `;
-
-        // Ação do botão Voltar: fecha e reabre a lista com animação
-        document.getElementById('voltar-lista-btn').addEventListener('click', () => {
-            modal.classList.remove('active');
-            setTimeout(() => {
-                abrirModalNotificacoes();
-            }, 300);
-        });
-
-        // Ação do botão X: apenas fecha o modal
-        document.getElementById('fechar-detalhe-btn').addEventListener('click', () => {
-            modal.classList.remove('active');
-        });
-
-        // Reabre o modal (dispara a animação de entrada)
-        modal.classList.add('active');
-    }, 300);
-}
-
+            }
+            function preencherListaNotificacoes(modal, body) {
+                const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                if (notificacoes.length === 0) {
+                    body.innerHTML = `<div style="display:flex; justify-content:flex-end; margin-bottom:8px;"><button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div><p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
+                } else {
+                    let html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2><div style="display: flex; gap: 10px; align-items: center;">${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}<button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div></div>`;
+                    notificacoes.forEach(n => {
+                        const isRead = readNotifications.includes(n.id);
+                        const tipo = n.tipo || 'informativo';
+                        const bgColor = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+                        const textColor = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+                        html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'"><div class="notif-body"><span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${(n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120)}...</div><span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'};">${isRead ? '✔ Lida' : '● Nova'}</span></div></div>`;
+                    });
+                    body.innerHTML = html;
+                    const btnMarkAll = document.getElementById('btn-mark-all-read');
+                    if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
+                    body.querySelectorAll('.notif-card').forEach(card => {
+                        card.addEventListener('click', () => {
+                            const id = card.dataset.id;
+                            if (!readNotifications.includes(id)) { 
+                                readNotifications.push(id); 
+                                localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); 
+                                atualizarBadgeNotificacoes(); 
+                            }
+                            const post = notificacoes.find(p => p.id == id);
+                            if (post) exibirPostagemDetalhe(post);
+                        });
+                    });
+                }
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+            function exibirPostagemDetalhe(post) {
+                const body = document.getElementById('notif-modal-body');
+                const modal = document.getElementById('notif-modal');
+                modal.classList.remove('active');
+                setTimeout(() => {
+                    const tipo = post.tipo || 'informativo';
+                    const corTipo = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+                    const corTexto = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+                    body.innerHTML = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;"><button id="voltar-lista-btn" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding: 0;"><i class="fas fa-arrow-left"></i> Voltar</button><button id="fechar-detalhe-btn" style="background:none; border:none; font-size:1.6rem; color: var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div><div style="display:flex; gap:14px; margin-bottom:16px;">${post.imagem ? `<img src="${post.imagem}" style="max-width:300px; max-height:220px; border-radius:14px;" onerror="this.style.display='none'">` : ''}<div><span class="notif-type" style="background:${corTipo}; color:${corTexto}">${tipo.toUpperCase()}</span><h3>${post.titulo}</h3><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data} • <i class="fas fa-user"></i> ${post.autor}</div></div></div><div>${post.texto_html || ''}</div>`;
+                    document.getElementById('voltar-lista-btn').addEventListener('click', () => {
+                        modal.classList.remove('active');
+                        setTimeout(() => abrirModalNotificacoes(), 300);
+                    });
+                    document.getElementById('fechar-detalhe-btn').addEventListener('click', () => modal.classList.remove('active'));
+                    modal.classList.add('active');
+                }, 300);
+            }
 
             // Carrossel
             let currentCarouselIndex = 0;
@@ -814,13 +757,7 @@ function exibirPostagemDetalhe(post) {
                 document.querySelectorAll('.indicator-dot').forEach((d,i) => d.classList.toggle('active', i===currentCarouselIndex));
             }
             function abrirModalPostagem(post) {
-                document.getElementById('post-modal-body').innerHTML = `
-                    <span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span>
-                    <img src="${post.imagem}" style="width:100%; max-height:400px; object-fit:cover; border-radius:16px; margin-bottom:16px;" onerror="this.style.display='none'">
-                    <h2>${post.titulo}</h2>
-                    <div style="display:flex; gap:16px; color:var(--muted); margin-bottom:16px;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div>
-                    <div>${post.texto_html||''}</div>
-                `;
+                document.getElementById('post-modal-body').innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span><img src="${post.imagem}" style="width:100%; max-height:400px; object-fit:cover; border-radius:16px; margin-bottom:16px;" onerror="this.style.display='none'"><h2>${post.titulo}</h2><div style="display:flex; gap:16px; color:var(--muted); margin-bottom:16px;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div><div>${post.texto_html||''}</div>`;
                 document.getElementById('post-modal').classList.add('active');
             }
 
@@ -829,9 +766,7 @@ function exibirPostagemDetalhe(post) {
                 try {
                     const campanhas = await carregarJSON(BASES.campanhas_especiais);
                     const hoje = new Date(); hoje.setHours(0,0,0,0);
-                    const minhas = campanhas.filter(c => 
-    extrairCodigo(c.vendedor_cod) === vendedorNum && cleanNumber(c.meta_valor)>0
-);
+                    const minhas = campanhas.filter(c => extrairCodigo(c.vendedor_cod) === Number(codVendedor) && cleanNumber(c.meta_valor)>0);
                     if (!minhas.length) {
                         document.getElementById('campanhas-especiais-container').innerHTML = '<p style="color:var(--muted);">Nenhuma campanha especial ativa.</p>';
                         return;
@@ -849,12 +784,17 @@ function exibirPostagemDetalhe(post) {
                 } catch (e) { console.error(e); }
             }
 
-            // Render principal
+            // Render principal (COM CARREGAMENTO ROBUSTO)
             async function renderAll(selectedMonth) {
                 try {
+                    // Carrega cada aba individualmente, usando array vazio como fallback
+                    const safeLoad = async (url) => {
+                        try { return await carregarJSON(url); }
+                        catch (e) { console.warn('Falha ao carregar:', url, e); return []; }
+                    };
                     const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
-                        carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
-                        carregarJSON(BASES.aprovadosfaturados), carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
+                        safeLoad(BASES.meta), safeLoad(BASES.aprovados), safeLoad(BASES.faturados),
+                        safeLoad(BASES.aprovadosfaturados), safeLoad(BASES.carteira), safeLoad(BASES.cotacoes)
                     ]);
                     document.getElementById('greeting-name').textContent = nomeVendedor;
                     document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
@@ -863,19 +803,6 @@ function exibirPostagemDetalhe(post) {
                     const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                     const meta = metaArr.length>0 ? metaArr[0] : {};
 
-       
-
-const filtrarPorCodExtraido = (lista, campo) =>
-    lista.filter(i => extrairCodigo(i[campo]) === vendedorNum);
-
-const filtrarPorCod = (lista, campo) =>
-    lista.filter(i => {
-        const val = String(i[campo] || '').trim();
-        // se o campo for puramente numérico (ex.: "03") compare como número
-        if (/^\d+$/.test(val)) return parseInt(val, 10) === vendedorNum;
-        // fallback: comparação exata de string
-        return val === codVendedor;
-    });
                     const aprovFull = filtrarPorNome(aprovRaw,'Vendedor');
                     const fatFull = filtrarPorCod(fatRaw,'Cod. Vendedor');
                     const cotFull = filtrarPorCodExtraido(cotRaw,'Vendedor');
@@ -887,18 +814,14 @@ const filtrarPorCod = (lista, campo) =>
                         if (!selectedMonth) return lista;
                         return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
                     };
-                                       const aprov = filterByMonth(aprovFull,'Data');
+                    const aprov = filterByMonth(aprovFull,'Data');
                     const fat = filterByMonth(fatFull,'Data');
                     const cot = filterByMonth(cotFull,'Data Criação');
                     const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                                        const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-
-                    // Pedidos Aprov+Fat: soma do mês selecionado
+                    const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
                     const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-
                     const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
-
                     const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                     const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
@@ -920,14 +843,12 @@ const filtrarPorCod = (lista, campo) =>
                         const year = 2000+parseInt(anoStr);
                         if (monthIdx!==undefined) cutoffDate = lastBusinessDayOfMonth(year,monthIdx);
                     }
-                    const sumUntil = (lista,campoData,campoValor) => lista.reduce((acc,item)=>{ const d=parseDataBR(item[campoData]); if(!d||d>cutoffDate) return acc; return acc+cleanNumber(item[campoValor]); },0);
-                    // Calcula o acumulado apenas do ano do mês selecionado
-const year = cutoffDate.getFullYear();
-const startOfYear = firstBusinessDayOfMonth(year, 0); // primeiro dia útil de janeiro
-const faturamentoAcumulado = fatFull.filter(item => {
-    const d = parseDataBR(item['Data']);
-    return d && d >= startOfYear && d <= cutoffDate;
-}).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
+                    const year = cutoffDate.getFullYear();
+                    const startOfYear = firstBusinessDayOfMonth(year, 0);
+                    const faturamentoAcumulado = fatFull.filter(item => {
+                        const d = parseDataBR(item['Data']);
+                        return d && d >= startOfYear && d <= cutoffDate;
+                    }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
                     const metaMensal = cleanNumber(meta.meta_mensal);
                     const metaSemestral = cleanNumber(meta.meta_semestral);
                     const metaAnual = cleanNumber(meta.meta_anual);
@@ -1032,132 +953,19 @@ const faturamentoAcumulado = fatFull.filter(item => {
 
                     // Clique nas linhas → modal de detalhes
                     function abrirFicha(dados) {
-    const icones = {
-        'competência': 'fa-calendar-alt',
-        'data': 'fa-calendar-day',
-        'vendedor': 'fa-user-tie',
-        'cliente': 'fa-building',
-        'razão social': 'fa-building',
-        'produto': 'fa-box',
-        'quantidade': 'fa-hashtag',
-        'valor unitário': 'fa-dollar-sign',
-        'total bruto': 'fa-file-invoice-dollar',
-        'total líquido': 'fa-hand-holding-usd',
-        'valor mercadoria': 'fa-tag',
-        'custo': 'fa-coins',
-        'margem': 'fa-percent',
-        'depósito': 'fa-warehouse',
-        'país': 'fa-globe-americas',
-        'moeda': 'fa-money-bill',
-        '% icms': 'fa-percent',
-        '% ipi': 'fa-percent',
-        '% iss': 'fa-percent',
-        'empresa': 'fa-industry',
-        'nome chave': 'fa-id-card',
-        'número': 'fa-hashtag',
-        'data criação': 'fa-calendar-plus',
-        'situação versão': 'fa-info-circle',
-        'representante': 'fa-user-tie',
-        'cidade': 'fa-city',
-        'uf': 'fa-map-marker-alt',
-        'código': 'fa-barcode',
-        'descrição': 'fa-align-left',
-        'observação': 'fa-comment',
-        'status': 'fa-check-circle',
-        'tipo': 'fa-tag',
-        'grupo': 'fa-layer-group',
-        'filial': 'fa-code-branch',
-        'transportadora': 'fa-truck',
-        'pedido': 'fa-clipboard-list',
-        'nota fiscal': 'fa-file-invoice',
-        'volume': 'fa-cube',
-        'peso': 'fa-weight-hanging'
-    };
-
-    const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
-
-    const linhas = Object.entries(dados).map(([chave, valor]) => {
-        const chaveLower = chave.toLowerCase().trim();
-        // Ícone específico ou fallback com ícone de documento (não bolinha)
-        const icone = icones[chaveLower] || 'fa-file-alt';
-        const isDestaque = camposDestaque.includes(chaveLower);
-        const valorFormatado = valor || '—';
-        return `
-        <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
-            <i class="fas ${icone} ficha-icone"></i>
-            <div class="ficha-conteudo">
-                <span class="ficha-label">${chave}</span>
-                <span class="ficha-valor">${valorFormatado}</span>
-            </div>
-        </div>`;
-    }).join('');
-
-    const html = `
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-        <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
-            <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
-        </h3>
-        <button onclick="document.getElementById('detail-modal').classList.remove('active')"
-                style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-            &times;
-        </button>
-    </div>
-    <div class="ficha-lista">
-        ${linhas}
-    </div>
-    <style>
-        .ficha-lista {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .ficha-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 10px 12px;
-            background: #f9fafb;
-            border-radius: 12px;
-            border: 1px solid #edf2f7;
-        }
-        .ficha-item-destaque {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-        }
-        .ficha-icone {
-            color: var(--primary);
-            font-size: 1rem;
-            width: 20px;
-            text-align: center;
-            margin-top: 2px;
-        }
-        .ficha-conteudo {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .ficha-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: var(--muted);
-        }
-        .ficha-valor {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: var(--text-dark);
-        }
-        .ficha-item-destaque .ficha-valor {
-            font-size: 1.05rem;
-            color: var(--success);
-        }
-    </style>
-    `;
-    document.getElementById('modal-body').innerHTML = html;
-    document.getElementById('detail-modal').classList.add('active');
-}
+                        const icones = {'competência':'fa-calendar-alt','data':'fa-calendar-day','vendedor':'fa-user-tie','cliente':'fa-building','razão social':'fa-building','produto':'fa-box','quantidade':'fa-hashtag','valor unitário':'fa-dollar-sign','total bruto':'fa-file-invoice-dollar','total líquido':'fa-hand-holding-usd','valor mercadoria':'fa-tag','custo':'fa-coins','margem':'fa-percent','depósito':'fa-warehouse','país':'fa-globe-americas','moeda':'fa-money-bill','% icms':'fa-percent','% ipi':'fa-percent','% iss':'fa-percent','empresa':'fa-industry','nome chave':'fa-id-card','número':'fa-hashtag','data criação':'fa-calendar-plus','situação versão':'fa-info-circle','representante':'fa-user-tie','cidade':'fa-city','uf':'fa-map-marker-alt','código':'fa-barcode','descrição':'fa-align-left','observação':'fa-comment','status':'fa-check-circle','tipo':'fa-tag','grupo':'fa-layer-group','filial':'fa-code-branch','transportadora':'fa-truck','pedido':'fa-clipboard-list','nota fiscal':'fa-file-invoice','volume':'fa-cube','peso':'fa-weight-hanging'};
+                        const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
+                        const linhas = Object.entries(dados).map(([chave, valor]) => {
+                            const chaveLower = chave.toLowerCase().trim();
+                            const icone = icones[chaveLower] || 'fa-file-alt';
+                            const isDestaque = camposDestaque.includes(chaveLower);
+                            const valorFormatado = valor || '—';
+                            return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
+                        }).join('');
+                        const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div><div class="ficha-lista">${linhas}</div><style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
+                        document.getElementById('modal-body').innerHTML = html;
+                        document.getElementById('detail-modal').classList.add('active');
+                    }
                     const listas = { aprov, fat, cot, aprovfat: aprovFat };
                     document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
                         row.addEventListener('click', function() {
@@ -1168,168 +976,67 @@ const faturamentoAcumulado = fatFull.filter(item => {
                         });
                     });
 
-/*
- * =============================================================================
- * LÓGICA DA CARTEIRA ATIVA (RADAR DE RELACIONAMENTO)
- * =============================================================================
- * Objetivo: exibir todos os clientes que estão interagindo com o vendedor,
- * mesmo que não estejam formalmente cadastrados na planilha 'carteiraclientes'.
- *
- * Funcionamento:
- * 1. Monta um mapa GLOBAL de interações (aprovados + faturados de TODOS os vendedores),
- *    armazenando a data mais recente e o vendedor responsável.
- * 2. Preserva os clientes já cadastrados na carteira oficial, com seus dados originais.
- * 3. Para clientes NÃO cadastrados, verifica:
- *    a) Se a interação mais recente (global) ocorreu nos ÚLTIMOS 12 MESES.
- *    b) Se o vendedor dessa interação é o VENDEDOR ATUAL (código ou nome).
- *    Se ambos forem verdadeiros, o cliente é incluído como "atribuído" (cadastrado=false).
- * 4. A cor do farol (verde/amarelo/vermelho) é baseada na data da última interação:
- *    - Verde: <= 30 dias
- *    - Amarelo: 31 a 90 dias
- *    - Vermelho: > 90 dias ou sem interação
- * 5. Na tabela, clientes atribuídos recebem selos visuais:
- *    - "Novo": interação nos últimos 30 dias
- *    - "Atribuído": interação entre 31 e 365 dias
- *    Isso evita poluição com dados antigos e mostra a dinâmica real do relacionamento.
- *
- * Benefícios:
- * - Não depende exclusivamente da planilha de carteira (muitas vezes desatualizada).
- * - Resolve conflitos de atribuição: se outro vendedor teve interação mais recente,
- *   o cliente NÃO aparece para o vendedor atual (evita falsos positivos).
- * - Fornece um radar vivo, que reflete quem realmente está comprando ou cotando.
- * =============================================================================
- */
-
-// Carteira (inclui clientes com interação nos últimos 12 meses, considerando colisões globais)
-// 1. Mapa global de interações (todos os vendedores)
-const interacoesGlobais = new Map(); // chave: nome, valor: { data: Date, vendedor: string }
-const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
-    lista.forEach(item => {
-        const nome = (item[campoNome] || '').toUpperCase().trim();
-        if (!nome) return;
-        const d = parseDataBR(item[campoData]);
-        if (!d) return;
-        const vendedor = String(item[campoVendedor] || '').trim();
-        if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
-            interacoesGlobais.set(nome, { data: d, vendedor });
-        }
-    });
-};
-
-// Usar os dados brutos (sem filtro) para análise global
-registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
-registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
-
-// 2. Mapa da carteira oficial (todos os clientes cadastrados, independentemente de interação)
-const carteiraMap = new Map();
-carteiraFull.forEach(cli => {
-    const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
-    if (nome) {
-        carteiraMap.set(nome, {
-            cidade: cli['Cidade'] || '',
-            uf: cli['UF'] || '',
-            ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-            cadastrado: true
-        });
-    }
-});
-
-// 3. Adicionar clientes NÃO cadastrados que têm interação recente (12 meses) com o vendedor atual
-const umAnoAtras = new Date(today);
-umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-
-interacoesGlobais.forEach((info, nome) => {
-    if (carteiraMap.has(nome)) return;           // já está na carteira oficial
-    if (info.data < umAnoAtras) return;          // interação muito antiga
-
-    const vendedorInteracao = info.vendedor;
-    const isVendedorAtual = (vendedorInteracao === codVendedor) ||
-                            (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
-    if (isVendedorAtual) {
-        carteiraMap.set(nome, {
-            cidade: '',
-            uf: '',
-            ativo: true,
-            cadastrado: false                     // atribuído automaticamente
-        });
-    }
-});
-
-// 4. Gerar status (cor do farol) baseado na última interação
-const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
-    const ultima = interacoesGlobais.get(nome)?.data || null;
-    let status = 'red';
-    let ultimaStr = 'Sem Interação';
-    if (ultima) {
-        const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
-        ultimaStr = formatarData(ultima);
-        if (dias <= 30) status = 'green';
-        else if (dias <= 90) status = 'yellow';
-    }
-    return {
-        nome,
-        status,
-        ultima: ultimaStr,
-        cidade: dados.cidade,
-        uf: dados.uf,
-        ativo: dados.ativo,
-        cadastrado: dados.cadastrado
-    };
-});
-
-// 5. Métricas, semáforo e tabelas
-const totalFiliais = clientesStatus.length;
-const ativosCount = clientesStatus.filter(c => c.ativo).length;
-const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
-const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
-document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
-
-const contagem = { green: 0, yellow: 0, red: 0 };
-const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
-clientesStatus.forEach(c => {
-    contagem[c.status]++;
-    const key = c.nome.split(' ')[0].toUpperCase();
-    grupos[c.status].set(key, (grupos[c.status].get(key) || 0) + 1);
-});
-const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
-document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
-
-function gerarTabelaClientes(status) {
-    const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
-    if (!filtrados.length) return '';
-    return `<div style="margin-bottom:22px;">
-        <h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4>
-        <div class="badge-list">${Array.from(grupos[status], ([k, v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div>
-        <div class="table-wrapper">
-            <table>
-                <thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead>
-                <tbody>${filtrados.map(c => {
-                    let statusExtra = '';
-                    if (!c.cadastrado) {
-                        const ultimaData = interacoesGlobais.get(c.nome)?.data;
-                        if (ultimaData) {
-                            const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
-                            if (diasDesdeUltima <= 30) {
-                                statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
-                            } else {
-                                statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
+                    // Carteira (lógica mantida)
+                    const interacoesGlobais = new Map();
+                    const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
+                        lista.forEach(item => {
+                            const nome = (item[campoNome] || '').toUpperCase().trim();
+                            if (!nome) return;
+                            const d = parseDataBR(item[campoData]);
+                            if (!d) return;
+                            const vendedor = String(item[campoVendedor] || '').trim();
+                            if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
+                                interacoesGlobais.set(nome, { data: d, vendedor });
                             }
+                        });
+                    };
+                    registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
+                    registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
+                    const carteiraMap = new Map();
+                    carteiraFull.forEach(cli => {
+                        const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
+                        if (nome) carteiraMap.set(nome, { cidade: cli['Cidade'] || '', uf: cli['UF'] || '', ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo', cadastrado: true });
+                    });
+                    const umAnoAtras = new Date(today);
+                    umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+                    interacoesGlobais.forEach((info, nome) => {
+                        if (carteiraMap.has(nome)) return;
+                        if (info.data < umAnoAtras) return;
+                        const vendedorInteracao = info.vendedor;
+                        const isVendedorAtual = (vendedorInteracao === codVendedor) || (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+                        if (isVendedorAtual) carteiraMap.set(nome, { cidade: '', uf: '', ativo: true, cadastrado: false });
+                    });
+                    const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
+                        const ultima = interacoesGlobais.get(nome)?.data || null;
+                        let status = 'red';
+                        let ultimaStr = 'Sem Interação';
+                        if (ultima) {
+                            const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
+                            ultimaStr = formatarData(ultima);
+                            if (dias <= 30) status = 'green';
+                            else if (dias <= 90) status = 'yellow';
                         }
-                    }
-                    return `<tr>
-                        <td>${c.nome} ${statusExtra}</td>
-                        <td>${c.cidade || '—'}</td>
-                        <td>${c.uf || '—'}</td>
-                        <td>${c.ultima}</td>
-                        <td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td>
-                    </tr>`;
-                }).join('')}</tbody>
-            </table>
-        </div>
-    </div>`;
-}
-document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
-
+                        return { nome, status, ultima: ultimaStr, cidade: dados.cidade, uf: dados.uf, ativo: dados.ativo, cadastrado: dados.cadastrado };
+                    });
+                    const totalFiliais = clientesStatus.length;
+                    const ativosCount = clientesStatus.filter(c => c.ativo).length;
+                    const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
+                    const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
+                    document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
+                    const contagem = { green: 0, yellow: 0, red: 0 };
+                    const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
+                    clientesStatus.forEach(c => {
+                        contagem[c.status]++;
+                        const key = c.nome.split(' ')[0].toUpperCase();
+                        grupos[c.status].set(key, (grupos[c.status].get(key) || 0) + 1);
+                    });
+                    const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
+                    document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
+                    function gerarTabelaClientes(status) {
+                        const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
+                        if (!filtrados.length) return '';
+                        return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${Array.from(grupos[status], ([k, v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => { let statusExtra = ''; if (!c.cadastrado) { const ultimaData = interacoesGlobais.get(c.nome)?.data; if (ultimaData) { const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24)); if (diasDesdeUltima <= 30) statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>'; else statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>'; } } return `<tr><td>${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`; }).join('')}</tbody></table></div></div>`; }
+                    document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
 
                     // Meses
                     const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -1359,14 +1066,12 @@ document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('gr
                 new Chart(ctx, { type: 'doughnut', data: { datasets: [{ data: [Math.min(percent,100), 100-Math.min(percent,100)], backgroundColor: [color, '#e5e7eb'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { tooltip: { enabled: false }, legend: { display: false } } } });
             }
 
-            // Gerar PDF
             function gerarPDF() {
                 document.getElementById('print-vendor-name').textContent = nomeVendedor;
                 document.getElementById('print-date').textContent = new Date().toLocaleString('pt-BR');
                 window.print();
             }
 
-            // Inicialização
             async function init() {
                 carregarInfoAtualizacao();
                 await carregarBanners();
@@ -1378,7 +1083,6 @@ document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('gr
                 renderCarrossel();
                 renderizarCampanhasEspeciais();
 
-                // Eventos
                 document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
                 document.getElementById('prev-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex-1+BANNERS.length)%BANNERS.length; updateCarrossel(); });
                 document.getElementById('next-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); });
@@ -1386,10 +1090,8 @@ document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('gr
                 document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
                 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
                 document.querySelector('.home-btn').addEventListener('click', () => window.location.href='./index.html');
-                // Modais
                 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
                 document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target===this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
-                // Mobile
                 document.getElementById('hamburger-btn').addEventListener('click', () => { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow='hidden'; });
                 const closeHamburger = () => { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
