@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
+    <title>Visão Metas • Centrobor</title>
+    <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #1e3a5f;
+            --primary-light: #2b4c7a;
+            --primary-soft: #eef3f9;
+            --text-dark: #1a2b3c;
+            --text-soft: #3e4e5e;
+            --text-light: #6b7b8c;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+            --info: #0288d1;
+            --card-bg: rgba(255, 255, 255, 0.85);
+            --border-light: rgba(255, 255, 255, 0.9);
+            --shadow-sm: 0 8px 20px rgba(0, 20, 40, 0.06);
+            --shadow-md: 0 12px 28px rgba(0, 20, 40, 0.12);
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --radius-sm: 16px;
+            --blur: blur(16px);
+            --line: #e5e7eb;
+            --muted: #5b6472;
+            --footer-bg: #1a2b3c;
+            --footer-text: #cbd5e1;
+            --bottom-bar-height: 62px;
+            --mobile-topbar-height: 56px;
+            --safe-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 24px 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-dark);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wrapper { max-width: 1400px; width: 100%; flex: 1; }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card-bg); backdrop-filter: var(--blur); border-radius: 80px;
+            padding: 10px 22px; margin-bottom: 24px; border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm); position: sticky; top: 16px; z-index: 10; flex-wrap: wrap; gap: 8px;
+        }
+        .user-section { display: flex; align-items: center; gap: 12px; }
+        .user-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .greeting { font-weight: 700; font-size: 1.1rem; color: var(--text-dark); }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .last-update-badge { display: flex; align-items: center; gap: 6px; background: rgba(2,136,209,0.08); border:1px solid rgba(2,136,209,0.2); padding:6px 14px; border-radius:20px; font-size:0.7rem; font-weight:600; color:var(--info); white-space:nowrap; }
+        .icon-btn { background:none; border:none; color:var(--text-soft); cursor:pointer; font-size:1.2rem; position:relative; padding:8px; border-radius:50%; transition:0.2s; }
+        .icon-btn:hover { background:rgba(30,58,95,0.08); color:var(--primary); }
+        .badge { position:absolute; top:-4px; right:-4px; background:var(--danger); color:white; border-radius:50%; width:18px; height:18px; font-size:0.65rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
+        .filters-bar { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; background:var(--card-bg); backdrop-filter:var(--blur); border-radius:60px; padding:12px 24px; align-items:center; justify-content:space-between; }
+        .filter-group { display:flex; align-items:center; gap:8px; }
+        .filter-group label { font-weight:600; font-size:0.8rem; color:var(--text-dark); }
+        select, input { background:white; border:1px solid var(--line); border-radius:40px; padding:8px 14px; font-weight:500; font-size:0.85rem; cursor:pointer; outline:none; }
+        .btn-outline { background:transparent; border:1px solid var(--primary); color:var(--primary); padding:6px 16px; border-radius:40px; cursor:pointer; font-size:0.75rem; font-weight:500; transition:0.2s; white-space:nowrap; }
+        .btn-outline:hover { background:var(--primary); color:white; }
+        .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:24px; }
+        .kpi-card { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-md); padding:18px 16px; text-align:center; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
+        .kpi-title { font-size:0.7rem; text-transform:uppercase; font-weight:700; color:var(--muted); letter-spacing:0.5px; margin-bottom:6px; }
+        .kpi-value { font-size:1.6rem; font-weight:800; color:var(--text-dark); }
+        .table-wrapper { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-lg); padding:20px; overflow-x:auto; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); margin-bottom:28px; }
+        table { width:100%; border-collapse:collapse; font-size:0.85rem; min-width:700px; }
+        th { text-align:left; padding:12px 14px; background:var(--primary-soft); color:var(--primary); font-weight:700; border-bottom:1px solid var(--line); }
+        td { padding:10px 14px; border-bottom:1px solid var(--line); color:var(--text-soft); }
+        .status-aprovado { background:#e0f2e8; color:#1f6e43; }
+        .status-pendente { background:#fff0db; color:#b45f06; }
+        .status-badge { display:inline-block; padding:4px 12px; border-radius:50px; font-size:0.7rem; font-weight:700; }
+        .chart-card { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-lg); padding:20px; margin-top:24px; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
+        .footer { background:var(--footer-bg); color:var(--footer-text); margin-top:48px; padding:28px 20px 20px; border-radius:32px 32px 0 0; width:100%; }
+        .footer-inner { max-width:1400px; margin:0 auto; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:20px; }
+        .footer-logo-section { display:flex; align-items:center; gap:12px; }
+        .footer-logo-img { width:150px; height:100px; border-radius:12px; object-fit:contain; background:transparent; padding:4px; }
+        .footer-brand-name { font-weight:800; font-size:1.1rem; color:white; }
+        .footer-tagline { font-size:0.78rem; color:#94a3b8; max-width:400px; line-height:1.5; }
+        .footer-social { display:flex; gap:14px; flex-wrap:wrap; align-items:center; }
+        .footer-social a { color:var(--footer-text); font-size:1.3rem; transition:0.2s; text-decoration:none; }
+        .footer-social a:hover { color:white; }
+        .footer-bottom { text-align:center; margin-top:20px; font-size:0.7rem; color:#64748b; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; }
+        .mobile-topbar { display:none; position:sticky; top:0; z-index:20; width:100%; background:#ffffff; backdrop-filter:blur(20px); border-bottom:1px solid rgba(0,0,0,0.06); padding:0 16px; height:var(--mobile-topbar-height); align-items:center; justify-content:space-between; box-shadow:0 1px 8px rgba(0,0,0,0.04); }
+        .mobile-topbar .topbar-left { display:flex; align-items:center; gap:10px; }
+        .mobile-topbar .topbar-avatar { width:36px; height:36px; border-radius:50%; object-fit:cover; border:2px solid var(--primary-soft); }
+        .mobile-topbar .topbar-greeting { font-weight:700; font-size:0.9rem; color:var(--text-dark); }
+        .mobile-topbar .hamburger-btn { background:none; border:none; font-size:1.4rem; color:var(--text-dark); cursor:pointer; padding:8px; border-radius:12px; }
+        .hamburger-overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+        .hamburger-overlay.active { opacity:1; pointer-events:all; }
+        .hamburger-menu { position:fixed; top:0; right:-320px; width:300px; max-width:85vw; height:100%; background:#fff; z-index:110; transition:right 0.35s; display:flex; flex-direction:column; box-shadow:-4px 0 30px rgba(0,0,0,0.18); border-radius:20px 0 0 20px; overflow-y:auto; padding:24px 20px 100px; }
+        .hamburger-menu.active { right:0; }
+        .hamburger-menu .menu-header { display:flex; align-items:center; gap:12px; padding-bottom:20px; border-bottom:1px solid var(--line); margin-bottom:16px; }
+        .hamburger-menu .menu-avatar { width:50px; height:50px; border-radius:50%; object-fit:cover; border:3px solid var(--primary-soft); }
+        .hamburger-menu .menu-user-info h4 { font-size:1rem; font-weight:700; }
+        .hamburger-menu .menu-user-info span { font-size:0.72rem; color:var(--muted); }
+        .hamburger-menu .menu-section { margin-bottom:14px; }
+        .hamburger-menu .menu-section-label { font-size:0.65rem; text-transform:uppercase; letter-spacing:1px; color:var(--text-light); margin-bottom:8px; padding-left:4px; font-weight:700; }
+        .hamburger-menu .menu-item { display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:14px; cursor:pointer; font-weight:500; font-size:0.9rem; color:var(--text-dark); background:none; border:none; width:100%; text-align:left; }
+        .hamburger-menu .menu-item i { width:22px; text-align:center; color:var(--primary); }
+        .hamburger-menu .menu-item:active { background:var(--primary-soft); }
+        .hamburger-menu .menu-item.danger { color:var(--danger); }
+        .hamburger-menu .menu-item.danger i { color:var(--danger); }
+        .hamburger-menu .menu-close-btn { position:absolute; top:18px; right:18px; background:rgba(0,0,0,0.04); border:none; width:34px; height:34px; border-radius:50%; font-size:1.1rem; cursor:pointer; }
+        .mobile-bottom-bar { display:none; position:fixed; bottom:0; left:0; width:100%; background:rgba(255,255,255,0.94); backdrop-filter:blur(20px); border-top:1px solid rgba(0,0,0,0.06); z-index:25; padding:6px 12px calc(6px + var(--safe-bottom)); justify-content:space-around; align-items:center; box-shadow:0 -2px 20px rgba(0,0,0,0.06); height:var(--bottom-bar-height); }
+        .mobile-bottom-bar .bb-item { display:flex; flex-direction:column; align-items:center; gap:4px; cursor:pointer; padding:6px 10px; border-radius:14px; color:var(--text-soft); text-decoration:none; border:none; background:none; }
+        .mobile-bottom-bar .bb-item i { font-size:1.25rem; }
+        .mobile-bottom-bar .bb-item span { font-size:0.6rem; font-weight:600; }
+        .mobile-bottom-bar .bb-item.active { color:var(--primary); }
+        @media (max-width: 1000px) {
+            body { padding:0 0 var(--bottom-bar-height) 0; }
+            .wrapper { padding:0 12px; }
+            .header { display:none !important; }
+            .mobile-topbar { display:flex; margin-bottom:12px; }
+            .mobile-bottom-bar { display:flex; }
+            .hamburger-overlay { display:block; }
+            .filters-bar { border-radius:20px; padding:10px 16px; flex-direction:column; align-items:stretch; }
+            .footer { border-radius:24px 24px 0 0; padding:20px 16px 100px; }
+            .footer-tagline { display:none; }
+            .footer-social { display:none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-topbar" id="mobile-topbar">
+        <div class="topbar-left">
+            <img src="img/perfil.png" alt="Avatar" class="topbar-avatar" id="topbar-avatar-mobile" onerror="this.style.display='none'">
+            <span class="topbar-greeting" id="topbar-greeting">Metas</span>
+        </div>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
+    </div>
+    <div class="hamburger-overlay" id="hamburger-overlay"></div>
+    <nav class="hamburger-menu" id="hamburger-menu">
+        <button class="menu-close-btn" id="menu-close-btn"><i class="fas fa-times"></i></button>
+        <div class="menu-header">
+            <img src="img/perfil.png" alt="Avatar" class="menu-avatar" id="menu-avatar" onerror="this.style.display='none'">
+            <div class="menu-user-info"><h4 id="menu-user-name">Visitante</h4><span>Visão Metas</span></div>
+        </div>
+        <div class="menu-section"><div class="menu-section-label">Principal</div>
+            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
+            <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
+            <button class="menu-item" id="menu-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
+        </div>
+        <div class="menu-section"><div class="menu-section-label">Conta</div>
+            <button class="menu-item danger" id="menu-logout"><i class="fas fa-sign-out-alt"></i> Sair</button>
+        </div>
+    </nav>
+    <div class="mobile-bottom-bar" id="mobile-bottom-bar">
+        <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
+        <button class="bb-item active" data-nav="metas" id="bb-metas"><i class="fas fa-bullseye"></i><span>Metas</span></button>
+        <button class="bb-item" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+    </div>
+
+    <div class="wrapper">
+        <div class="header" id="desktop-header">
+            <div class="user-section">
+                <img src="img/perfil.png" alt="Avatar" class="user-avatar" id="user-avatar" onerror="this.style.display='none'">
+                <span class="greeting" id="greeting">Visitante</span>
+            </div>
+            <div class="header-actions">
+                <span class="last-update-badge" id="last-update-badge" style="display:none;"><i class="fas fa-sync-alt"></i> <span id="last-update-text">Atualizado em: --</span></span>
+                <button class="icon-btn home-btn" id="home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
+                <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+            </div>
+        </div>
+
+        <div class="filters-bar" id="filtersBar">
+            <div class="filter-group"><i class="fas fa-calendar-alt"></i><label>Meses</label>
+                <div id="monthCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            </div>
+            <div class="filter-group">
+                <button id="selectAllMonths" class="btn-outline">Todos</button>
+                <button id="deselectAllMonths" class="btn-outline">Nenhum</button>
+                <button id="sortOrderBtn" class="btn-outline"><i class="fas fa-sort-amount-down-alt"></i></button>
+            </div>
+        </div>
+
+        <div id="tablesContainer"></div>
+
+        <div class="chart-card">
+            <h3><i class="fas fa-chart-bar"></i> Metas Atingidas por Vendedor</h3>
+            <canvas id="statsChart" height="100"></canvas>
+        </div>
+    </div>
+
+    <footer class="footer">
+        <div class="footer-inner">
+            <div class="footer-logo-section">
+                <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
+                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil...</div></div>
+            </div>
+            <div class="footer-social">
+                <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i></a>
+                <a href="https://www.linkedin.com/company/centrobor/" target="_blank"><i class="fab fa-linkedin-in"></i></a>
+                <a href="https://www.instagram.com/centrobor.correias/" target="_blank"><i class="fab fa-instagram"></i></a>
+            </div>
+        </div>
+        <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor. Todos os direitos reservados.</div>
+    </footer>
+
+    <script>
+        (function() {
+            const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
+            const LOGGED_OUT_KEY = 'radar_logged_out';
+            const USER_KEY = 'radar_usuario';
+            const LAST_ACCESS_KEY = 'ultimo_acesso_radar';
+            if (localStorage.getItem(LOGGED_OUT_KEY) === 'true') { window.location.href = BASE_URL + '/index.html?reason=logged_out'; return; }
+            if (!localStorage.getItem(USER_KEY)) { window.location.href = BASE_URL + '/index.html?reason=expired'; return; }
+            const lastAccess = localStorage.getItem(LAST_ACCESS_KEY);
+            if (lastAccess && (Date.now() - parseInt(lastAccess)) > 86400000) { localStorage.removeItem(USER_KEY); window.location.href = BASE_URL + '/index.html?reason=expired'; return; }
+            localStorage.setItem(LAST_ACCESS_KEY, Date.now().toString());
+
+            function getNomeUsuario() {
+                const raw = localStorage.getItem(USER_KEY);
+                if (!raw) return 'Visitante';
+                try { const obj = JSON.parse(raw); return obj && obj.nome_usuario ? obj.nome_usuario.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : 'Visitante'; } catch (e) {}
+                return raw.split('.').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ');
+            }
+
+            const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+            const BASES = {
+                faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
+                metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+            };
+            const VENDEDORES_MAP = {
+                "33": "Fábio Prado", "49": "Matheus Santos", "51": "Lorena Martins",
+                "55": "César Santos", "20": "Juliana Cecchy", "60": "Valéria Ferreira",
+                "3": "Hélio Coelho", "61": "Luan Dantas",
+            };
+
+            let allFaturados = [], allMetas = [];
+            let selectedMonths = new Set();
+            let sortDesc = true;
+            const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v : parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0);
+            const formatCurrency = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+            const parseDataBR = str => { if (!str) return null; const p = String(str).split('/'); if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])); return null; };
+
+            async function fetchData() {
+                try {
+                    const [faturados, metas] = await Promise.all([fetch(BASES.faturados).then(r => r.json()), fetch(BASES.metas).then(r => r.json())]);
+                    allFaturados = faturados; allMetas = metas;
+                    document.getElementById('last-update-text').innerText = `Atualizado em: ${new Date().toLocaleString('pt-BR')}`;
+                    document.getElementById('last-update-badge').style.display = 'flex';
+                    initMonths();
+                    renderAll();
+                } catch (e) { console.error(e); }
+            }
+
+            function getAvailableMonths() {
+                const months = new Set();
+                allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d) months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); });
+                return Array.from(months).sort();
+            }
+
+            function initMonths() {
+                const avail = getAvailableMonths();
+                if (selectedMonths.size === 0) avail.forEach(m => selectedMonths.add(m));
+                renderMonthCheckboxes(avail);
+            }
+
+            function renderMonthCheckboxes(avail) {
+                const container = document.getElementById('monthCheckboxes');
+                container.innerHTML = avail.map(m => {
+                    const [y, mo] = m.split('-'); const nome = new Date(y, mo-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    return `<label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;"><input type="checkbox" value="${m}" class="month-cb" ${selectedMonths.has(m)?'checked':''}> ${nome}</label>`;
+                }).join('');
+                document.querySelectorAll('.month-cb').forEach(cb => cb.addEventListener('change', e => {
+                    if (e.target.checked) selectedMonths.add(e.target.value); else selectedMonths.delete(e.target.value);
+                    renderAll();
+                }));
+            }
+
+            function getFaturamentoPorVendedorMes(ano, mes) {
+                const map = {};
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth()+1 !== mes) return;
+                    const cod = f['Cod. Vendedor']?.trim(); if (!cod || cod === '80') return;
+                    map[cod] = (map[cod] || 0) + cleanNumber(f['Valor Mercadoria']);
+                });
+                return map;
+            }
+
+            function getMetaPorVendedorMes(ano, mes) {
+                const map = {};
+                allMetas.forEach(m => {
+                    const cod = String(m.id_vendedor || '').trim(); if (!cod || cod === '80') return;
+                    map[cod] = cleanNumber(m.meta_mensal);
+                });
+                return map;
+            }
+
+            function renderTables() {
+                const container = document.getElementById('tablesContainer');
+                let monthsArr = Array.from(selectedMonths).sort((a,b) => sortDesc ? b.localeCompare(a) : a.localeCompare(b));
+                if (!monthsArr.length) { container.innerHTML = '<p>Nenhum mês selecionado.</p>'; return; }
+                let html = '';
+                monthsArr.forEach(m => {
+                    const [ano, mes] = m.split('-').map(Number);
+                    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
+                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const metaMap = getMetaPorVendedorMes(ano, mes);
+                    const allCodes = new Set([...Object.keys(fatMap), ...Object.keys(metaMap)]);
+                    const rows = Array.from(allCodes).map(cod => {
+                        const nome = VENDEDORES_MAP[cod] || cod;
+                        const meta = metaMap[cod] || 0;
+                        const fat = fatMap[cod] || 0;
+                        const perc = meta ? (fat/meta)*100 : 0;
+                        const atingiu = fat >= meta;
+                        return { cod, nome, meta, fat, perc, atingiu };
+                    }).sort((a,b) => b.fat - a.fat);
+                    const totalMeta = rows.reduce((s,r)=>s+r.meta,0);
+                    const totalFat = rows.reduce((s,r)=>s+r.fat,0);
+                    html += `<div class="table-wrapper"><h3 style="margin-bottom:12px;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h3>
+                    <table><thead><tr><th>Vendedor</th><th>Meta (R$)</th><th>Faturado (R$)</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>`;
+                    rows.forEach(r => {
+                        html += `<tr><td>${r.nome}</td><td>${formatCurrency(r.meta)}</td><td>${formatCurrency(r.fat)}</td><td>${r.perc.toFixed(1)}%</td><td><span class="status-badge ${r.atingiu?'status-aprovado':'status-pendente'}">${r.atingiu?'Sim':'Não'}</span></td></tr>`;
+                    });
+                    html += `<tr style="font-weight:700;background:var(--primary-soft);"><td>Total</td><td>${formatCurrency(totalMeta)}</td><td>${formatCurrency(totalFat)}</td><td>${totalMeta?((totalFat/totalMeta)*100).toFixed(1):0}%</td><td></td></tr></tbody></table></div>`;
+                });
+                container.innerHTML = html;
+            }
+
+            function renderStatsChart() {
+                const stats = {};
+                selectedMonths.forEach(m => {
+                    const [ano, mes] = m.split('-').map(Number);
+                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const metaMap = getMetaPorVendedorMes(ano, mes);
+                    const codes = new Set([...Object.keys(fatMap), ...Object.keys(metaMap)]);
+                    codes.forEach(cod => {
+                        const nome = VENDEDORES_MAP[cod] || cod;
+                        if (!stats[nome]) stats[nome] = { atingidas: 0, total: 0 };
+                        stats[nome].total++;
+                        if ((fatMap[cod]||0) >= (metaMap[cod]||0)) stats[nome].atingidas++;
+                    });
+                });
+                const labels = Object.keys(stats);
+                const data = labels.map(l => stats[l].atingidas);
+                const ctx = document.getElementById('statsChart').getContext('2d');
+                if (window.statsChartInstance) window.statsChartInstance.destroy();
+                window.statsChartInstance = new Chart(ctx, {
+                    type: 'bar',
+                    data: { labels, datasets: [{ label: 'Meses com meta atingida', data, backgroundColor: '#1e3a5f' }] },
+                    options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                });
+            }
+
+            function renderAll() { renderTables(); renderStatsChart(); }
+
+            document.getElementById('selectAllMonths').addEventListener('click', () => {
+                selectedMonths = new Set(getAvailableMonths()); renderMonthCheckboxes(getAvailableMonths()); renderAll();
+            });
+            document.getElementById('deselectAllMonths').addEventListener('click', () => {
+                selectedMonths.clear(); renderMonthCheckboxes(getAvailableMonths()); renderAll();
+            });
+            document.getElementById('sortOrderBtn').addEventListener('click', () => {
+                sortDesc = !sortDesc;
+                document.getElementById('sortOrderBtn').innerHTML = sortDesc ? '<i class="fas fa-sort-amount-down-alt"></i>' : '<i class="fas fa-sort-amount-up-alt"></i>';
+                renderAll();
+            });
+            document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                localStorage.setItem(LOGGED_OUT_KEY, 'true'); localStorage.removeItem(USER_KEY);
+                window.location.href = BASE_URL + '/index.html';
+            });
+            document.getElementById('hamburger-btn').addEventListener('click', () => {
+                document.getElementById('hamburger-menu').classList.add('active');
+                document.getElementById('hamburger-overlay').classList.add('active');
+            });
+            document.getElementById('menu-close-btn').addEventListener('click', () => {
+                document.getElementById('hamburger-menu').classList.remove('active');
+                document.getElementById('hamburger-overlay').classList.remove('active');
+            });
+            document.getElementById('hamburger-overlay').addEventListener('click', () => {
+                document.getElementById('hamburger-menu').classList.remove('active');
+                document.getElementById('hamburger-overlay').classList.remove('active');
+            });
+            document.getElementById('menu-home').addEventListener('click', () => window.location.href = BASE_URL + '/');
+            document.getElementById('menu-feed').addEventListener('click', () => window.location.href = BASE_URL + '/hpvx5_postagens/postagens');
+            document.getElementById('menu-compras').addEventListener('click', () => window.location.href = BASE_URL + '/hpvxz_pedidos/pedidos');
+            document.getElementById('menu-logout').addEventListener('click', () => {
+                localStorage.setItem(LOGGED_OUT_KEY, 'true'); localStorage.removeItem(USER_KEY);
+                window.location.href = BASE_URL + '/index.html';
+            });
+            document.getElementById('bb-feed').addEventListener('click', () => window.location.href = BASE_URL + '/hpvx5_postagens/postagens');
+            document.getElementById('bb-home').addEventListener('click', () => window.location.href = BASE_URL + '/');
+            document.getElementById('greeting').innerText = getNomeUsuario();
+            document.getElementById('topbar-greeting').innerText = getNomeUsuario().split(' ')[0];
+            document.getElementById('menu-user-name').innerText = getNomeUsuario();
+            document.getElementById('footer-year').innerText = new Date().getFullYear();
+            fetchData();
+        })();
+    </script>
+</body>
+</html>
