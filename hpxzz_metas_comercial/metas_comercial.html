@@ -8,8 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --primary: #1e3a5f;
@@ -28,10 +26,8 @@
             --shadow-md: 0 12px 28px rgba(0, 20, 40, 0.12);
             --radius-lg: 28px;
             --radius-md: 20px;
-            --radius-sm: 16px;
             --blur: blur(16px);
             --line: #e5e7eb;
-            --muted: #5b6472;
             --footer-bg: #1a2b3c;
             --footer-text: #cbd5e1;
             --bottom-bar-height: 62px;
@@ -65,22 +61,16 @@
         .icon-btn:hover { background:rgba(30,58,95,0.08); color:var(--primary); }
         .badge { position:absolute; top:-4px; right:-4px; background:var(--danger); color:white; border-radius:50%; width:18px; height:18px; font-size:0.65rem; display:flex; align-items:center; justify-content:center; font-weight:700; }
         .filters-bar { display:flex; flex-wrap:wrap; gap:16px; margin-bottom:20px; background:var(--card-bg); backdrop-filter:var(--blur); border-radius:60px; padding:12px 24px; align-items:center; justify-content:space-between; }
-        .filter-group { display:flex; align-items:center; gap:8px; }
-        .filter-group label { font-weight:600; font-size:0.8rem; color:var(--text-dark); }
-        select, input { background:white; border:1px solid var(--line); border-radius:40px; padding:8px 14px; font-weight:500; font-size:0.85rem; cursor:pointer; outline:none; }
+        .filter-group { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
         .btn-outline { background:transparent; border:1px solid var(--primary); color:var(--primary); padding:6px 16px; border-radius:40px; cursor:pointer; font-size:0.75rem; font-weight:500; transition:0.2s; white-space:nowrap; }
         .btn-outline:hover { background:var(--primary); color:white; }
-        .kpi-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:14px; margin-bottom:24px; }
-        .kpi-card { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-md); padding:18px 16px; text-align:center; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
-        .kpi-title { font-size:0.7rem; text-transform:uppercase; font-weight:700; color:var(--muted); letter-spacing:0.5px; margin-bottom:6px; }
-        .kpi-value { font-size:1.6rem; font-weight:800; color:var(--text-dark); }
         .table-wrapper { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-lg); padding:20px; overflow-x:auto; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); margin-bottom:28px; }
         table { width:100%; border-collapse:collapse; font-size:0.85rem; min-width:700px; }
         th { text-align:left; padding:12px 14px; background:var(--primary-soft); color:var(--primary); font-weight:700; border-bottom:1px solid var(--line); }
         td { padding:10px 14px; border-bottom:1px solid var(--line); color:var(--text-soft); }
+        .status-badge { display:inline-block; padding:4px 12px; border-radius:50px; font-size:0.7rem; font-weight:700; }
         .status-aprovado { background:#e0f2e8; color:#1f6e43; }
         .status-pendente { background:#fff0db; color:#b45f06; }
-        .status-badge { display:inline-block; padding:4px 12px; border-radius:50px; font-size:0.7rem; font-weight:700; }
         .chart-card { background:var(--card-bg); backdrop-filter:var(--blur); border-radius:var(--radius-lg); padding:20px; margin-top:24px; border:1px solid var(--border-light); box-shadow:var(--shadow-sm); }
         .footer { background:var(--footer-bg); color:var(--footer-text); margin-top:48px; padding:28px 20px 20px; border-radius:32px 32px 0 0; width:100%; }
         .footer-inner { max-width:1400px; margin:0 auto; display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:20px; }
@@ -118,6 +108,15 @@
         .mobile-bottom-bar .bb-item i { font-size:1.25rem; }
         .mobile-bottom-bar .bb-item span { font-size:0.6rem; font-weight:600; }
         .mobile-bottom-bar .bb-item.active { color:var(--primary); }
+
+        /* impressão */
+        @media print {
+            body { background: white; padding:0; }
+            .header, .mobile-topbar, .hamburger-overlay, .hamburger-menu, .mobile-bottom-bar, .filters-bar, .footer, .chart-card { display:none !important; }
+            .wrapper { max-width:100%; padding:0; }
+            .table-wrapper { box-shadow:none; border:1px solid #ccc; break-inside:avoid; }
+        }
+
         @media (max-width: 1000px) {
             body { padding:0 0 var(--bottom-bar-height) 0; }
             .wrapper { padding:0 12px; }
@@ -176,13 +175,16 @@
         </div>
 
         <div class="filters-bar" id="filtersBar">
-            <div class="filter-group"><i class="fas fa-calendar-alt"></i><label>Meses</label>
-                <div id="monthCheckboxes" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+            <div class="filter-group">
+                <label>Ano:</label>
+                <select id="yearSelect"></select>
             </div>
+            <div class="filter-group" id="monthCheckboxes" style="flex:1; flex-wrap:wrap;"></div>
             <div class="filter-group">
                 <button id="selectAllMonths" class="btn-outline">Todos</button>
                 <button id="deselectAllMonths" class="btn-outline">Nenhum</button>
-                <button id="sortOrderBtn" class="btn-outline"><i class="fas fa-sort-amount-down-alt"></i></button>
+                <button id="exportExcel" class="btn-outline"><i class="fas fa-file-excel"></i> Excel</button>
+                <button id="printPDF" class="btn-outline"><i class="fas fa-print"></i> PDF</button>
             </div>
         </div>
 
@@ -238,49 +240,108 @@
                 "55": "César Santos", "20": "Juliana Cecchy", "60": "Valéria Ferreira",
                 "3": "Hélio Coelho", "61": "Luan Dantas",
             };
+            const VENDEDORES_LIST = [
+                { cod: "33", nome: "Fábio Prado" },
+                { cod: "55", nome: "César" },
+                { cod: "20", nome: "Juliana" },
+                { cod: "49", nome: "Matheus" },
+                { cod: "3", nome: "Hélio" },
+                { cod: "51", nome: "Lorena" },
+                { cod: "60", nome: "Valéria" },
+                { cod: "61", nome: "Luan" },
+            ];
+            const ESPECIAIS_FABIANO = [
+                { nome: "Sinc/Polias/Esp.", anterior: 180000, nova: 207000, bonus: 300, bonusPlus: 125, tipo: 'sincpolias' },
+                { nome: "Lavand.(exceto V, Sinc./Plana)", anterior: 132000, nova: 151000, bonus: 300, bonusPlus: 125, tipo: 'lavanderia' }
+            ];
+            const GERAL_META_PADRAO = 1100000; // meta padrão para Dimas se não existir na planilha
 
             let allFaturados = [], allMetas = [];
             let selectedMonths = new Set();
-            let sortDesc = true;
+            let currentYear = new Date().getFullYear(); // 2026
+            const today = new Date();
+
             const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v : parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0);
             const formatCurrency = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const parseDataBR = str => { if (!str) return null; const p = String(str).split('/'); if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])); return null; };
 
             async function fetchData() {
                 try {
-                    const [faturados, metas] = await Promise.all([fetch(BASES.faturados).then(r => r.json()), fetch(BASES.metas).then(r => r.json())]);
+                    const [faturados, metas] = await Promise.all([
+                        fetch(BASES.faturados).then(r => r.json()),
+                        fetch(BASES.metas).then(r => r.json())
+                    ]);
                     allFaturados = faturados; allMetas = metas;
                     document.getElementById('last-update-text').innerText = `Atualizado em: ${new Date().toLocaleString('pt-BR')}`;
                     document.getElementById('last-update-badge').style.display = 'flex';
-                    initMonths();
+                    initFilters();
                     renderAll();
                 } catch (e) { console.error(e); }
             }
 
-            function getAvailableMonths() {
-                const months = new Set();
-                allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d) months.add(`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`); });
-                return Array.from(months).sort();
+            function getAvailableYears() {
+                const years = new Set();
+                allFaturados.forEach(f => { const d = parseDataBR(f['Data']); if (d) years.add(d.getFullYear()); });
+                if (years.size === 0) years.add(currentYear);
+                return Array.from(years).sort((a,b) => b-a);
             }
 
-            function initMonths() {
-                const avail = getAvailableMonths();
-                if (selectedMonths.size === 0) avail.forEach(m => selectedMonths.add(m));
-                renderMonthCheckboxes(avail);
-            }
-
-            function renderMonthCheckboxes(avail) {
-                const container = document.getElementById('monthCheckboxes');
-                container.innerHTML = avail.map(m => {
-                    const [y, mo] = m.split('-'); const nome = new Date(y, mo-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    return `<label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;"><input type="checkbox" value="${m}" class="month-cb" ${selectedMonths.has(m)?'checked':''}> ${nome}</label>`;
-                }).join('');
-                document.querySelectorAll('.month-cb').forEach(cb => cb.addEventListener('change', e => {
-                    if (e.target.checked) selectedMonths.add(e.target.value); else selectedMonths.delete(e.target.value);
-                    renderAll();
+            function getMonthsForYear(year) {
+                return Array.from({length: 12}, (_, i) => ({
+                    value: `${year}-${String(i+1).padStart(2,'0')}`,
+                    label: new Date(year, i, 1).toLocaleDateString('pt-BR', { month: 'long' })
                 }));
             }
 
+            function initFilters() {
+                const yearSelect = document.getElementById('yearSelect');
+                const years = getAvailableYears();
+                yearSelect.innerHTML = years.map(y => `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`).join('');
+                yearSelect.addEventListener('change', () => {
+                    currentYear = parseInt(yearSelect.value);
+                    renderMonthCheckboxes();
+                    renderAll();
+                });
+                renderMonthCheckboxes();
+                document.getElementById('selectAllMonths').addEventListener('click', () => {
+                    document.querySelectorAll('.month-cb').forEach(cb => { cb.checked = true; selectedMonths.add(cb.value); });
+                    renderAll();
+                });
+                document.getElementById('deselectAllMonths').addEventListener('click', () => {
+                    document.querySelectorAll('.month-cb').forEach(cb => { cb.checked = false; selectedMonths.clear(); });
+                    renderAll();
+                });
+                document.getElementById('exportExcel').addEventListener('click', exportToExcel);
+                document.getElementById('printPDF').addEventListener('click', () => window.print());
+            }
+
+            function renderMonthCheckboxes() {
+                const container = document.getElementById('monthCheckboxes');
+                const months = getMonthsForYear(currentYear);
+                // inicializa seleção padrão: se ano atual, seleciona até o mês atual; senão, seleciona todos
+                if (selectedMonths.size === 0 || !months.some(m => selectedMonths.has(m.value))) {
+                    selectedMonths.clear();
+                    months.forEach(m => {
+                        const [y, mo] = m.value.split('-').map(Number);
+                        if (currentYear < today.getFullYear() || (currentYear === today.getFullYear() && mo <= today.getMonth()+1)) {
+                            selectedMonths.add(m.value);
+                        }
+                    });
+                }
+                container.innerHTML = months.map(m => {
+                    const checked = selectedMonths.has(m.value) ? 'checked' : '';
+                    return `<label style="display:flex;align-items:center;gap:4px;font-size:0.8rem;"><input type="checkbox" value="${m.value}" class="month-cb" ${checked}> ${m.label}</label>`;
+                }).join('');
+                document.querySelectorAll('.month-cb').forEach(cb => {
+                    cb.addEventListener('change', (e) => {
+                        if (e.target.checked) selectedMonths.add(e.target.value);
+                        else selectedMonths.delete(e.target.value);
+                        renderAll();
+                    });
+                });
+            }
+
+            // Funções auxiliares de faturamento (copiadas do dashboard)
             function getFaturamentoPorVendedorMes(ano, mes) {
                 const map = {};
                 allFaturados.forEach(f => {
@@ -301,9 +362,70 @@
                 return map;
             }
 
+            function getFabianoSincPoliasFat(ano, mes) {
+                let fat = 0; const regs = new Set();
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth()+1 !== mes) return;
+                    const desc = String(f['Descrição'] || '').toLowerCase(), grupo = String(f['Grupo'] || '').toLowerCase();
+                    if (grupo.includes('torque') || grupo.includes('multi v') || grupo.includes('emendadas') || grupo.includes('taliscas') || grupo.includes('fixação') || grupo.includes('transmissao') || grupo.includes('manta') || grupo.includes('algodao') || grupo.includes('pvc')) return;
+                    const temSinc = desc.includes('sinc') || desc.includes('sincron');
+                    const temPoly = /\bpoly\b/i.test(desc) && !desc.includes('poly-v') && !desc.includes('poly v') && !desc.includes('polyv') && !desc.includes('polychain') && !desc.includes('polyflex') && !desc.includes('polycord') && !desc.includes('polia');
+                    if (!temSinc && !temPoly) return;
+                    const chave = [f['Chave Acesso'], f['Campo Chave'], f['Código'], f['Valor Mercadoria']].join('|');
+                    if (regs.has(chave)) return;
+                    regs.add(chave);
+                    fat += cleanNumber(f['Valor Mercadoria']);
+                });
+                return fat;
+            }
+
+            function getFabianoLavanderiaFat(ano, mes) {
+                const keys = new Set(); let fat = 0;
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth()+1 !== mes) return;
+                    const ramo = String(f['Ramo'] || '').toLowerCase();
+                    if (!ramo.includes('04 - lavanderia') && !ramo.includes('lavanderia')) return;
+                    const grupo = String(f['Grupo'] || '').toLowerCase();
+                    if (!grupo) return;
+                    const match = grupo.match(/(\d+\.\d+|\d+)$/);
+                    const numGrupo = match ? match[0] : '';
+                    if (!numGrupo.startsWith('2') && !numGrupo.startsWith('5')) return;
+                    const chave = [f['Nota Fiscal'] || '', f['Código'] || '', f['Descrição'] || '', f['Valor Mercadoria'] || ''].join('|');
+                    if (keys.has(chave)) return;
+                    keys.add(chave);
+                    fat += cleanNumber(f['Valor Mercadoria']);
+                });
+                return fat;
+            }
+
+            function getFaturamentoGeralMes(ano, mes) {
+                let total = 0;
+                const chavesUsadas = new Set();
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (!d || d.getFullYear() !== ano || d.getMonth()+1 !== mes) return;
+                    const cod = f['Cod. Vendedor']?.trim();
+                    if (cod === '80' || cod === '1') return; // exclui RKB e admin
+                    const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
+                    if (!chavesUsadas.has(chave)) {
+                        chavesUsadas.add(chave);
+                        total += cleanNumber(f['Valor Mercadoria']);
+                    }
+                });
+                return total;
+            }
+
+            function getMetaGeralMes(ano, mes) {
+                // busca na planilha de metas por nome "Dimas" ou "Geral"
+                const entry = allMetas.find(m => (m.vendedor || '').trim().toLowerCase().includes('dimas') || (m.vendedor || '').trim().toLowerCase().includes('geral'));
+                return entry ? cleanNumber(entry.meta_mensal) : GERAL_META_PADRAO;
+            }
+
             function renderTables() {
                 const container = document.getElementById('tablesContainer');
-                let monthsArr = Array.from(selectedMonths).sort((a,b) => sortDesc ? b.localeCompare(a) : a.localeCompare(b));
+                let monthsArr = Array.from(selectedMonths).sort();
                 if (!monthsArr.length) { container.innerHTML = '<p>Nenhum mês selecionado.</p>'; return; }
                 let html = '';
                 monthsArr.forEach(m => {
@@ -311,23 +433,47 @@
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
                     const fatMap = getFaturamentoPorVendedorMes(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
-                    const allCodes = new Set([...Object.keys(fatMap), ...Object.keys(metaMap)]);
-                    const rows = Array.from(allCodes).map(cod => {
-                        const nome = VENDEDORES_MAP[cod] || cod;
-                        const meta = metaMap[cod] || 0;
-                        const fat = fatMap[cod] || 0;
-                        const perc = meta ? (fat/meta)*100 : 0;
+                    // Vendedores
+                    const rowsVend = VENDEDORES_LIST.map(v => {
+                        const meta = metaMap[v.cod] || 0;
+                        const fat = fatMap[v.cod] || 0;
+                        const metaPlus = meta * 1.1;
+                        const perc = meta ? (fat / meta) * 100 : 0;
+                        const percPlus = metaPlus ? (fat / metaPlus) * 100 : 0;
                         const atingiu = fat >= meta;
-                        return { cod, nome, meta, fat, perc, atingiu };
-                    }).sort((a,b) => b.fat - a.fat);
-                    const totalMeta = rows.reduce((s,r)=>s+r.meta,0);
-                    const totalFat = rows.reduce((s,r)=>s+r.fat,0);
-                    html += `<div class="table-wrapper"><h3 style="margin-bottom:12px;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h3>
-                    <table><thead><tr><th>Vendedor</th><th>Meta (R$)</th><th>Faturado (R$)</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>`;
-                    rows.forEach(r => {
-                        html += `<tr><td>${r.nome}</td><td>${formatCurrency(r.meta)}</td><td>${formatCurrency(r.fat)}</td><td>${r.perc.toFixed(1)}%</td><td><span class="status-badge ${r.atingiu?'status-aprovado':'status-pendente'}">${r.atingiu?'Sim':'Não'}</span></td></tr>`;
+                        const atingiuPlus = fat >= metaPlus;
+                        return { ...v, meta, fat, metaPlus, perc, percPlus, atingiu, atingiuPlus };
                     });
-                    html += `<tr style="font-weight:700;background:var(--primary-soft);"><td>Total</td><td>${formatCurrency(totalMeta)}</td><td>${formatCurrency(totalFat)}</td><td>${totalMeta?((totalFat/totalMeta)*100).toFixed(1):0}%</td><td></td></tr></tbody></table></div>`;
+                    const totalMetaVend = rowsVend.reduce((s,r)=>s+r.meta,0);
+                    const totalFatVend = rowsVend.reduce((s,r)=>s+r.fat,0);
+                    html += `<div class="table-wrapper"><h3 style="margin-bottom:12px;"><i class="fas fa-calendar-alt"></i> ${nomeMes} - Vendedores</h3>
+                    <table><thead><tr><th>Vendedor</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                    rowsVend.forEach(r => {
+                        html += `<tr><td>${r.nome}</td><td>R$ ${formatCurrency(r.meta)}</td><td>R$ ${formatCurrency(r.metaPlus)}</td><td>R$ ${formatCurrency(r.fat)}</td><td>${r.perc.toFixed(1)}%</td><td><span class="status-badge ${r.atingiu?'status-aprovado':'status-pendente'}">${r.atingiu?'Sim':'Não'}</span></td><td>${r.percPlus.toFixed(1)}%</td><td><span class="status-badge ${r.atingiuPlus?'status-aprovado':'status-pendente'}">${r.atingiuPlus?'Sim':'Não'}</span></td></tr>`;
+                    });
+                    html += `<tr style="font-weight:700;background:var(--primary-soft);"><td>Total</td><td>R$ ${formatCurrency(totalMetaVend)}</td><td></td><td>R$ ${formatCurrency(totalFatVend)}</td><td colspan="4"></td></tr></tbody></table></div>`;
+
+                    // Metas Especiais Fabiano
+                    html += `<div class="table-wrapper"><h3>Metas Especiais (Fabiano) - ${nomeMes}</h3>
+                    <table><thead><tr><th>Categoria</th><th>Meta Anterior</th><th>Meta Nova</th><th>Faturado</th><th>Atingiu Nova?</th><th>Meta Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                    ESPECIAIS_FABIANO.forEach(esp => {
+                        const fat = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
+                        const metaPlus = esp.nova * 1.1;
+                        const atingiuNova = fat >= esp.nova;
+                        const atingiuPlus = fat >= metaPlus;
+                        html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(esp.anterior)}</td><td>R$ ${formatCurrency(esp.nova)}</td><td>R$ ${formatCurrency(fat)}</td><td><span class="status-badge ${atingiuNova?'status-aprovado':'status-pendente'}">${atingiuNova?'Sim':'Não'}</span></td><td>R$ ${formatCurrency(metaPlus)}</td><td><span class="status-badge ${atingiuPlus?'status-aprovado':'status-pendente'}">${atingiuPlus?'Sim':'Não'}</span></td></tr>`;
+                    });
+                    html += `</tbody></table></div>`;
+
+                    // Faturamento Geral (Dimas / Eduardo)
+                    const fatGeral = getFaturamentoGeralMes(ano, mes);
+                    const metaGeral = getMetaGeralMes(ano, mes);
+                    const percGeral = metaGeral ? (fatGeral / metaGeral) * 100 : 0;
+                    const atingiuGeral = fatGeral >= metaGeral;
+                    html += `<div class="table-wrapper"><h3>Faturamento Geral (Dimas / Eduardo) - ${nomeMes}</h3>
+                    <table><thead><tr><th>Descrição</th><th>Meta Nova</th><th>Faturado</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>
+                    <tr><td>Faturamento Geral</td><td>R$ ${formatCurrency(metaGeral)}</td><td>R$ ${formatCurrency(fatGeral)}</td><td>${percGeral.toFixed(1)}%</td><td><span class="status-badge ${atingiuGeral?'status-aprovado':'status-pendente'}">${atingiuGeral?'Sim':'Não'}</span></td></tr>
+                    </tbody></table></div>`;
                 });
                 container.innerHTML = html;
             }
@@ -338,12 +484,11 @@
                     const [ano, mes] = m.split('-').map(Number);
                     const fatMap = getFaturamentoPorVendedorMes(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
-                    const codes = new Set([...Object.keys(fatMap), ...Object.keys(metaMap)]);
-                    codes.forEach(cod => {
-                        const nome = VENDEDORES_MAP[cod] || cod;
+                    VENDEDORES_LIST.forEach(v => {
+                        const nome = v.nome;
                         if (!stats[nome]) stats[nome] = { atingidas: 0, total: 0 };
                         stats[nome].total++;
-                        if ((fatMap[cod]||0) >= (metaMap[cod]||0)) stats[nome].atingidas++;
+                        if ((fatMap[v.cod]||0) >= (metaMap[v.cod]||0)) stats[nome].atingidas++;
                     });
                 });
                 const labels = Object.keys(stats);
@@ -357,19 +502,29 @@
                 });
             }
 
+            function exportToExcel() {
+                const wb = XLSX.utils.book_new();
+                const monthsArr = Array.from(selectedMonths).sort();
+                monthsArr.forEach(m => {
+                    const [ano, mes] = m.split('-').map(Number);
+                    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const metaMap = getMetaPorVendedorMes(ano, mes);
+                    const sheetData = [['Vendedor', 'Meta Mensal', 'Meta Plus', 'Faturado', '% Meta', 'Atingiu Meta', '% Plus', 'Atingiu Plus']];
+                    VENDEDORES_LIST.forEach(v => {
+                        const meta = metaMap[v.cod] || 0;
+                        const fat = fatMap[v.cod] || 0;
+                        const metaPlus = meta * 1.1;
+                        sheetData.push([v.nome, meta, metaPlus, fat, meta?((fat/meta)*100).toFixed(1):'0', fat>=meta?'Sim':'Não', metaPlus?((fat/metaPlus)*100).toFixed(1):'0', fat>=metaPlus?'Sim':'Não']);
+                    });
+                    const ws = XLSX.utils.aoa_to_sheet(sheetData);
+                    XLSX.utils.book_append_sheet(wb, ws, nomeMes.substring(0,31));
+                });
+                XLSX.writeFile(wb, `metas_${currentYear}.xlsx`);
+            }
+
             function renderAll() { renderTables(); renderStatsChart(); }
 
-            document.getElementById('selectAllMonths').addEventListener('click', () => {
-                selectedMonths = new Set(getAvailableMonths()); renderMonthCheckboxes(getAvailableMonths()); renderAll();
-            });
-            document.getElementById('deselectAllMonths').addEventListener('click', () => {
-                selectedMonths.clear(); renderMonthCheckboxes(getAvailableMonths()); renderAll();
-            });
-            document.getElementById('sortOrderBtn').addEventListener('click', () => {
-                sortDesc = !sortDesc;
-                document.getElementById('sortOrderBtn').innerHTML = sortDesc ? '<i class="fas fa-sort-amount-down-alt"></i>' : '<i class="fas fa-sort-amount-up-alt"></i>';
-                renderAll();
-            });
             document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
             document.getElementById('logout-btn').addEventListener('click', () => {
                 localStorage.setItem(LOGGED_OUT_KEY, 'true'); localStorage.removeItem(USER_KEY);
@@ -400,6 +555,7 @@
             document.getElementById('topbar-greeting').innerText = getNomeUsuario().split(' ')[0];
             document.getElementById('menu-user-name').innerText = getNomeUsuario();
             document.getElementById('footer-year').innerText = new Date().getFullYear();
+
             fetchData();
         })();
     </script>
