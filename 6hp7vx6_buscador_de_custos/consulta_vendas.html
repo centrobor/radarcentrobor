@@ -77,6 +77,28 @@
         .photo-modal-content { background: rgba(0, 0, 0, 0.9); border-radius: 32px; padding: 20px; max-width: 90vw; max-height: 90vh; position: relative; }
         .photo-modal-content img { max-width: 100%; max-height: 80vh; border-radius: 20px; display: block; margin: 0 auto; }
         .close-photo { position: absolute; top: 10px; right: 20px; font-size: 32px; color: white; cursor: pointer; background: none; border: none; }
+
+        /* Estilo para campo de largura fixa (não editável) */
+        input.fixed-width-input {
+            background: #e9ecef;
+            border: 2px dashed #adb5bd;
+            color: #495057;
+            cursor: not-allowed;
+            font-weight: 600;
+        }
+        .fixed-width-note {
+            font-size: 0.7rem;
+            color: #6c757d;
+            margin-top: -8px;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .fixed-width-note i {
+            font-size: 0.8rem;
+        }
+
         .footer { background: var(--footer-bg); color: var(--footer-text); margin-top: 48px; padding: 28px 20px 20px; border-radius: 32px 32px 0 0; width: 100%; }
         .footer-inner { max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 20px; }
         .footer-logo-section { display: flex; align-items: center; gap: 16px; }
@@ -379,6 +401,7 @@
                 { name: 'Grampos', img: 'img/Grampos.jpeg' }
             ];
 
+            // CONFIG_MAPPING: Megalinear agora tem marca vazia, igual ao JSON de configuração
             const CONFIG_MAPPING = {
                 'vlisas': { familia: 'v lisas', marca: 'ammega_group' },
                 'vdentada': { familia: 'v dentada', marca: 'ammega_group' },
@@ -386,7 +409,7 @@
                 'bandas': { familia: 'bandas em v', marca: 'ammega_group' },
                 'acculink': { familia: 'acculink', marca: 'ammega_group' },
                 'moinho': { familia: 'moinho', marca: 'ammega_group' },
-                'megalinear': { familia: 'megalinear', marca: 'ammega_group' },
+                'megalinear': { familia: 'megalinear', marca: '' },            // <-- marca vazia
                 'megapower': { familia: 'megapower', marca: 'ammega_group' },
                 'sincrobor': { familia: 'sincro bor.', marca: 'ammega_group' },
                 'megarib': { familia: 'megarib', marca: 'ammega_group' },
@@ -396,6 +419,7 @@
                 'correias_sinc': { familia: 'correias sinc.', marca: 'continental' }
             };
 
+            // Adicionado "CUSTO REFERÊNCIA MM/m" aos bloqueios
             const BLOCKED_COLUMN_PATTERNS = [
                 'preço líquido de todos os impostos', 'preço (icms 18% , pis e cofins inclusos)',
                 'custo para compra (sem ipi)', 'preço por metro (icms 18% , pis e cofins inclusos)',
@@ -408,7 +432,8 @@
                 'preço líquido', 'preco liquido', 'ipi', 'mkp', 'preço de venda aberta',
                 'preço de venda emendada', 'venda emendada com nft', 'venda emendada com nft+(avafac ou apl)',
                 'venda emendada com nft+(fish-bone ou frisada', 'custo aberta com nft',
-                'custo aberta com nft+(avafac ou apl)', 'custo aberta com nft+(fish-bone ou frisada)'
+                'custo aberta com nft+(avafac ou apl)', 'custo aberta com nft+(fish-bone ou frisada)',
+                'custo referência mm/m'  // <-- bloqueia "CUSTO REFERÊNCIA MM/m"
             ];
 
             let dataCache = {};
@@ -434,7 +459,8 @@
                 if (!key || key.trim() === '') return true;
                 const keyNorm = norm(key).replace(/\s+/g, ' ').trim();
                 for (const pattern of BLOCKED_COLUMN_PATTERNS) {
-                    if (keyNorm === norm(pattern).replace(/\s+/g, ' ').trim() || (pattern.length > 5 && keyNorm.includes(norm(pattern)))) return true;
+                    const patternNorm = norm(pattern).replace(/\s+/g, ' ').trim();
+                    if (keyNorm === patternNorm || (pattern.length > 5 && keyNorm.includes(patternNorm))) return true;
                 }
                 return false;
             }
@@ -506,8 +532,8 @@
                     configData = data;
                     configImageMap = {};
                     configAumentoProgramado = {};
-                    const currentKey = getCurrentMonthKey();
                     data.forEach(item => {
+                        // item.marca pode ser vazio, então mapKey será "familia|" se marca for ''
                         const mapKey = `${norm(item.familia)}|${norm(item.marca)}`;
                         configImageMap[mapKey] = item.img;
                         const aumentoStr = item.aumento || '';
@@ -723,7 +749,7 @@
                 };
             }
 
-            // ══════════════ DETALHE DO PRODUTO (CORRIGIDO) ══════════════
+            // ══════════════ DETALHE DO PRODUTO (MELHORIAS) ══════════════
             function openDetailModal(prod) {
                 let html = '';
                 const cat = currentCategory;
@@ -735,19 +761,19 @@
                 // ---------- MEGALINEAR ----------
                 if (cat.key === 'megalinear') {
                     const desc = escapeHtml(getField(prod, ['Descrição', 'descrição', 'DESCRIÇÃO'], '—'));
-                    const codigoRaw = getField(prod, ['CÓDIGO', 'codigo', 'CODIGO'], ''); // valor original para verificação
+                    const codigoRaw = getField(prod, ['CÓDIGO', 'codigo', 'CODIGO'], '');
                     const codigo = escapeHtml(codigoRaw);
                     const ncm = escapeHtml(getField(prod, ['NCM'], '—'));
                     const pesoAprox = getField(prod, ['Peso aproximado (g/m)'], '—');
-                    const refMM_m = parseMoney(getField(prod, ['CUSTO REFERÊNCIA MM/m']));
+                    const refMM_m = parseMoney(getField(prod, ['CUSTO REFERÊNCIA MM/m']));  // ainda usado internamente, mas não exibido
                     const ipi = parseMoney(getField(prod, ['IPI']));
                     const mkp = parseMoney(getField(prod, ['MKP']));
                     const larguraPadrao = parseMoney(getField(prod, ['LARGURA PADRÃO']));
 
+                    // não exibir CUSTO REFERÊNCIA MM/m
                     html += `<div class="receipt-line"><span><i class="fas fa-cube"></i> Descrição:</span><span><strong>${desc}</strong></span></div>`;
                     html += `<div class="receipt-line"><span><i class="fas fa-barcode"></i> Código:</span><span>${codigo}</span></div>`;
                     html += `<div class="receipt-line"><span><i class="fas fa-balance-scale"></i> Peso aprox. (g/m):</span><span>${pesoAprox}</span></div>`;
-                    html += `<div class="receipt-line"><span><i class="fas fa-money-bill-wave"></i> Custo Ref. MM/m:</span><span>${formatMoney(refMM_m)}</span></div>`;
                     html += `<div class="receipt-line"><span>IPI:</span><span>${ipi}</span></div><div class="receipt-line"><span>MKP:</span><span>${mkp}</span></div>`;
                     html += `<div class="receipt-line"><span>NCM:</span><span>${ncm}</span></div>`;
                     document.getElementById('receipt-body').innerHTML = html;
@@ -762,7 +788,8 @@
                     container.className = 'width-input-group';
                     if (isFixed) {
                         container.innerHTML = `
-                            <div class="unit-row"><label><i class="fas fa-lock"></i> Largura fixa (mm):</label><input type="number" id="meg-width" value="${fixedWidth}" disabled></div>
+                            <div class="unit-row"><label><i class="fas fa-lock"></i> Largura (mm):</label><input type="number" id="meg-width" value="${fixedWidth}" class="fixed-width-input" disabled></div>
+                            <div class="fixed-width-note"><i class="fas fa-info-circle"></i> Largura padrão de fábrica (não editável)</div>
                             <div class="unit-row"><label><i class="fas fa-arrows-alt-h"></i> Comprimento (m):</label><input type="number" id="meg-length" step="any" value="1.0" min="0.01"></div>
                             <div id="meg-result"></div>`;
                     } else {
@@ -865,6 +892,7 @@
 
                 // ---------- CONTINENTAL (mantido) ----------
                 if (special === 'mangueiras') {
+                    // ... (código existente, sem alterações)
                     html += `<div class="receipt-line"><span>Código SAP:</span><span>${escapeHtml(getField(prod, ['Código SAP','CODIGO SAP'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>DZ:</span><span>${escapeHtml(getField(prod, ['DZ'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>Descrição:</span><span><strong>${escapeHtml(getField(prod, [' Descrição ','DESCRIÇÃO','Descrição'], '—'))}</strong></span></div>`;
@@ -877,6 +905,7 @@
                     if (!isNaN(precoMang)) html += `<div class="receipt-line price-highlight"><span>Valor de Venda (metro):</span><span>${formatMoney(precoMang)}</span></div>`;
                     document.getElementById('receipt-body').innerHTML = html;
                 } else if (special === 'correias_ind') {
+                    // ... (mantido)
                     html += `<div class="receipt-line"><span>Código SAP:</span><span>${escapeHtml(getField(prod, ['CODIGO SAP','Código SAP'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>DZ:</span><span>${escapeHtml(getField(prod, ['DZ'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>Descrição:</span><span><strong>${escapeHtml(getField(prod, ['DESCRIÇÃO','Descrição'], '—'))}</strong></span></div>`;
@@ -890,7 +919,7 @@
                     if (!isNaN(precoInd)) html += `<div class="receipt-line price-highlight"><span>Valor de Venda (peça):</span><span>${formatMoney(precoInd)}</span></div>`;
                     document.getElementById('receipt-body').innerHTML = html;
                 } else if (special === 'sinc') {
-                    // (bloco completo das Correias Sinc. mantido)
+                    // ... (mantido, bloco das Correias Sinc.)
                     html += `<div class="receipt-line"><span>SAP:</span><span>${escapeHtml(getField(prod, ['SAP'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>Descrição:</span><span><strong>${escapeHtml(getField(prod, ['Descrição'], '—'))}</strong></span></div>`;
                     html += `<div class="receipt-line"><span>No. Dentes:</span><span>${escapeHtml(getField(prod, ['No. Dentes'], '—'))}</span></div>`;
@@ -973,6 +1002,7 @@
 
                 // ---------- AMMEGA PADRÃO ----------
                 else if (cat.group === 'ammega') {
+                    // ... (código existente das demais categorias Ammega, sem alterações)
                     let desc = getField(prod, ['descrição', 'descricao'], '—');
                     let codigo = getField(prod, ['código', 'codigo'], '—');
                     let moq = getField(prod, ['moq'], '—');
@@ -1062,7 +1092,6 @@
                     document.getElementById('receipt-body').innerHTML = html;
                 }
 
-                // ativa o modal (para categorias que não retornaram antes)
                 document.getElementById('detail-modal-overlay').classList.add('active');
             }
 
@@ -1129,7 +1158,7 @@
                 document.getElementById('photo-modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('photo-modal-overlay')) e.target.classList.remove('active'); });
             }
 
-            // Hamburger
+            // Hamburger (mantido)
             function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
             function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
             function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
