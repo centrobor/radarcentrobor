@@ -173,9 +173,7 @@
             <img src="img/logo.jpg" alt="Centrobor" class="topbar-avatar" id="topbar-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3097/3097978.png'">
             <span class="topbar-greeting" id="topbar-greeting">Custos</span>
         </div>
-        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
-            <i class="fas fa-bars"></i>
-        </button>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
     </div>
 
     <!-- HAMBURGER OVERLAY & MENU -->
@@ -184,10 +182,7 @@
         <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
         <div class="menu-header">
             <img src="img/logo.jpg" alt="Centrobor" class="menu-avatar" id="menu-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3097/3097978.png'">
-            <div class="menu-user-info">
-                <h4>Custos de Vendas</h4>
-                <span>Centrobor</span>
-            </div>
+            <div class="menu-user-info"><h4>Custos de Vendas</h4><span>Centrobor</span></div>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Acesso rápido</div>
@@ -207,7 +202,6 @@
     </div>
 
     <div class="wrapper">
-        <!-- DESKTOP HEADER -->
         <div class="header" id="desktop-header">
             <div class="user-section">
                 <img src="img/logo.jpg" alt="Centrobor" class="user-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/3097/3097978.png'">
@@ -221,7 +215,6 @@
             </div>
         </div>
 
-        <!-- PAGE TITLE -->
         <div class="page-title-section">
             <h1><i class="fas fa-calculator"></i> Custos de Vendas</h1>
             <div class="sync-indicator">
@@ -244,10 +237,7 @@
         <div class="footer-inner">
             <div class="footer-logo-section">
                 <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
-                <div>
-                    <div class="footer-brand-name"></div>
-                    <div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div>
-                </div>
+                <div><div class="footer-brand-name"></div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div></div>
             </div>
             <div class="footer-social">
                 <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i></a>
@@ -406,7 +396,6 @@
                 'correias_sinc': { familia: 'correias sinc.', marca: 'continental' }
             };
 
-            // ══════════════ BLOQUEIO DE COLUNAS ══════════════
             const BLOCKED_COLUMN_PATTERNS = [
                 'preço líquido de todos os impostos', 'preço (icms 18% , pis e cofins inclusos)',
                 'custo para compra (sem ipi)', 'preço por metro (icms 18% , pis e cofins inclusos)',
@@ -499,7 +488,6 @@
                 return modified;
             }
 
-            // ══════════════ CONFIGURAÇÃO DE AUMENTO ══════════════
             let configData = [];
             let configImageMap = {};
             let configAumentoProgramado = {};
@@ -519,7 +507,6 @@
                     configImageMap = {};
                     configAumentoProgramado = {};
                     const currentKey = getCurrentMonthKey();
-                    console.log(`📅 Mês/ano atual para reajuste: ${currentKey}`);
                     data.forEach(item => {
                         const mapKey = `${norm(item.familia)}|${norm(item.marca)}`;
                         configImageMap[mapKey] = item.img;
@@ -558,7 +545,6 @@
                 return configImageMap[mapKey] || null;
             }
 
-            // ══════════════ FETCH & TABELA ══════════════
             async function fetchData(cat) {
                 if (dataCache[cat.key]) return dataCache[cat.key];
                 try {
@@ -568,13 +554,11 @@
                     let products = json.map((row, idx) => {
                         let clean = {};
                         for (let [k, v] of Object.entries(row)) {
-                            if (k.trim() === '') continue; // ignora coluna vazia
+                            if (k.trim() === '') continue;
                             clean[String(k)] = v;
                         }
                         clean._originalIndex = idx;
-                        if (aumentoPercent !== 0) {
-                            clean = applyAumentoPercentual(clean, aumentoPercent);
-                        }
+                        if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
                         return clean;
                     });
                     dataCache[cat.key] = products;
@@ -739,7 +723,7 @@
                 };
             }
 
-            // ══════════════ DETALHE DO PRODUTO (MEGALINEAR, MEGAPOWER, ETC.) ══════════════
+            // ══════════════ DETALHE DO PRODUTO (CORRIGIDO) ══════════════
             function openDetailModal(prod) {
                 let html = '';
                 const cat = currentCategory;
@@ -751,7 +735,8 @@
                 // ---------- MEGALINEAR ----------
                 if (cat.key === 'megalinear') {
                     const desc = escapeHtml(getField(prod, ['Descrição', 'descrição', 'DESCRIÇÃO'], '—'));
-                    const codigo = escapeHtml(getField(prod, ['CÓDIGO', 'codigo', 'CODIGO'], '—'));
+                    const codigoRaw = getField(prod, ['CÓDIGO', 'codigo', 'CODIGO'], ''); // valor original para verificação
+                    const codigo = escapeHtml(codigoRaw);
                     const ncm = escapeHtml(getField(prod, ['NCM'], '—'));
                     const pesoAprox = getField(prod, ['Peso aproximado (g/m)'], '—');
                     const refMM_m = parseMoney(getField(prod, ['CUSTO REFERÊNCIA MM/m']));
@@ -770,8 +755,8 @@
                     const aumentoPercent = getAumentoPercentualAtual(cat);
                     const refAjustado = refMM_m * (1 + aumentoPercent / 100);
 
-                    const isFixed = FIXED_WIDTH_CODES.hasOwnProperty(codigo.toUpperCase());
-                    let fixedWidth = isFixed ? FIXED_WIDTH_CODES[codigo.toUpperCase()] : null;
+                    const isFixed = FIXED_WIDTH_CODES.hasOwnProperty(codigoRaw.toUpperCase());
+                    let fixedWidth = isFixed ? FIXED_WIDTH_CODES[codigoRaw.toUpperCase()] : null;
 
                     const container = document.createElement('div');
                     container.className = 'width-input-group';
@@ -819,6 +804,8 @@
                         if (lEl) lEl.addEventListener('input', updateMegalinear);
                         updateMegalinear();
                     }, 50);
+
+                    document.getElementById('detail-modal-overlay').classList.add('active');
                     return;
                 }
 
@@ -871,10 +858,12 @@
                         document.getElementById('weight-unit-select-dyn')?.addEventListener('change', updateDynamic);
                         updateDynamic();
                     }, 50);
+
+                    document.getElementById('detail-modal-overlay').classList.add('active');
                     return;
                 }
 
-                // ---------- CONTINENTAL (idêntico ao original) ----------
+                // ---------- CONTINENTAL (mantido) ----------
                 if (special === 'mangueiras') {
                     html += `<div class="receipt-line"><span>Código SAP:</span><span>${escapeHtml(getField(prod, ['Código SAP','CODIGO SAP'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>DZ:</span><span>${escapeHtml(getField(prod, ['DZ'], '—'))}</span></div>`;
@@ -901,7 +890,7 @@
                     if (!isNaN(precoInd)) html += `<div class="receipt-line price-highlight"><span>Valor de Venda (peça):</span><span>${formatMoney(precoInd)}</span></div>`;
                     document.getElementById('receipt-body').innerHTML = html;
                 } else if (special === 'sinc') {
-                    // (mantido todo o bloco original das Correias Sinc.)
+                    // (bloco completo das Correias Sinc. mantido)
                     html += `<div class="receipt-line"><span>SAP:</span><span>${escapeHtml(getField(prod, ['SAP'], '—'))}</span></div>`;
                     html += `<div class="receipt-line"><span>Descrição:</span><span><strong>${escapeHtml(getField(prod, ['Descrição'], '—'))}</strong></span></div>`;
                     html += `<div class="receipt-line"><span>No. Dentes:</span><span>${escapeHtml(getField(prod, ['No. Dentes'], '—'))}</span></div>`;
@@ -982,7 +971,7 @@
                     }
                 }
 
-                // ---------- AMMEGA PADRÃO (sem NCM fixo) ----------
+                // ---------- AMMEGA PADRÃO ----------
                 else if (cat.group === 'ammega') {
                     let desc = getField(prod, ['descrição', 'descricao'], '—');
                     let codigo = getField(prod, ['código', 'codigo'], '—');
@@ -1073,6 +1062,7 @@
                     document.getElementById('receipt-body').innerHTML = html;
                 }
 
+                // ativa o modal (para categorias que não retornaram antes)
                 document.getElementById('detail-modal-overlay').classList.add('active');
             }
 
@@ -1176,7 +1166,6 @@
                 if (data && data.length) { allProducts = data; applyFiltersAndRender(); document.getElementById('sync-text').innerHTML = `${data.length} itens carregados`; } else document.getElementById('category-table-container').innerHTML = '<div class="empty-msg">Erro ao carregar dados da planilha.</div>';
             }
 
-            // Inicialização final
             loadConfigData().then(() => { renderHub(); bindEvents(); });
         })();
     </script>
