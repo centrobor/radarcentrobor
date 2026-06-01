@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Comercial | Aprovações × Faturamento</title>
+    <style>
+        :root {
+            --bg: #f0f2f5;
+            --surface: #ffffff;
+            --surface-alt: #f8f9fb;
+            --border: #e2e6ed;
+            --text: #1a1d23;
+            --text-secondary: #5f6775;
+            --primary: #3b5ccc;
+            --primary-light: #eef1fd;
+            --success: #0ea879;
+            --success-light: #e6f7f1;
+            --warning: #e8930c;
+            --warning-light: #fef8ee;
+            --danger: #e04848;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+        .header { background: var(--surface); padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; border-bottom: 1px solid var(--border); position: sticky; top:0; z-index:50; }
+        .header-brand { display: flex; align-items: center; gap: 12px; }
+        .header-icon { width: 40px; height: 40px; border-radius: var(--radius-sm); background: linear-gradient(135deg, var(--primary), #5b7cf5); display: flex; align-items: center; justify-content: center; font-size: 20px; color: #fff; }
+        .header h1 { font-size: 1.2rem; font-weight: 700; }
+        .month-selector { display: flex; align-items: center; gap: 8px; background: var(--surface-alt); padding: 6px 12px; border-radius: 50px; border: 1px solid var(--border); }
+        .month-selector input[type="month"] { border: none; background: transparent; font-family: inherit; font-size: 0.9rem; padding: 4px 8px; border-radius: 6px; outline: none; }
+        .btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 50px; font-weight: 600; font-size: 0.9rem; cursor: pointer; border: none; transition: 0.2s; }
+        .btn-primary { background: var(--primary); color: #fff; }
+        .btn-primary:hover { background: #2a43a0; }
+        .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); }
+        .btn-sm { padding: 6px 14px; font-size: 0.8rem; }
+        .main-container { max-width: 1400px; margin: 0 auto; padding: 24px; display: grid; gap: 20px; }
+        .card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 20px 24px; box-shadow: var(--shadow); }
+        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .status-badge.loading { background: #fff3cd; color: #856404; }
+        .status-badge.success { background: #d4edda; color: #155724; }
+        .status-badge.error { background: #f8d7da; color: #721c24; }
+        .spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,0.1); border-top-color: currentColor; border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .log-area { background: #1a1d23; color: #e2e8f0; border-radius: var(--radius-sm); padding: 12px 16px; font-family: monospace; font-size: 0.8rem; max-height: 150px; overflow-y: auto; white-space: pre-wrap; margin-top: 10px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+        .summary-card { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); padding: 18px 20px; }
+        .sc-icon { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-bottom: 10px; }
+        .sc-value { font-size: 1.6rem; font-weight: 800; }
+        .sc-label { font-size: 0.78rem; color: var(--text-muted); }
+        .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-top: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead { background: var(--surface-alt); }
+        th { padding: 12px 14px; text-align: left; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; color: var(--text-secondary); border-bottom: 2px solid var(--border); cursor: pointer; }
+        td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; }
+        .badge-success { background: var(--success-light); color: #0a7a58; }
+        .badge-warning { background: var(--warning-light); color: #b06f08; }
+        .badge-danger { background: #ffe0e0; color: #a71d2a; }
+        .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
+        .toolbar input, .toolbar select { padding: 8px 14px; border: 1.5px solid var(--border); border-radius: 50px; font-family: inherit; font-size: 0.85rem; }
+        .toast { position: fixed; bottom: 24px; right: 24px; background: #1a1d23; color: #fff; padding: 12px 20px; border-radius: 50px; font-weight: 600; z-index: 1000; animation: slideUp 0.3s; }
+        @keyframes slideUp { from{opacity:0;transform:translateY(30px);} to{opacity:1;transform:translateY(0);} }
+        .fabiano-total { background: #f0f4ff; font-weight: 700; }
+    </style>
+</head>
+<body>
+<header class="header">
+    <div class="header-brand">
+        <div class="header-icon">📊</div>
+        <div><h1>Dashboard Comercial</h1><div style="font-size:0.8rem;color:var(--text-muted);">Aprovações × Faturamento</div></div>
+    </div>
+    <div class="month-selector">
+        <label>📅 Competência:</label>
+        <input type="month" id="mesAno">
+    </div>
+</header>
+
+<div class="main-container">
+    <div class="card">
+        <div class="card-header">
+            <span style="font-weight:700;">📡 Sincronizar Dados</span>
+            <div style="display:flex; gap:8px;">
+                <span id="statusAprov" class="status-badge">⏳ Aprov/Fat</span>
+                <span id="statusFat" class="status-badge">⏳ Faturamento</span>
+            </div>
+        </div>
+        <button class="btn btn-primary" onclick="sincronizarTudo()">🔄 Sincronizar Tudo</button>
+        <button class="btn btn-outline" onclick="processarDados()" style="margin-left:8px;">⚡ Processar Campanha</button>
+        <div class="log-area" id="logArea">▶️ Aguardando sincronização...</div>
+    </div>
+
+    <div id="secaoResultados" style="display:none; flex-direction:column; gap:20px;">
+        <div class="summary-grid">
+            <div class="summary-card"><div class="sc-icon" style="background:var(--primary-light);color:var(--primary);">📦</div><div class="sc-value" id="resumoTotalPedidos">0</div><div class="sc-label">Pedidos na campanha</div></div>
+            <div class="summary-card"><div class="sc-icon" style="background:var(--success-light);color:var(--success);">✅</div><div class="sc-value" id="resumoFaturado">R$ 0,00</div><div class="sc-label">Faturados</div></div>
+            <div class="summary-card"><div class="sc-icon" style="background:var(--warning-light);color:var(--warning);">⏳</div><div class="sc-value" id="resumoNaoFaturado">R$ 0,00</div><div class="sc-label">Aprovados Não Faturados</div></div>
+            <div class="summary-card"><div class="sc-icon" style="background:#eef3f9;color:#5b6e88;">🏆</div><div class="sc-value" id="resumoTotalGeral">R$ 0,00</div><div class="sc-label">Total Geral</div></div>
+        </div>
+
+        <div class="card">
+            <div class="toolbar">
+                <input type="text" id="filtroVendedor" placeholder="🔍 Filtrar vendedor" oninput="aplicarFiltros()">
+                <select id="filtroStatus" onchange="aplicarFiltros()">
+                    <option value="todos">Todos</option>
+                    <option value="faturado">Apenas Faturados</option>
+                    <option value="pendente">Apenas Pendentes</option>
+                    <option value="retroativo">Apenas Retroativos</option>
+                </select>
+                <span id="infoIgnorados" style="color:var(--danger); font-weight:600;"></span>
+            </div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Nº Pedido</th><th>Cliente</th><th>Vendedor</th><th>Categoria</th><th>Data Aprovação</th><th>Data Faturamento</th><th>Status</th><th>Valor (R$)</th></tr></thead>
+                    <tbody id="tbodyDetalhado"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span style="font-weight:700;">📈 Ranking por Vendedor</span></div>
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th>Vendedor</th><th>Categoria</th><th>Faturado</th><th>Aprov. Não Fat.</th><th>Total Geral</th><th>Meta</th><th>% Atingido</th></tr></thead>
+                    <tbody id="tbodyRanking"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><span style="font-weight:700;">🎯 Metas</span><button class="btn btn-outline btn-sm" onclick="salvarMetas()">💾 Salvar</button></div>
+            <div class="table-wrap">
+                <table><thead><tr><th>Vendedor</th><th>Meta (R$)</th><th></th></tr></thead><tbody id="tbodyMetas"></tbody></table>
+            </div>
+        </div>
+    </div>
+</div>
+<div id="toastContainer"></div>
+
+<script>
+(function() {
+    const URL_APROV_FAT = 'https://opensheet.elk.sh/1joDk-Hv54J4Cx9s2v_8HMOlw7Bam9KQ38jjjxAyraCA/AprovadosFaturados';
+    const URL_FATURAMENTO = 'https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/faturados';
+
+    const ESTADO = {
+        dadosAprovFat: [],
+        dadosFaturamento: [],
+        pedidosProcessados: [],
+        vendedores: [],        // ranking normal (sem Fabiano separado)
+        fabianoCategorias: [], // categorias do Fabiano
+        fabianoTotal: null,
+        metas: JSON.parse(localStorage.getItem('dashboard_metas') || '{}')
+    };
+
+    // Helpers
+    const log = msg => { const area = document.getElementById('logArea'); area.textContent += `\n[${new Date().toLocaleTimeString()}] ${msg}`; area.scrollTop = area.scrollHeight; };
+    const setStatus = (id, classe, texto) => { const el = document.getElementById(id); el.className = `status-badge ${classe}`; el.innerHTML = texto; };
+    const normalizar = s => (s||'').toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9\s]/g,'').trim();
+    const parseNum = s => { if(!s) return 0; let str = String(s).replace(/[R$\s]/gi,'').trim(); if(/^\d{1,3}(\.\d{3})*,\d{2}$/.test(str)) str = str.replace(/\./g,'').replace(',','.'); else if(/^\d{1,3}(,\d{3})*\.\d{2}$/.test(str)) str = str.replace(/,/g,''); else str = str.replace(',','.'); return parseFloat(str)||0; };
+    const parseData = s => { if(!s) return null; let str = String(s).trim(); let m = str.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); if(m){ let d = new Date(parseInt(m[3])<100?2000+parseInt(m[3]):parseInt(m[3]), parseInt(m[2])-1, parseInt(m[1])); return isNaN(d.getTime())?null:d; } let d = new Date(str); return isNaN(d.getTime())?null:d; };
+    const formatarMoeda = v => 'R$ '+(v||0).toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+    const toast = msg => { const el = document.createElement('div'); el.className='toast'; el.textContent=msg; document.getElementById('toastContainer').appendChild(el); setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(20px)'; el.style.transition='0.3s'; setTimeout(()=>el.remove(),300); },2500); };
+
+    // Categorização Fabiano
+    function categorizarFabiano(ped) {
+        const desc = normalizar(ped.descricao);
+        if (desc.includes('poly') || desc.includes('sinc')) {
+            return 'Sinc/Polias/Esp.';
+        }
+        const zona = normalizar(ped.zonaVendas);
+        const codGrupo = (ped.codigoGrupo || '').trim();
+        if (zona === 'lavanderia' && (codGrupo.startsWith('2') || codGrupo.startsWith('5'))) {
+            return 'Lavand. (exceto V, Sinc./Plana)';
+        }
+        return null;
+    }
+
+    window.sincronizarTudo = async () => {
+        log('🚀 Sincronizando...');
+        setStatus('statusAprov', 'loading', '<span class="spinner"></span> Aprov/Fat');
+        setStatus('statusFat', 'loading', '<span class="spinner"></span> Faturamento');
+        try {
+            const resp = await fetch(URL_APROV_FAT);
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            ESTADO.dadosAprovFat = await resp.json();
+            setStatus('statusAprov', 'success', `✅ ${ESTADO.dadosAprovFat.length} linhas`);
+            log(`✅ Aprov/Fat: ${ESTADO.dadosAprovFat.length}`);
+        } catch(e) {
+            setStatus('statusAprov', 'error', `❌ ${e.message}`);
+            log(`❌ Erro Aprov/Fat: ${e.message}`);
+        }
+        try {
+            const resp = await fetch(URL_FATURAMENTO);
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            ESTADO.dadosFaturamento = await resp.json();
+            setStatus('statusFat', 'success', `✅ ${ESTADO.dadosFaturamento.length} linhas`);
+            log(`✅ Faturamento: ${ESTADO.dadosFaturamento.length}`);
+        } catch(e) {
+            setStatus('statusFat', 'error', `❌ ${e.message}`);
+            log(`❌ Erro Faturamento: ${e.message}`);
+        }
+        log('🏁 Sincronização concluída.');
+        toast('✅ Dados carregados. Processe a campanha.');
+    };
+
+    window.processarDados = () => {
+        const mesAno = document.getElementById('mesAno').value;
+        if (!mesAno) { toast('⚠️ Selecione o mês'); return; }
+        const [anoStr, mesStr] = mesAno.split('-');
+        const mes = parseInt(mesStr)-1, ano = parseInt(anoStr);
+        log(`📅 Processando ${mes+1}/${ano}`);
+
+        // Agrupar Aprovados/Faturados
+        const pedidosMap = new Map();
+        for (const row of ESTADO.dadosAprovFat) {
+            const num = (row['Número Pedido'] || '').toString().trim();
+            if (!num) continue;
+            if (!pedidosMap.has(num)) {
+                pedidosMap.set(num, {
+                    numero: num,
+                    cliente: row['Nome Chave'] || row['Cliente'] || '',
+                    vendedor: (row['Vendedor'] || 'Sem Vendedor').toString().trim(),
+                    dataAprov: parseData(row['Data']),
+                    valor: 0,
+                    camposChave: new Set(),
+                    descricao: row['Descrição'] || '',
+                    zonaVendas: row['Zona de Vendas'] || '',
+                    codigoGrupo: row['Código do Grupo'] || ''
+                });
+            }
+            const p = pedidosMap.get(num);
+            p.valor += parseNum(row['Valor Total'] || row['Valor Pedido'] || '0');
+            if (!p.descricao && row['Descrição']) p.descricao = row['Descrição'].toString().trim();
+            if (!p.zonaVendas && row['Zona de Vendas']) p.zonaVendas = row['Zona de Vendas'].toString().trim();
+            if (!p.codigoGrupo && row['Código do Grupo']) p.codigoGrupo = row['Código do Grupo'].toString().trim();
+            if (row['Campo Chave']) p.camposChave.add(row['Campo Chave'].toString().trim());
+        }
+
+        // Agrupar Faturamento
+        const fatMap = new Map();
+        for (const row of ESTADO.dadosFaturamento) {
+            const chave = (row['Campo Chave'] || '').toString().trim();
+            if (!chave) continue;
+            const dataFat = parseData(row['Data']);
+            const valor = parseNum(row['Valor Mercadoria'] || row['Valor Total'] || '0');
+            if (!fatMap.has(chave)) fatMap.set(chave, { dataFat, valorFat: 0 });
+            const f = fatMap.get(chave);
+            f.valorFat += valor;
+            if (dataFat && (!f.dataFat || dataFat > f.dataFat)) f.dataFat = dataFat;
+        }
+
+        // Classificar campanha e retroativos
+        const campanha = [];
+        const retroativos = [];
+        for (const [num, ped] of pedidosMap) {
+            const aprovaNoMes = ped.dataAprov && ped.dataAprov.getMonth() === mes && ped.dataAprov.getFullYear() === ano;
+            let fatInfo = null;
+            for (const chave of ped.camposChave) {
+                if (fatMap.has(chave)) { fatInfo = fatMap.get(chave); break; }
+            }
+            if (aprovaNoMes) {
+                const status = fatInfo ? 'Faturado' : 'Aprovado Não Faturado';
+                campanha.push({
+                    ...ped,
+                    dataFaturamento: fatInfo ? fatInfo.dataFat : null,
+                    status,
+                    categoria: null // será definida depois para Fabiano
+                });
+            } else if (fatInfo) {
+                retroativos.push({
+                    ...ped,
+                    dataFaturamento: fatInfo.dataFat,
+                    status: 'Retroativo Ignorado',
+                    categoria: null
+                });
+            }
+        }
+
+        // Aplicar categorização ao Fabiano (campanha)
+        for (const p of campanha) {
+            if (normalizar(p.vendedor).includes('fabiano')) {
+                p.categoria = categorizarFabiano(p);
+            }
+        }
+        // Também nos retroativos, se quiser exibir
+        for (const p of retroativos) {
+            if (normalizar(p.vendedor).includes('fabiano')) {
+                p.categoria = categorizarFabiano(p);
+            }
+        }
+
+        ESTADO.pedidosProcessados = [...campanha, ...retroativos];
+
+        // Consolidar vendedores (ranking normal, sem Fabiano)
+        const mapaVendedores = new Map();
+        for (const p of campanha) {
+            if (normalizar(p.vendedor).includes('fabiano')) continue; // Fabiano tratado à parte
+            if (!mapaVendedores.has(p.vendedor)) mapaVendedores.set(p.vendedor, { vendedor: p.vendedor, faturado:0, naoFaturado:0, qtd:0, total:0 });
+            const e = mapaVendedores.get(p.vendedor);
+            if (p.status === 'Faturado') e.faturado += p.valor;
+            else e.naoFaturado += p.valor;
+            e.qtd++;
+            e.total = e.faturado + e.naoFaturado;
+        }
+        ESTADO.vendedores = Array.from(mapaVendedores.values());
+
+        // Consolidar Fabiano
+        const catMap = new Map(); // categoria -> { fat, naoFat, qtd }
+        let fabianoTotalFat = 0, fabianoTotalNao = 0, fabianoQtd = 0;
+        for (const p of campanha) {
+            if (!normalizar(p.vendedor).includes('fabiano')) continue;
+            fabianoQtd++;
+            if (p.status === 'Faturado') fabianoTotalFat += p.valor;
+            else fabianoTotalNao += p.valor;
+
+            const cat = p.categoria || 'Outros';
+            if (!catMap.has(cat)) catMap.set(cat, { categoria: cat, faturado:0, naoFaturado:0, qtd:0 });
+            const c = catMap.get(cat);
+            if (p.status === 'Faturado') c.faturado += p.valor;
+            else c.naoFaturado += p.valor;
+            c.qtd++;
+        }
+        ESTADO.fabianoCategorias = Array.from(catMap.values()).map(c => ({...c, total: c.faturado + c.naoFaturado}));
+        ESTADO.fabianoTotal = { faturado: fabianoTotalFat, naoFaturado: fabianoTotalNao, total: fabianoTotalFat + fabianoTotalNao, qtd: fabianoQtd };
+
+        document.getElementById('secaoResultados').style.display = 'flex';
+        aplicarFiltros();
+        renderizarRanking();
+        sincronizarMetas();
+        log(`✅ Campanha: ${campanha.length} pedidos, ${retroativos.length} ignorados`);
+        toast('✅ Processamento concluído');
+    };
+
+    window.aplicarFiltros = () => {
+        const busca = normalizar(document.getElementById('filtroVendedor').value||'');
+        const statusFiltro = document.getElementById('filtroStatus').value;
+        let lista = [...ESTADO.pedidosProcessados];
+        if (busca) lista = lista.filter(p => normalizar(p.vendedor).includes(busca));
+        if (statusFiltro === 'faturado') lista = lista.filter(p => p.status === 'Faturado');
+        else if (statusFiltro === 'pendente') lista = lista.filter(p => p.status === 'Aprovado Não Faturado');
+        else if (statusFiltro === 'retroativo') lista = lista.filter(p => p.status === 'Retroativo Ignorado');
+
+        const tbody = document.getElementById('tbodyDetalhado');
+        tbody.innerHTML = lista.length ? lista.map(p => {
+            let badge = 'badge-success';
+            if (p.status === 'Aprovado Não Faturado') badge = 'badge-warning';
+            else if (p.status === 'Retroativo Ignorado') badge = 'badge-danger';
+            const cat = p.categoria || '';
+            return `<tr>
+                <td>${p.numero}</td><td>${p.cliente}</td><td>${p.vendedor}</td>
+                <td>${cat ? `<span class="badge badge-info">${cat}</span>` : ''}</td>
+                <td>${p.dataAprov ? p.dataAprov.toLocaleDateString('pt-BR') : '—'}</td>
+                <td>${p.dataFaturamento ? p.dataFaturamento.toLocaleDateString('pt-BR') : '—'}</td>
+                <td><span class="badge ${badge}">${p.status}</span></td>
+                <td>${formatarMoeda(p.valor)}</td></tr>`;
+        }).join('') : '<tr><td colspan="8" style="text-align:center;">Nenhum pedido.</td></tr>';
+
+        const campanha = ESTADO.pedidosProcessados.filter(p => p.status !== 'Retroativo Ignorado');
+        document.getElementById('resumoTotalPedidos').textContent = campanha.length;
+        const totalFat = campanha.filter(p=>p.status==='Faturado').reduce((s,p)=>s+p.valor,0);
+        const totalNaoFat = campanha.filter(p=>p.status==='Aprovado Não Faturado').reduce((s,p)=>s+p.valor,0);
+        document.getElementById('resumoFaturado').textContent = formatarMoeda(totalFat);
+        document.getElementById('resumoNaoFaturado').textContent = formatarMoeda(totalNaoFat);
+        document.getElementById('resumoTotalGeral').textContent = formatarMoeda(totalFat+totalNaoFat);
+        const ignorados = ESTADO.pedidosProcessados.filter(p=>p.status==='Retroativo Ignorado').length;
+        document.getElementById('infoIgnorados').textContent = ignorados ? `🚫 ${ignorados} ignorados` : '';
+    };
+
+    function renderizarRanking() {
+        const tbody = document.getElementById('tbodyRanking');
+        let html = '';
+
+        // Vendedores normais
+        const todos = [...ESTADO.vendedores];
+        // Ordenar por total decrescente
+        todos.sort((a,b) => b.total - a.total);
+        for (const v of todos) {
+            const meta = ESTADO.metas[v.vendedor]||0;
+            const pct = meta>0 ? (v.total/meta)*100 : 0;
+            html += `<tr>
+                <td><strong>${v.vendedor}</strong></td><td>—</td>
+                <td>${formatarMoeda(v.faturado)}</td><td>${formatarMoeda(v.naoFaturado)}</td>
+                <td><strong>${formatarMoeda(v.total)}</strong></td>
+                <td>${meta>0?formatarMoeda(meta):'—'}</td>
+                <td><span class="badge ${pct>=100?'badge-success':'badge-warning'}">${meta>0?pct.toFixed(1)+'%':'—'}</span></td>
+            </tr>`;
+        }
+
+        // Fabiano categorias
+        if (ESTADO.fabianoCategorias.length > 0) {
+            // Adiciona uma linha de separação? Não necessário.
+            for (const cat of ESTADO.fabianoCategorias) {
+                const meta = ESTADO.metas['Fabiano']||0; // meta única para o Fabiano
+                const pct = meta>0 ? (cat.total/meta)*100 : 0;
+                html += `<tr>
+                    <td><strong>Fabiano</strong></td>
+                    <td><span class="badge badge-info">${cat.categoria}</span></td>
+                    <td>${formatarMoeda(cat.faturado)}</td><td>${formatarMoeda(cat.naoFaturado)}</td>
+                    <td><strong>${formatarMoeda(cat.total)}</strong></td>
+                    <td></td><td></td>
+                </tr>`;
+            }
+            // Total Fabiano
+            const totalFab = ESTADO.fabianoTotal;
+            const metaFab = ESTADO.metas['Fabiano']||0;
+            const pctFab = metaFab>0 ? (totalFab.total/metaFab)*100 : 0;
+            html += `<tr class="fabiano-total">
+                <td><strong>Fabiano</strong></td><td><strong>TOTAL</strong></td>
+                <td><strong>${formatarMoeda(totalFab.faturado)}</strong></td><td><strong>${formatarMoeda(totalFab.naoFaturado)}</strong></td>
+                <td><strong>${formatarMoeda(totalFab.total)}</strong></td>
+                <td>${metaFab>0?formatarMoeda(metaFab):'—'}</td>
+                <td><span class="badge ${pctFab>=100?'badge-success':'badge-warning'}">${metaFab>0?pctFab.toFixed(1)+'%':'—'}</span></td>
+            </tr>`;
+        }
+
+        tbody.innerHTML = html || '<tr><td colspan="7" style="text-align:center;">Nenhum vendedor.</td></tr>';
+    }
+
+    function sincronizarMetas() {
+        const vendedoresSet = new Set(ESTADO.vendedores.map(v=>v.vendedor));
+        if (ESTADO.fabianoTotal) vendedoresSet.add('Fabiano');
+        Object.keys(ESTADO.metas).forEach(v=>vendedoresSet.add(v));
+        const tbody = document.getElementById('tbodyMetas');
+        tbody.innerHTML = Array.from(vendedoresSet).sort((a,b)=>normalizar(a).localeCompare(normalizar(b))).map(v => {
+            const meta = ESTADO.metas[v]||'';
+            return `<tr data-vendedor="${v}"><td>${v}</td><td><input value="${meta?meta.toFixed(2).replace('.',','):''}" placeholder="0,00" style="width:100px;text-align:right;"></td><td><button class="btn btn-sm btn-outline" onclick="removerVendedor('${v.replace(/'/g,"\\'")}')">🗑️</button></td></tr>`;
+        }).join('');
+    }
+    window.salvarMetas = () => {
+        document.querySelectorAll('#tbodyMetas tr[data-vendedor]').forEach(r => {
+            const v = r.dataset.vendedor, inp = r.querySelector('input');
+            if (inp) { const val = parseNum(inp.value); if (!isNaN(val)) ESTADO.metas[v] = val; }
+        });
+        localStorage.setItem('dashboard_metas', JSON.stringify(ESTADO.metas));
+        toast('💾 Metas salvas'); renderizarRanking();
+    };
+    window.removerVendedor = nome => {
+        if (confirm(`Remover ${nome}?`)) { delete ESTADO.metas[nome]; localStorage.setItem('dashboard_metas', JSON.stringify(ESTADO.metas)); sincronizarMetas(); renderizarRanking(); }
+    };
+
+    document.getElementById('mesAno').value = new Date().toISOString().slice(0,7);
+    sincronizarMetas();
+})();
+</script>
+</body>
+</html>
