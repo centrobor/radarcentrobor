@@ -8,7 +8,6 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <style>
-        /* ... (todo o CSS permanece igual ao da última versão) ... */
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         body { background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%); min-height: 100vh; padding: 24px 20px 0; display: flex; flex-direction: column; align-items: center; color: #1a2b3c; -webkit-tap-highlight-color: transparent; }
         .wrapper { max-width: 1400px; width: 100%; flex: 1; }
@@ -170,7 +169,6 @@
     </style>
 </head>
 <body>
-    <!-- ... (todo o HTML da estrutura, modais, etc., mantido exatamente igual à última versão) ... -->
 
     <!-- MOBILE TOPBAR -->
     <div class="mobile-topbar" id="mobile-topbar">
@@ -365,7 +363,7 @@
                 { key: 'bandas', name: 'Bandas em V', img: 'img/BANDAS_EM_V.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/BANDAS%20EM%20V', needsWidth: false, purchaseField: 'CUSTO PARA COMPRA (SEM IPI)' },
                 { key: 'acculink', name: 'Acculink', img: 'img/ACCULINK.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/ACCULINK', needsWidth: false, purchaseField: 'CUSTO PARA COMPRA (SEM IPI)' },
                 { key: 'moinho', name: 'Moinho', img: 'img/MOINHO.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/MOINHO', needsWidth: false, purchaseField: 'CUSTO PARA COMPRA (SEM IPI)' },
-                { key: 'megalinear', name: 'Megalinear', img: 'https://github.com/centrobor/radarcentrobor/blob/main/6hp7vx6_buscador_de_custos/img/MEGALINEAR.png?raw=true', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/megalinear', needsWidth: true, purchaseField: 'CUSTO MM SEM IPI (COMPRA)', special: 'megalinear' },
+                { key: 'megalinear', name: 'Megalinear', img: 'https://github.com/centrobor/radarcentrobor/blob/main/6hp7vx6_buscador_de_custos/img/MEGALINEAR.png?raw=true', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/megalinear', needsWidth: true, purchaseField: 'CUSTO REFERÊNCIA MM/m', special: 'megalinear' },
                 { key: 'megapower', name: 'Megapower', img: 'img/MEGAPOWER.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/MEGAPOWER', needsWidth: true, purchaseField: 'CUSTO MM SEM IPI (COMPRA)' },
                 { key: 'sincrobor', name: 'Sincro Bor.', img: 'img/SINCRO_BOR.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/SINCRO%20BOR.%20MEGADYNE', needsWidth: true, purchaseField: 'CUSTO MM SEM IPI (COMPRA)' },
                 { key: 'megarib', name: 'Megarib', img: 'img/MEGARIB.png', url: 'https://opensheet.elk.sh/1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q/MEGARIB', needsWidth: true, purchaseField: 'CUSTO MM SEM IPI (COMPRA)' },
@@ -431,7 +429,22 @@
 
             function getField(product, patterns, def = '') { let k = findKeyByPattern(product, patterns); return (k && product[k] !== undefined) ? product[k] : def; }
 
+            // ══════════════ CUSTO DE COMPRA PARA MEGALINEAR (COM REAJUSTE) ══════════════
+            function getMegalinearPurchaseCost(product) {
+                const refMM = parseMoney(getField(product, ['CUSTO REFERÊNCIA MM/m']));
+                const larguraPadrao = parseMoney(getField(product, ['LARGURA PADRÃO']));
+                if (isNaN(refMM) || isNaN(larguraPadrao)) return null;
+                const aumentoPercent = getAumentoPercentualAtual(currentCategory);
+                const refAjustado = refMM * (1 + aumentoPercent / 100);
+                // Custo padrão: largura padrão × 1 metro
+                return refAjustado * larguraPadrao * 1.0;
+            }
+
             function getPurchaseCost(product, cat) {
+                // Para Megalinear, usar cálculo especial
+                if (cat.key === 'megalinear') {
+                    return getMegalinearPurchaseCost(product);
+                }
                 if (cat.purchaseField) {
                     let direct = product[cat.purchaseField];
                     if (direct !== undefined) {
@@ -533,17 +546,28 @@
                 if (moqKey) cols.push({ display: 'MOQ', key: moqKey, numeric: true });
                 let pesoKey = findKeyByPattern(sample, ['peso da peça', 'peso', 'Peso aproximado (g)', 'PESO UNITARIO (KG)', 'Peso (kg)']);
                 if (pesoKey) cols.push({ display: 'PESO', key: pesoKey, numeric: true });
-                if (currentCategory.needsWidth) {
+                if (currentCategory.needsWidth && currentCategory.key !== 'megalinear') {
                     let largKey = findKeyByPattern(sample, ['largura da manta', 'largura manta', 'largura da manta (mm)', 'Largura da manta (mm)', 'Largura Manta Rolo (mm)']);
                     if (largKey) cols.push({ display: 'LARGURA PADRÃO (mm)', key: largKey, numeric: true });
                 }
-                let purchaseKey = findKeyByPattern(sample, [currentCategory.purchaseField, 'custo para compra (sem ipi)', 'custo mm sem ipi (compra)']);
-                if (purchaseKey) cols.push({ display: 'VALOR DE COMPRA', key: purchaseKey, numeric: true, isPurchase: true });
+                // Para Megalinear, a coluna de valor será calculada
+                if (currentCategory.key === 'megalinear') {
+                    cols.push({ display: 'VALOR DE COMPRA', key: '_purchaseCalculated', numeric: true, isPurchase: true });
+                } else {
+                    let purchaseKey = findKeyByPattern(sample, [currentCategory.purchaseField, 'custo para compra (sem ipi)', 'custo mm sem ipi (compra)']);
+                    if (purchaseKey) cols.push({ display: 'VALOR DE COMPRA', key: purchaseKey, numeric: true, isPurchase: true });
+                }
                 return cols;
             }
 
             function applyFiltersAndRender() {
                 if (!allProducts.length) return;
+                // Para Megalinear, pré-calcular o valor de compra em cada produto
+                if (currentCategory.key === 'megalinear') {
+                    allProducts.forEach(p => {
+                        p._purchaseCalculated = getMegalinearPurchaseCost(p);
+                    });
+                }
                 let query = norm(document.getElementById('category-search-input').value.trim());
                 let filtered = allProducts.filter(p => {
                     if (query) {
@@ -583,18 +607,25 @@
                 for (let p of products) {
                     html += `<tr data-idx="${p._originalIndex}">`;
                     for (let c of cols) {
-                        let val = p[c.key] !== undefined ? p[c.key] : '—';
+                        let val;
+                        if (c.key === '_purchaseCalculated') {
+                            val = p._purchaseCalculated;
+                        } else {
+                            val = p[c.key] !== undefined ? p[c.key] : '—';
+                        }
                         let display = val;
                         if (c.numeric) {
-                            let num = parseMoney(val);
-                            if (!isNaN(num)) {
+                            let num = (c.key === '_purchaseCalculated') ? val : parseMoney(val);
+                            if (num !== null && !isNaN(num)) {
                                 if (c.display === 'VALOR DE COMPRA') display = formatMoney(num);
-                                else if (c.display === 'PESO') display = `${num.toFixed(2)} ${currentCategory.key === 'correias_ind' ? 'kg' : 'g'}`;
+                                else if (c.display === 'PESO') display = `${num.toFixed(2)} g`;
                                 else if (c.display === 'MOQ') display = num.toString();
                                 else display = num.toString();
+                            } else {
+                                display = '—';
                             }
                         }
-                        html += `<td title="${escapeHtml(String(val))}">${escapeHtml(String(display))}</td>`;
+                        html += `<td title="${escapeHtml(String(display))}">${escapeHtml(String(display))}</td>`;
                     }
                     html += '</tr>';
                 }
@@ -610,10 +641,10 @@
                         else { currentSort.column = key; currentSort.direction = 'desc'; }
                         let sorted = [...allProducts.filter(p => getPurchaseCost(p, currentCategory) !== null)];
                         sorted.sort((a, b) => {
-                            let aVal = parseMoney(a[key]);
-                            let bVal = parseMoney(b[key]);
-                            if (isNaN(aVal)) return 1;
-                            if (isNaN(bVal)) return -1;
+                            let aVal = (key === '_purchaseCalculated') ? a._purchaseCalculated : parseMoney(a[key]);
+                            let bVal = (key === '_purchaseCalculated') ? b._purchaseCalculated : parseMoney(b[key]);
+                            if (aVal === null || isNaN(aVal)) return 1;
+                            if (bVal === null || isNaN(bVal)) return -1;
                             return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
                         });
                         renderTable(sorted);
@@ -634,7 +665,7 @@
                 document.getElementById('detail-category-name').innerHTML = `<i class="fas fa-calculator"></i> ${cat.name} (Compra s/ IPI)`;
                 document.getElementById('detail-prod-thumb').src = cat.img;
 
-                // ---------- MEGALINEAR (CORRIGIDO) ----------
+                // ---------- MEGALINEAR ----------
                 if (cat.key === 'megalinear') {
                     const desc = escapeHtml(getField(prod, ['Descrição', 'descrição', 'DESCRIÇÃO'], '—'));
                     const codigoRaw = getField(prod, ['CÓDIGO', 'codigo', 'CODIGO'], '');
@@ -697,7 +728,6 @@
                         const lEl = document.getElementById('meg-length');
                         if (wEl) wEl.addEventListener('input', updateMegalinear);
                         if (lEl) lEl.addEventListener('input', updateMegalinear);
-                        // Força o primeiro cálculo com os valores padrão
                         updateMegalinear();
                     }, 50);
 
@@ -761,7 +791,7 @@
                     return;
                 }
 
-                // ---------- DEMAIS CATEGORIAS (ORIGINAL) ----------
+                // ---------- DEMAIS CATEGORIAS ----------
                 let custoBase = getPurchaseCost(prod, cat);
                 if (custoBase === null || isNaN(custoBase)) {
                     html += `<div class="receipt-line"><span><i class="fas fa-exclamation-triangle"></i> Custo de compra não disponível</span></div>`;
@@ -923,7 +953,8 @@
                 });
                 document.getElementById('show-photo-btn').addEventListener('click', () => {
                     if (!currentCategory) return;
-                    let photoUrl = getCategoryPhotoFromConfig(currentCategory) || `img/${currentCategory.key}_foto.jpg`;
+                    // Fallback unificado com a página de Vendas: img/cat_{key}.png
+                    let photoUrl = getCategoryPhotoFromConfig(currentCategory) || `img/cat_${currentCategory.key}.png`;
                     document.getElementById('category-photo-img').src = photoUrl;
                     document.getElementById('photo-modal-overlay').classList.add('active');
                 });
