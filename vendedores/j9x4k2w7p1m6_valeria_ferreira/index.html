@@ -8,7 +8,6 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        /* todos os estilos permanecem exatamente iguais ao código original */
         :root {
             --bg: #f0f4f8;
             --card-bg: rgba(255, 255, 255, 0.82);
@@ -252,7 +251,9 @@
             .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
             .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
             .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
-            .footer .footer-bottom, .month-filter .filter-left i, .footer { display: none !important; }
+            .footer .footer-bottom, .month-filter .filter-left i, .footer {
+                display: none !important;
+            }
             #print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
             #print-header h1 { font-size: 18pt; color: var(--primary); margin: 0; }
             #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
@@ -454,7 +455,6 @@
 
     <script>
         (function() {
-            // Verificação de logout
             if (localStorage.getItem('radar_logged_out') === 'true') {
                 window.location.href = '../../index.html?reason=logged_out';
                 return;
@@ -495,7 +495,6 @@
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let BANNERS = [];
 
-            // Utilitários
             const cleanNumber = (v) => {
                 if (v === null || v === undefined || v === '') return 0;
                 if (typeof v === 'number') return v;
@@ -535,7 +534,7 @@
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
 
-            // 🔧 NOVA FUNÇÃO DE NORMALIZAÇÃO (remove acentos, barras, etc.)
+            // 🔧 Função de normalização para corrigir acentos e caracteres especiais
             function normalizar(str) {
                 return String(str)
                     .normalize('NFD')
@@ -694,7 +693,7 @@
                     const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                     const meta = metaArr.length>0 ? metaArr[0] : {};
 
-                    // 🔧 FILTRO POR NOME CORRIGIDO (usando normalizar)
+                    // 🔧 Filtro por nome usando normalização (corrigido)
                     const filtrarPorNome = (lista, campo) => {
                         const nomeNormalizado = normalizar(nomeVendedor);
                         return lista.filter(i => normalizar(i[campo] || '').includes(nomeNormalizado));
@@ -847,13 +846,215 @@
                         });
                     });
 
+                    // Função para abrir ficha de detalhes (com ícones, etc.)
                     function abrirFicha(dados) {
-                        const icones = { /* ... mantido o original ... */ };
-                        // (A função abrirFicha continua a mesma, omitida por brevidade mas presente no código original)
-                        // Ela foi mantida exatamente igual, então não repetirei aqui para não alongar, mas está no código.
+                        const icones = {
+                            'competência': 'fa-calendar-alt',
+                            'data': 'fa-calendar-day',
+                            'vendedor': 'fa-user-tie',
+                            'cliente': 'fa-building',
+                            'razão social': 'fa-building',
+                            'produto': 'fa-box',
+                            'quantidade': 'fa-hashtag',
+                            'valor unitário': 'fa-dollar-sign',
+                            'total bruto': 'fa-file-invoice-dollar',
+                            'total líquido': 'fa-hand-holding-usd',
+                            'valor mercadoria': 'fa-tag',
+                            'custo': 'fa-coins',
+                            'margem': 'fa-percent',
+                            'depósito': 'fa-warehouse',
+                            'país': 'fa-globe-americas',
+                            'moeda': 'fa-money-bill',
+                            '% icms': 'fa-percent',
+                            '% ipi': 'fa-percent',
+                            '% iss': 'fa-percent',
+                            'empresa': 'fa-industry',
+                            'nome chave': 'fa-id-card',
+                            'número': 'fa-hashtag',
+                            'data criação': 'fa-calendar-plus',
+                            'situação versão': 'fa-info-circle',
+                            'representante': 'fa-user-tie',
+                            'cidade': 'fa-city',
+                            'uf': 'fa-map-marker-alt',
+                            'código': 'fa-barcode',
+                            'descrição': 'fa-align-left',
+                            'observação': 'fa-comment',
+                            'status': 'fa-check-circle',
+                            'tipo': 'fa-tag',
+                            'grupo': 'fa-layer-group',
+                            'filial': 'fa-code-branch',
+                            'transportadora': 'fa-truck',
+                            'pedido': 'fa-clipboard-list',
+                            'nota fiscal': 'fa-file-invoice',
+                            'volume': 'fa-cube',
+                            'peso': 'fa-weight-hanging'
+                        };
+                        const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
+                        const linhas = Object.entries(dados).map(([chave, valor]) => {
+                            const chaveLower = chave.toLowerCase().trim();
+                            const icone = icones[chaveLower] || 'fa-file-alt';
+                            const isDestaque = camposDestaque.includes(chaveLower);
+                            const valorFormatado = valor || '—';
+                            return `
+                            <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
+                                <i class="fas ${icone} ficha-icone"></i>
+                                <div class="ficha-conteudo">
+                                    <span class="ficha-label">${chave}</span>
+                                    <span class="ficha-valor">${valorFormatado}</span>
+                                </div>
+                            </div>`;
+                        }).join('');
+                        const html = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                            <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
+                                <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
+                            </h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')"
+                                    style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
+                                &times;
+                            </button>
+                        </div>
+                        <div class="ficha-lista">
+                            ${linhas}
+                        </div>
+                        <style>
+                            .ficha-lista { display: flex; flex-direction: column; gap: 8px; }
+                            .ficha-item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 12px; background: #f9fafb; border-radius: 12px; border: 1px solid #edf2f7; }
+                            .ficha-item-destaque { background: #f0fdf4; border-color: #bbf7d0; }
+                            .ficha-icone { color: var(--primary); font-size: 1rem; width: 20px; text-align: center; margin-top: 2px; }
+                            .ficha-conteudo { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+                            .ficha-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+                            .ficha-valor { font-size: 0.95rem; font-weight: 600; color: var(--text-dark); }
+                            .ficha-item-destaque .ficha-valor { font-size: 1.05rem; color: var(--success); }
+                        </style>`;
+                        document.getElementById('modal-body').innerHTML = html;
+                        document.getElementById('detail-modal').classList.add('active');
                     }
-                    // ... restante do código de carteira, eventos, etc., tudo igual ao original, mas com o filtro corrigido.
-                    // A lógica da carteira ativa também está presente e usa as variáveis globais, sem alteração.
+
+                    const listas = { aprov, fat, cot, aprovfat: aprovFat };
+                    document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
+                        row.addEventListener('click', function() {
+                            const idx = parseInt(this.dataset.idx);
+                            const tipo = this.dataset.tipo;
+                            const lista = listas[tipo];
+                            if (lista && lista[idx]) abrirFicha(lista[idx]);
+                        });
+                    });
+
+                    // Carteira ativa (mantida exatamente como no original)
+                    const interacoesGlobais = new Map();
+                    const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
+                        lista.forEach(item => {
+                            const nome = (item[campoNome] || '').toUpperCase().trim();
+                            if (!nome) return;
+                            const d = parseDataBR(item[campoData]);
+                            if (!d) return;
+                            const vendedor = String(item[campoVendedor] || '').trim();
+                            if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
+                                interacoesGlobais.set(nome, { data: d, vendedor });
+                            }
+                        });
+                    };
+                    registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
+                    registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
+                    const carteiraMap = new Map();
+                    carteiraFull.forEach(cli => {
+                        const nome = (cli['Nome Chave'] || '').toUpperCase().trim();
+                        if (nome) {
+                            carteiraMap.set(nome, {
+                                cidade: cli['Cidade'] || '',
+                                uf: cli['UF'] || '',
+                                ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+                                cadastrado: true
+                            });
+                        }
+                    });
+                    const umAnoAtras = new Date(today);
+                    umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+                    interacoesGlobais.forEach((info, nome) => {
+                        if (carteiraMap.has(nome)) return;
+                        if (info.data < umAnoAtras) return;
+                        const vendedorInteracao = info.vendedor;
+                        const isVendedorAtual = (vendedorInteracao === codVendedor) ||
+                                                (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+                        if (isVendedorAtual) {
+                            carteiraMap.set(nome, {
+                                cidade: '',
+                                uf: '',
+                                ativo: true,
+                                cadastrado: false
+                            });
+                        }
+                    });
+                    const clientesStatus = Array.from(carteiraMap, ([nome, dados]) => {
+                        const ultima = interacoesGlobais.get(nome)?.data || null;
+                        let status = 'red';
+                        let ultimaStr = 'Sem Interação';
+                        if (ultima) {
+                            const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
+                            ultimaStr = formatarData(ultima);
+                            if (dias <= 30) status = 'green';
+                            else if (dias <= 90) status = 'yellow';
+                        }
+                        return {
+                            nome,
+                            status,
+                            ultima: ultimaStr,
+                            cidade: dados.cidade,
+                            uf: dados.uf,
+                            ativo: dados.ativo,
+                            cadastrado: dados.cadastrado
+                        };
+                    });
+                    const totalFiliais = clientesStatus.length;
+                    const ativosCount = clientesStatus.filter(c => c.ativo).length;
+                    const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
+                    const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
+                    document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
+                    const contagem = { green: 0, yellow: 0, red: 0 };
+                    const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
+                    clientesStatus.forEach(c => {
+                        contagem[c.status]++;
+                        const key = c.nome.split(' ')[0].toUpperCase();
+                        grupos[c.status].set(key, (grupos[c.status].get(key) || 0) + 1);
+                    });
+                    const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
+                    document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
+                    function gerarTabelaClientes(status) {
+                        const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
+                        if (!filtrados.length) return '';
+                        return `<div style="margin-bottom:22px;">
+                            <h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4>
+                            <div class="badge-list">${Array.from(grupos[status], ([k, v]) => `<span class="group-badge ${status}">${k} (${v})</span>`).join('')}</div>
+                            <div class="table-wrapper">
+                                <table>
+                                    <thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead>
+                                    <tbody>${filtrados.map(c => {
+                                        let statusExtra = '';
+                                        if (!c.cadastrado) {
+                                            const ultimaData = interacoesGlobais.get(c.nome)?.data;
+                                            if (ultimaData) {
+                                                const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
+                                                if (diasDesdeUltima <= 30) {
+                                                    statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
+                                                } else {
+                                                    statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
+                                                }
+                                            }
+                                        }
+                                        return `<tr>
+                                            <td>${c.nome} ${statusExtra}</td>
+                                            <td>${c.cidade || '—'}</td>
+                                            <td>${c.uf || '—'}</td>
+                                            <td>${c.ultima}</td>
+                                            <td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td>
+                                        </tr>`;
+                                    }).join('')}</tbody>
+                                </table>
+                            </div>
+                        </div>`;
+                    }
+                    document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
 
                     // Meses
                     const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
@@ -876,7 +1077,12 @@
                 } catch (e) { console.error(e); alert('Erro ao carregar dados.'); }
             }
 
-            function criarDoughnut(id, percent, color) { /* ... */ }
+            function criarDoughnut(id, percent, color) {
+                const canvas = document.getElementById(id);
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+                new Chart(ctx, { type: 'doughnut', data: { datasets: [{ data: [Math.min(percent,100), 100-Math.min(percent,100)], backgroundColor: [color, '#e5e7eb'], borderWidth: 0 }] }, options: { cutout: '75%', plugins: { tooltip: { enabled: false }, legend: { display: false } } } });
+            }
 
             function gerarPDF() {
                 document.getElementById('print-vendor-name').textContent = nomeVendedor;
