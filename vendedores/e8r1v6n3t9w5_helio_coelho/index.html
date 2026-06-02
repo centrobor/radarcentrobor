@@ -573,7 +573,21 @@
             };
 
             // Função de filtro única usando vendedorMatch
-            const filtrarPorVendedor = (lista, campo) => lista.filter(i => vendedorMatch(i[campo]));
+            // Nova função de normalização (remove acentos, barras e espaços extras)
+function normalizar(str) {
+    return String(str)
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')   // remove acentos
+        .replace(/[\/\-]/g, '')            // remove barras e traços
+        .trim()
+        .toLowerCase();
+}
+
+// Filtro por nome agora usa normalização
+const filtrarPorNome = (lista, campo) => {
+    const nomeNormalizado = normalizar(nomeVendedor);
+    return lista.filter(i => normalizar(i[campo] || '').includes(nomeNormalizado));
+};
 
             async function carregarInfoAtualizacao() {
                 try {
