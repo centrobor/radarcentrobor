@@ -1478,12 +1478,7 @@
         localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
         // ==================== CONFIGURAÇÃO INICIAL ====================
-        const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/export?format=csv&gid=0";
-        const CORS_PROXIES = [
-            "https://corsproxy.io/?",
-            "https://api.allorigins.win/raw?url=",
-            "https://cors-anywhere.herokuapp.com/"
-        ];
+        const SHEET_URL = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/faturados";
         let rawData = [];
         let filteredData = [];
         let currentSort = { field: 'data', order: 'desc' };
@@ -2081,8 +2076,8 @@
             container.innerHTML = advFields.map(f => `
                 <div class="filter-adv-group" data-field="${f.id}">
                     <h4><i class="fas ${f.icon}"></i> ${f.label} <span class="badge-count" id="badge-${f.id}">0</span></h4>
-                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}..." style="margin-bottom:8px; width:100%; padding:10px 14px; border-radius:40px; border:1px solid #dde5ef; background:white;">
-                    <div class="adv-list" id="adv-list-${f.id}" style="max-height: 150px; overflow-y: auto;"></div>
+                    <input type="text" class="adv-search" data-field="${f.id}" placeholder="🔍 Buscar ${f.label.toLowerCase()}...">
+                    <div class="adv-list" id="adv-list-${f.id}"></div>
                 </div>
             `).join('');
 
@@ -2136,23 +2131,7 @@
             });
         }
 
-        // ==================== CARREGAMENTO DE DADOS (COM FALLBACK DE PROXY) ====================
-        async function fetchWithProxy(url) {
-            for (const proxy of CORS_PROXIES) {
-                try {
-                    const proxyUrl = proxy + encodeURIComponent(url);
-                    const res = await fetch(proxyUrl);
-                    if (res.ok) {
-                        console.log(`✅ Proxy funcionou: ${proxy}`);
-                        return await res.text();
-                    }
-                } catch (e) {
-                    console.warn(`❌ Proxy falhou: ${proxy}`);
-                }
-            }
-            throw new Error("Todos os proxies CORS falharam");
-        }
-
+        // ==================== CARREGAMENTO DE DADOS (OpenSheet JSON) ====================
         async function fetchData() {
             const syncIcon = document.getElementById('syncIcon');
             const syncStatus = document.getElementById('syncStatusText');
@@ -2167,41 +2146,31 @@
                 console.log('✅ Dados carregados do IndexedDB');
             } else {
                 try {
-                    const csvText = await fetchWithProxy(SHEET_CSV_URL);
-                    const lines = csvText.split('\n').filter(line => line.trim() !== '');
-                    const headers = lines[0].split('\t');
-                    const codigoIndex = headers.findIndex(h => h.trim() === 'Código');
-                    const descricaoIndex = headers.findIndex(h => h.trim() === 'Descrição');
-                    const grupoIndex = headers.findIndex(h => h.trim() === 'Grupo');
-                    const notaFiscalIndex = headers.findIndex(h => h.trim() === 'Nota Fiscal');
-                    const nomeChaveIndex = headers.findIndex(h => h.trim() === 'Nome Chave');
-                    const empresaIndex = headers.findIndex(h => h.trim() === 'Empresa');
-                    const vendedorIndex = headers.findIndex(h => h.trim() === 'Vendedor');
-                    const dataIndex = headers.findIndex(h => h.trim() === 'Data');
-                    const quantidadeIndex = headers.findIndex(h => h.trim() === 'Quantidade');
-                    const valorUnitarioIndex = headers.findIndex(h => h.trim() === 'Valor Unitário');
-                    const valorMercadoriaIndex = headers.findIndex(h => h.trim() === 'Valor Mercadoria');
-                    const marcaIndex = headers.findIndex(h => h.trim() === 'Marca');
-
-                    for (let i = 1; i < lines.length; i++) {
-                        const cols = lines[i].split('\t');
-                        const dataRaw = cols[dataIndex] || '';
-                        const quantidade = parseBrazilianNumber(cols[quantidadeIndex]);
-                        let valorMerc = parseBrazilianNumber(cols[valorMercadoriaIndex]);
+                    const res = await fetch(SHEET_URL);
+                    if (!res.ok) throw new Error(`Erro ${res.status}`);
+                    const rawJSON = await res.json();
+                    if (!Array.isArray(rawJSON) || rawJSON.length === 0) throw new Error("Planilha vazia");
+                    for (const row of rawJSON) {
+                        const dataRaw = row['Data'] || '';
+                        const quantidade = parseBrazilianNumber(row['Quantidade']);
+                        let valorMerc = parseBrazilianNumber(row['Valor Mercadoria']);
+                        if (isNaN(valorMerc) || valorMerc === 0) {
+                            valorMerc = parseBrazilianNumber(row['Valor Total'] || '0');
+                        }
                         const { year, month } = extractYearMonth(dataRaw);
                         if (!year || !month) continue;
                         parsed.push({
-                            codigo: cols[codigoIndex] || '',
-                            descricao: cols[descricaoIndex] || '',
-                            marca: cols[marcaIndex] || '',
-                            grupo: cols[grupoIndex] || '',
-                            notaFiscal: cols[notaFiscalIndex] || '',
-                            nomeChave: cols[nomeChaveIndex] || '',
-                            empresa: cols[empresaIndex] || '',
-                            vendedor: cols[vendedorIndex] || '',
+                            codigo: row['Código'] || '',
+                            descricao: row['Descrição'] || '',
+                            marca: row['Marca'] || '',
+                            grupo: row['Grupo'] || '',
+                            notaFiscal: row['Nota Fiscal'] || '',
+                            nomeChave: row['Nome Chave'] || '',
+                            empresa: row['Empresa'] || '',
+                            vendedor: row['Vendedor'] || '',
                             dataRaw: dataRaw,
                             quantidade: quantidade,
-                            valorUnitario: parseBrazilianNumber(cols[valorUnitarioIndex]),
+                            valorUnitario: parseBrazilianNumber(row['Valor Unitário']),
                             valorMercadoria: valorMerc,
                             year: year,
                             month: month
@@ -2214,7 +2183,7 @@
                 } catch (err) {
                     console.error(err);
                     syncIcon.className = "fas fa-exclamation-triangle";
-                    syncStatus.innerText = "❌ Falha ao carregar – tentando cache offline";
+                    syncStatus.innerText = "❌ Falha ao carregar";
                     parsed = [];
                 }
             }
@@ -2232,7 +2201,10 @@
             activeSelectedAnos.clear();
             Object.keys(activeAdvancedFilters).forEach(k => activeAdvancedFilters[k].clear());
             if (rawData.length) { setDefaultYearFilter(); }
-            filteredData = rawData.filter(item => { if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false; return true; });
+            filteredData = rawData.filter(item => {
+                if (activeSelectedAnos.size && !activeSelectedAnos.has(item.year)) return false;
+                return true;
+            });
             updateDashboard();
             initFiltersFromData();
             buildAdvancedFiltersInSidebar();
