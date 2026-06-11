@@ -1297,13 +1297,14 @@
             const clean = v => { if(v===null||v===undefined||v==='') return 0; if(typeof v==='number') return v; return parseFloat(String(v).replace(/[R\$\s]/g,'').replace(/\./g,'').replace(',','.'))||0; };
             const fm = v => 'R$ '+v.toLocaleString('pt-BR',{minimumFractionDigits:2});
 
-            function getNFs(ano,mesIni,mesFim) {
-                const fim = mesFim || mesIni;
-                return faturamentoRaw.filter(f=>{
-                    const d=parseDataBR(f['Coluna 1']||f['Data']);
-                    return d && d.getFullYear()===ano && d.getMonth()+1>=mesIni && d.getMonth()+1<=fim && String(f['Responsável']||'').toLowerCase().includes('alyssa');
-                }).sort((a,b)=>parseDataBR(b['Coluna 1']||b['Data'])-parseDataBR(a['Coluna 1']||a['Data']));
-            }
+            function getNFs(ano, mesIni, mesFim) {
+    const fim = mesFim || mesIni;
+    return faturamentoRaw.filter(f => {
+        const d = parseDataBR(f['Data']); // mudou aqui
+        return d && d.getFullYear() === ano && d.getMonth()+1 >= mesIni && d.getMonth()+1 <= fim
+            && String(f['Responsável'] || '').toLowerCase().includes('alyssa');
+    }).sort((a, b) => parseDataBR(b['Data']) - parseDataBR(a['Data'])); // mudou aqui
+}
             function getPedidos(ano,mesIni,mesFim) {
                 const fim = mesFim || mesIni;
                 return pedidosRaw.filter(p=>{
@@ -1342,7 +1343,7 @@
                 if(!nfs.length) { tbody.innerHTML='<tr><td colspan="5">Nenhuma NF.</td></tr>'; return; }
                 tbody.innerHTML = nfs.map((f, idx)=>{
                     const c=String(f['Canhoto']||'').toUpperCase().trim();
-                    return `<tr data-nf-index="${idx}" style="cursor:pointer;"><td>${f['Coluna 1']||''}</td><td><strong>${f['N° da nota']||''}</strong></td><td>${f['Pedido']||''}</td><td><span class="${c==='SIM'?'badge-sim':'badge-nao'}">${c||'--'}</span></td><td style="font-size:0.7rem;">${f['Obs.']||''}</td></tr>`;
+                    return `<tr data-nf-index="${idx}" style="cursor:pointer;"><td>${f['Data']||''}</td><td><strong>${f['N° da nota']||''}</strong></td><td>${f['Pedido']||''}</td><td><span class="${c==='SIM'?'badge-sim':'badge-nao'}">${c||'--'}</span></td><td style="font-size:0.7rem;">${f['Obs.']||''}</td></tr>`;
                 }).join('');
 
                 // Adiciona evento de clique nas linhas
@@ -1375,7 +1376,7 @@
                         <div class="nf-grid-info">
                             <div class="nf-info-item">
                                 <div class="nf-info-label"><i class="fas fa-calendar-day"></i> Data</div>
-                                <div class="nf-info-value">${nf['Coluna 1']||'--'}</div>
+                                <div class="nf-info-value">${nf['Data']||'--'}</div>
                             </div>
                             <div class="nf-info-item">
                                 <div class="nf-info-label"><i class="fas fa-hashtag"></i> Nº da Nota</div>
@@ -1451,7 +1452,7 @@
                 const labels=[], sim=[], nao=[];
                 for(let d=1;d<=dias;d++){
                     labels.push(d.toString().padStart(2,'0')+'/'+mes.toString().padStart(2,'0'));
-                    const dia = nfs.filter(f=>parseDataBR(f['Coluna 1']||f['Data'])?.getDate()===d);
+                    const dia = nfs.filter(f=>parseDataBR(f['Data'])?.getDate()===d);
                     sim.push(dia.filter(f=>String(f['Canhoto']||'').toUpperCase().trim()==='SIM').length);
                     nao.push(dia.filter(f=>String(f['Canhoto']||'').toUpperCase().trim()==='NÃO').length);
                 }
@@ -1479,7 +1480,7 @@
 
             function populateMonth() {
                 const hoje = new Date();
-                const anoAtual = hoje.getFullYear();
+                const anoAtual = currentYear; // usa o ano definido acima
                 const mesAtual = hoje.getMonth()+1;
                 const select = document.getElementById('monthSelector');
                 let opts='';
@@ -1577,7 +1578,7 @@
                             <div class="kpi-print-item"><strong>Taxa</strong><br>${total?((sim/total)*100).toFixed(1):0}%</div>
                         </div>
                         <table><thead><tr><th>Data</th><th>N° Nota</th><th>Pedido</th><th>Canhoto</th><th>Obs.</th></tr></thead><tbody>
-                        ${nfs.map(f=>`<tr><td>${f['Coluna 1']||''}</td><td>${f['N° da nota']||''}</td><td>${f['Pedido']||''}</td><td>${String(f['Canhoto']||'').toUpperCase().trim()}</td><td>${f['Obs.']||''}</td></tr>`).join('')}
+                        ${nfs.map(f=>`<tr><td>${f['Data']||''}</td><td>${f['N° da nota']||''}</td><td>${f['Pedido']||''}</td><td>${String(f['Canhoto']||'').toUpperCase().trim()}</td><td>${f['Obs.']||''}</td></tr>`).join('')}
                         </tbody></table>`;
                     } else {
                         const pedidos = getPedidos(ano, de, ate);
@@ -1663,6 +1664,17 @@
                         fetch(BASES.informacoes).then(r=>r.json())
                     ]);
                     faturamentoRaw=f; pedidosRaw=p; BANNERS=ban; notificacoes=pos;
+                    
+                    // Ajusta o ano para o maior ano encontrado nas NFs (evita ficar preso em 2025)
+if (faturamentoRaw.length) {
+    const anos = faturamentoRaw.map(f => parseDataBR(f['Data'])?.getFullYear()).filter(Boolean);
+    currentYear = anos.length ? Math.max(...anos) : new Date().getFullYear();
+} else {
+    currentYear = new Date().getFullYear();
+}
+                    
+                    
+                    
                     if(inf?.[0]) {
                         document.getElementById('last-update-text').textContent=`Atualizado em: ${inf[0].data||''} ${inf[0].hora||''}`;
                         document.getElementById('last-update-badge').style.display='flex';
