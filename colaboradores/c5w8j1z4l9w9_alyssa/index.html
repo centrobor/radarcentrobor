@@ -1305,13 +1305,19 @@
             && String(f['Responsável'] || '').toLowerCase().includes('alyssa');
     }).sort((a, b) => parseDataBR(b['Data']) - parseDataBR(a['Data'])); // mudou aqui
 }
-            function getPedidos(ano,mesIni,mesFim) {
-                const fim = mesFim || mesIni;
-                return pedidosRaw.filter(p=>{
-                    const d=parseDataBR(p['Data']);
-                    return d && d.getFullYear()===ano && d.getMonth()+1>=mesIni && d.getMonth()+1<=fim && String(p['Responsável']||'').toLowerCase().includes('alyssa');
-                }).sort((a,b)=>parseDataBR(b['Data'])-parseDataBR(a['Data']));
-            }
+            function getPedidos(ano, mesIni, mesFim) {
+    const fim = mesFim || mesIni;
+    return pedidosRaw.filter(p => {
+        // a data pode vir como "Data" OU " " (espaço) – tratamos ambos
+        const d = parseDataBR(p['Data'] || p[' ']);
+        return d && d.getFullYear() === ano && d.getMonth()+1 >= mesIni && d.getMonth()+1 <= fim;
+        // removemos o filtro de Responsável para mostrar todos os pedidos do mês
+    }).sort((a, b) => {
+        const da = parseDataBR(a['Data'] || a[' ']);
+        const db = parseDataBR(b['Data'] || b[' ']);
+        return db - da;
+    });
+}
 
             function renderKPIs(ano,mes) {
                 const nfs = getNFs(ano,mes);
