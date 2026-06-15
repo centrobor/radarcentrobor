@@ -567,7 +567,6 @@
             border-radius: 20px;
             display: inline-block;
         }
-        /* Estilo para tabela de valores pendentes */
         .pendentes-table {
             width: 100%;
             border-collapse: collapse;
@@ -758,7 +757,8 @@
         <div style="display:flex; justify-content:space-between; margin-bottom:24px;"><h3>Configurações</h3><button id="closeSidebar" style="background:none;border:none;font-size:28px;">×</button></div>
         <div class="widget-item" id="configAtribuicaoBtn"><i class="fas fa-user-plus"></i> Distribuição: Novos / Revendas</div>
         <div class="widget-item" id="gerenciarVendedoresBtn"><i class="fas fa-users"></i> Gerenciar Vendedores</div>
-        <div class="widget-item" id="exportExcelBtn"><i class="fas fa-file-excel"></i> Exportar Excel</div>
+        <div class="widget-item" id="exportRelatorioBtn"><i class="fas fa-file-excel"></i> Exportar Excel (Relatório)</div>
+        <div class="widget-item" id="exportLeadsBrutoBtn"><i class="fas fa-table"></i> Exportar Excel (Leads Bruto)</div>
         <div class="widget-item" id="exportJsonBtn"><i class="fas fa-download"></i> Exportar JSON</div>
         <div class="widget-item" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> Recarregar agora</div>
         <div class="widget-item" id="editProfileBtn"><i class="fas fa-user-edit"></i> Editar Perfil</div>
@@ -770,7 +770,6 @@
     <div id="gerenciarVendedoresModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Gerenciar Vendedores</h3><button class="close-modal">&times;</button></div><div id="listaVendedores" style="max-height: 60vh; overflow-y: auto;"></div><div class="action-buttons"><button class="btn btn-secondary close-modal">Fechar</button></div></div></div>
     <div id="profileModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Editar Perfil</h3><button class="close-modal">&times;</button></div><form id="profileForm"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profileName"></div><div class="form-group"><label>URL da foto</label><input type="url" id="profileAvatar"></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
     <div id="cadastroVendedorModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Cadastrar Vendedor</h3><button class="close-modal">&times;</button></div><p>O vendedor <strong id="vendedorNomeTemp"></strong> não possui dados de contato completos. Preencha para permitir envio:</p><form id="cadastroVendedorForm"><div class="form-group"><label>E-mail</label><input type="email" id="vendedorEmail" required></div><div class="form-group"><label>WhatsApp (com DDD)</label><input type="tel" id="vendedorWhats" required></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar e enviar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
-    <!-- Modal para valores de venda pendentes -->
     <div id="valorVendaModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-dollar-sign"></i> Leads com Venda - Valor Pendente</h3><button class="close-modal">&times;</button></div><p style="margin-bottom:16px;color:#64748b;">Estes leads estão marcados como <strong>Gerou Venda</strong> mas ainda não possuem valor informado. Preencha os valores para manter o faturamento atualizado.</p><div id="pendentesContainer" style="max-height: 55vh; overflow-y: auto;"></div><div class="action-buttons"><button id="salvarValoresBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar valores</button><button id="adiarValoresBtn" class="btn btn-secondary"><i class="fas fa-clock"></i> Lembrar depois (24h)</button></div></div></div>
 
     <footer class="footer">
@@ -827,7 +826,7 @@
             const DATA_LIMITE_LUAN = new Date(2026, 5, 15);
             const DIAS_ATRIBUICAO = 15;
             const TEMP_STATUS_HOURS = 24;
-            const PENDENCIA_VALOR_HOURS = 24; // Reaparece após 24h
+            const PENDENCIA_VALOR_HOURS = 24;
 
             function normalizeStr(str) { return (str || "").toString().toLowerCase().normalize('NFD').replace(
                     /[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); }
@@ -893,6 +892,9 @@
             function formatDateBR(d) { if (!d || isNaN(d.getTime()) || d.getTime() === 0)
                     return "Data indisponível";
                 let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`; }
+
+            function formatDateOnlyBR(d) { if (!d || isNaN(d.getTime()) || d.getTime() === 0) return "";
+                let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()}`; }
 
             function getRandomColor(name) { let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) -
                     hash) + name.charCodeAt(i); let color = (hash & 0x00FFFFFF).toString(16).toUpperCase(); return "#" + (
@@ -1080,7 +1082,6 @@
             function isAtribuicaoRecente(dataLead) { return dataLead && !isNaN(dataLead.getTime()) && dataLead.getTime() >
                     0 && (Date.now() - dataLead.getTime()) / (1000 * 60 * 60 * 24) <= DIAS_ATRIBUICAO; }
 
-            // Verifica e remove overrides temporários expirados
             function cleanExpiredTempOverrides() {
                 const now = Date.now();
                 for (const [id, ov] of Object.entries(localOverrides)) {
@@ -1126,7 +1127,6 @@
                         isRevendaCliente = false,
                         clienteCarteira = null;
 
-                    // Se existe override manual de valorVenda, usa-o
                     if (override && override.valorVenda !== undefined && override.valorVenda !== null) {
                         valorVendaFinal = Number(override.valorVenda) || 0;
                     }
@@ -1134,11 +1134,9 @@
                     if (isManualOverride) {
                         statusFinal = override.status;
                         vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
-                        // Se não havia valorVenda no override, mantém o que já foi definido ou 0
                     } else if (isTempOverride) {
                         statusFinal = override.tempStatus;
                     } else {
-                        // Lógica normal de definição de status e vendedor
                         let finalMatch = null;
                         if (cnpjLead && finalLeadsIndex.has(cnpjLead)) finalMatch = finalLeadsIndex.get(cnpjLead);
                         else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(
@@ -1201,7 +1199,6 @@
                         }
                     }
 
-                    // Se não foi definido vendedor pelo override temporário, usa a lógica normal
                     if (!vendedorRaw && !isManualOverride) {
                         if (isTempOverride) {
                             let finalMatch = null;
@@ -1383,7 +1380,6 @@
                 let lead = processedLeads.find(l => l.id === leadId);
                 if (!lead) return;
                 currentLeadDetail = lead;
-                // Mensagem padrão agora inclui CNPJ abaixo da empresa
                 const mensagemPadrao =
                     `Segue o lead para retorno/contato:\n\nNome: ${lead.nome}\nEmpresa: ${lead.empresa}\nCNPJ: ${lead.cnpj || '-'}\nWhatsApp: ${lead.whatsapp}\nE-mail: ${lead.email}\nMensagem: ${lead.mensagem || '-'}`;
                 let html = `<div class="detail-list">
@@ -1591,9 +1587,10 @@
                 document.getElementById('gerenciarVendedoresModal').style.display = 'flex';
             }
 
-            function exportToExcel() {
+            // ==================== EXPORTAÇÃO: RELATÓRIO DE CONVERSÃO DE LEADS ====================
+            function exportRelatorioConversao() {
                 let data = getFilteredLeads().map(l => ({
-                    "Data": l.dataStr.split(' ')[0],
+                    "Data": formatDateOnlyBR(l.dataHora),
                     "Nome": l.nome,
                     "WhatsApp": l.whatsapp,
                     "Email": l.email || "-",
@@ -1602,15 +1599,70 @@
                     "Mensagem": l.mensagem || "",
                     "Status": l.status,
                     "Valor da Venda": l.valorVenda > 0 ? l.valorVenda : "",
-                    "Vendedor": l.vendedorRaw
+                    "Vendedor": l.vendedorRaw,
+                    "Obs.": ""
                 }));
-                let ws = XLSX.utils.json_to_sheet(data),
-                    wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, ws, "Leads");
-                XLSX.writeFile(wb, `leads_${new Date().toISOString().slice(0,10)}.xlsx`);
-                showToast("Exportação Excel concluída!");
+                let ws = XLSX.utils.json_to_sheet(data);
+                // Ajustar largura das colunas
+                ws['!cols'] = [
+                    { wch: 12 }, // Data
+                    { wch: 30 }, // Nome
+                    { wch: 16 }, // WhatsApp
+                    { wch: 30 }, // Email
+                    { wch: 30 }, // Empresa
+                    { wch: 20 }, // CNPJ
+                    { wch: 40 }, // Mensagem
+                    { wch: 22 }, // Status
+                    { wch: 16 }, // Valor da Venda
+                    { wch: 20 }, // Vendedor
+                    { wch: 15 }  // Obs.
+                ];
+                let wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "Relatório Conversão");
+                XLSX.writeFile(wb, `relatorio_conversao_leads_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showToast("Relatório de Conversão exportado!");
             }
 
+            // ==================== EXPORTAÇÃO: [LEADS] CENTROBOR (FORMATO BRUTO) ====================
+            function exportLeadsBruto() {
+                let data = getFilteredLeads().map(l => ({
+                    "": l.status,
+                    "Nome Completo": l.nome,
+                    "WhatsApp": l.whatsapp,
+                    "E-mail": l.email || "",
+                    "Nome da empresa": l.empresa,
+                    "CNPJ": l.cnpj || "",
+                    "Mensagem": l.mensagem || "",
+                    "UTM SOURCE": l.utmSource || "",
+                    "UTM MEDIUM": l.utmMedium || "",
+                    "UTM CAMPAIGN": l.utmCampaign || "",
+                    "UTM TERM": l.utmTerm || "",
+                    "UTM CONTENT": l.utmContent || "",
+                    "DATA DO PREENCHIMENTO": formatDateBR(l.dataHora)
+                }));
+                let ws = XLSX.utils.json_to_sheet(data);
+                ws['!cols'] = [
+                    { wch: 22 }, // Status
+                    { wch: 30 }, // Nome Completo
+                    { wch: 16 }, // WhatsApp
+                    { wch: 30 }, // E-mail
+                    { wch: 30 }, // Nome da empresa
+                    { wch: 20 }, // CNPJ
+                    { wch: 40 }, // Mensagem
+                    { wch: 16 }, // UTM SOURCE
+                    { wch: 16 }, // UTM MEDIUM
+                    { wch: 20 }, // UTM CAMPAIGN
+                    { wch: 16 }, // UTM TERM
+                    { wch: 20 }, // UTM CONTENT
+                    { wch: 22 }  // DATA DO PREENCHIMENTO
+                ];
+                let wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "LEADS Centrobor");
+                XLSX.writeFile(wb, `leads_centrobor_${new Date().toISOString().slice(0,10)}.xlsx`);
+                showToast("Leads (formato bruto) exportados!");
+            }
+
+            // ==================== EXPORTAÇÃO JSON ====================
             function exportJSON() {
                 let blob = new Blob([JSON.stringify(processedLeads, null, 2)], { type: 'application/json' });
                 let a = document.createElement('a');
@@ -1622,7 +1674,6 @@
 
             // ==================== VERIFICAÇÃO DE VALORES DE VENDA PENDENTES ====================
             function checkPendingVendaValues() {
-                // Leads com status "Gerou Venda" e valorVenda <= 0
                 const pendentes = processedLeads.filter(l => l.status === "Gerou Venda" && (!l.valorVenda || l
                     .valorVenda <= 0));
                 if (pendentes.length === 0) return;
@@ -1631,10 +1682,9 @@
                 const agora = Date.now();
                 const vinteQuatroHoras = PENDENCIA_VALOR_HOURS * 60 * 60 * 1000;
 
-                // Filtra apenas os que precisam ser mostrados agora (nunca mostrados ou última vez > 24h)
                 const mostrarAgora = pendentes.filter(l => {
                     const registro = pendingVendaValues[l.id];
-                    if (!registro) return true; // nunca perguntado
+                    if (!registro) return true;
                     return (agora - registro.lastPrompt) >= vinteQuatroHoras;
                 });
 
@@ -1671,7 +1721,6 @@
 
                 modal.style.display = 'flex';
 
-                // Função para salvar
                 const salvarHandler = () => {
                     const inputs = container.querySelectorAll('.input-valor-venda');
                     let salvos = 0;
@@ -1681,12 +1730,10 @@
                         if (valorStr) {
                             const valor = cleanCurrency(valorStr);
                             if (valor > 0) {
-                                // Salva no localOverrides
                                 if (!localOverrides[leadId]) localOverrides[leadId] = {};
                                 localOverrides[leadId].valorVenda = valor;
                                 localOverrides[leadId].edited = true;
                                 localOverrides[leadId].timestamp = Date.now();
-                                // Remove do pending para não perguntar de novo
                                 delete pendingVendaValues[leadId];
                                 salvos++;
                             }
@@ -1706,7 +1753,6 @@
 
                 const adiarHandler = () => {
                     const agora = Date.now();
-                    // Atualiza o timestamp para todos os leads pendentes atuais
                     leadsPendentes.forEach(l => {
                         pendingVendaValues[l.id] = { lastPrompt: agora };
                     });
@@ -1720,7 +1766,6 @@
                 document.getElementById('salvarValoresBtn').addEventListener('click', salvarHandler);
                 document.getElementById('adiarValoresBtn').addEventListener('click', adiarHandler);
 
-                // Fechar pelo X ou clicando fora
                 const closeModalHandler = () => {
                     modal.style.display = 'none';
                     document.getElementById('salvarValoresBtn').removeEventListener('click', salvarHandler);
@@ -1764,7 +1809,9 @@
                     'open');
                 document.getElementById('closeSidebar').onclick = () => document.getElementById('sidebar').classList.remove(
                     'open');
-                document.getElementById('exportExcelBtn').onclick = exportToExcel;
+                // Botões de exportação (NOVOS)
+                document.getElementById('exportRelatorioBtn').onclick = exportRelatorioConversao;
+                document.getElementById('exportLeadsBrutoBtn').onclick = exportLeadsBruto;
                 document.getElementById('exportJsonBtn').onclick = exportJSON;
                 document.getElementById('refreshDataBtn').onclick = () => { fetchAllData();
                     showToast("Dados recarregados!"); };
