@@ -8,8 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
-        body { background: linear-gradient(135deg, #f0f4fa 0%, #e2e8f0 100%); min-height: 100vh; padding: 20px; }
         :root {
             --primary: #1e3a5f; --primary-dark: #0f2b48; --primary-light: #2b4c7a;
             --success: #10b981; --danger: #ef4444; --danger-soft: #fee2e2;
@@ -17,25 +15,38 @@
             --gray-100: #f8fafc; --gray-200: #e2e8f0;
             --shadow-sm: 0 2px 8px rgba(0,0,0,0.04); --shadow-md: 0 8px 20px rgba(0,0,0,0.08);
             --radius-full: 9999px; --radius-xl: 28px; --radius-lg: 20px;
+            --footer-bg: #1a2b3c; --footer-text: #cbd5e1;
         }
-        .glass { background: rgba(255,255,255,0.85); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.9); box-shadow: var(--shadow-sm); }
-        .dashboard-wrapper { max-width: 1600px; margin: 0 auto; display: flex; flex-direction: column; gap: 24px; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        body { 
+            background: linear-gradient(135deg, #f0f4fa 0%, #e2e8f0 100%); 
+            min-height: 100vh; 
+            padding: 20px 20px 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .dashboard-wrapper { max-width: 1600px; margin: 0 auto; width: 100%; display: flex; flex-direction: column; gap: 24px; flex: 1; }
         .header {
             display: flex; justify-content: space-between; align-items: center; padding: 12px 28px;
             border-radius: 80px; background: rgba(255,255,255,0.8); backdrop-filter: blur(12px);
             border: 1px solid rgba(255,255,255,0.9); box-shadow: var(--shadow-sm);
+            flex-wrap: wrap; gap: 8px;
         }
-        .greeting { font-weight: 600; font-size: 1.2rem; color: #1e293b; }
+        .user-section { display: flex; align-items: center; gap: 10px; }
+        .greeting { font-weight: 600; font-size: 1rem; color: #1e293b; }
+        .admin-badge {
+            background: var(--primary); color: white; font-size: 0.65rem; font-weight: 700;
+            padding: 2px 8px; border-radius: 30px; letter-spacing: 0.5px;
+        }
         .current-time { font-size: 0.85rem; color: #64748b; }
-        .user-info { display: flex; align-items: center; gap: 20px; }
-        .notification-bell { position: relative; cursor: pointer; }
-        .notification-badge {
-            position: absolute; top: -8px; right: -8px; background: var(--danger); color: white;
-            border-radius: 50%; width: 18px; height: 18px; font-size: 0.7rem;
-            display: flex; align-items: center; justify-content: center; font-weight: bold; border: 2px solid white;
-        }
-        .user-avatar-container { width: 44px; height: 44px; border-radius: 50%; border: 2px solid white; cursor: pointer; position: relative; }
+        .user-info { display: flex; align-items: center; gap: 12px; }
+        .user-avatar-container { width: 44px; height: 44px; border-radius: 50%; border: 2px solid white; cursor: pointer; position: relative; overflow: hidden; }
         .user-avatar { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .icon-btn {
+            background: none; border: none; color: #64748b; cursor: pointer;
+            font-size: 1.2rem; transition: 0.2s; padding: 6px; border-radius: 50%;
+        }
+        .icon-btn:hover { color: var(--primary); background: rgba(30,58,95,0.06); }
         .toast {
             position: fixed; top: 20px; right: 20px; z-index: 9999;
             background: var(--success); color: white; padding: 12px 24px;
@@ -45,7 +56,6 @@
         }
         .toast.show { transform: translateX(0); }
         .toast.error { background: var(--danger); }
-        .toast.warning { background: var(--warning); color: #1e293b; }
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
         .kpi-card {
             background: rgba(255,255,255,0.8); backdrop-filter: blur(8px); border-radius: 20px;
@@ -137,17 +147,58 @@
         .vendedor-group { border: 1px solid #e2e8f0; border-radius: 16px; padding: 16px; margin-bottom: 16px; background: #f8fafc; }
         .vendedor-group h4 { margin-bottom: 8px; color: var(--primary-dark); }
         .aliases-list { font-size: 0.8rem; color: #64748b; margin-bottom: 12px; background: white; padding: 6px 12px; border-radius: 20px; display: inline-block; }
-        @media (max-width: 800px) { .header { flex-direction: column; gap: 10px; } .kpi-grid { grid-template-columns: 1fr 1fr; } .detail-item { flex-direction: column; align-items: flex-start; gap: 4px; } .detail-item strong { min-width: auto; } }
+
+        /* FOOTER */
+        .footer {
+            background: var(--footer-bg); color: var(--footer-text);
+            margin-top: 40px; padding: 28px 20px 20px;
+            border-radius: 32px 32px 0 0; width: 100%;
+        }
+        .footer-inner {
+            max-width: 1600px; margin: 0 auto;
+            display: flex; flex-wrap: wrap; justify-content: space-between;
+            align-items: center; gap: 20px;
+        }
+        .footer-logo-section { display: flex; align-items: center; gap: 12px; }
+        .footer-logo-img { width: 120px; height: 80px; border-radius: 12px; object-fit: contain; background: transparent; padding: 4px; }
+        .footer-brand-name { font-weight: 800; font-size: 1.1rem; color: white; letter-spacing: 0.5px; }
+        .footer-tagline { font-size: 0.78rem; color: #94a3b8; max-width: 400px; line-height: 1.5; }
+        .footer-social { display: flex; gap: 14px; flex-wrap: wrap; align-items: center; }
+        .footer-social a { color: var(--footer-text); font-size: 1.3rem; transition: 0.2s; text-decoration: none; }
+        .footer-social a:hover { color: white; transform: translateY(-2px); }
+        .footer-social .footer-link-text { font-size: 0.8rem; font-weight: 600; color: #94a3b8; text-decoration: none; transition: 0.2s; display: flex; align-items: center; gap: 4px; }
+        .footer-social .footer-link-text:hover { color: white; }
+        .footer-bottom { text-align: center; margin-top: 20px; font-size: 0.7rem; color: #64748b; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px; }
+
+        @media (max-width: 800px) { 
+            .header { flex-direction: column; gap: 10px; } 
+            .kpi-grid { grid-template-columns: 1fr 1fr; } 
+            .detail-item { flex-direction: column; align-items: flex-start; gap: 4px; } 
+            .detail-item strong { min-width: auto; } 
+            .footer-inner { flex-direction: column; text-align: center; gap: 10px; }
+            .footer-logo-section { flex-direction: column; align-items: center; gap: 6px; }
+            .footer-tagline { display: none; }
+        }
     </style>
 </head>
 <body>
 <div class="dashboard-wrapper">
     <header class="header">
-        <div class="greeting" id="greeting">Olá, Usuário</div>
+        <div class="user-section">
+            <div class="user-avatar-container">
+                <img id="user-avatar" class="user-avatar" src="https://cdn-icons-png.flaticon.com/512/12225/12225881.png">
+            </div>
+            <span class="greeting" id="greeting">Olá, Eduardo Mineiro</span>
+            <span class="admin-badge">Adm</span>
+        </div>
         <span id="current-time" class="current-time"></span>
         <div class="user-info">
-            <div class="notification-bell" id="notification-bell"><i class="fas fa-bell"></i><span class="notification-badge" id="notification-badge">0</span></div>
-            <div class="user-avatar-container"><img id="user-avatar" class="user-avatar" src="https://cdn-icons-png.flaticon.com/512/12225/12225881.png"></div>
+            <button class="icon-btn home-btn" id="home-btn" title="Página inicial">
+                <i class="fas fa-home"></i>
+            </button>
+            <button class="icon-btn logout-btn" id="logout-btn" title="Sair">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
         </div>
     </header>
     <div class="kpi-grid" id="kpiGrid"></div>
@@ -186,6 +237,29 @@
 <div id="profileModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Editar Perfil</h3><button class="close-modal">&times;</button></div><form id="profileForm"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profileName"></div><div class="form-group"><label>URL da foto</label><input type="url" id="profileAvatar"></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
 <div id="cadastroVendedorModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Cadastrar Vendedor</h3><button class="close-modal">&times;</button></div><p>O vendedor <strong id="vendedorNomeTemp"></strong> não possui dados de contato completos. Preencha para permitir envio:</p><form id="cadastroVendedorForm"><div class="form-group"><label>E-mail</label><input type="email" id="vendedorEmail" required></div><div class="form-group"><label>WhatsApp (com DDD)</label><input type="tel" id="vendedorWhats" required></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar e enviar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
 
+<!-- FOOTER -->
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-logo-section">
+            <img src="https://centrobor.github.io/radarcentrobor/img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
+            <div>
+                <div class="footer-brand-name">Centrobor</div>
+                <div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil, mantendo estoques que garantem tranquilidade a nossos clientes.</div>
+            </div>
+        </div>
+        <div class="footer-social">
+            <a href="https://www.centrobor.com.br/" target="_blank" title="Site" class="footer-link-text"><i class="fas fa-globe"></i> Site</a>
+            <a href="https://www.centrobor.com.br/blog/" target="_blank" title="Blog" class="footer-link-text"><i class="fas fa-blog"></i> Blog</a>
+            <a href="https://www.facebook.com/centrobor.correias" target="_blank" title="Facebook"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://www.linkedin.com/company/centrobor/" target="_blank" title="LinkedIn"><i class="fab fa-linkedin-in"></i></a>
+            <a href="https://www.instagram.com/centrobor.correias/" target="_blank" title="Instagram"><i class="fab fa-instagram"></i></a>
+        </div>
+    </div>
+    <div class="footer-bottom">
+        &copy; <span id="footer-year"></span> Centrobor. Todos os direitos reservados. | CRM Inteligente de Leads
+    </div>
+</footer>
+
 <script>
     (function(){
         // ==================== URLs DAS PLANILHAS ====================
@@ -205,12 +279,64 @@
         let currentLeadDetail = null;
         let currentFilters = { vendedor: "todos", status: "todos", search: "", dataInicio: "", dataFim: "" };
         
-        // Datas importantes
         const DATA_DANIEL = new Date(2025, 10, 1);      // 01/11/2025
         const DATA_LIMITE_LUAN = new Date(2026, 5, 15); // 15/06/2026
-        const DIAS_ATRIBUICAO = 15; // dias para remover o status de "atribuído"
+        const DIAS_ATRIBUICAO = 15;
 
-        // ========== FUNÇÕES AUXILIARES ==========
+        // ========== FUNÇÃO ROBUSTA DE EXTRAÇÃO DE DATA ==========
+        function extractDateFromLead(lead) {
+            // Lista de possíveis campos de data em ordem de prioridade
+            const dateFields = [
+                lead["DATA DO PREENCHIMENTO"],
+                lead["Data do Preenchimento"],
+                lead["data_preenchimento"],
+                lead["Data"],
+                lead["data"],
+                lead["DATA"],
+                lead["UTM CONTENT"]
+            ];
+            
+            for (let raw of dateFields) {
+                if (!raw || raw === "Home" || raw === "home" || raw === "") continue;
+                raw = String(raw).trim();
+                
+                // Tenta formato DD/MM/YYYY HH:MM
+                let match = raw.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}):(\d{2})/);
+                if (match) {
+                    const d = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]), parseInt(match[4]), parseInt(match[5]));
+                    if (!isNaN(d.getTime())) return d;
+                }
+                
+                // Tenta formato DD/MM/YYYY (sem hora)
+                match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+                if (match) {
+                    const d = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                    if (!isNaN(d.getTime())) return d;
+                }
+                
+                // Tenta formato ISO (YYYY-MM-DD ou YYYY-MM-DDTHH:MM)
+                let d = new Date(raw);
+                if (!isNaN(d.getTime()) && d.getFullYear() > 2000) return d;
+                
+                // Tenta partes soltas DD/MM/YYYY em qualquer posição
+                match = raw.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+                if (match) {
+                    d = new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
+                    if (!isNaN(d.getTime())) return d;
+                }
+            }
+            
+            // Se nada funcionou, retorna data inválida
+            return new Date(0);
+        }
+        
+        function formatDateBR(d) { 
+            if (!d || isNaN(d.getTime()) || d.getTime() === 0) return "Data não disponível"; 
+            let date = new Date(d); 
+            return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`; 
+        }
+
+        // ========== DEMAIS FUNÇÕES AUXILIARES ==========
         function normalizeStr(str) { 
             return (str || "").toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); 
         }
@@ -254,29 +380,6 @@
             }
             const threshold = Math.min(0.6, Math.max(0.3, wordsLead.length / wordsCard.length));
             return matches / wordsLead.length >= threshold;
-        }
-
-        function extractDateFromLead(lead) {
-            // Tenta várias fontes de data
-            let raw = lead["DATA DO PREENCHIMENTO"] || lead["UTM CONTENT"] || "";
-            if (raw && raw !== "Home") {
-                let match = raw.match(/(\d{2})\/(\d{2})\/(\d{4})\s*(\d{2}):(\d{2})/);
-                if (match) return new Date(`${match[3]}-${match[2]}-${match[1]}T${match[4]}:${match[5]}:00`);
-                let parts = raw.split('/');
-                if (parts.length === 3) return new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
-            }
-            // Tenta a coluna de data se existir
-            if (lead["Data"]) {
-                let d = new Date(lead["Data"]);
-                if (!isNaN(d.getTime())) return d;
-            }
-            return new Date(0); // Data inválida = 1969
-        }
-        
-        function formatDateBR(d) { 
-            if (!d || isNaN(d.getTime()) || d.getTime() === 0) return "Data não disponível"; 
-            let date = new Date(d); 
-            return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`; 
         }
         
         function getRandomColor(name) { 
@@ -328,9 +431,7 @@
 
         function getCanonicalForGroup(group, extraVendedoresList) {
             for (let nome of group) {
-                if (extraVendedoresList.find(v => v.nome === nome)) {
-                    return nome;
-                }
+                if (extraVendedoresList.find(v => v.nome === nome)) return nome;
             }
             const firstName = getFirstName(group[0]);
             if (firstName && firstName.length > 1) {
@@ -352,7 +453,6 @@
                 buildVendedorMaps();
                 processLeads();
                 renderDashboard();
-                updateNotificationBadge();
             } catch(e) { 
                 console.error('Erro ao carregar dados:', e); 
                 showToast('Erro ao carregar dados. Usando cache local.', true);
@@ -371,22 +471,18 @@
         }
 
         function buildVendedorMaps() {
-            vendedoresMap.clear();
-            nomeVendedorMap.clear();
-            aliasToCanonical.clear();
+            vendedoresMap.clear(); nomeVendedorMap.clear(); aliasToCanonical.clear();
             
             let rawNamesSet = new Set();
             for (let v of vendedoresCadastro) {
                 if (v.codigo_vendedor) {
-                    let nomeRaw = v.nome_usuario || "";
-                    let nomeDisplay = normalizeVendedorName(nomeRaw);
+                    let nomeDisplay = normalizeVendedorName(v.nome_usuario || "");
                     if (nomeDisplay) rawNamesSet.add(nomeDisplay);
                 }
             }
             let extras = JSON.parse(localStorage.getItem('extraVendedores') || '[]');
             extras.forEach(v => { if (v.nome) rawNamesSet.add(v.nome); });
-            rawNamesSet.add("Daniel");
-            rawNamesSet.add("Luan");
+            rawNamesSet.add("Daniel"); rawNamesSet.add("Luan");
             
             const allNames = Array.from(rawNamesSet).filter(n => n.trim() !== "");
             const groups = groupSimilarNames(allNames);
@@ -405,64 +501,42 @@
                         let nomeV = normalizeVendedorName(v.nome_usuario || "");
                         return namesMatch(nomeV, nome);
                     });
-                    if (found) {
-                        email = found.email || "";
-                        whatsapp = found.whatsapp || "";
-                        break;
-                    }
+                    if (found) { email = found.email || ""; whatsapp = found.whatsapp || ""; break; }
                 }
                 
                 let extra = extras.find(v => v.nome === canonical || group.aliases.includes(v.nome));
-                if (extra) {
-                    email = extra.email || email;
-                    whatsapp = extra.whatsapp || whatsapp;
-                }
+                if (extra) { email = extra.email || email; whatsapp = extra.whatsapp || whatsapp; }
                 
                 const vendedorObj = { nome: canonical, email, whatsapp, cor };
                 nomeVendedorMap.set(canonical, vendedorObj);
                 aliasToCanonical.set(normalizeStr(canonical), canonical);
-                
-                for (let alias of group.aliases) {
-                    aliasToCanonical.set(normalizeStr(alias), canonical);
-                }
+                for (let alias of group.aliases) aliasToCanonical.set(normalizeStr(alias), canonical);
             }
             
             if (!nomeVendedorMap.has("Daniel")) {
                 let daniel = { nome: "Daniel", email: "", whatsapp: "", cor: getRandomColor("Daniel") };
-                nomeVendedorMap.set("Daniel", daniel);
-                aliasToCanonical.set(normalizeStr("Daniel"), "Daniel");
+                nomeVendedorMap.set("Daniel", daniel); aliasToCanonical.set(normalizeStr("Daniel"), "Daniel");
             }
             if (!nomeVendedorMap.has("Luan")) {
                 let luan = { nome: "Luan", email: "", whatsapp: "", cor: getRandomColor("Luan") };
-                nomeVendedorMap.set("Luan", luan);
-                aliasToCanonical.set(normalizeStr("Luan"), "Luan");
+                nomeVendedorMap.set("Luan", luan); aliasToCanonical.set(normalizeStr("Luan"), "Luan");
             }
             
             const updatedExtras = canonicalGroups.map(g => {
                 let existing = extras.find(v => v.nome === g.canonical || g.aliases.includes(v.nome));
-                let email = existing?.email || nomeVendedorMap.get(g.canonical)?.email || "";
-                let whatsapp = existing?.whatsapp || nomeVendedorMap.get(g.canonical)?.whatsapp || "";
-                return { nome: g.canonical, email, whatsapp, aliases: g.aliases };
+                return { nome: g.canonical, email: existing?.email || nomeVendedorMap.get(g.canonical)?.email || "", whatsapp: existing?.whatsapp || nomeVendedorMap.get(g.canonical)?.whatsapp || "", aliases: g.aliases };
             });
-            for (let [nome, obj] of nomeVendedorMap.entries()) {
-                if (!updatedExtras.find(e => e.nome === obj.nome) && obj.nome === nome) {
-                    updatedExtras.push({ nome: obj.nome, email: obj.email, whatsapp: obj.whatsapp, aliases: [] });
-                }
-            }
             localStorage.setItem('extraVendedores', JSON.stringify(updatedExtras));
             
             for (let v of vendedoresCadastro) {
                 if (v.codigo_vendedor) {
-                    let nomeRaw = v.nome_usuario || "";
-                    let nomeDisplay = normalizeVendedorName(nomeRaw);
-                    let canonical = aliasToCanonical.get(normalizeStr(nomeDisplay)) || nomeDisplay;
+                    let canonical = aliasToCanonical.get(normalizeStr(normalizeVendedorName(v.nome_usuario || ""))) || normalizeVendedorName(v.nome_usuario);
                     let obj = nomeVendedorMap.get(canonical) || { nome: canonical, email: v.email || "", whatsapp: v.whatsapp || "", cor: getRandomColor(canonical) };
                     vendedoresMap.set(v.codigo_vendedor, obj);
                 }
             }
         }
 
-        // ========== RESOLVE VENDEDOR PARA CANÔNICO ==========
         function resolveCanonical(nome) {
             if (!nome) return null;
             const canon = aliasToCanonical.get(normalizeStr(nome));
@@ -473,30 +547,21 @@
             return nome;
         }
 
-        function extractCodigoRepresentante(repStr) { 
-            if (!repStr) return null; 
-            let match = repStr.match(/^(\d+)/); 
-            return match ? match[1] : null; 
-        }
+        function extractCodigoRepresentante(repStr) { if (!repStr) return null; let match = repStr.match(/^(\d+)/); return match ? match[1] : null; }
         
         function getVendedorFromRepresentante(repStr) {
             if (!repStr) return null;
             let codigo = extractCodigoRepresentante(repStr);
-            if (codigo && vendedoresMap.has(codigo)) {
-                let v = vendedoresMap.get(codigo);
-                return resolveCanonical(v.nome);
-            }
+            if (codigo && vendedoresMap.has(codigo)) return resolveCanonical(vendedoresMap.get(codigo).nome);
             let nomeParte = repStr.replace(/^\d+\s*-\s*/, "").trim();
             return resolveCanonical(nomeParte);
         }
 
-        // ========== MATCH NA CARTEIRA DE CLIENTES ==========
         function findClientInCarteira(lead) {
             let cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
             let empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "";
             let emailLead = lead["E-mail"] || "";
             let whatsLead = lead["WhatsApp"] || "";
-            
             for (let cli of carteiraClientes) {
                 let cnpjCli = normalizeCNPJ(cli["CPF/CGC"] || "");
                 let rgieCli = normalizeCNPJ(cli["RG/IE"] || "");
@@ -504,7 +569,6 @@
                 let nomeChaveCli = cli["Nome Chave"] || "";
                 let emailCli = cli["E-Mail"] || "";
                 let telCli = cli["Telefone"] || "";
-                
                 if (cnpjLead && cnpjCli && cnpjLead === cnpjCli) return cli;
                 if (cnpjLead && rgieCli && cnpjLead === rgieCli) return cli;
                 if (isSimilarCompany(empresaLead, razaoCli)) return cli;
@@ -521,23 +585,15 @@
         }
 
         function getVendedorPorData(dataLead) {
-            // Se data inválida, retorna config.vendedorNovos
-            if (!dataLead || isNaN(dataLead.getTime()) || dataLead.getTime() === 0) {
-                return config.vendedorNovos || "Não definido";
-            }
-            if (dataLead < DATA_DANIEL) {
-                return "Daniel";
-            } else if (dataLead >= DATA_DANIEL && dataLead < DATA_LIMITE_LUAN) {
-                return "Luan";
-            } else {
-                return config.vendedorNovos || "Não definido";
-            }
+            if (!dataLead || isNaN(dataLead.getTime()) || dataLead.getTime() === 0) return config.vendedorNovos || "Não definido";
+            if (dataLead < DATA_DANIEL) return "Daniel";
+            if (dataLead >= DATA_DANIEL && dataLead < DATA_LIMITE_LUAN) return "Luan";
+            return config.vendedorNovos || "Não definido";
         }
 
         function isAtribuicaoRecente(dataLead) {
             if (!dataLead || isNaN(dataLead.getTime()) || dataLead.getTime() === 0) return false;
-            const diasDiff = (Date.now() - dataLead.getTime()) / (1000 * 60 * 60 * 24);
-            return diasDiff <= DIAS_ATRIBUICAO;
+            return (Date.now() - dataLead.getTime()) / (1000 * 60 * 60 * 24) <= DIAS_ATRIBUICAO;
         }
 
         // ========== PROCESSAMENTO PRINCIPAL ==========
@@ -559,7 +615,7 @@
                 let cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
                 let empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || "");
                 let nomeLead = normalizeStr(lead["Nome Completo"] || "");
-                let leadId = lead["ID"] || lead["UTM CONTENT"]+lead["WhatsApp"] || `lead_${Math.random()}`;
+                let leadId = lead["ID"] || `${lead["UTM CONTENT"]}_${lead["WhatsApp"]}` || `lead_${Math.random().toString(36).substr(2,9)}`;
                 
                 let uniqueKey = cnpjLead || `${empresaLead}|${nomeLead}|${lead["WhatsApp"] || ""}`;
                 if (seenIds.has(uniqueKey)) continue;
@@ -569,19 +625,14 @@
                 let override = localOverrides[leadId];
                 let isManualOverride = override && override.edited === true;
                 
-                // Busca na planilha final
                 let finalMatch = null;
-                if (cnpjLead && finalLeadsIndex.has(cnpjLead)) {
-                    finalMatch = finalLeadsIndex.get(cnpjLead);
-                } else if (empresaLead && finalLeadsIndex.has(empresaLead)) {
-                    finalMatch = finalLeadsIndex.get(empresaLead);
-                } else if (nomeLead && finalLeadsIndex.has(nomeLead)) {
-                    finalMatch = finalLeadsIndex.get(nomeLead);
-                } else {
+                if (cnpjLead && finalLeadsIndex.has(cnpjLead)) finalMatch = finalLeadsIndex.get(cnpjLead);
+                else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(empresaLead);
+                else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
+                else {
                     for (let [key, value] of finalLeadsIndex.entries()) {
                         if (key.length > 3 && (isSimilarCompany(empresaLead, key) || isSimilarCompany(nomeLead, key))) {
-                            finalMatch = value;
-                            break;
+                            finalMatch = value; break;
                         }
                     }
                 }
@@ -591,38 +642,25 @@
                 let clienteCarteira = null;
                 
                 if (isManualOverride) {
-                    // Respeita a edição manual do usuário
                     statusFinal = override.status;
                     vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
                 } else if (finalMatch) {
-                    // Lead encontrado na planilha final
                     statusFinal = finalMatch["Status"] || lead["  "] || "";
-                    
-                    // CORREÇÃO: Respeita a regra de datas MESMO na planilha final
-                    let vendedorPlanilha = finalMatch["Vendedor"] || "";
-                    vendedorPlanilha = normalizeVendedorName(vendedorPlanilha);
+                    let vendedorPlanilha = normalizeVendedorName(finalMatch["Vendedor"] || "");
                     if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
                     
-                    // Extrai data da planilha final se disponível
                     let dataFinalObj = dataObj;
-                    if (finalMatch["Data"]) {
-                        let d = new Date(finalMatch["Data"]);
-                        if (!isNaN(d.getTime())) dataFinalObj = d;
-                    }
+                    if (finalMatch["Data"]) { let d = new Date(finalMatch["Data"]); if (!isNaN(d.getTime())) dataFinalObj = d; }
                     
-                    // Se a data é anterior a 15/06/2026, aplica regra de datas
                     if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 && dataFinalObj < DATA_LIMITE_LUAN) {
                         vendedorRaw = getVendedorPorData(dataFinalObj);
                     } else {
                         vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
                     }
-                    
                     valorVendaFinal = finalMatch["Valor da Venda"] || "";
-                    
                     if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
                     if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                 } else {
-                    // Lead NÃO está na planilha final
                     clienteCarteira = findClientInCarteira(lead);
                     let isRev = isRevenda(lead);
                     let statusOriginal = lead["  "] || "";
@@ -631,8 +669,7 @@
                         let rep = clienteCarteira["Representante"] || "";
                         vendedorRaw = getVendedorFromRepresentante(rep);
                         if (!vendedorRaw) {
-                            isNovoCliente = true;
-                            vendedorRaw = getVendedorPorData(dataObj);
+                            isNovoCliente = true; vendedorRaw = getVendedorPorData(dataObj);
                         } else {
                             if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
                             else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
@@ -649,28 +686,20 @@
                         vendedorRaw = getVendedorPorData(dataObj);
                         statusFinal = statusOriginal && statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
                     }
-                    
                     if (statusOriginal === "Fechou a Venda") statusFinal = "Gerou Venda";
                     if (statusOriginal === "Lead desqualificado" || statusOriginal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
                     if (statusOriginal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                 }
                 
                 vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
-                
                 if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw)) {
                     let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
                     nomeVendedorMap.set(vendedorRaw, newV);
                     aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
-                    let extras = JSON.parse(localStorage.getItem('extraVendedores') || '[]');
-                    if (!extras.find(e => e.nome === vendedorRaw)) {
-                        extras.push({ nome: vendedorRaw, email: "", whatsapp: "", aliases: [] });
-                        localStorage.setItem('extraVendedores', JSON.stringify(extras));
-                    }
                 }
                 
                 let vendedorDisplay = vendedorRaw;
                 const recente = isAtribuicaoRecente(dataObj);
-                
                 if (!isManualOverride && isNovoCliente && recente && vendedorRaw && vendedorRaw !== "Não definido") {
                     vendedorDisplay = `<i class="fas fa-star"></i> CLIENTE NOVO ATRIBUIDO - ${vendedorRaw}`;
                 } else if (!isManualOverride && isRevendaCliente && recente && vendedorRaw && vendedorRaw !== "Não definido") {
@@ -693,7 +722,6 @@
                     valorVenda: valorVendaFinal
                 });
             }
-            
             processedLeads.sort((a,b) => b.dataHora - a.dataHora);
         }
 
@@ -721,8 +749,7 @@
         }
         
         function getStatusIcon(status) {
-            if (status === "Precisa Encaminhar") return '<i class="fas fa-exclamation-triangle"></i> ';
-            return '';
+            return status === "Precisa Encaminhar" ? '<i class="fas fa-exclamation-triangle"></i> ' : '';
         }
 
         function renderDashboard() {
@@ -771,10 +798,7 @@
             }).join('');
             
             document.querySelectorAll('.view-detail').forEach(btn => {
-                btn.addEventListener('click', (e) => { 
-                    e.stopPropagation(); 
-                    showLeadDetail(btn.dataset.id); 
-                });
+                btn.addEventListener('click', (e) => { e.stopPropagation(); showLeadDetail(btn.dataset.id); });
             });
             document.querySelectorAll('#tableBody tr').forEach(tr => {
                 tr.addEventListener('click', () => showLeadDetail(tr.dataset.id));
@@ -803,7 +827,7 @@
             document.getElementById('leadDetailModal').style.display = 'flex';
             document.getElementById('detailEmailBtn').onclick = () => handleSend(lead, 'email', mensagemPadrao);
             document.getElementById('detailWhatsBtn').onclick = () => handleSend(lead, 'whatsapp', mensagemPadrao);
-            document.getElementById('detailCopyBtn').onclick = () => { navigator.clipboard.writeText(mensagemPadrao); showToast("Mensagem copiada!"); markAsSent(lead.id); };
+            document.getElementById('detailCopyBtn').onclick = () => { navigator.clipboard.writeText(mensagemPadrao); showToast("Mensagem copiada!"); };
             document.getElementById('detailEditBtn').onclick = () => openEditLead(lead);
         }
 
@@ -816,7 +840,6 @@
             if (tipo === 'whatsapp' && !vendedor.whatsapp) { if (!await promptCadastroVendedor(lead.vendedorRaw)) return; vendedor = nomeVendedorMap.get(lead.vendedorRaw); }
             if (tipo === 'email') window.location.href = `mailto:${vendedor.email}?subject=Lead%20${encodeURIComponent(lead.nome)}&body=${encodeURIComponent(mensagem)}`;
             else { let numero = vendedor.whatsapp.replace(/\D/g,''); if (!numero.startsWith('55')) numero = '55'+numero; window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank'); }
-            markAsSent(lead.id);
         }
 
         function promptCadastroVendedor(nomeVendedor) {
@@ -851,19 +874,6 @@
             });
         }
 
-        function markAsSent(leadId) {
-            let override = localOverrides[leadId] || {};
-            override.status = "Enviado em Andamento"; 
-            override.timestamp = Date.now(); 
-            override.vendedor = currentLeadDetail?.vendedorRaw || "";
-            override.edited = true;
-            localOverrides[leadId] = override;
-            localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
-            processLeads(); 
-            renderDashboard();
-            addNotification(`Lead ${currentLeadDetail?.nome} marcado como enviado`);
-        }
-
         function openEditLead(lead) {
             document.getElementById('editNome').value = lead.nome; 
             document.getElementById('editEmpresa').value = lead.empresa;
@@ -872,12 +882,10 @@
             document.getElementById('editMensagem').value = lead.mensagem || '';
             
             let statusOpts = ['Precisa Encaminhar','Enviado em Andamento','Lead Atendido','Gerou Venda','Não Gerou Venda','Lead Qualificado'];
-            let selectStatus = document.getElementById('editStatus');
-            selectStatus.innerHTML = statusOpts.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('');
+            document.getElementById('editStatus').innerHTML = statusOpts.map(s=>`<option ${lead.status===s?'selected':''}>${s}</option>`).join('');
             
-            let vendedorSelect = document.getElementById('editVendedor');
             let vendedoresList = [...new Set(Array.from(nomeVendedorMap.values()).map(v=>v.nome))].sort();
-            vendedorSelect.innerHTML = vendedoresList.map(v=>`<option ${lead.vendedorRaw===v?'selected':''}>${v}</option>`).join('');
+            document.getElementById('editVendedor').innerHTML = vendedoresList.map(v=>`<option ${lead.vendedorRaw===v?'selected':''}>${v}</option>`).join('');
             
             document.getElementById('editLeadModal').style.display = 'flex';
             
@@ -889,83 +897,59 @@
                 e.preventDefault();
                 let newStatus = document.getElementById('editStatus').value;
                 let newVendedor = document.getElementById('editVendedor').value;
-                let newMensagem = document.getElementById('editMensagem').value;
                 let canonVendedor = resolveCanonical(newVendedor) || newVendedor;
                 
                 localOverrides[lead.id] = { 
-                    status: newStatus, 
-                    vendedor: canonVendedor, 
-                    timestamp: Date.now(), 
-                    edited: true, 
-                    mensagem: newMensagem 
+                    status: newStatus, vendedor: canonVendedor, 
+                    timestamp: Date.now(), edited: true, 
+                    mensagem: document.getElementById('editMensagem').value 
                 };
                 localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
                 
-                processLeads(); 
-                renderDashboard();
+                processLeads(); renderDashboard();
                 document.getElementById('editLeadModal').style.display = 'none';
-                showToast(`Lead "${lead.nome}" atualizado com sucesso!`);
-                addNotification(`Lead ${lead.nome} editado: ${newStatus} → ${canonVendedor}`);
+                showToast(`Lead "${lead.nome}" atualizado!`);
             });
         }
 
         function populateFilters() {
             let vendedoresUnicos = [...new Set(processedLeads.map(l=>l.vendedorRaw))].filter(Boolean).sort();
-            let vFilter = document.getElementById('vendedorFilter');
-            vFilter.innerHTML = '<option value="todos">Todos</option>' + vendedoresUnicos.map(v=>`<option value="${v}" ${currentFilters.vendedor===v?'selected':''}>${v}</option>`).join('');
+            document.getElementById('vendedorFilter').innerHTML = '<option value="todos">Todos</option>' + vendedoresUnicos.map(v=>`<option value="${v}">${v}</option>`).join('');
             
             let statusUnicos = [...new Set(processedLeads.map(l=>l.status))].filter(Boolean).sort();
-            let sFilter = document.getElementById('statusFilter');
-            sFilter.innerHTML = '<option value="todos">Todos</option>' + statusUnicos.map(s=>`<option value="${s}" ${currentFilters.status===s?'selected':''}>${s}</option>`).join('');
+            document.getElementById('statusFilter').innerHTML = '<option value="todos">Todos</option>' + statusUnicos.map(s=>`<option value="${s}">${s}</option>`).join('');
             
-            let novosSelect = document.getElementById('novosVendedorSelect');
-            let revendaSelect = document.getElementById('revendaVendedorSelect');
             let vendedoresRaw = [...new Set(processedLeads.map(l=>l.vendedorRaw))].filter(Boolean).sort();
             let opts = '<option value="">Selecione</option>' + vendedoresRaw.map(v=>`<option value="${v}">${v}</option>`).join('');
-            novosSelect.innerHTML = opts;
-            revendaSelect.innerHTML = opts;
-            novosSelect.value = config.vendedorNovos || ""; 
-            revendaSelect.value = config.vendedorRevendas || "";
+            document.getElementById('novosVendedorSelect').innerHTML = opts;
+            document.getElementById('revendaVendedorSelect').innerHTML = opts;
+            document.getElementById('novosVendedorSelect').value = config.vendedorNovos || ""; 
+            document.getElementById('revendaVendedorSelect').value = config.vendedorRevendas || "";
         }
 
         function abrirGerenciarVendedores() {
             let container = document.getElementById('listaVendedores');
             let grupos = JSON.parse(localStorage.getItem('extraVendedores') || '[]');
-            
             let todosNomes = new Set();
-            for (let [nome, obj] of nomeVendedorMap.entries()) {
-                todosNomes.add(obj.nome);
-            }
+            for (let [nome, obj] of nomeVendedorMap.entries()) todosNomes.add(obj.nome);
             
             for (let nome of todosNomes) {
-                if (!grupos.find(g => g.nome === nome)) {
-                    let found = false;
-                    for (let g of grupos) {
-                        if (g.aliases && g.aliases.includes(nome)) {
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) {
-                        let v = nomeVendedorMap.get(nome);
-                        grupos.push({ nome, email: v?.email || "", whatsapp: v?.whatsapp || "", aliases: [] });
-                    }
+                if (!grupos.find(g => g.nome === nome || (g.aliases && g.aliases.includes(nome)))) {
+                    let v = nomeVendedorMap.get(nome);
+                    grupos.push({ nome, email: v?.email || "", whatsapp: v?.whatsapp || "", aliases: [] });
                 }
             }
-            
             grupos.sort((a,b) => a.nome.localeCompare(b.nome));
             
             container.innerHTML = grupos.map(g => {
                 let vendedor = nomeVendedorMap.get(g.nome) || { nome: g.nome, email: g.email || "", whatsapp: g.whatsapp || "", cor: getRandomColor(g.nome) };
-                let aliasesStr = (g.aliases && g.aliases.length > 0) ? 
-                    `<div class="aliases-list"><i class="fas fa-tags"></i> Também conhecido como: ${g.aliases.join(', ')}</div>` : '';
+                let aliasesStr = (g.aliases && g.aliases.length > 0) ? `<div class="aliases-list"><i class="fas fa-tags"></i> Também conhecido como: ${g.aliases.join(', ')}</div>` : '';
                 return `<div class="vendedor-group">
-                    <h4><i class="fas fa-user-circle"></i> ${vendedor.nome}</h4>
-                    ${aliasesStr}
-                    <div class="form-group"><label><i class="fas fa-edit"></i> Como deve ser chamado (nome de tratamento)</label><input type="text" class="edit-vendedor-nome-trat" data-nome="${vendedor.nome}" value="${vendedor.nome}" placeholder="Ex: Eduardo"></div>
-                    <div class="form-group"><label><i class="fas fa-envelope"></i> E-mail</label><input type="email" class="edit-vendedor-email" data-nome="${vendedor.nome}" value="${vendedor.email || ''}" placeholder="email@exemplo.com"></div>
-                    <div class="form-group"><label><i class="fab fa-whatsapp"></i> WhatsApp</label><input type="tel" class="edit-vendedor-whats" data-nome="${vendedor.nome}" value="${vendedor.whatsapp || ''}" placeholder="(XX) XXXXX-XXXX"></div>
-                    <button class="btn btn-primary salvar-vendedor" data-nome="${vendedor.nome}"><i class="fas fa-save"></i> Salvar alterações</button>
+                    <h4><i class="fas fa-user-circle"></i> ${vendedor.nome}</h4>${aliasesStr}
+                    <div class="form-group"><label>Como deve ser chamado</label><input type="text" class="edit-vendedor-nome-trat" data-nome="${vendedor.nome}" value="${vendedor.nome}"></div>
+                    <div class="form-group"><label>E-mail</label><input type="email" class="edit-vendedor-email" data-nome="${vendedor.nome}" value="${vendedor.email || ''}"></div>
+                    <div class="form-group"><label>WhatsApp</label><input type="tel" class="edit-vendedor-whats" data-nome="${vendedor.nome}" value="${vendedor.whatsapp || ''}"></div>
+                    <button class="btn btn-primary salvar-vendedor" data-nome="${vendedor.nome}"><i class="fas fa-save"></i> Salvar</button>
                 </div>`;
             }).join('');
             
@@ -979,133 +963,58 @@
                     let novoWhats = whatsInput?.value?.trim() || "";
                     let novoNome = nomeInput?.value?.trim() || nomeOriginal;
                     
-                    if (!novoNome) {
-                        showToast("O nome de tratamento não pode ficar vazio.", true);
-                        return;
-                    }
-                    
                     let grupos = JSON.parse(localStorage.getItem('extraVendedores') || '[]');
                     let grupoIdx = grupos.findIndex(g => g.nome === nomeOriginal);
-                    
-                    if (grupoIdx === -1) {
-                        grupos.push({ nome: nomeOriginal, email: novoEmail, whatsapp: novoWhats, aliases: [] });
-                        grupoIdx = grupos.length - 1;
-                    }
-                    
+                    if (grupoIdx === -1) { grupos.push({ nome: nomeOriginal, email: novoEmail, whatsapp: novoWhats, aliases: [] }); grupoIdx = grupos.length - 1; }
                     let grupo = grupos[grupoIdx];
                     
                     if (novoNome !== nomeOriginal) {
                         let aliasesAntigos = grupo.aliases || [];
-                        if (!aliasesAntigos.includes(nomeOriginal)) {
-                            aliasesAntigos.push(nomeOriginal);
-                        }
+                        if (!aliasesAntigos.includes(nomeOriginal)) aliasesAntigos.push(nomeOriginal);
                         aliasesAntigos = aliasesAntigos.filter(a => a !== novoNome);
-                        
                         let vendedorObj = nomeVendedorMap.get(nomeOriginal);
-                        if (vendedorObj) {
-                            vendedorObj.nome = novoNome;
-                            nomeVendedorMap.delete(nomeOriginal);
-                            nomeVendedorMap.set(novoNome, vendedorObj);
-                            aliasToCanonical.set(normalizeStr(novoNome), novoNome);
-                            for (let alias of aliasesAntigos) {
-                                aliasToCanonical.set(normalizeStr(alias), novoNome);
-                            }
-                            aliasToCanonical.set(normalizeStr(nomeOriginal), novoNome);
-                        }
-                        
-                        grupo.nome = novoNome;
-                        grupo.aliases = aliasesAntigos;
+                        if (vendedorObj) { vendedorObj.nome = novoNome; nomeVendedorMap.delete(nomeOriginal); nomeVendedorMap.set(novoNome, vendedorObj); }
+                        grupo.nome = novoNome; grupo.aliases = aliasesAntigos;
                     }
-                    
-                    grupo.email = novoEmail;
-                    grupo.whatsapp = novoWhats;
+                    grupo.email = novoEmail; grupo.whatsapp = novoWhats;
                     localStorage.setItem('extraVendedores', JSON.stringify(grupos));
                     
-                    let vObj = nomeVendedorMap.get(grupo.nome) || nomeVendedorMap.get(nomeOriginal);
-                    if (vObj) {
-                        vObj.email = novoEmail;
-                        vObj.whatsapp = novoWhats;
-                        vObj.nome = grupo.nome;
-                    }
+                    let vObj = nomeVendedorMap.get(grupo.nome);
+                    if (vObj) { vObj.email = novoEmail; vObj.whatsapp = novoWhats; vObj.nome = grupo.nome; }
                     
-                    buildVendedorMaps();
-                    processLeads();
-                    renderDashboard();
-                    abrirGerenciarVendedores();
-                    showToast(`Vendedor "${grupo.nome}" atualizado com sucesso!`);
+                    buildVendedorMaps(); processLeads(); renderDashboard(); abrirGerenciarVendedores();
+                    showToast(`Vendedor "${grupo.nome}" atualizado!`);
                 });
             });
-            
             document.getElementById('gerenciarVendedoresModal').style.display = 'flex';
         }
 
         function exportToExcel() {
-            let filtered = getFilteredLeads();
-            let data = filtered.map(l => ({
-                "Data": l.dataStr.split(' ')[0],
-                "Nome": l.nome,
-                "WhatsApp": l.whatsapp,
-                "Email": l.email || "-",
-                "Empresa": l.empresa,
-                "CNPJ": l.cnpj || "-",
-                "Mensagem": l.mensagem || "",
-                "Status": l.status,
-                "Valor da Venda": l.valorVenda || "",
-                "Vendedor": l.vendedorRaw,
-                "Obs": ""
+            let data = getFilteredLeads().map(l => ({
+                "Data": l.dataStr.split(' ')[0], "Nome": l.nome, "WhatsApp": l.whatsapp,
+                "Email": l.email || "-", "Empresa": l.empresa, "CNPJ": l.cnpj || "-",
+                "Mensagem": l.mensagem || "", "Status": l.status, "Vendedor": l.vendedorRaw
             }));
             let ws = XLSX.utils.json_to_sheet(data);
             let wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, "Leads");
             XLSX.writeFile(wb, `leads_${new Date().toISOString().slice(0,10)}.xlsx`);
             showToast("Exportação Excel concluída!");
-            addNotification("Exportação Excel concluída");
         }
 
         function exportJSON() { 
             let blob = new Blob([JSON.stringify(processedLeads, null, 2)], {type: 'application/json'}); 
-            let a = document.createElement('a'); 
-            a.href = URL.createObjectURL(blob); 
-            a.download = `leads_${new Date().toISOString().slice(0,10)}.json`; 
-            a.click(); 
+            let a = document.createElement('a'); a.href = URL.createObjectURL(blob); 
+            a.download = `leads_${new Date().toISOString().slice(0,10)}.json`; a.click(); 
             showToast("Exportação JSON concluída!");
-            addNotification("Exportação JSON concluída");
-        }
-
-        function addNotification(msg) { 
-            let list = JSON.parse(localStorage.getItem('notifications') || '[]'); 
-            list.unshift({id: Date.now(), text: msg}); 
-            localStorage.setItem('notifications', JSON.stringify(list.slice(0, 20))); 
-            updateNotificationBadge(); 
-        }
-        
-        function updateNotificationBadge() { 
-            let count = JSON.parse(localStorage.getItem('notifications') || '[]').length; 
-            document.getElementById('notification-badge').innerText = count; 
-            document.getElementById('notification-badge').style.display = count ? 'flex' : 'none'; 
         }
 
         function initUI() {
-            document.getElementById('vendedorFilter').addEventListener('change', e => {
-                currentFilters.vendedor = e.target.value; 
-                renderDashboard();
-            });
-            document.getElementById('statusFilter').addEventListener('change', e => {
-                currentFilters.status = e.target.value; 
-                renderDashboard();
-            });
-            document.getElementById('searchInput').addEventListener('input', e => {
-                currentFilters.search = e.target.value; 
-                renderDashboard();
-            });
-            document.getElementById('dataInicioFilter').addEventListener('change', e => {
-                currentFilters.dataInicio = e.target.value; 
-                renderDashboard();
-            });
-            document.getElementById('dataFimFilter').addEventListener('change', e => {
-                currentFilters.dataFim = e.target.value; 
-                renderDashboard();
-            });
+            document.getElementById('vendedorFilter').addEventListener('change', e => { currentFilters.vendedor = e.target.value; renderDashboard(); });
+            document.getElementById('statusFilter').addEventListener('change', e => { currentFilters.status = e.target.value; renderDashboard(); });
+            document.getElementById('searchInput').addEventListener('input', e => { currentFilters.search = e.target.value; renderDashboard(); });
+            document.getElementById('dataInicioFilter').addEventListener('change', e => { currentFilters.dataInicio = e.target.value; renderDashboard(); });
+            document.getElementById('dataFimFilter').addEventListener('change', e => { currentFilters.dataFim = e.target.value; renderDashboard(); });
             document.getElementById('clearFiltersBtn').onclick = () => {
                 currentFilters = {vendedor: "todos", status: "todos", search: "", dataInicio: "", dataFim: ""};
                 document.getElementById('searchInput').value = "";
@@ -1127,55 +1036,49 @@
             document.getElementById('closeSidebar').onclick = () => document.getElementById('sidebar').classList.remove('open');
             document.getElementById('exportExcelBtn').onclick = exportToExcel;
             document.getElementById('exportJsonBtn').onclick = exportJSON;
-            document.getElementById('refreshDataBtn').onclick = () => {
-                fetchAllData();
-                showToast("Dados recarregados!");
-            };
+            document.getElementById('refreshDataBtn').onclick = () => { fetchAllData(); showToast("Dados recarregados!"); };
             document.getElementById('editProfileBtn').onclick = () => document.getElementById('profileModal').style.display = 'flex';
-            document.getElementById('configAtribuicaoBtn').onclick = () => {
-                populateFilters();
-                document.getElementById('configAtribModal').style.display = 'flex';
-            };
+            document.getElementById('configAtribuicaoBtn').onclick = () => { populateFilters(); document.getElementById('configAtribModal').style.display = 'flex'; };
             document.getElementById('gerenciarVendedoresBtn').onclick = () => abrirGerenciarVendedores();
             
             document.getElementById('saveDistribBtn').onclick = () => {
                 config.vendedorNovos = document.getElementById('novosVendedorSelect').value;
                 config.vendedorRevendas = document.getElementById('revendaVendedorSelect').value;
                 localStorage.setItem('crmConfig', JSON.stringify(config));
-                processLeads();
-                renderDashboard();
-                showToast(`Configuração salva! Novos → ${config.vendedorNovos || 'nenhum'} | Revendas → ${config.vendedorRevendas || 'nenhum'}`);
-                addNotification(`Configuração salva: Novos → ${config.vendedorNovos || 'nenhum'} | Revendas → ${config.vendedorRevendas || 'nenhum'}`);
+                processLeads(); renderDashboard();
+                showToast(`Configuração salva!`);
                 document.getElementById('configAtribModal').style.display = 'none';
             };
             
             document.getElementById('profileForm').onsubmit = (e) => {
                 e.preventDefault(); 
                 let name = document.getElementById('profileName').value; 
-                if (name) document.getElementById('greeting').innerText = `Olá, ${name}`; 
+                if (name) document.getElementById('greeting').innerHTML = `Olá, ${name} <span class="admin-badge">Adm</span>`; 
                 let avatar = document.getElementById('profileAvatar').value; 
                 if (avatar) document.getElementById('user-avatar').src = avatar; 
                 document.getElementById('profileModal').style.display = 'none';
                 showToast("Perfil atualizado!");
             };
             
+            document.getElementById('home-btn').onclick = () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; };
+            document.getElementById('logout-btn').onclick = () => { 
+                localStorage.setItem('radar_logged_out', 'true'); 
+                localStorage.removeItem('radar_usuario'); 
+                window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; 
+            };
+            
             document.querySelectorAll('.close-modal').forEach(el => {
-                el.addEventListener('click', (e) => {
-                    e.target.closest('.modal').style.display = 'none';
-                });
+                el.addEventListener('click', (e) => { e.target.closest('.modal').style.display = 'none'; });
             });
-            
             document.querySelectorAll('.modal').forEach(modal => {
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) modal.style.display = 'none';
-                });
+                modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; });
             });
             
+            document.getElementById('footer-year').textContent = new Date().getFullYear();
             setInterval(() => document.getElementById('current-time').innerText = new Date().toLocaleString('pt-BR'), 1000);
             fetchAllData();
             setInterval(fetchAllData, 600000);
         }
-        
         initUI();
     })();
 </script>
