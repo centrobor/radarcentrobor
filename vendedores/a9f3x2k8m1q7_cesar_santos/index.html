@@ -400,6 +400,14 @@
             }
         }
 
+        /* Animação do toast */
+        @keyframes fadeInOut {
+            0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
+            15% { opacity: 1; transform: translateX(-50%) translateY(0); }
+            85% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
         @media print {
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
@@ -695,6 +703,7 @@
             window._kpiColunaTotal = null;
             window._kpiModalStack = []; // Pilha para restaurar modais de KPI
             window.fichaPedidoData = null; // Dados da linha atual
+            window.clienteFichaAtual = null; // Cliente atualmente aberto na ficha
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -1599,6 +1608,9 @@
                             document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
                             return;
                         }
+                        // 🔧 Armazena o cliente encontrado para uso posterior nos botões de cópia
+                        window.clienteFichaAtual = cliente;
+
                         const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
                         const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
@@ -1658,10 +1670,11 @@
                         html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
                         if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
                         if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                        // 🔧 Botões de cópia sem o parâmetro nomeUpper
                         if (pedidoData) {
-                            html += `<button onclick="window.copiarDadosCliente('${nomeUpper}', true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
+                            html += `<button onclick="window.copiarDadosCliente(true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
                         }
-                        html += `<button onclick="window.copiarDadosCliente('${nomeUpper}', false)" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados Cliente</button>`;
+                        html += `<button onclick="window.copiarDadosCliente(false)" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados Cliente</button>`;
                         html += '</div>';
 
                         if (similares.length > 0) {
@@ -1698,9 +1711,14 @@
                     }, 100);
                 }
 
-                window.copiarDadosCliente = function(nomeUpper, incluirPedido = false) {
-                    const cliente = carteiraMap.get(nomeUpper);
-                    if (!cliente) return;
+                // 🔧 Função de cópia corrigida (usa clienteFichaAtual e feedback visual)
+                window.copiarDadosCliente = function(incluirPedido = false) {
+                    const cliente = window.clienteFichaAtual;
+                    if (!cliente) {
+                        alert('Cliente não encontrado. Feche e abra a ficha novamente.');
+                        return;
+                    }
+                    
                     let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
                     texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
                     texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
@@ -1709,13 +1727,35 @@
                     texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
                     texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
                     texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                    
                     if (incluirPedido && window.fichaPedidoData) {
                         texto += '\n═══════════════════════════════════\n  DADOS DO PEDIDO / COTAÇÃO\n═══════════════════════════════════\n';
                         Object.keys(window.fichaPedidoData).forEach(key => {
                             texto += `${key}: ${window.fichaPedidoData[key] || '—'}\n`;
                         });
                     }
-                    navigator.clipboard.writeText(texto).then(() => alert('Dados copiados!')).catch(() => prompt('Copie manualmente:', texto));
+
+                    // Feedback visual amigável
+                    navigator.clipboard.writeText(texto)
+                        .then(() => {
+                            const toast = document.createElement('div');
+                            toast.textContent = '✅ Dados copiados com sucesso!';
+                            toast.style.cssText = 'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#2e7d32; color:white; padding:12px 24px; border-radius:40px; font-weight:600; z-index:9999; box-shadow:0 8px 20px rgba(0,0,0,0.2); animation:fadeInOut 2s forwards;';
+                            document.body.appendChild(toast);
+                            setTimeout(() => toast.remove(), 2000);
+                        })
+                        .catch(() => {
+                            // Fallback: exibe o texto para cópia manual
+                            const textarea = document.createElement('textarea');
+                            textarea.value = texto;
+                            textarea.style.position = 'fixed';
+                            textarea.style.opacity = '0';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            alert('Dados copiados! (fallback)');
+                        });
                 };
 
                 const conquistasCampanhas = await renderizarCampanhasEspeciais();
