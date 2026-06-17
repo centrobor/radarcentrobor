@@ -156,12 +156,30 @@
         .value.green { color: var(--success); }
         .value.blue { color: var(--blue-accent); }
         .value.purple { color: var(--purple); }
-        .mini-card-kpi .progress-bar-bg { height:6px; background:#e0e6ed; border-radius:20px; overflow:hidden; margin:8px 0; }
-        .mini-card-kpi .progress-bar-fill { height:100%; border-radius:20px; transition:width 0.3s; }
-        .mini-card-kpi .fill-success { background: var(--success); }
-        .mini-card-kpi .fill-warning { background: var(--warning); }
-        .mini-card-kpi .fill-info { background: var(--info); }
-        .mini-card-kpi .meta-info { font-size:0.7rem; color:var(--text-soft); }
+        .kpi-card-time {
+            background: var(--card-bg); backdrop-filter: var(--blur);
+            border: 1px solid var(--border-light); border-radius: var(--radius-md);
+            padding: 18px; box-shadow: var(--shadow-sm); text-align: left;
+        }
+        .kpi-card-time .kpi-header {
+            display: flex; align-items: center; gap: 12px; margin-bottom: 10px;
+        }
+        .kpi-card-time .kpi-header i {
+            font-size: 1.8rem; color: var(--primary);
+            background: var(--primary-soft); padding: 10px; border-radius: 16px;
+        }
+        .kpi-card-time .kpi-value {
+            font-size: 1.8rem; font-weight: 700; color: var(--text-dark); margin-bottom: 8px;
+        }
+        .kpi-card-time .progress-bar-bg {
+            height: 8px; background: #e0e6ed; border-radius: 20px; overflow: hidden; margin-bottom: 6px;
+        }
+        .kpi-card-time .progress-bar-fill {
+            height: 100%; border-radius: 20px; transition: width 0.3s;
+        }
+        .kpi-card-time .fill-success { background: var(--success); }
+        .kpi-card-time .fill-warning { background: var(--warning); }
+        .kpi-card-time .meta-legend { font-size: 0.8rem; color: var(--text-soft); }
         .month-filter {
             display: flex; align-items: center; justify-content: space-between;
             flex-wrap: wrap; gap:12px; margin-bottom:28px;
@@ -269,7 +287,7 @@
 
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.6); backdrop-filter: blur(12px);
+            background: rgba(255,255,255,0.35); backdrop-filter: blur(6px);
             z-index: 9999; display: flex; flex-direction: column;
             justify-content: center; align-items: center; gap: 20px;
             transition: opacity 0.3s;
@@ -300,7 +318,7 @@
             #print-header h1 { font-size: 18pt; color: var(--primary); margin: 0; }
             #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
             body, .wrapper { background: white; padding: 0; margin: 0; color: black; }
-            .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
+            .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card, .kpi-card-time {
                 background: white !important; backdrop-filter: none !important;
                 box-shadow: none !important; border: 1px solid #ccc !important;
                 page-break-inside: avoid; margin-bottom: 12px;
@@ -521,7 +539,6 @@
 
     <script>
     (function() {
-        // Verificação de sessão
         if (localStorage.getItem('radar_logged_out') === 'true') {
             window.location.href = '../../index.html?reason=logged_out';
             return;
@@ -616,7 +633,7 @@
         const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
         async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
 
-        // Funções de notificações, carrossel, campanhas, etc. (mantidas na íntegra)
+        // ... (funções de notificações, carrossel, campanhas, etc. – mantidas iguais)
         async function carregarInfoAtualizacao() {
             try {
                 const info = await carregarJSON(BASES.informacoes);
@@ -813,7 +830,6 @@
             }
         }
 
-        // Função principal com retry
         async function carregarDadosComRetry(selectedMonth, tentativas = 0) {
             mostrarLoading();
             try {
@@ -896,11 +912,11 @@
                 <div class="mini-card-kpi"><div class="label">Itens Vendidos</div><div class="value blue">${itensVendidos}</div></div>
                 <div class="mini-card-kpi"><div class="label">Cotações Ativas</div><div class="value purple">${cotAtivas}</div></div>
                 <div class="mini-card-kpi"><div class="label">Clientes Atendidos</div><div class="value">${totalClientes}</div></div>
-                <div class="mini-card-kpi">
-                    <div class="label">Meta Mensal do Time</div>
-                    <div class="value" style="color:${percMetaTime >= 100 ? 'var(--success)' : 'var(--warning)'}">${percMetaTime.toFixed(1)}%</div>
+                <div class="kpi-card-time">
+                    <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>Meta do Time (Mês)</h4></div>
+                    <div class="kpi-value">${percMetaTime.toFixed(1)}%</div>
                     <div class="progress-bar-bg"><div class="progress-bar-fill ${percMetaTime >= 100 ? 'fill-success' : 'fill-warning'}" style="width:${Math.min(percMetaTime,100)}%"></div></div>
-                    <div class="meta-info">Meta: ${formatarMoeda(metaTimeMensal)}</div>
+                    <div class="meta-legend">Faturado: ${formatarMoeda(totalFaturado)} / Meta: ${formatarMoeda(metaTimeMensal)}</div>
                 </div>
             `;
 
@@ -1041,13 +1057,16 @@
                 });
             });
 
-            function extrairNomeCliente(dados) {
-                return dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '';
+            function extrairDadosCliente(dados) {
+                return {
+                    nome: dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '',
+                    cnpj: (dados['CPF/CGC'] || dados['CNPJ'] || dados['CGC'] || '').replace(/[^\d]/g, '')
+                };
             }
 
             function abrirFicha(dados) {
-                const nomeCliente = extrairNomeCliente(dados);
-                const nomeUpper = nomeCliente.toUpperCase().trim();
+                const { nome, cnpj } = extrairDadosCliente(dados);
+                const nomeUpper = nome.toUpperCase().trim();
                 const icones = {
                     'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
                     'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
@@ -1073,7 +1092,7 @@
                 }).join('');
                 const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div>
                 <div class="ficha-lista">${linhas}</div>
-                ${nomeUpper ? `<div style="margin-top:16px; text-align:right;"><button onclick="window.abrirFichaCliente('${nomeUpper}')" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-id-card"></i> Ver Cadastro</button></div>` : ''}
+                ${ (nomeUpper || cnpj) ? `<div style="margin-top:16px; text-align:right;"><button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-id-card"></i> Ver Cadastro</button></div>` : ''}
                 <style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
                 modalHistory = [{ html, titulo: 'Detalhes do Pedido' }];
                 document.getElementById('modal-body').innerHTML = html;
@@ -1186,7 +1205,7 @@
             }
             document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
 
-            // Eventos badges e nomes (delegação)
+            // Eventos badges e nomes
             document.querySelectorAll('.group-badge').forEach(badge => {
                 badge.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -1204,16 +1223,30 @@
                 if (nomeUpper) window.abrirFichaCliente(nomeUpper);
             });
 
-            window.abrirFichaCliente = function(nomeUpper) {
+            window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
                 mostrarLoadingModal();
                 setTimeout(() => {
-                    const cliente = carteiraMap.get(nomeUpper);
+                    let cliente = null;
+                    // Busca flexível
+                    cliente = carteiraMap.get(nomeUpper);
+                    if (!cliente && cnpj && cnpj.length >= 11) {
+                        for (let [key, val] of carteiraMap.entries()) {
+                            const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
+                            if (cnpjCad === cnpj) { cliente = val; break; }
+                        }
+                    }
+                    if (!cliente && nomeUpper) {
+                        const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
+                        for (let [key, val] of carteiraMap.entries()) {
+                            if (palavras.some(p => key.includes(p))) { cliente = val; break; }
+                        }
+                    }
                     if (!cliente) {
-                        document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado.</p>';
+                        document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
                         return;
                     }
-                    const palavras = nomeUpper.split(' ');
-                    const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== nomeUpper && palavras.some(p => c.nome.toUpperCase().includes(p)));
+                    const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
+                    const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
                     let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                         <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
@@ -1266,7 +1299,7 @@
                     html += '</div>';
 
                     if (similares.length > 0) {
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
+                        html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Empresas Relacionadas (ou outras filiais) (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
                         similares.forEach(s => {
                             html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
                         });
