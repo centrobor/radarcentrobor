@@ -259,6 +259,26 @@
         .footer-social a { color: var(--footer-text); font-size:1.3rem; text-decoration: none; }
         .footer-bottom { text-align: center; margin-top:20px; font-size:0.7rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; }
         #print-header { display: none; }
+
+        /* Tela de carregamento */
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+            z-index: 9999; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; gap: 20px;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner {
+            width: 60px; height: 60px;
+            border: 6px solid #e2e8f0;
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { font-weight: 600; font-size: 1.1rem; color: var(--primary); }
+
         @media print {
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
@@ -267,7 +287,7 @@
             .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
             .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
             .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
-            .footer .footer-bottom, .month-filter .filter-left i, .footer {
+            .footer .footer-bottom, .month-filter .filter-left i, .footer, .loading-overlay {
                 display: none !important;
             }
             #print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
@@ -293,7 +313,6 @@
             tr { page-break-inside: avoid; }
             .fa, .fas, .far { display: none !important; }
             .section-title::before { content: "● "; font-weight: bold; }
-            /* Manter cores das linhas no PDF */
             tr.row-green td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.row-yellow td { background-color: #fff8e1 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.row-red td { background-color: #ffebee !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
@@ -322,56 +341,28 @@
             .mini-card-kpi .value { font-size: 1rem; }
         }
         .ficha-secao {
-            background: #f8fafc;
-            border-radius: 16px;
-            padding: 16px;
-            margin-bottom: 16px;
+            background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 16px;
             border: 1px solid #e2e8f0;
         }
-        .ficha-secao h4 {
-            font-size: 0.9rem;
-            color: var(--primary);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .ficha-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 6px 20px;
-        }
-        @media (max-width:600px) {
-            .ficha-grid { grid-template-columns: 1fr; }
-        }
+        .ficha-secao h4 { font-size: 0.9rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .ficha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+        @media (max-width:600px) { .ficha-grid { grid-template-columns: 1fr; } }
         .ficha-campo {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 5px 0;
-            border-bottom: 1px solid #f1f5f9;
-            font-size: 0.8rem;
+            display: flex; align-items: center; gap: 8px; padding: 5px 0;
+            border-bottom: 1px solid #f1f5f9; font-size: 0.8rem;
         }
-        .ficha-campo i {
-            width: 18px;
-            color: var(--primary);
-            text-align: center;
-        }
-        .ficha-campo .campo-label {
-            font-weight: 600;
-            color: var(--muted);
-            min-width: 110px;
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .ficha-campo .campo-valor {
-            color: var(--text-dark);
-            word-break: break-word;
-        }
+        .ficha-campo i { width: 18px; color: var(--primary); text-align: center; }
+        .ficha-campo .campo-label { font-weight: 600; color: var(--muted); min-width: 110px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3px; }
+        .ficha-campo .campo-valor { color: var(--text-dark); word-break: break-word; }
     </style>
 </head>
 <body>
+    <!-- Tela de carregamento -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Consultando dados...</div>
+    </div>
+
     <div id="print-header">
         <h1 id="print-vendor-name">César Santos</h1>
         <p>Relatório Diário de Vendas - Gerado em <span id="print-date"></span></p>
@@ -521,6 +512,7 @@
 
     <script>
     (function() {
+        // Verificação de sessão
         if (localStorage.getItem('radar_logged_out') === 'true') {
             window.location.href = '../../index.html?reason=logged_out';
             return;
@@ -561,7 +553,16 @@
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
         let BANNERS = [];
         let modalHistory = [];
+        let carteiraMapGlobal = new Map(); // para acesso rápido no botão "Ver Cadastro"
 
+        // Elemento de loading
+        const loadingOverlay = document.getElementById('loading-overlay');
+
+        // Função para mostrar/esconder loading
+        function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
+        function esconderLoading() { loadingOverlay.classList.add('hidden'); }
+
+        // Utilitários
         const cleanNumber = (v) => {
             if (v === null || v === undefined || v === '') return 0;
             if (typeof v === 'number') return v;
@@ -801,535 +802,526 @@
             }
         }
 
-        async function renderAll(selectedMonth) {
+        // Função principal de renderização com retry
+        async function carregarDadosComRetry(selectedMonth, tentativas = 0) {
+            mostrarLoading();
             try {
-                const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
-                    carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
-                    carregarJSON(BASES.aprovadosfaturados), carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
-                ]);
-                document.getElementById('greeting-name').textContent = nomeVendedor;
-                document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
-                document.getElementById('menu-user-name').textContent = nomeVendedor;
+                await renderAll(selectedMonth);
+                esconderLoading();
+            } catch (e) {
+                console.error('Erro ao carregar dados:', e);
+                if (tentativas < 10) { // tenta até 10 vezes
+                    document.querySelector('.loading-text').textContent = `Erro ao carregar. Tentando novamente em 3s... (${tentativas+1}/10)`;
+                    setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 3000);
+                } else {
+                    loadingOverlay.innerHTML = '<div style="text-align:center;"><p>Falha ao carregar dados.</p><button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; border-radius:20px; background:var(--primary); color:white; border:none; cursor:pointer;">Tentar novamente</button></div>';
+                }
+            }
+        }
 
-                const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
-                const meta = metaArr.length>0 ? metaArr[0] : {};
+        async function renderAll(selectedMonth) {
+            const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
+                carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
+                carregarJSON(BASES.aprovadosfaturados), carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
+            ]);
 
-                // Calcular meta mensal do time (soma de todas as metas de vendedores válidos)
-                const metaTimeMensal = metaRawArr.reduce((acc, m) => {
-                    const id = String(m.id_vendedor||'').trim();
-                    if (!id || id === '80' || id === '1') return acc; // ignora RKB e admin
-                    return acc + cleanNumber(m.meta_mensal);
-                }, 0);
+            document.getElementById('greeting-name').textContent = nomeVendedor;
+            document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
+            document.getElementById('menu-user-name').textContent = nomeVendedor;
 
-                const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
-                const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
-                const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
+            const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
+            const meta = metaArr.length>0 ? metaArr[0] : {};
 
-                const aprovFull = filtrarPorNome(aprovRaw,'Vendedor');
-                const fatFull = filtrarPorCod(fatRaw,'Cod. Vendedor');
-                const cotFull = filtrarPorCodExtraido(cotRaw,'Vendedor');
-                const carteiraFull = filtrarPorCodExtraido(carteiraRaw,'Representante');
-                let aprovFatFull = aprovFatRaw;
-                if (aprovFatRaw.length && aprovFatRaw[0].hasOwnProperty('Vendedor')) aprovFatFull = filtrarPorNome(aprovFatRaw,'Vendedor');
+            const metaTimeMensal = metaRawArr.reduce((acc, m) => {
+                const id = String(m.id_vendedor||'').trim();
+                if (!id || id === '80' || id === '1') return acc;
+                return acc + cleanNumber(m.meta_mensal);
+            }, 0);
 
-                const filterByMonth = (lista,campo) => {
-                    if (!selectedMonth) return lista;
-                    return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
+            const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
+            const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
+            const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
+
+            const aprovFull = filtrarPorNome(aprovRaw,'Vendedor');
+            const fatFull = filtrarPorCod(fatRaw,'Cod. Vendedor');
+            const cotFull = filtrarPorCodExtraido(cotRaw,'Vendedor');
+            const carteiraFull = filtrarPorCodExtraido(carteiraRaw,'Representante');
+            let aprovFatFull = aprovFatRaw;
+            if (aprovFatRaw.length && aprovFatRaw[0].hasOwnProperty('Vendedor')) aprovFatFull = filtrarPorNome(aprovFatRaw,'Vendedor');
+
+            const filterByMonth = (lista,campo) => {
+                if (!selectedMonth) return lista;
+                return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
+            };
+            const aprov = filterByMonth(aprovFull,'Data');
+            const fat = filterByMonth(fatFull,'Data');
+            let cot = cotFull;
+            cot.sort((a,b) => {
+                const dA = parseDataBR(a['Data Criação']);
+                const dB = parseDataBR(b['Data Criação']);
+                if (!dA && !dB) return 0;
+                if (!dA) return 1;
+                if (!dB) return -1;
+                return dB - dA;
+            });
+            const hojeRef = new Date(); hojeRef.setHours(0,0,0,0);
+            cot = cot.map(item => {
+                const d = parseDataBR(item['Data Criação']);
+                const idade = d ? Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24)) : null;
+                return { ...item, 'idade_dias': idade !== null ? idade + ' dias' : 'N/A' };
+            });
+            const aprovFat = filterByMonth(aprovFatFull,'Data');
+
+            const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+            const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
+            const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
+            const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
+            const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
+            const percMetaTime = metaTimeMensal > 0 ? (totalFaturado / metaTimeMensal) * 100 : 0;
+
+            document.getElementById('kpi-cards').innerHTML = `
+                <div class="mini-card-kpi"><div class="label">Faturamento Mês</div><div class="value green">${formatarMoeda(totalFaturado)}</div></div>
+                <div class="mini-card-kpi"><div class="label">Pedidos Aprov+Fat</div><div class="value blue">${formatarMoeda(totalAprovFat)}</div></div>
+                <div class="mini-card-kpi"><div class="label">Itens Vendidos</div><div class="value blue">${itensVendidos}</div></div>
+                <div class="mini-card-kpi"><div class="label">Cotações Ativas</div><div class="value purple">${cotAtivas}</div></div>
+                <div class="mini-card-kpi"><div class="label">Clientes Atendidos</div><div class="value">${totalClientes}</div></div>
+                <div class="mini-card-kpi">
+                    <div class="label">Meta Mensal do Time</div>
+                    <div class="value" style="color:${percMetaTime >= 100 ? 'var(--success)' : 'var(--warning)'}">${percMetaTime.toFixed(1)}%</div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${percMetaTime >= 100 ? 'fill-success' : 'fill-warning'}" style="width:${Math.min(percMetaTime,100)}%"></div></div>
+                    <div class="meta-info">Meta: ${formatarMoeda(metaTimeMensal)}</div>
+                </div>
+            `;
+
+            const today = new Date(); today.setHours(0,0,0,0);
+            let cutoffDate = new Date();
+            if (selectedMonth) {
+                const [mesStr,anoStr] = selectedMonth.split('/');
+                const mesesMap = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+                const monthIdx = mesesMap[mesStr];
+                const year = 2000+parseInt(anoStr);
+                if (monthIdx!==undefined) cutoffDate = lastBusinessDayOfMonth(year,monthIdx);
+            }
+            const year = cutoffDate.getFullYear();
+            const startOfYear = firstBusinessDayOfMonth(year, 0);
+            const faturamentoAcumulado = fatFull.filter(item => {
+                const d = parseDataBR(item['Data']);
+                return d && d >= startOfYear && d <= cutoffDate;
+            }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
+
+            const metaMensal = cleanNumber(meta.meta_mensal);
+            const metaSemestral = cleanNumber(meta.meta_semestral);
+            const metaAnual = cleanNumber(meta.meta_anual);
+            const metaPlus = metaMensal*1.1;
+            const monthBound = getMonthBoundaries();
+            const daysPassedMonth = businessDaysPassed(monthBound.start);
+            const daysRemainingMonth = businessDaysRemaining(monthBound.end);
+            const totalDaysMonth = totalBusinessDays(monthBound.start,monthBound.end);
+            const percMonth = metaMensal>0?(totalFaturado/metaMensal)*100:0;
+            const remainingMonth = Math.max(0,metaMensal-totalFaturado);
+            const projectionMonth = (totalFaturado/Math.max(1,daysPassedMonth))*totalDaysMonth;
+            const statusMonth = percMonth >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
+            const percPlus = metaPlus>0?(totalFaturado/metaPlus)*100:0;
+            const remainingPlus = Math.max(0,metaPlus-totalFaturado);
+            const statusPlus = percPlus >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
+            const semesterBound = getSemesterBoundaries();
+            const daysPassedSem = businessDaysPassed(semesterBound.start);
+            const daysRemainingSem = businessDaysRemaining(semesterBound.end);
+            const totalDaysSem = totalBusinessDays(semesterBound.start,semesterBound.end);
+            const percSem = metaSemestral>0?(faturamentoAcumulado/metaSemestral)*100:0;
+            const remainingSem = Math.max(0,metaSemestral-faturamentoAcumulado);
+            const projectionSem = (faturamentoAcumulado/Math.max(1,daysPassedSem))*totalDaysSem;
+            const statusSem = percSem >= (daysPassedSem/totalDaysSem*0.95*100) ? 'on-track' : 'behind';
+            const yearBound = getYearBoundaries();
+            const daysPassedYear = businessDaysPassed(yearBound.start);
+            const daysRemainingYear = businessDaysRemaining(yearBound.end);
+            const totalDaysYear = totalBusinessDays(yearBound.start,yearBound.end);
+            const percYear = metaAnual>0?(faturamentoAcumulado/metaAnual)*100:0;
+            const remainingYear = Math.max(0,metaAnual-faturamentoAcumulado);
+            const projectionYear = (faturamentoAcumulado/Math.max(1,daysPassedYear))*totalDaysYear;
+            const statusYear = percYear >= (daysPassedYear/totalDaysYear*0.95*100) ? 'on-track' : 'behind';
+
+            function criarMetaCard(titulo,metaValor,realizado,perc,restante,diasPass,diasRest,projecao,status,cor,icone,idCanvas) {
+                const statusBadge = status==='on-track'?'<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>':'<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
+                return `<div class="meta-card-full"><div class="meta-card-header"><div class="meta-card-title"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:8px;"></span>${icone} ${titulo}</div>${statusBadge}</div><div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;"><div style="position:relative; width:90px; height:90px;"><canvas id="${idCanvas}" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${Math.min(perc,100).toFixed(1)}%</div></div><div style="flex:1;"><div style="font-size:0.85rem;"><strong>${formatarMoeda(realizado)}</strong> / ${formatarMoeda(metaValor)}</div><div class="meta-grid-stats"><span><strong>${formatarMoeda(restante)}</strong><br>Faltante</span><span><strong>${diasPass}</strong><br>Dias úteis passados</span><span><strong>${diasRest}</strong><br>Dias úteis restantes</span><span><strong>${formatarMoeda(projecao)}</strong><br>Projeção</span></div></div></div></div>`;
+            }
+            let metasHTML = '';
+            metasHTML += criarMetaCard('Meta Mensal',metaMensal,totalFaturado,percMonth,remainingMonth,daysPassedMonth,daysRemainingMonth,projectionMonth,statusMonth,'#2e7d32','<i class="fas fa-calendar-check"></i>','meta-mensal-chart');
+            metasHTML += criarMetaCard('Meta Plus (110%)',metaPlus,totalFaturado,percPlus,remainingPlus,daysPassedMonth,daysRemainingMonth,projectionMonth,statusPlus,'#f59e0b','<i class="fas fa-star"></i>','meta-plus-chart');
+            metasHTML += criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoAcumulado,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart');
+            metasHTML += criarMetaCard('Meta Anual',metaAnual,faturamentoAcumulado,percYear,remainingYear,daysPassedYear,daysRemainingYear,projectionYear,statusYear,'#2563eb','<i class="fas fa-calendar-alt"></i>','meta-anual-chart');
+            document.getElementById('metas-container').innerHTML = metasHTML;
+
+            setTimeout(() => {
+                criarDoughnut('meta-mensal-chart', percMonth, '#2e7d32');
+                criarDoughnut('meta-plus-chart', percPlus, '#f59e0b');
+                criarDoughnut('meta-semestral-chart', percSem, '#ea580c');
+                criarDoughnut('meta-anual-chart', percYear, '#2563eb');
+            }, 0);
+
+            const conquistasMetas = [];
+            const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
+            const semestre = today.getMonth() < 6 ? 1 : 2;
+            if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
+            if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
+            if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
+            if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
+
+            const evoMap = {};
+            aprov.forEach(p => { const chave = p['Competência']||p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Total Bruto']); });
+            fat.forEach(p => { const chave = p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Valor Mercadoria']); });
+            const chavesOrdenadas = Object.keys(evoMap).sort((a,b) => (parseDataBR(a)||0) - (parseDataBR(b)||0));
+            const valores = chavesOrdenadas.map(k => evoMap[k]);
+            if (chartInstance) chartInstance.destroy();
+            const ctx = document.getElementById('chart-faturamento').getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: chavesOrdenadas, datasets: [{ label: 'Faturamento', data: valores, borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.08)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k' } } } }
+            });
+
+            const clienteFat = {};
+            aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']]||0)+cleanNumber(p['Total Bruto']));
+            fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']]||0)+cleanNumber(p['Valor Mercadoria']));
+            const topClientes = Object.entries(clienteFat).sort((a,b)=>b[1]-a[1]).slice(0,5);
+            document.getElementById('top-clientes-container').innerHTML = `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
+            const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
+            document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
+
+            function gerarTabela(dados, colunas, tipo, rowClassFn) {
+                if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
+                let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px;"></div>';
+                html += '<table><thead><tr>'+colunas.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+                dados.slice(0,400).forEach((r,idx) => {
+                    let extraClass = rowClassFn ? rowClassFn(r) : '';
+                    html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">${colunas.map(c=>`<td>${r[c]||''}</td>`).join('')}</tr>`;
+                });
+                html += '</tbody></table>';
+                return html;
+            }
+
+            document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov');
+            document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat');
+            document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat');
+
+            function classCotacao(item) {
+                const dataStr = item['Data Criação'];
+                if (!dataStr) return '';
+                const apenasData = String(dataStr).split(' ')[0];
+                const partes = apenasData.split('/');
+                if (partes.length !== 3) return '';
+                const dia = parseInt(partes[0], 10);
+                const mes = parseInt(partes[1], 10) - 1;
+                const ano = parseInt(partes[2], 10);
+                const d = new Date(ano, mes, dia);
+                if (isNaN(d.getTime())) return '';
+                const diffDays = Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24));
+                if (diffDays <= 5) return 'row-green';
+                else if (diffDays <= 25) return 'row-yellow';
+                else return 'row-red';
+            }
+            document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
+
+            document.querySelectorAll('.table-search').forEach(input => {
+                input.addEventListener('input', function() {
+                    const term = this.value.toLowerCase();
+                    const table = this.closest('.table-wrapper').querySelector('table');
+                    if (table) table.querySelectorAll('tbody tr').forEach(row => row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none');
+                });
+            });
+
+            // Função para extrair nome do cliente dos dados
+            function extrairNomeCliente(dados) {
+                return dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '';
+            }
+
+            function abrirFicha(dados) {
+                const nomeCliente = extrairNomeCliente(dados);
+                const nomeUpper = nomeCliente.toUpperCase().trim();
+                const icones = {
+                    'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
+                    'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
+                    'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign', 'total bruto': 'fa-file-invoice-dollar',
+                    'total líquido': 'fa-hand-holding-usd', 'valor mercadoria': 'fa-tag', 'custo': 'fa-coins',
+                    'margem': 'fa-percent', 'depósito': 'fa-warehouse', 'país': 'fa-globe-americas',
+                    'moeda': 'fa-money-bill', '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
+                    'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
+                    'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
+                    'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
+                    'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
+                    'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
+                    'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
+                    'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
                 };
-                const aprov = filterByMonth(aprovFull,'Data');
-                const fat = filterByMonth(fatFull,'Data');
-                let cot = cotFull;
-                cot.sort((a,b) => {
-                    const dA = parseDataBR(a['Data Criação']);
-                    const dB = parseDataBR(b['Data Criação']);
-                    if (!dA && !dB) return 0;
-                    if (!dA) return 1;
-                    if (!dB) return -1;
-                    return dB - dA;
+                const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
+                const linhas = Object.entries(dados).map(([chave, valor]) => {
+                    const chaveLower = chave.toLowerCase().trim();
+                    const icone = icones[chaveLower] || 'fa-file-alt';
+                    const isDestaque = camposDestaque.includes(chaveLower);
+                    const valorFormatado = valor || '—';
+                    return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
+                }).join('');
+                const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div>
+                <div class="ficha-lista">${linhas}</div>
+                ${nomeUpper ? `<div style="margin-top:16px; text-align:right;"><button onclick="window.abrirFichaCliente('${nomeUpper}')" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-id-card"></i> Ver Cadastro</button></div>` : ''}
+                <style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
+                modalHistory = [{ html, titulo: 'Detalhes do Pedido' }];
+                document.getElementById('modal-body').innerHTML = html;
+                document.getElementById('detail-modal').classList.add('active');
+            }
+            const listas = { aprov, fat, cot, aprovfat: aprovFat };
+            document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
+                row.addEventListener('click', function() {
+                    const idx = parseInt(this.dataset.idx);
+                    const tipo = this.dataset.tipo;
+                    const lista = listas[tipo];
+                    if (lista && lista[idx]) abrirFicha(lista[idx]);
                 });
-                const hojeRef = new Date(); hojeRef.setHours(0,0,0,0);
-                cot = cot.map(item => {
-                    const d = parseDataBR(item['Data Criação']);
-                    const idade = d ? Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24)) : null;
-                    return { ...item, 'idade_dias': idade !== null ? idade + ' dias' : 'N/A' };
+            });
+
+            const interacoesGlobais = new Map();
+            const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
+                lista.forEach(item => {
+                    const nome = (item[campoNome] || '').toUpperCase().trim();
+                    if (!nome) return;
+                    const d = parseDataBR(item[campoData]);
+                    if (!d) return;
+                    const vendedor = String(item[campoVendedor] || '').trim();
+                    if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
+                        interacoesGlobais.set(nome, { data: d, vendedor });
+                    }
                 });
-                const aprovFat = filterByMonth(aprovFatFull,'Data');
+            };
+            registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
+            registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
-                const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-                const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-                const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
-                const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
-                const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
-
-                // Percentual da meta do time
-                const percMetaTime = metaTimeMensal > 0 ? (totalFaturado / metaTimeMensal) * 100 : 0;
-
-                document.getElementById('kpi-cards').innerHTML = `
-                    <div class="mini-card-kpi"><div class="label">Faturamento Mês</div><div class="value green">${formatarMoeda(totalFaturado)}</div></div>
-                    <div class="mini-card-kpi"><div class="label">Pedidos Aprov+Fat</div><div class="value blue">${formatarMoeda(totalAprovFat)}</div></div>
-                    <div class="mini-card-kpi"><div class="label">Itens Vendidos</div><div class="value blue">${itensVendidos}</div></div>
-                    <div class="mini-card-kpi"><div class="label">Cotações Ativas</div><div class="value purple">${cotAtivas}</div></div>
-                    <div class="mini-card-kpi"><div class="label">Clientes Atendidos</div><div class="value">${totalClientes}</div></div>
-                    <div class="mini-card-kpi">
-                        <div class="label">Meta Mensal do Time</div>
-                        <div class="value" style="color:${percMetaTime >= 100 ? 'var(--success)' : 'var(--warning)'}">${percMetaTime.toFixed(1)}%</div>
-                        <div class="progress-bar-bg"><div class="progress-bar-fill ${percMetaTime >= 100 ? 'fill-success' : 'fill-warning'}" style="width:${Math.min(percMetaTime,100)}%"></div></div>
-                        <div class="meta-info">Meta: ${formatarMoeda(metaTimeMensal)}</div>
-                    </div>
-                `;
-
-                const today = new Date(); today.setHours(0,0,0,0);
-                let cutoffDate = new Date();
-                if (selectedMonth) {
-                    const [mesStr,anoStr] = selectedMonth.split('/');
-                    const mesesMap = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
-                    const monthIdx = mesesMap[mesStr];
-                    const year = 2000+parseInt(anoStr);
-                    if (monthIdx!==undefined) cutoffDate = lastBusinessDayOfMonth(year,monthIdx);
-                }
-                const year = cutoffDate.getFullYear();
-                const startOfYear = firstBusinessDayOfMonth(year, 0);
-                const faturamentoAcumulado = fatFull.filter(item => {
-                    const d = parseDataBR(item['Data']);
-                    return d && d >= startOfYear && d <= cutoffDate;
-                }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
-
-                const metaMensal = cleanNumber(meta.meta_mensal);
-                const metaSemestral = cleanNumber(meta.meta_semestral);
-                const metaAnual = cleanNumber(meta.meta_anual);
-                const metaPlus = metaMensal*1.1;
-                const monthBound = getMonthBoundaries();
-                const daysPassedMonth = businessDaysPassed(monthBound.start);
-                const daysRemainingMonth = businessDaysRemaining(monthBound.end);
-                const totalDaysMonth = totalBusinessDays(monthBound.start,monthBound.end);
-                const percMonth = metaMensal>0?(totalFaturado/metaMensal)*100:0;
-                const remainingMonth = Math.max(0,metaMensal-totalFaturado);
-                const projectionMonth = (totalFaturado/Math.max(1,daysPassedMonth))*totalDaysMonth;
-                const statusMonth = percMonth >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
-                const percPlus = metaPlus>0?(totalFaturado/metaPlus)*100:0;
-                const remainingPlus = Math.max(0,metaPlus-totalFaturado);
-                const statusPlus = percPlus >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
-                const semesterBound = getSemesterBoundaries();
-                const daysPassedSem = businessDaysPassed(semesterBound.start);
-                const daysRemainingSem = businessDaysRemaining(semesterBound.end);
-                const totalDaysSem = totalBusinessDays(semesterBound.start,semesterBound.end);
-                const percSem = metaSemestral>0?(faturamentoAcumulado/metaSemestral)*100:0;
-                const remainingSem = Math.max(0,metaSemestral-faturamentoAcumulado);
-                const projectionSem = (faturamentoAcumulado/Math.max(1,daysPassedSem))*totalDaysSem;
-                const statusSem = percSem >= (daysPassedSem/totalDaysSem*0.95*100) ? 'on-track' : 'behind';
-                const yearBound = getYearBoundaries();
-                const daysPassedYear = businessDaysPassed(yearBound.start);
-                const daysRemainingYear = businessDaysRemaining(yearBound.end);
-                const totalDaysYear = totalBusinessDays(yearBound.start,yearBound.end);
-                const percYear = metaAnual>0?(faturamentoAcumulado/metaAnual)*100:0;
-                const remainingYear = Math.max(0,metaAnual-faturamentoAcumulado);
-                const projectionYear = (faturamentoAcumulado/Math.max(1,daysPassedYear))*totalDaysYear;
-                const statusYear = percYear >= (daysPassedYear/totalDaysYear*0.95*100) ? 'on-track' : 'behind';
-
-                function criarMetaCard(titulo,metaValor,realizado,perc,restante,diasPass,diasRest,projecao,status,cor,icone,idCanvas) {
-                    const statusBadge = status==='on-track'?'<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>':'<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
-                    return `<div class="meta-card-full"><div class="meta-card-header"><div class="meta-card-title"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:8px;"></span>${icone} ${titulo}</div>${statusBadge}</div><div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;"><div style="position:relative; width:90px; height:90px;"><canvas id="${idCanvas}" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${Math.min(perc,100).toFixed(1)}%</div></div><div style="flex:1;"><div style="font-size:0.85rem;"><strong>${formatarMoeda(realizado)}</strong> / ${formatarMoeda(metaValor)}</div><div class="meta-grid-stats"><span><strong>${formatarMoeda(restante)}</strong><br>Faltante</span><span><strong>${diasPass}</strong><br>Dias úteis passados</span><span><strong>${diasRest}</strong><br>Dias úteis restantes</span><span><strong>${formatarMoeda(projecao)}</strong><br>Projeção</span></div></div></div></div>`;
-                }
-                let metasHTML = '';
-                metasHTML += criarMetaCard('Meta Mensal',metaMensal,totalFaturado,percMonth,remainingMonth,daysPassedMonth,daysRemainingMonth,projectionMonth,statusMonth,'#2e7d32','<i class="fas fa-calendar-check"></i>','meta-mensal-chart');
-                metasHTML += criarMetaCard('Meta Plus (110%)',metaPlus,totalFaturado,percPlus,remainingPlus,daysPassedMonth,daysRemainingMonth,projectionMonth,statusPlus,'#f59e0b','<i class="fas fa-star"></i>','meta-plus-chart');
-                metasHTML += criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoAcumulado,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart');
-                metasHTML += criarMetaCard('Meta Anual',metaAnual,faturamentoAcumulado,percYear,remainingYear,daysPassedYear,daysRemainingYear,projectionYear,statusYear,'#2563eb','<i class="fas fa-calendar-alt"></i>','meta-anual-chart');
-                document.getElementById('metas-container').innerHTML = metasHTML;
-
-                setTimeout(() => {
-                    criarDoughnut('meta-mensal-chart', percMonth, '#2e7d32');
-                    criarDoughnut('meta-plus-chart', percPlus, '#f59e0b');
-                    criarDoughnut('meta-semestral-chart', percSem, '#ea580c');
-                    criarDoughnut('meta-anual-chart', percYear, '#2563eb');
-                }, 0);
-
-                const conquistasMetas = [];
-                const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
-                const semestre = today.getMonth() < 6 ? 1 : 2;
-                if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
-                if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
-                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
-                if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
-
-                const evoMap = {};
-                aprov.forEach(p => { const chave = p['Competência']||p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Total Bruto']); });
-                fat.forEach(p => { const chave = p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Valor Mercadoria']); });
-                const chavesOrdenadas = Object.keys(evoMap).sort((a,b) => (parseDataBR(a)||0) - (parseDataBR(b)||0));
-                const valores = chavesOrdenadas.map(k => evoMap[k]);
-                if (chartInstance) chartInstance.destroy();
-                const ctx = document.getElementById('chart-faturamento').getContext('2d');
-                chartInstance = new Chart(ctx, {
-                    type: 'line',
-                    data: { labels: chavesOrdenadas, datasets: [{ label: 'Faturamento', data: valores, borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.08)', fill: true, tension: 0.4 }] },
-                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k' } } } }
-                });
-
-                const clienteFat = {};
-                aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']]||0)+cleanNumber(p['Total Bruto']));
-                fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']]||0)+cleanNumber(p['Valor Mercadoria']));
-                const topClientes = Object.entries(clienteFat).sort((a,b)=>b[1]-a[1]).slice(0,5);
-                document.getElementById('top-clientes-container').innerHTML = `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
-                const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
-                document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
-
-                function gerarTabela(dados, colunas, tipo, rowClassFn) {
-                    if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
-                    let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px;"></div>';
-                    html += '<table><thead><tr>'+colunas.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
-                    dados.slice(0,400).forEach((r,idx) => {
-                        let extraClass = rowClassFn ? rowClassFn(r) : '';
-                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">${colunas.map(c=>`<td>${r[c]||''}</td>`).join('')}</tr>`;
+            const carteiraMap = new Map();
+            carteiraFull.forEach(cli => {
+                const nome = (cli['Nome Chave'] || '').trim();
+                const nomeUpper = nome.toUpperCase();
+                if (nomeUpper && !carteiraMap.has(nomeUpper)) {
+                    carteiraMap.set(nomeUpper, {
+                        ...cli,
+                        nome: nome,
+                        cidade: cli['Cidade'] || '',
+                        uf: cli['UF'] || '',
+                        ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+                        cadastrado: true
                     });
-                    html += '</tbody></table>';
-                    return html;
                 }
+            });
+            // Atualiza mapa global para uso no botão "Ver Cadastro"
+            carteiraMapGlobal = carteiraMap;
 
-                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov');
-                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat');
-                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat');
-
-                function classCotacao(item) {
-                    const dataStr = item['Data Criação'];
-                    if (!dataStr) return '';
-                    const apenasData = String(dataStr).split(' ')[0];
-                    const partes = apenasData.split('/');
-                    if (partes.length !== 3) return '';
-                    const dia = parseInt(partes[0], 10);
-                    const mes = parseInt(partes[1], 10) - 1;
-                    const ano = parseInt(partes[2], 10);
-                    const d = new Date(ano, mes, dia);
-                    if (isNaN(d.getTime())) return '';
-                    const diffDays = Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24));
-                    if (diffDays <= 5) return 'row-green';
-                    else if (diffDays <= 25) return 'row-yellow';
-                    else return 'row-red';
+            const umAnoAtras = new Date(hojeRef);
+            umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+            interacoesGlobais.forEach((info, nome) => {
+                if (carteiraMap.has(nome)) return;
+                if (info.data < umAnoAtras) return;
+                const vendedorInteracao = info.vendedor;
+                const isVendedorAtual = (vendedorInteracao === codVendedor) || (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+                if (isVendedorAtual) {
+                    carteiraMap.set(nome, { nome: nome, cidade: '', uf: '', ativo: true, cadastrado: false });
                 }
-                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
+            });
 
-                document.querySelectorAll('.table-search').forEach(input => {
-                    input.addEventListener('input', function() {
-                        const term = this.value.toLowerCase();
-                        const table = this.closest('.table-wrapper').querySelector('table');
-                        if (table) table.querySelectorAll('tbody tr').forEach(row => row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none');
-                    });
+            const clientesStatus = Array.from(carteiraMap, ([nomeUpper, dados]) => {
+                const ultima = interacoesGlobais.get(nomeUpper)?.data || null;
+                let status = 'red';
+                let ultimaStr = 'Sem Interação';
+                if (ultima) {
+                    const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
+                    ultimaStr = formatarData(ultima);
+                    if (dias <= 30) status = 'green';
+                    else if (dias <= 90) status = 'yellow';
+                }
+                return { nome: dados.nome || nomeUpper, status, ultima: ultimaStr, cidade: dados.cidade, uf: dados.uf, ativo: dados.ativo, cadastrado: dados.cadastrado, original: dados, nomeUpper };
+            });
+
+            const totalFiliais = clientesStatus.length;
+            const ativosCount = clientesStatus.filter(c => c.ativo).length;
+            const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
+            const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
+            document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
+
+            const contagem = { green: 0, yellow: 0, red: 0 };
+            const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
+            clientesStatus.forEach(c => {
+                contagem[c.status]++;
+                const key = c.nome.split(' ')[0].toUpperCase();
+                if (!grupos[c.status].has(key)) grupos[c.status].set(key, []);
+                grupos[c.status].get(key).push(c);
+            });
+            const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
+            document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
+
+            function gerarTabelaClientes(status) {
+                const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
+                if (!filtrados.length) return '';
+                let badgesHtml = '';
+                grupos[status].forEach((clientes, key) => {
+                    badgesHtml += `<span class="group-badge ${status}" data-grupo="${key}" data-status="${status}">${key} (${clientes.length})</span>`;
                 });
-
-                function abrirFicha(dados) {
-                    const icones = {
-                        'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
-                        'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
-                        'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign', 'total bruto': 'fa-file-invoice-dollar',
-                        'total líquido': 'fa-hand-holding-usd', 'valor mercadoria': 'fa-tag', 'custo': 'fa-coins',
-                        'margem': 'fa-percent', 'depósito': 'fa-warehouse', 'país': 'fa-globe-americas',
-                        'moeda': 'fa-money-bill', '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
-                        'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
-                        'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
-                        'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
-                        'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
-                        'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
-                        'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
-                        'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
-                    };
-                    const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
-                    const linhas = Object.entries(dados).map(([chave, valor]) => {
-                        const chaveLower = chave.toLowerCase().trim();
-                        const icone = icones[chaveLower] || 'fa-file-alt';
-                        const isDestaque = camposDestaque.includes(chaveLower);
-                        const valorFormatado = valor || '—';
-                        return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
-                    }).join('');
-                    const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div><div class="ficha-lista">${linhas}</div><style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
-                    modalHistory = [{ html, titulo: 'Detalhes do Pedido' }];
-                    document.getElementById('modal-body').innerHTML = html;
-                    document.getElementById('detail-modal').classList.add('active');
-                }
-                const listas = { aprov, fat, cot, aprovfat: aprovFat };
-                document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
-                    row.addEventListener('click', function() {
-                        const idx = parseInt(this.dataset.idx);
-                        const tipo = this.dataset.tipo;
-                        const lista = listas[tipo];
-                        if (lista && lista[idx]) abrirFicha(lista[idx]);
-                    });
-                });
-
-                const interacoesGlobais = new Map();
-                const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
-                    lista.forEach(item => {
-                        const nome = (item[campoNome] || '').toUpperCase().trim();
-                        if (!nome) return;
-                        const d = parseDataBR(item[campoData]);
-                        if (!d) return;
-                        const vendedor = String(item[campoVendedor] || '').trim();
-                        if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
-                            interacoesGlobais.set(nome, { data: d, vendedor });
+                return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${badgesHtml}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => {
+                    let statusExtra = '';
+                    if (!c.cadastrado) {
+                        const ultimaData = interacoesGlobais.get(c.nomeUpper)?.data;
+                        if (ultimaData) {
+                            const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
+                            if (diasDesdeUltima <= 30) statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
+                            else statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
                         }
-                    });
-                };
-                registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
-                registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
-
-                const carteiraMap = new Map();
-                carteiraFull.forEach(cli => {
-                    const nome = (cli['Nome Chave'] || '').trim();
-                    const nomeUpper = nome.toUpperCase();
-                    if (nomeUpper && !carteiraMap.has(nomeUpper)) {
-                        carteiraMap.set(nomeUpper, {
-                            ...cli,
-                            nome: nome,
-                            cidade: cli['Cidade'] || '',
-                            uf: cli['UF'] || '',
-                            ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                            cadastrado: true
-                        });
                     }
+                    return `<tr class="carteira-row-${c.status}"><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer; color:var(--primary); font-weight:600;">${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`;
+                }).join('')}</tbody></table></div></div>`;
+            }
+            document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
+
+            // Eventos badges
+            document.querySelectorAll('.group-badge').forEach(badge => {
+                badge.addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    const grupo = this.dataset.grupo;
+                    const status = this.dataset.status;
+                    const clientesDoGrupo = grupos[status].get(grupo) || [];
+                    abrirModalGrupo(grupo, clientesDoGrupo);
                 });
+            });
 
-                const umAnoAtras = new Date(hojeRef);
-                umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-                interacoesGlobais.forEach((info, nome) => {
-                    if (carteiraMap.has(nome)) return;
-                    if (info.data < umAnoAtras) return;
-                    const vendedorInteracao = info.vendedor;
-                    const isVendedorAtual = (vendedorInteracao === codVendedor) || (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
-                    if (isVendedorAtual) {
-                        carteiraMap.set(nome, {
-                            nome: nome,
-                            cidade: '',
-                            uf: '',
-                            ativo: true,
-                            cadastrado: false
-                        });
-                    }
-                });
+            // Eventos nomes clientes
+            document.getElementById('carteira-detalhes').addEventListener('click', function(e) {
+                const cell = e.target.closest('.cliente-nome');
+                if (!cell) return;
+                const nomeUpper = cell.dataset.nome;
+                if (nomeUpper) window.abrirFichaCliente(nomeUpper);
+            });
 
-                const clientesStatus = Array.from(carteiraMap, ([nomeUpper, dados]) => {
-                    const ultima = interacoesGlobais.get(nomeUpper)?.data || null;
-                    let status = 'red';
-                    let ultimaStr = 'Sem Interação';
-                    if (ultima) {
-                        const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
-                        ultimaStr = formatarData(ultima);
-                        if (dias <= 30) status = 'green';
-                        else if (dias <= 90) status = 'yellow';
-                    }
-                    return { nome: dados.nome || nomeUpper, status, ultima: ultimaStr, cidade: dados.cidade, uf: dados.uf, ativo: dados.ativo, cadastrado: dados.cadastrado, original: dados, nomeUpper };
-                });
-
-                const totalFiliais = clientesStatus.length;
-                const ativosCount = clientesStatus.filter(c => c.ativo).length;
-                const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
-                const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
-                document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
-
-                const contagem = { green: 0, yellow: 0, red: 0 };
-                const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
-                clientesStatus.forEach(c => {
-                    contagem[c.status]++;
-                    const key = c.nome.split(' ')[0].toUpperCase();
-                    if (!grupos[c.status].has(key)) grupos[c.status].set(key, []);
-                    grupos[c.status].get(key).push(c);
-                });
-                const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
-                document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
-
-                function gerarTabelaClientes(status) {
-                    const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
-                    if (!filtrados.length) return '';
-                    let badgesHtml = '';
-                    grupos[status].forEach((clientes, key) => {
-                        badgesHtml += `<span class="group-badge ${status}" data-grupo="${key}" data-status="${status}">${key} (${clientes.length})</span>`;
-                    });
-                    return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${badgesHtml}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => {
-                        let statusExtra = '';
-                        if (!c.cadastrado) {
-                            const ultimaData = interacoesGlobais.get(c.nomeUpper)?.data;
-                            if (ultimaData) {
-                                const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
-                                if (diasDesdeUltima <= 30) statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
-                                else statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
-                            }
-                        }
-                        return `<tr class="carteira-row-${c.status}"><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer; color:var(--primary); font-weight:600;">${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`;
-                    }).join('')}</tbody></table></div></div>`;
+            window.abrirFichaCliente = function(nomeUpper) {
+                const cliente = carteiraMap.get(nomeUpper);
+                if (!cliente) {
+                    alert('Cliente não encontrado no cadastro.');
+                    return;
                 }
-                document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
+                const palavras = nomeUpper.split(' ');
+                const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== nomeUpper && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
-                // Eventos nos badges de grupo
-                document.querySelectorAll('.group-badge').forEach(badge => {
-                    badge.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const grupo = this.dataset.grupo;
-                        const status = this.dataset.status;
-                        const clientesDoGrupo = grupos[status].get(grupo) || [];
-                        abrirModalGrupo(grupo, clientesDoGrupo);
+                let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                    <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
+                    <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>`;
+
+                html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
+                html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
+                html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
+                html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
+                html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
+                html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
+                html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
+                html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
+                html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
+                html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
+                html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
+                html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
+                html += `</div></div>`;
+
+                html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
+                html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
+                html += fichaCampo('fa-home', 'Número', cliente['Número']);
+                html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
+                html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
+                html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
+                html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
+                html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
+                html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
+                html += `</div></div>`;
+
+                html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
+                html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
+                html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
+                html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
+                html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
+                html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
+                html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
+                html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
+                html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
+                html += `</div></div>`;
+
+                const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+                const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+                if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
+                html += '</div>';
+
+                if (similares.length > 0) {
+                    html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
+                    similares.forEach(s => {
+                        html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
                     });
-                });
-
-                // Eventos nos nomes de cliente da tabela
-                document.getElementById('carteira-detalhes').addEventListener('click', function(e) {
-                    const cell = e.target.closest('.cliente-nome');
-                    if (!cell) return;
-                    const nomeUpper = cell.dataset.nome;
-                    if (nomeUpper) window.abrirFichaCliente(nomeUpper);
-                });
-
-                window.abrirFichaCliente = function(nomeUpper) {
-                    const cliente = carteiraMap.get(nomeUpper);
-                    if (!cliente) {
-                        alert('Cliente não encontrado no cadastro.');
-                        return;
-                    }
-                    const palavras = nomeUpper.split(' ');
-                    const similares = Array.from(carteiraMap.values()).filter(c => c.nome.toUpperCase() !== nomeUpper && palavras.some(p => c.nome.toUpperCase().includes(p)));
-
-                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                        <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
-                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                    </div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
-                    html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
-                    html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
-                    html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
-                    html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
-                    html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
-                    html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
-                    html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
-                    html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
-                    html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
-                    html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
-                    html += `</div></div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
-                    html += fichaCampo('fa-home', 'Número', cliente['Número']);
-                    html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
-                    html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
-                    html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
-                    html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
-                    html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
-                    html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
-                    html += `</div></div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
-                    html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
-                    html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
-                    html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
-                    html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
-                    html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
-                    html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
-                    html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
-                    html += `</div></div>`;
-
-                    const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
-                    const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
-                    html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
-                    if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
-                    if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                    html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
-                    html += '</div>';
-
-                    if (similares.length > 0) {
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
-                        similares.forEach(s => {
-                            html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
-                        });
-                        html += '</div></div>';
-                    }
-
-                    abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
-                };
-
-                function fichaCampo(icone, label, valor) {
-                    const val = valor || '—';
-                    return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
+                    html += '</div></div>';
                 }
 
-                function abrirModalGrupo(grupo, clientes) {
-                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                        <h3 style="margin:0;"><i class="fas fa-building"></i> Grupo: ${grupo} (${clientes.length})</h3>
-                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                    </div>`;
-                    html += '<table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th></tr></thead><tbody>';
-                    clientes.forEach(c => {
-                        html += `<tr><td style="cursor:pointer; color:var(--primary); font-weight:600;" onclick="window.abrirFichaCliente('${c.nomeUpper}')">${c.nome}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td></tr>`;
-                    });
-                    html += '</tbody></table>';
-                    abrirModalConteudo(html, `Grupo: ${grupo}`);
-                }
+                abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
+            };
 
-                window.voltarModal = voltarModal;
+            function fichaCampo(icone, label, valor) {
+                const val = valor || '—';
+                return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
+            }
 
-                window.copiarDadosCliente = function(nomeUpper) {
-                    const cliente = carteiraMap.get(nomeUpper);
-                    if (!cliente) return;
-                    let texto = `═══════════════════════════════════\n`;
-                    texto += `  FICHA CADASTRAL DO CLIENTE\n`;
-                    texto += `═══════════════════════════════════\n\n`;
-                    texto += `DADOS DA EMPRESA\n`;
-                    texto += `─────────────────────────────────\n`;
-                    texto += `Código: ${cliente['Código'] || '—'}\n`;
-                    texto += `Nome Chave: ${cliente['Nome Chave'] || '—'}\n`;
-                    texto += `Razão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
-                    texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\n`;
-                    texto += `CPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\n`;
-                    texto += `RG/IE: ${cliente['RG/IE'] || '—'}\n`;
-                    texto += `Ramo: ${cliente['Ramo'] || '—'}\n`;
-                    texto += `Situação: ${cliente['ATivo/Inativo'] || '—'}\n`;
-                    texto += `Dt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
-                    texto += `ENDEREÇO\n`;
-                    texto += `─────────────────────────────────\n`;
-                    texto += `Endereço: ${cliente['Endereço'] || '—'}\n`;
-                    texto += `Número: ${cliente['Número'] || '—'}\n`;
-                    texto += `Complemento: ${cliente['Complemento'] || '—'}\n`;
-                    texto += `Bairro: ${cliente['Bairro'] || '—'}\n`;
-                    texto += `Cidade: ${cliente['Cidade'] || '—'}\n`;
-                    texto += `UF: ${cliente['UF'] || '—'}\n`;
-                    texto += `País: ${cliente['País'] || '—'}\n`;
-                    texto += `CEP: ${cliente['CEP'] || '—'}\n\n`;
-                    texto += `CONTATO\n`;
-                    texto += `─────────────────────────────────\n`;
-                    texto += `Telefone: ${cliente['Telefone'] || '—'}\n`;
-                    texto += `Contato: ${cliente['Contato'] || '—'}\n`;
-                    texto += `E-Mail: ${cliente['E-Mail'] || '—'}\n`;
-                    texto += `═══════════════════════════════════\n`;
-                    navigator.clipboard.writeText(texto).then(() => {
-                        alert('Dados copiados para a área de transferência!');
-                    }).catch(() => {
-                        prompt('Copie manualmente:', texto);
-                    });
-                };
+            function abrirModalGrupo(grupo, clientes) {
+                let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                    <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                    <h3 style="margin:0;"><i class="fas fa-building"></i> Grupo: ${grupo} (${clientes.length})</h3>
+                    <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                </div>`;
+                html += '<table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th></tr></thead><tbody>';
+                clientes.forEach(c => {
+                    html += `<tr><td style="cursor:pointer; color:var(--primary); font-weight:600;" onclick="window.abrirFichaCliente('${c.nomeUpper}')">${c.nome}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td></tr>`;
+                });
+                html += '</tbody></table>';
+                abrirModalConteudo(html, `Grupo: ${grupo}`);
+            }
 
-                const conquistasCampanhas = await renderizarCampanhasEspeciais();
-                const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
-                if (todasConquistas.length > 0) {
-                    setTimeout(() => mostrarCelebracao(todasConquistas), 500);
-                }
+            window.voltarModal = voltarModal;
 
-                const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-                const anoAtual = today.getFullYear();
-                const mesAtualIdx = today.getMonth();
-                const gridMeses = document.getElementById('month-grid');
-                let htmlMeses = '';
-                for (let i=0;i<12;i++) {
-                    const mesKey = `${mesesAbrev[i]}/${anoAtual.toString().slice(-2)}`;
-                    htmlMeses += `<span class="month-item ${mesKey===currentMonth?'active':''} ${i>mesAtualIdx?'future':''}" data-month="${mesKey}">${mesesAbrev[i].toUpperCase()}</span>`;
-                }
-                gridMeses.innerHTML = htmlMeses;
-                document.querySelectorAll('.month-item:not(.future)').forEach(item => item.addEventListener('click', function() {
-                    const selMonth = this.dataset.month;
-                    if (selMonth === currentMonth) return;
-                    currentMonth = selMonth;
-                    renderAll(currentMonth);
-                    window.scrollTo({top:0,behavior:'smooth'});
-                }));
-            } catch (e) { console.error(e); alert('Erro ao carregar dados.'); }
+            window.copiarDadosCliente = function(nomeUpper) {
+                const cliente = carteiraMap.get(nomeUpper);
+                if (!cliente) return;
+                let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
+                texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
+                texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
+                texto += `Ramo: ${cliente['Ramo'] || '—'}\nSituação: ${cliente['ATivo/Inativo'] || '—'}\nDt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
+                texto += `ENDEREÇO\n─────────────────────────────────\nEndereço: ${cliente['Endereço'] || '—'}\nNúmero: ${cliente['Número'] || '—'}\n`;
+                texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
+                texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
+                texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                navigator.clipboard.writeText(texto).then(() => alert('Dados copiados!')).catch(() => prompt('Copie manualmente:', texto));
+            };
+
+            const conquistasCampanhas = await renderizarCampanhasEspeciais();
+            const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
+            if (todasConquistas.length > 0) setTimeout(() => mostrarCelebracao(todasConquistas), 500);
+
+            const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+            const anoAtual = today.getFullYear();
+            const mesAtualIdx = today.getMonth();
+            const gridMeses = document.getElementById('month-grid');
+            let htmlMeses = '';
+            for (let i=0;i<12;i++) {
+                const mesKey = `${mesesAbrev[i]}/${anoAtual.toString().slice(-2)}`;
+                htmlMeses += `<span class="month-item ${mesKey===currentMonth?'active':''} ${i>mesAtualIdx?'future':''}" data-month="${mesKey}">${mesesAbrev[i].toUpperCase()}</span>`;
+            }
+            gridMeses.innerHTML = htmlMeses;
+            document.querySelectorAll('.month-item:not(.future)').forEach(item => item.addEventListener('click', function() {
+                const selMonth = this.dataset.month;
+                if (selMonth === currentMonth) return;
+                currentMonth = selMonth;
+                carregarDadosComRetry(currentMonth);
+                window.scrollTo({top:0,behavior:'smooth'});
+            }));
         }
 
         function criarDoughnut(id, percent, color) {
@@ -1352,13 +1344,16 @@
             atualizarBadgeNotificacoes();
             const hoje = new Date();
             currentMonth = formatMonthKey(hoje);
-            await renderAll(currentMonth);
+
+            // Inicia carregamento com retry
+            carregarDadosComRetry(currentMonth);
+
             renderCarrossel();
 
             document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
             document.getElementById('prev-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex-1+BANNERS.length)%BANNERS.length; updateCarrossel(); });
             document.getElementById('next-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); });
-            setInterval(() => { currentCarouselIndex = (currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); }, 6000);
+            setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); } }, 6000);
             document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
             document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
             document.querySelector('.home-btn').addEventListener('click', () => window.location.href='./index.html');
