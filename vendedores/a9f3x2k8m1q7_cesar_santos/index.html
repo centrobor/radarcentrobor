@@ -345,6 +345,56 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { font-weight: 600; font-size: 1.1rem; color: var(--primary); }
 
+        /* ===== NOVOS ESTILOS PARA O BADGE DE TOTAL ===== */
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .table-toolbar .search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .table-toolbar .search-wrap input {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            font-size: 0.8rem;
+            width: 200px;
+            flex: 1;
+            min-width: 120px;
+        }
+        .table-toolbar .total-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 0.3px;
+        }
+        @media (max-width: 480px) {
+            .table-toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .table-toolbar .search-wrap input {
+                width: 100%;
+            }
+            .table-toolbar .total-badge {
+                align-self: flex-end;
+            }
+        }
+
         @media print {
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
@@ -883,32 +933,34 @@
                 }
             }
 
-            // ==================== FUNÇÕES DE DETALHAMENTO DOS KPIs (GLOBAIS) ====================
+            // ==================== FUNÇÕES DE DETALHAMENTO DOS KPIs ====================
             window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
                 const modal = document.getElementById('kpi-detail-modal');
                 const body = document.getElementById('kpi-detail-body');
-                let titulo = '', html = '', dados = [];
+                let titulo = '', html = '', dados = [], colunaTotal = '';
 
                 switch(tipo) {
                     case 'faturamento':
                         titulo = `Faturamento do Mês (${monthLabel})`;
                         dados = globalFat;
-                        html = gerarTabelaDetalhe(dados, ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'], 'Faturamento');
+                        colunaTotal = 'Valor Mercadoria';
                         break;
                     case 'aprovados_fat':
                         titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
                         dados = globalAprovFat;
-                        html = gerarTabelaDetalhe(dados, ['Data', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'], 'Aprovados + Faturados');
+                        colunaTotal = 'Total Bruto';
                         break;
                     case 'itens':
                         titulo = `Itens Vendidos (${monthLabel})`;
                         const itens = [...globalAprov.map(i => ({ ...i, tipo: 'Aprovado' })), ...globalFat.map(i => ({ ...i, tipo: 'Faturado' }))];
-                        html = gerarTabelaDetalhe(itens, ['Data', 'Produto', 'Quantidade', 'tipo'], 'Itens Vendidos');
+                        dados = itens;
+                        colunaTotal = null; // sem total monetário
                         break;
                     case 'cotacoes':
                         titulo = `Cotações Ativas (${monthLabel})`;
                         const ativas = globalCot.filter(c => ['Em Aprovação','Confirmado'].includes(c['Situação Versão']));
-                        html = gerarTabelaDetalhe(ativas, ['Número', 'Data Criação', 'Razão Social', 'Valor Total', 'Situação Versão'], 'Cotações Ativas');
+                        dados = ativas;
+                        colunaTotal = 'Valor Total';
                         break;
                     case 'clientes':
                         titulo = `Clientes Atendidos (${monthLabel})`;
@@ -919,9 +971,48 @@
                         });
                         const listaClientes = Array.from(clientesSet).sort();
                         html = `<ul style="list-style:none;padding:0;max-height:400px;overflow-y:auto;">${listaClientes.map(c => `<li style="padding:6px 0;border-bottom:1px solid #eee;">${c}</li>`).join('')}</ul>`;
-                        break;
+                        body.innerHTML = `
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                                <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
+                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                            </div>
+                            ${html}
+                        `;
+                        modal.classList.add('active');
+                        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+                        return;
                     default:
                         html = '<p>Detalhamento não disponível.</p>';
+                        body.innerHTML = html;
+                        modal.classList.add('active');
+                        return;
+                }
+
+                // Para os tipos com tabela
+                const colunas = dados.length > 0 ? Object.keys(dados[0]) : [];
+                // Filtra colunas para exibir (evitar muitas)
+                const colunasExibir = colunas.slice(0, 8); // limite para não poluir
+                // Identifica coluna de cliente para clique
+                const colunaCliente = colunasExibir.find(c => c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+
+                let tabelaHtml = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">`;
+                tabelaHtml += `<thead><tr>${colunasExibir.map(c => `<th style="padding:6px 4px;border-bottom:2px solid var(--line);text-align:left;">${c}</th>`).join('')}</tr></thead><tbody>`;
+                dados.slice(0, 200).forEach(row => {
+                    tabelaHtml += `<tr>`;
+                    colunasExibir.forEach(c => {
+                        const isCliente = c === colunaCliente;
+                        const valor = row[c] || '';
+                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:4px;border-bottom:1px solid #f0f0f0;">${valor}</td>`;
+                    });
+                    tabelaHtml += `</tr>`;
+                });
+                tabelaHtml += '</tbody></table></div>';
+
+                // Totalizador (se houver coluna de valor)
+                let totalBadge = '';
+                if (colunaTotal) {
+                    const total = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
+                    totalBadge = `<div class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(total)}</div>`;
                 }
 
                 body.innerHTML = `
@@ -929,22 +1020,57 @@
                         <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
                         <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                     </div>
-                    ${html}
+                    <div class="table-toolbar">
+                        <div class="search-wrap">
+                            <input type="text" class="table-search-detail" placeholder="🔍 Filtrar...">
+                            ${totalBadge}
+                        </div>
+                    </div>
+                    ${tabelaHtml}
                 `;
+
+                // Evento de filtro dinâmico no modal
+                const searchInput = body.querySelector('.table-search-detail');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        const table = body.querySelector('table');
+                        if (!table) return;
+                        let totalFiltrado = 0;
+                        table.querySelectorAll('tbody tr').forEach(row => {
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaTotal) {
+                                const cells = row.querySelectorAll('td');
+                                const colIndex = colunasExibir.indexOf(colunaTotal);
+                                if (colIndex !== -1 && cells[colIndex]) {
+                                    totalFiltrado += cleanNumber(cells[colIndex].textContent);
+                                }
+                            }
+                        });
+                        // Atualiza badge de total
+                        const badge = body.querySelector('.total-badge');
+                        if (badge && colunaTotal) {
+                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                        }
+                    });
+                }
+
+                // Evento de clique nas linhas para abrir ficha do cliente
+                body.querySelectorAll('.cliente-nome').forEach(td => {
+                    td.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                        if (nomeCliente) {
+                            window.abrirFichaCliente(nomeCliente.toUpperCase());
+                        }
+                    });
+                });
+
                 modal.classList.add('active');
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
             };
-
-            function gerarTabelaDetalhe(dados, colunas, titulo) {
-                if (!dados || dados.length === 0) return `<p style="padding:20px;color:var(--muted);">Nenhum registro encontrado.</p>`;
-                let html = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">`;
-                html += `<thead><tr>${colunas.map(c => `<th style="padding:6px 4px;border-bottom:2px solid var(--line);text-align:left;">${c}</th>`).join('')}</tr></thead><tbody>`;
-                dados.slice(0, 200).forEach(row => {
-                    html += `<tr>${colunas.map(c => `<td style="padding:4px;border-bottom:1px solid #f0f0f0;">${row[c] || ''}</td>`).join('')}</tr>`;
-                });
-                html += '</tbody></table></div>';
-                return html;
-            }
 
             // ==================== CARD META DO TIME (SEM CLIQUE) ====================
             function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
@@ -986,7 +1112,6 @@
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
                 // ===== META DO TIME (MENSAL) BASEADA NA PLANILHA 'metas' =====
-                // selectedMonth ex: "jun/26" -> converter para "2026-06"
                 let metaTimeMensal = 0;
                 if (selectedMonth) {
                     const [mesAbrev, anoShort] = selectedMonth.split('/');
@@ -1190,14 +1315,21 @@
                 const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
                 document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
-                // ===== GERAR TABELAS COM CLASSE PARA CLIQUE NO NOME DO CLIENTE =====
-                function gerarTabela(dados, colunas, tipo, rowClassFn) {
+                // ===== GERAR TABELAS COM TOOLBAR E TOTAL DINÂMICO =====
+                function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
                     if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
-                    let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px;"></div>';
-                    html += '<table><thead><tr>'+colunas.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
+                    const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
+                    let html = `
+                        <div class="table-toolbar">
+                            <div class="search-wrap">
+                                <input type="text" class="table-search" placeholder="🔍 Filtrar...">
+                                <span class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalInicial)}</span>
+                            </div>
+                        </div>
+                        <table><thead><tr>${colunas.map(c=>`<th>${c}</th>`).join('')}</tr></thead><tbody>
+                    `;
                     dados.slice(0,400).forEach((r,idx) => {
                         let extraClass = rowClassFn ? rowClassFn(r) : '';
-                        // Identifica qual coluna contém o nome do cliente (pode ser "Cliente" ou "Nome Chave")
                         const colunaCliente = colunas.find(c => c === 'Cliente' || c === 'Nome Chave');
                         html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">`;
                         colunas.forEach(c => {
@@ -1211,9 +1343,9 @@
                     return html;
                 }
 
-                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov');
-                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat');
-                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat');
+                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov', null, 'Total Bruto');
+                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat', null, 'Valor Mercadoria');
+                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat', null, 'Total Bruto');
 
                 function classCotacao(item) {
                     const dataStr = item['Data Criação'];
@@ -1231,7 +1363,38 @@
                     else if (diffDays <= 25) return 'row-yellow';
                     else return 'row-red';
                 }
-                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
+                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
+
+                // ===== EVENTO DE FILTRO COM ATUALIZAÇÃO DO TOTAL =====
+                document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
+                    input.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        const wrapper = this.closest('.table-toolbar');
+                        const table = wrapper.parentElement.querySelector('table');
+                        if (!table) return;
+                        const colunaTotal = wrapper.querySelector('.total-badge') ? 
+                            (table.querySelector('th')?.textContent.includes('Total Bruto') ? 'Total Bruto' :
+                             table.querySelector('th')?.textContent.includes('Valor Mercadoria') ? 'Valor Mercadoria' :
+                             table.querySelector('th')?.textContent.includes('Valor Total') ? 'Valor Total' : null) : null;
+                        let totalFiltrado = 0;
+                        table.querySelectorAll('tbody tr').forEach(row => {
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaTotal) {
+                                const idx = Array.from(table.querySelectorAll('thead th')).findIndex(th => th.textContent.trim() === colunaTotal);
+                                if (idx !== -1) {
+                                    const cell = row.querySelectorAll('td')[idx];
+                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
+                                }
+                            }
+                        });
+                        const badge = wrapper.querySelector('.total-badge');
+                        if (badge && colunaTotal) {
+                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                        }
+                    });
+                });
 
                 // ===== CLIQUE NO NOME DO CLIENTE NAS TABELAS =====
                 document.querySelectorAll('.cliente-nome').forEach(td => {
@@ -1244,16 +1407,7 @@
                     });
                 });
 
-                // ===== FILTRO DE TABELAS =====
-                document.querySelectorAll('.table-search').forEach(input => {
-                    input.addEventListener('input', function() {
-                        const term = this.value.toLowerCase();
-                        const table = this.closest('.table-wrapper').querySelector('table');
-                        if (table) table.querySelectorAll('tbody tr').forEach(row => row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none');
-                    });
-                });
-
-                // ===== FUNÇÃO ABRIR FICHA (já existente) =====
+                // ===== CLIQUE NAS LINHAS PARA ABRIR FICHA (já existente) =====
                 function extrairDadosCliente(dados) {
                     return {
                         nome: dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '',
@@ -1288,7 +1442,6 @@
                         return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
                     }).join('');
 
-                    // Botão "Ver Cadastro" no canto superior direito
                     let botaoCadastro = '';
                     if (nomeUpper || cnpj) {
                         botaoCadastro = `<button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:6px 16px; border-radius:40px; border:none; font-weight:600; cursor:pointer; font-size:0.8rem;"><i class="fas fa-id-card"></i> Ver Cadastro</button>`;
@@ -1317,7 +1470,6 @@
                 const listas = { aprov, fat, cot, aprovfat: aprovFat };
                 document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
                     row.addEventListener('click', function(e) {
-                        // Se clicou em uma célula com classe cliente-nome, já tratamos antes
                         if (e.target.classList.contains('cliente-nome')) return;
                         const idx = parseInt(this.dataset.idx);
                         const tipo = this.dataset.tipo;
@@ -1658,7 +1810,6 @@
                 }
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-                // Fechar modal de detalhamento KPI ao clicar fora
                 document.getElementById('kpi-detail-modal').addEventListener('click', function(e) {
                     if (e.target === this) this.classList.remove('active');
                 });
