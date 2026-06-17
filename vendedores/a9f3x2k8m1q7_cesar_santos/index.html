@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* (mesmos estilos anteriores – mantidos) */
+        /* ===== ESTILOS (MESMOS ANTERIORES) ===== */
         :root {
             --bg: #f0f4f8;
             --card-bg: rgba(255, 255, 255, 0.82);
@@ -167,9 +167,12 @@
             border: 1px solid var(--border-light);
             box-shadow: var(--shadow-sm);
             transition: transform 0.2s, box-shadow 0.2s;
+            cursor: default;
+        }
+        .mini-card-kpi.clickable {
             cursor: pointer;
         }
-        .mini-card-kpi:hover {
+        .mini-card-kpi.clickable:hover {
             transform: translateY(-2px);
             box-shadow: var(--shadow-md);
         }
@@ -255,8 +258,16 @@
         .table-wrapper { background: var(--card-bg); backdrop-filter: var(--blur); border-radius: var(--radius-lg); overflow-x: auto; padding:14px; margin-bottom:28px; border:1px solid var(--border-light); box-shadow: var(--shadow-sm); }
         table { width:100%; border-collapse: collapse; font-size:0.78rem; min-width:600px; }
         th { background: rgba(248,250,253,0.95); padding:10px 8px; font-weight:700; text-transform: uppercase; border-bottom:2px solid var(--line); white-space: nowrap; position: sticky; top:0; z-index:1; letter-spacing:0.4px; color:var(--text-soft); }
-        td { padding:8px; border-bottom:1px solid var(--line); white-space: nowrap; cursor: pointer; transition:0.15s; }
+        td { padding:8px; border-bottom:1px solid var(--line); white-space: nowrap; }
         tr:hover td { background: rgba(200,220,240,0.25); }
+        td.cliente-nome {
+            cursor: pointer;
+            color: var(--primary);
+            font-weight: 600;
+        }
+        td.cliente-nome:hover {
+            text-decoration: underline;
+        }
         tr.row-green td { background-color: var(--cotacao-green) !important; }
         tr.row-yellow td { background-color: var(--cotacao-yellow) !important; }
         tr.row-red td { background-color: var(--cotacao-red) !important; }
@@ -593,6 +604,7 @@
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
             const BASES = {
                 meta: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+                metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
                 aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 aprovadosfaturados: `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`,
@@ -620,7 +632,7 @@
             let globalFat = [];
             let globalCot = [];
             let globalAprovFat = [];
-            let globalMetaTimeData = [];
+            let globalMetaMensal = 0; // valor da meta do time para o mês selecionado
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -923,34 +935,6 @@
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
             };
 
-            window.abrirDetalhamentoMetaTime = function(monthLabel) {
-                const modal = document.getElementById('kpi-detail-modal');
-                const body = document.getElementById('kpi-detail-body');
-                if (!globalMetaTimeData.length) {
-                    body.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h3 style="margin:0;"><i class="fas fa-users"></i> Meta do Time (${monthLabel})</h3><button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button></div><p style="padding:20px;color:var(--muted);">Nenhum dado disponível.</p>`;
-                    modal.classList.add('active');
-                    return;
-                }
-                let html = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-                        <h3 style="margin:0;"><i class="fas fa-users"></i> Meta do Time (${monthLabel})</h3>
-                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
-                    </div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;font-size:0.75rem;border-collapse:collapse;">
-                            <thead><tr><th>Vendedor</th><th>Meta Mensal</th><th>Faturado</th><th>%</th></tr></thead>
-                            <tbody>
-                `;
-                globalMetaTimeData.forEach(item => {
-                    const perc = item.meta > 0 ? (item.faturado / item.meta) * 100 : 0;
-                    html += `<tr><td>${item.vendedor}</td><td>${formatarMoeda(item.meta)}</td><td>${formatarMoeda(item.faturado)}</td><td>${perc.toFixed(1)}%</td></tr>`;
-                });
-                html += `</tbody></table></div>`;
-                body.innerHTML = html;
-                modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
-            };
-
             function gerarTabelaDetalhe(dados, colunas, titulo) {
                 if (!dados || dados.length === 0) return `<p style="padding:20px;color:var(--muted);">Nenhum registro encontrado.</p>`;
                 let html = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">`;
@@ -962,13 +946,13 @@
                 return html;
             }
 
-            // ==================== CARD META DO TIME COMPACTO ====================
-            function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel, metaTimeData) {
+            // ==================== CARD META DO TIME (SEM CLIQUE) ====================
+            function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
                 const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
                 const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
                 const kpiRow = document.getElementById('kpi-cards');
                 const cardHTML = `
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoMetaTime('${selectedMonthLabel}')">
+                    <div class="mini-card-kpi" style="cursor:default;">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="value ${cor}">${formatarMoeda(totalFaturadoTime)}</div>
                         <div class="label">Meta do Time (${selectedMonthLabel})</div>
@@ -980,15 +964,18 @@
                     </div>
                 `;
                 kpiRow.insertAdjacentHTML('beforeend', cardHTML);
-                // Guarda dados para o modal de detalhamento
-                globalMetaTimeData = metaTimeData;
             }
 
             // ==================== FUNÇÃO PRINCIPAL renderAll ====================
             async function renderAll(selectedMonth) {
-                const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
-                    carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
-                    carregarJSON(BASES.aprovadosfaturados), carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
+                const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
+                    carregarJSON(BASES.meta),
+                    carregarJSON(BASES.metasGlobais),
+                    carregarJSON(BASES.aprovados),
+                    carregarJSON(BASES.faturados),
+                    carregarJSON(BASES.aprovadosfaturados),
+                    carregarJSON(BASES.carteira),
+                    carregarJSON(BASES.cotacoes)
                 ]);
 
                 document.getElementById('greeting-name').textContent = nomeVendedor;
@@ -998,24 +985,22 @@
                 const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
-                // ===== CÁLCULO DA META DO TIME (soma de todos exceto 80 e 1) =====
-                const metaTimeMensal = metaRawArr.reduce((acc, m) => {
-                    const id = String(m.id_vendedor||'').trim();
-                    if (!id || id === '80' || id === '1') return acc;
-                    return acc + cleanNumber(m.meta_mensal);
-                }, 0);
-
-                // Prepara dados para detalhamento da meta do time
-                const metaTimeData = metaRawArr
-                    .filter(m => {
-                        const id = String(m.id_vendedor||'').trim();
-                        return id && id !== '80' && id !== '1';
-                    })
-                    .map(m => ({
-                        vendedor: m.vendedor || 'N/A',
-                        meta: cleanNumber(m.meta_mensal),
-                        faturado: 0 // será preenchido depois
-                    }));
+                // ===== META DO TIME (MENSAL) BASEADA NA PLANILHA 'metas' =====
+                // selectedMonth ex: "jun/26" -> converter para "2026-06"
+                let metaTimeMensal = 0;
+                if (selectedMonth) {
+                    const [mesAbrev, anoShort] = selectedMonth.split('/');
+                    const mesesMap = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'};
+                    const mesNum = mesesMap[mesAbrev];
+                    if (mesNum && anoShort) {
+                        const anoCompleto = '20' + anoShort;
+                        const chave = `${anoCompleto}-${mesNum}`;
+                        const metaEntry = metasGlobais.find(m => m['Mês'] === chave);
+                        if (metaEntry) {
+                            metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
+                        }
+                    }
+                }
 
                 // Filtros para o vendedor atual
                 const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
@@ -1064,24 +1049,6 @@
                     return acc + cleanNumber(item['Valor Mercadoria']);
                 }, 0);
 
-                // Preenche faturado de cada vendedor na metaTimeData
-                metaTimeData.forEach(entry => {
-                    let fatVendedor = 0;
-                    fatRaw.forEach(f => {
-                        const d = parseDataBR(f['Data']);
-                        if (!d) return;
-                        if (selectedMonth && formatMonthKey(d) !== selectedMonth) return;
-                        const vendedorItem = String(f['Cod. Vendedor'] || '').trim();
-                        // Tenta fazer match com o vendedor (pode ser nome ou código)
-                        const nomeVend = entry.vendedor;
-                        const idVend = metaRawArr.find(m => m.vendedor === nomeVend)?.id_vendedor;
-                        if (vendedorItem === idVend || (nomeVend && String(f['Vendedor'] || '').toLowerCase().includes(nomeVend.toLowerCase()))) {
-                            fatVendedor += cleanNumber(f['Valor Mercadoria']);
-                        }
-                    });
-                    entry.faturado = fatVendedor;
-                });
-
                 const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
                 const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
@@ -1091,35 +1058,35 @@
                 const kpiRow = document.getElementById('kpi-cards');
                 const monthLabel = selectedMonth || formatMonthKey(new Date());
                 kpiRow.innerHTML = `
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoKPI('faturamento', '${monthLabel}')">
+                    <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('faturamento', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
                         <div class="value green">${formatarMoeda(totalFaturado)}</div>
                         <div class="label">Faturamento Mês</div>
                     </div>
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoKPI('aprovados_fat', '${monthLabel}')">
+                    <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_fat', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
                         <div class="value blue">${formatarMoeda(totalAprovFat)}</div>
                         <div class="label">Aprovados + Fat.</div>
                     </div>
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoKPI('itens', '${monthLabel}')">
+                    <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('itens', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-boxes"></i></div>
                         <div class="value blue">${itensVendidos}</div>
                         <div class="label">Itens Vendidos</div>
                     </div>
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoKPI('cotacoes', '${monthLabel}')">
+                    <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('cotacoes', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-file-invoice"></i></div>
                         <div class="value purple">${cotAtivas}</div>
                         <div class="label">Cotações Ativas</div>
                     </div>
-                    <div class="mini-card-kpi" onclick="window.abrirDetalhamentoKPI('clientes', '${monthLabel}')">
+                    <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="value">${totalClientes}</div>
                         <div class="label">Clientes Atendidos</div>
                     </div>
                 `;
 
-                // ===== INSERE CARD META DO TIME COMPACTO =====
-                renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel, metaTimeData);
+                // ===== INSERE CARD META DO TIME (SEM CLIQUE) =====
+                renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
 
                 // Guarda dados para detalhamento dos KPIs
                 globalAprov = aprov;
@@ -1223,13 +1190,22 @@
                 const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
                 document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
+                // ===== GERAR TABELAS COM CLASSE PARA CLIQUE NO NOME DO CLIENTE =====
                 function gerarTabela(dados, colunas, tipo, rowClassFn) {
                     if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
                     let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:8px 14px; border-radius:20px; border:1px solid var(--line); font-size:0.8rem; width:240px;"></div>';
                     html += '<table><thead><tr>'+colunas.map(c=>`<th>${c}</th>`).join('')+'</tr></thead><tbody>';
                     dados.slice(0,400).forEach((r,idx) => {
                         let extraClass = rowClassFn ? rowClassFn(r) : '';
-                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">${colunas.map(c=>`<td>${r[c]||''}</td>`).join('')}</tr>`;
+                        // Identifica qual coluna contém o nome do cliente (pode ser "Cliente" ou "Nome Chave")
+                        const colunaCliente = colunas.find(c => c === 'Cliente' || c === 'Nome Chave');
+                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">`;
+                        colunas.forEach(c => {
+                            const valor = r[c] || '';
+                            const isCliente = c === colunaCliente;
+                            html += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
+                        });
+                        html += '</tr>';
                     });
                     html += '</tbody></table>';
                     return html;
@@ -1257,6 +1233,18 @@
                 }
                 document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
 
+                // ===== CLIQUE NO NOME DO CLIENTE NAS TABELAS =====
+                document.querySelectorAll('.cliente-nome').forEach(td => {
+                    td.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                        if (nomeCliente) {
+                            window.abrirFichaCliente(nomeCliente.toUpperCase());
+                        }
+                    });
+                });
+
+                // ===== FILTRO DE TABELAS =====
                 document.querySelectorAll('.table-search').forEach(input => {
                     input.addEventListener('input', function() {
                         const term = this.value.toLowerCase();
@@ -1265,6 +1253,7 @@
                     });
                 });
 
+                // ===== FUNÇÃO ABRIR FICHA (já existente) =====
                 function extrairDadosCliente(dados) {
                     return {
                         nome: dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '',
@@ -1299,7 +1288,7 @@
                         return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
                     }).join('');
 
-                    // Botão "Ver Cadastro" no canto superior direito do cabeçalho
+                    // Botão "Ver Cadastro" no canto superior direito
                     let botaoCadastro = '';
                     if (nomeUpper || cnpj) {
                         botaoCadastro = `<button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:6px 16px; border-radius:40px; border:none; font-weight:600; cursor:pointer; font-size:0.8rem;"><i class="fas fa-id-card"></i> Ver Cadastro</button>`;
@@ -1327,7 +1316,9 @@
 
                 const listas = { aprov, fat, cot, aprovfat: aprovFat };
                 document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
-                    row.addEventListener('click', function() {
+                    row.addEventListener('click', function(e) {
+                        // Se clicou em uma célula com classe cliente-nome, já tratamos antes
+                        if (e.target.classList.contains('cliente-nome')) return;
                         const idx = parseInt(this.dataset.idx);
                         const tipo = this.dataset.tipo;
                         const lista = listas[tipo];
@@ -1335,6 +1326,7 @@
                     });
                 });
 
+                // ===== CARTEIRA DE CLIENTES =====
                 const interacoesGlobais = new Map();
                 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
                     lista.forEach(item => {
