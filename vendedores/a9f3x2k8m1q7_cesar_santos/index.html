@@ -345,7 +345,6 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { font-weight: 600; font-size: 1.1rem; color: var(--primary); }
 
-        /* ===== TOTAL BADGE ===== */
         .table-toolbar {
             display: flex;
             justify-content: space-between;
@@ -676,7 +675,7 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
-            let ultimoModalKpiHTML = null; // <-- NOVA VARIÁVEL GLOBAL
+            let ultimoModalKpiHTML = null; // Objeto { html, colunas, colunaTotal }
 
             // Variáveis globais para detalhamento dos KPIs
             let globalAprov = [];
@@ -684,6 +683,10 @@
             let globalCot = [];
             let globalAprovFat = [];
             let globalMetaMensal = 0;
+
+            // Serão definidas em abrirDetalhamentoKPI
+            window._kpiColunas = null;
+            window._kpiColunaTotal = null;
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -924,6 +927,52 @@
                 document.getElementById('detail-modal').classList.add('active');
             }
 
+            function reaplicarListenersKpiModal(body, colunas, colunaTotal) {
+                const searchInput = body.querySelector('.table-search-detail');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        const table = body.querySelector('table');
+                        if (!table) return;
+                        let totalFiltrado = 0;
+                        table.querySelectorAll('tbody tr').forEach(row => {
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaTotal) {
+                                const idx = colunas.indexOf(colunaTotal);
+                                if (idx !== -1) {
+                                    const cell = row.querySelectorAll('td')[idx];
+                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
+                                }
+                            }
+                        });
+                        const badge = body.querySelector('.total-badge');
+                        if (badge && colunaTotal) {
+                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                        }
+                    });
+                }
+                body.querySelectorAll('.cliente-nome').forEach(td => {
+                    td.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                        if (nomeCliente) {
+                            const kpiModal = document.getElementById('kpi-detail-modal');
+                            if (kpiModal.classList.contains('active')) {
+                                ultimoModalKpiHTML = {
+                                    html: document.getElementById('kpi-detail-body').innerHTML,
+                                    colunas: colunas,
+                                    colunaTotal: colunaTotal
+                                };
+                            }
+                            kpiModal.classList.remove('active');
+                            window.abrirFichaCliente(nomeCliente.toUpperCase());
+                        }
+                    });
+                });
+            }
+
             function voltarModal() {
                 modalHistory.pop();
                 if (modalHistory.length > 0) {
@@ -931,21 +980,18 @@
                     document.getElementById('modal-body').innerHTML = anterior.html;
                 } else {
                     document.getElementById('detail-modal').classList.remove('active');
-                    // Se existir um modal de KPI salvo, reabri-lo
                     if (ultimoModalKpiHTML) {
-                        document.getElementById('kpi-detail-body').innerHTML = ultimoModalKpiHTML;
+                        const { html, colunas, colunaTotal } = ultimoModalKpiHTML;
+                        const kpiBody = document.getElementById('kpi-detail-body');
+                        kpiBody.innerHTML = html;
                         document.getElementById('kpi-detail-modal').classList.add('active');
-                        const body = document.getElementById('kpi-detail-body');
-                        const searchInput = body.querySelector('.table-search-detail');
-                        if (searchInput) {
-                            searchInput.dispatchEvent(new Event('input')); // força recálculo
-                        }
+                        reaplicarListenersKpiModal(kpiBody, colunas, colunaTotal);
                         ultimoModalKpiHTML = null;
                     }
                 }
             }
 
-            // ==================== DETALHAMENTO DE KPI COM ORDEM DE COLUNAS PERSONALIZADA ====================
+            // ==================== DETALHAMENTO DE KPI ====================
             window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
                 const modal = document.getElementById('kpi-detail-modal');
                 const body = document.getElementById('kpi-detail-body');
@@ -957,12 +1003,16 @@
                         dados = globalFat;
                         colunaTotal = 'Valor Mercadoria';
                         colunas = ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'];
+                        window._kpiColunas = colunas;
+                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'aprovados_fat':
                         titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
                         dados = globalAprovFat;
                         colunaTotal = 'Total Bruto';
                         colunas = ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'];
+                        window._kpiColunas = colunas;
+                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'itens':
                         titulo = `Itens Vendidos (${monthLabel})`;
@@ -970,6 +1020,8 @@
                         dados = itens;
                         colunaTotal = null;
                         colunas = ['Data', 'Cliente', 'Produto', 'Quantidade', 'tipo'];
+                        window._kpiColunas = colunas;
+                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'cotacoes':
                         titulo = `Cotações Ativas (${monthLabel})`;
@@ -977,6 +1029,8 @@
                         dados = ativas;
                         colunaTotal = 'Valor Total';
                         colunas = ['Número', 'Razão Social', 'Data Criação', 'Valor Total', 'Situação Versão'];
+                        window._kpiColunas = colunas;
+                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'clientes':
                         titulo = `Clientes Atendidos (${monthLabel})`;
@@ -1007,7 +1061,6 @@
                         return;
                 }
 
-                // Gera tabela com colunas específicas – versão compacta
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1038,52 +1091,7 @@
                     ${tabelaHtml}
                 `;
 
-                // Evento de filtro com atualização do total
-                const searchInput = body.querySelector('.table-search-detail');
-                if (searchInput) {
-                    searchInput.addEventListener('input', function() {
-                        const term = this.value.toLowerCase();
-                        const table = body.querySelector('table');
-                        if (!table) return;
-                        let totalFiltrado = 0;
-                        table.querySelectorAll('tbody tr').forEach(row => {
-                            const text = row.textContent.toLowerCase();
-                            const show = text.includes(term);
-                            row.style.display = show ? '' : 'none';
-                            if (show && colunaTotal) {
-                                const idx = colunas.indexOf(colunaTotal);
-                                if (idx !== -1) {
-                                    const cell = row.querySelectorAll('td')[idx];
-                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
-                                }
-                            }
-                        });
-                        const badge = body.querySelector('.total-badge');
-                        if (badge && colunaTotal) {
-                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
-                        }
-                    });
-                }
-
-                // Clique nas linhas para abrir ficha do cliente (fecha modal de KPI antes, salvando o conteúdo)
-                body.querySelectorAll('.cliente-nome').forEach(td => {
-                    td.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
-                        if (nomeCliente) {
-                            // Salvar HTML antes de fechar
-                            const kpiModal = document.getElementById('kpi-detail-modal');
-                            if (kpiModal.classList.contains('active')) {
-                                ultimoModalKpiHTML = document.getElementById('kpi-detail-body').innerHTML;
-                            } else {
-                                ultimoModalKpiHTML = null;
-                            }
-                            kpiModal.classList.remove('active');
-                            window.abrirFichaCliente(nomeCliente.toUpperCase());
-                        }
-                    });
-                });
-
+                reaplicarListenersKpiModal(body, colunas, colunaTotal);
                 modal.classList.add('active');
                 modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); ultimoModalKpiHTML = null; } });
             };
@@ -1127,7 +1135,6 @@
                 const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
-                // ===== META DO TIME =====
                 let metaTimeMensal = 0;
                 if (selectedMonth) {
                     const [mesAbrev, anoShort] = selectedMonth.split('/');
@@ -1137,13 +1144,10 @@
                         const anoCompleto = '20' + anoShort;
                         const chave = `${anoCompleto}-${mesNum}`;
                         const metaEntry = metasGlobais.find(m => m['Mês'] === chave);
-                        if (metaEntry) {
-                            metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
-                        }
+                        if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
                     }
                 }
 
-                // Filtros para o vendedor atual
                 const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
                 const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
                 const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
@@ -1188,14 +1192,11 @@
                     return acc + cleanNumber(item['Valor Mercadoria']);
                 }, 0);
 
-                // CORREÇÃO: KPI Aprovados + Faturados usa apenas o Total Bruto da base unificada
                 const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
-
                 const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                 const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
-                // ===== MONTA CARDS KPI =====
                 const kpiRow = document.getElementById('kpi-cards');
                 const monthLabel = selectedMonth || formatMonthKey(new Date());
                 kpiRow.innerHTML = `
@@ -1233,7 +1234,7 @@
                 globalCot = cot;
                 globalAprovFat = aprovFat;
 
-                // ===== METAS & PERFORMANCE =====
+                // Metas e performance (mantido igual)
                 const today = new Date(); today.setHours(0,0,0,0);
                 let cutoffDate = new Date();
                 if (selectedMonth) {
@@ -1300,14 +1301,6 @@
                     criarDoughnut('meta-anual-chart', percYear, '#2563eb');
                 }, 0);
 
-                const conquistasMetas = [];
-                const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
-                const semestre = today.getMonth() < 6 ? 1 : 2;
-                if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
-                if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
-                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
-                if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
-
                 const evoMap = {};
                 aprov.forEach(p => { const chave = p['Competência']||p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Total Bruto']); });
                 fat.forEach(p => { const chave = p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Valor Mercadoria']); });
@@ -1329,7 +1322,7 @@
                 const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
                 document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
-                // ===== TABELAS PRINCIPAIS COM TOTAL DINÂMICO =====
+                // Tabelas principais
                 function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
                     if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
                     const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
@@ -1344,7 +1337,6 @@
                     `;
                     dados.slice(0,400).forEach((r,idx) => {
                         let extraClass = rowClassFn ? rowClassFn(r) : '';
-                        // INCLUI "Razão Social" como coluna cliente para tabela de cotações
                         const colunaCliente = colunas.find(c => c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
                         html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">`;
                         colunas.forEach(c => {
@@ -1380,17 +1372,21 @@
                 }
                 document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
 
-                // Filtro com atualização do total (dinâmico, igual aos detalhamentos)
+                // Filtro dinâmico com total corrigido para todas as tabelas principais
                 document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
                     input.addEventListener('input', function() {
                         const term = this.value.toLowerCase();
                         const wrapper = this.closest('.table-toolbar');
                         const table = wrapper.parentElement.querySelector('table');
                         if (!table) return;
-                        const colunaTotal = wrapper.querySelector('.total-badge') ? 
-                            (table.querySelector('th')?.textContent.includes('Total Bruto') ? 'Total Bruto' :
-                             table.querySelector('th')?.textContent.includes('Valor Mercadoria') ? 'Valor Mercadoria' :
-                             table.querySelector('th')?.textContent.includes('Valor Total') ? 'Valor Total' : null) : null;
+                        const colunaTotal = (() => {
+                            if (!wrapper.querySelector('.total-badge')) return null;
+                            const ths = Array.from(table.querySelectorAll('th')).map(th => th.textContent.trim());
+                            if (ths.includes('Total Bruto')) return 'Total Bruto';
+                            if (ths.includes('Valor Mercadoria')) return 'Valor Mercadoria';
+                            if (ths.includes('Valor Total')) return 'Valor Total';
+                            return null;
+                        })();
                         let totalFiltrado = 0;
                         table.querySelectorAll('tbody tr').forEach(row => {
                             const text = row.textContent.toLowerCase();
@@ -1411,7 +1407,7 @@
                     });
                 });
 
-                // Clique no nome do cliente nas tabelas principais
+                // Clique nas linhas das tabelas principais (cliente nome)
                 document.querySelectorAll('.cliente-nome').forEach(td => {
                     td.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -1422,7 +1418,7 @@
                     });
                 });
 
-                // ===== CARTEIRA DE CLIENTES =====
+                // Carteira de clientes (mantida)
                 const interacoesGlobais = new Map();
                 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
                     lista.forEach(item => {
@@ -1538,10 +1534,13 @@
                 });
 
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
-                    // Fecha modal de detalhamento de KPI se estiver aberto, salvando seu HTML
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
-                        ultimoModalKpiHTML = document.getElementById('kpi-detail-body').innerHTML;
+                        ultimoModalKpiHTML = {
+                            html: document.getElementById('kpi-detail-body').innerHTML,
+                            colunas: window._kpiColunas,
+                            colunaTotal: window._kpiColunaTotal
+                        };
                     } else {
                         ultimoModalKpiHTML = null;
                     }
@@ -1670,6 +1669,13 @@
                 };
 
                 const conquistasCampanhas = await renderizarCampanhasEspeciais();
+                const conquistasMetas = [];
+                const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
+                const semestre = today.getMonth() < 6 ? 1 : 2;
+                if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
+                if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
+                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
+                if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
                 const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
                 if (todasConquistas.length > 0) setTimeout(() => mostrarCelebracao(todasConquistas), 500);
 
@@ -1760,7 +1766,6 @@
                     if (activeEl) activeEl.classList.add('active');
                 }
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
-
                 document.getElementById('kpi-detail-modal').addEventListener('click', function(e) {
                     if (e.target === this) {
                         this.classList.remove('active');
