@@ -150,7 +150,7 @@
         .tool-icon { font-size:1.8rem; margin-bottom:8px; color: var(--primary); }
         .tool-label { font-weight:600; font-size:0.8rem; }
 
-        /* ===== NOVOS ESTILOS PARA KPI ROW ===== */
+        /* ===== KPI ROW ===== */
         .kpi-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
@@ -165,10 +165,12 @@
             text-align: center;
             border: 1px solid var(--border-light);
             box-shadow: var(--shadow-sm);
-            transition: transform 0.2s;
+            transition: transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
         }
         .mini-card-kpi:hover {
             transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
         }
         .mini-card-kpi .kpi-icon {
             font-size: 1.4rem;
@@ -193,6 +195,19 @@
         .value.blue { color: var(--blue-accent); }
         .value.purple { color: var(--purple); }
         .value.orange { color: var(--warning); }
+
+        .progress-bar-bg {
+            height: 4px;
+            background: #e0e6ed;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s;
+        }
 
         /* ===== DEMAIS ESTILOS ===== */
         .month-filter {
@@ -485,7 +500,7 @@
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos de Vendas</div></a>
         </div>
 
-        <!-- KPI ROW com cards compactos + card meta do time compacto -->
+        <!-- KPI ROW com cards compactos + meta do time -->
         <div class="kpi-row" id="kpi-cards"></div>
 
         <div class="month-filter">
@@ -546,12 +561,14 @@
         <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor. Todos os direitos reservados. | Radar Centrobor – César Santos</div>
     </footer>
 
+    <!-- Modais -->
     <div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
     <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
     <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
     <div class="modal" id="celebracao-modal">
         <div class="modal-content celebracao-content" id="celebracao-body"></div>
     </div>
+    <div class="modal" id="kpi-detail-modal"><div class="modal-content" id="kpi-detail-body"></div></div>
 
     <script>
         (function() {
@@ -596,6 +613,13 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
+
+            // Variáveis globais para detalhamento dos KPIs
+            let globalAprov = [];
+            let globalFat = [];
+            let globalCot = [];
+            let globalAprovFat = [];
+            let globalMetaTimeData = [];
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -649,7 +673,7 @@
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
 
-            // ... (funções de notificações, carrossel, campanhas, etc. – mantidas iguais)
+            // ==================== NOTIFICAÇÕES, CARROSSEL, CAMPANHAS ====================
             async function carregarInfoAtualizacao() {
                 try {
                     const info = await carregarJSON(BASES.informacoes);
@@ -846,25 +870,120 @@
                 }
             }
 
-            // ===== FUNÇÃO PARA CARD META DO TIME COMPACTO =====
-            function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
+            // ==================== FUNÇÕES DE DETALHAMENTO DOS KPIs ====================
+            function abrirDetalhamentoKPI(tipo, monthLabel) {
+                const modal = document.getElementById('kpi-detail-modal');
+                const body = document.getElementById('kpi-detail-body');
+                let titulo = '', html = '', dados = [];
+
+                switch(tipo) {
+                    case 'faturamento':
+                        titulo = `Faturamento do Mês (${monthLabel})`;
+                        dados = globalFat;
+                        html = gerarTabelaDetalhe(dados, ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'], 'Faturamento');
+                        break;
+                    case 'aprovados_fat':
+                        titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
+                        dados = globalAprovFat;
+                        html = gerarTabelaDetalhe(dados, ['Data', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'], 'Aprovados + Faturados');
+                        break;
+                    case 'itens':
+                        titulo = `Itens Vendidos (${monthLabel})`;
+                        const itens = [...globalAprov.map(i => ({ ...i, tipo: 'Aprovado' })), ...globalFat.map(i => ({ ...i, tipo: 'Faturado' }))];
+                        html = gerarTabelaDetalhe(itens, ['Data', 'Produto', 'Quantidade', 'tipo'], 'Itens Vendidos');
+                        break;
+                    case 'cotacoes':
+                        titulo = `Cotações Ativas (${monthLabel})`;
+                        const ativas = globalCot.filter(c => ['Em Aprovação','Confirmado'].includes(c['Situação Versão']));
+                        html = gerarTabelaDetalhe(ativas, ['Número', 'Data Criação', 'Razão Social', 'Valor Total', 'Situação Versão'], 'Cotações Ativas');
+                        break;
+                    case 'clientes':
+                        titulo = `Clientes Atendidos (${monthLabel})`;
+                        const clientesSet = new Set();
+                        [...globalAprov, ...globalFat].forEach(item => {
+                            const nome = item['Cliente'] || item['Nome Chave'] || '';
+                            if (nome) clientesSet.add(nome);
+                        });
+                        const listaClientes = Array.from(clientesSet).sort();
+                        html = `<ul style="list-style:none;padding:0;max-height:400px;overflow-y:auto;">${listaClientes.map(c => `<li style="padding:6px 0;border-bottom:1px solid #eee;">${c}</li>`).join('')}</ul>`;
+                        break;
+                    default:
+                        html = '<p>Detalhamento não disponível.</p>';
+                }
+
+                body.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
+                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                    </div>
+                    ${html}
+                `;
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+
+            function gerarTabelaDetalhe(dados, colunas, titulo) {
+                if (!dados || dados.length === 0) return `<p style="padding:20px;color:var(--muted);">Nenhum registro encontrado.</p>`;
+                let html = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">`;
+                html += `<thead><tr>${colunas.map(c => `<th style="padding:6px 4px;border-bottom:2px solid var(--line);text-align:left;">${c}</th>`).join('')}</tr></thead><tbody>`;
+                dados.slice(0, 200).forEach(row => {
+                    html += `<tr>${colunas.map(c => `<td style="padding:4px;border-bottom:1px solid #f0f0f0;">${row[c] || ''}</td>`).join('')}</tr>`;
+                });
+                html += '</tbody></table></div>';
+                return html;
+            }
+
+            function abrirDetalhamentoMetaTime(monthLabel) {
+                const modal = document.getElementById('kpi-detail-modal');
+                const body = document.getElementById('kpi-detail-body');
+                if (!globalMetaTimeData.length) {
+                    body.innerHTML = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h3 style="margin:0;"><i class="fas fa-users"></i> Meta do Time (${monthLabel})</h3><button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button></div><p style="padding:20px;color:var(--muted);">Nenhum dado disponível.</p>`;
+                    modal.classList.add('active');
+                    return;
+                }
+                let html = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h3 style="margin:0;"><i class="fas fa-users"></i> Meta do Time (${monthLabel})</h3>
+                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;font-size:0.75rem;border-collapse:collapse;">
+                            <thead><tr><th>Vendedor</th><th>Meta Mensal</th><th>Faturado</th><th>%</th></tr></thead>
+                            <tbody>
+                `;
+                globalMetaTimeData.forEach(item => {
+                    const perc = item.meta > 0 ? (item.faturado / item.meta) * 100 : 0;
+                    html += `<tr><td>${item.vendedor}</td><td>${formatarMoeda(item.meta)}</td><td>${formatarMoeda(item.faturado)}</td><td>${perc.toFixed(1)}%</td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+                body.innerHTML = html;
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+
+            // ==================== CARD META DO TIME COMPACTO ====================
+            function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel, metaTimeData) {
                 const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
                 const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
-                // Insere o card após os outros mini-cards
                 const kpiRow = document.getElementById('kpi-cards');
                 const cardHTML = `
-                    <div class="mini-card-kpi" style="grid-column: span 1;">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoMetaTime('${selectedMonthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="value ${cor}">${formatarMoeda(totalFaturadoTime)}</div>
                         <div class="label">Meta do Time (${selectedMonthLabel})</div>
-                        <div style="font-size:0.7rem; color:var(--muted); margin-top:4px;">${perc.toFixed(1)}% da meta (${formatarMoeda(metaTimeMensal)})</div>
+                        <div style="font-size:0.7rem; color:var(--muted); margin-top:2px;">${perc.toFixed(1)}% da meta</div>
+                        <div class="progress-bar-bg">
+                            <div class="progress-bar-fill" style="width:${Math.min(perc,100)}%; background:${perc >= 80 ? 'var(--success)' : (perc >= 50 ? 'var(--warning)' : 'var(--danger)')};"></div>
+                        </div>
+                        <div style="font-size:0.6rem; color:var(--muted);">Meta: ${formatarMoeda(metaTimeMensal)}</div>
                     </div>
                 `;
-                // Insere no final da kpi-row
                 kpiRow.insertAdjacentHTML('beforeend', cardHTML);
+                // Guarda dados para o modal de detalhamento
+                globalMetaTimeData = metaTimeData;
             }
 
-            // ===== FUNÇÃO PRINCIPAL renderAll =====
+            // ==================== FUNÇÃO PRINCIPAL renderAll ====================
             async function renderAll(selectedMonth) {
                 const [metaRawArr, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
                     carregarJSON(BASES.meta), carregarJSON(BASES.aprovados), carregarJSON(BASES.faturados),
@@ -884,6 +1003,18 @@
                     if (!id || id === '80' || id === '1') return acc;
                     return acc + cleanNumber(m.meta_mensal);
                 }, 0);
+
+                // Prepara dados para detalhamento da meta do time
+                const metaTimeData = metaRawArr
+                    .filter(m => {
+                        const id = String(m.id_vendedor||'').trim();
+                        return id && id !== '80' && id !== '1';
+                    })
+                    .map(m => ({
+                        vendedor: m.vendedor || 'N/A',
+                        meta: cleanNumber(m.meta_mensal),
+                        faturado: 0 // será preenchido depois
+                    }));
 
                 // Filtros para o vendedor atual
                 const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
@@ -920,9 +1051,9 @@
                 });
                 const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                // Total faturado do vendedor atual (para os outros KPIs)
+                // Total faturado do vendedor atual
                 const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-                // Total faturado de TODOS os vendedores (para a meta do time)
+                // Total faturado de TODOS os vendedores (para a meta do time) no mês selecionado
                 const totalFaturadoTime = fatRaw.reduce((acc, item) => {
                     const d = parseDataBR(item['Data']);
                     if (!d) return acc;
@@ -932,6 +1063,24 @@
                     return acc + cleanNumber(item['Valor Mercadoria']);
                 }, 0);
 
+                // Preenche faturado de cada vendedor na metaTimeData
+                metaTimeData.forEach(entry => {
+                    let fatVendedor = 0;
+                    fatRaw.forEach(f => {
+                        const d = parseDataBR(f['Data']);
+                        if (!d) return;
+                        if (selectedMonth && formatMonthKey(d) !== selectedMonth) return;
+                        const vendedorItem = String(f['Cod. Vendedor'] || '').trim();
+                        // Tenta fazer match com o vendedor (pode ser nome ou código)
+                        const nomeVend = entry.vendedor;
+                        const idVend = metaRawArr.find(m => m.vendedor === nomeVend)?.id_vendedor;
+                        if (vendedorItem === idVend || (nomeVend && String(f['Vendedor'] || '').toLowerCase().includes(nomeVend.toLowerCase()))) {
+                            fatVendedor += cleanNumber(f['Valor Mercadoria']);
+                        }
+                    });
+                    entry.faturado = fatVendedor;
+                });
+
                 const totalAprovFat = totalFaturado + aprov.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
                 const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
@@ -939,28 +1088,29 @@
 
                 // ===== MONTA OS CARDS COMPACTOS =====
                 const kpiRow = document.getElementById('kpi-cards');
+                const monthLabel = selectedMonth || formatMonthKey(new Date());
                 kpiRow.innerHTML = `
-                    <div class="mini-card-kpi">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoKPI('faturamento', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div>
                         <div class="value green">${formatarMoeda(totalFaturado)}</div>
                         <div class="label">Faturamento Mês</div>
                     </div>
-                    <div class="mini-card-kpi">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoKPI('aprovados_fat', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div>
                         <div class="value blue">${formatarMoeda(totalAprovFat)}</div>
                         <div class="label">Aprovados + Fat.</div>
                     </div>
-                    <div class="mini-card-kpi">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoKPI('itens', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-boxes"></i></div>
                         <div class="value blue">${itensVendidos}</div>
                         <div class="label">Itens Vendidos</div>
                     </div>
-                    <div class="mini-card-kpi">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoKPI('cotacoes', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-file-invoice"></i></div>
                         <div class="value purple">${cotAtivas}</div>
                         <div class="label">Cotações Ativas</div>
                     </div>
-                    <div class="mini-card-kpi">
+                    <div class="mini-card-kpi" onclick="abrirDetalhamentoKPI('clientes', '${monthLabel}')">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
                         <div class="value">${totalClientes}</div>
                         <div class="label">Clientes Atendidos</div>
@@ -968,11 +1118,15 @@
                 `;
 
                 // ===== INSERE CARD META DO TIME COMPACTO =====
-                const monthLabel = selectedMonth || formatMonthKey(new Date());
-                renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
+                renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel, metaTimeData);
 
-                // ===== RESTANTE DA PÁGINA (metas, gráficos, tabelas, etc.) =====
-                // (código existente, mantido igual)
+                // Guarda dados para detalhamento dos KPIs
+                globalAprov = aprov;
+                globalFat = fat;
+                globalCot = cot;
+                globalAprovFat = aprovFat;
+
+                // ===== RESTANTE DA PÁGINA =====
                 const today = new Date(); today.setHours(0,0,0,0);
                 let cutoffDate = new Date();
                 if (selectedMonth) {
@@ -1143,14 +1297,31 @@
                         const valorFormatado = valor || '—';
                         return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
                     }).join('');
-                    const html = `<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;"><h3 style="margin:0; display: flex; align-items: center; gap: 10px;"><i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button></div>
-                    <div class="ficha-lista">${linhas}</div>
-                    ${ (nomeUpper || cnpj) ? `<div style="margin-top:16px; text-align:right;"><button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-id-card"></i> Ver Cadastro</button></div>` : ''}
-                    <style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>`;
+
+                    // Botão "Ver Cadastro" agora no cabeçalho
+                    let botaoCadastro = '';
+                    if (nomeUpper || cnpj) {
+                        botaoCadastro = `<button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:6px 16px; border-radius:40px; border:none; font-weight:600; cursor:pointer; font-size:0.8rem;"><i class="fas fa-id-card"></i> Ver Cadastro</button>`;
+                    }
+
+                    const html = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
+                                </h3>
+                                ${botaoCadastro}
+                            </div>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button>
+                        </div>
+                        <div class="ficha-lista">${linhas}</div>
+                        <style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>
+                    `;
                     modalHistory = [{ html, titulo: 'Detalhes do Pedido' }];
                     document.getElementById('modal-body').innerHTML = html;
                     document.getElementById('detail-modal').classList.add('active');
                 }
+
                 const listas = { aprov, fat, cot, aprovfat: aprovFat };
                 document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
                     row.addEventListener('click', function() {
@@ -1491,6 +1662,11 @@
                     if (activeEl) activeEl.classList.add('active');
                 }
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                // Fechar modal de detalhamento KPI ao clicar fora
+                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) {
+                    if (e.target === this) this.classList.remove('active');
+                });
             }
             init();
         })();
