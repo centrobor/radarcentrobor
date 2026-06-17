@@ -245,9 +245,9 @@
         tr:hover td { background: rgba(200,220,240,0.25); }
 
         /* Cores das linhas de cotação */
-        tr.row-green td { background-color: var(--cotacao-green); }
-        tr.row-yellow td { background-color: var(--cotacao-yellow); }
-        tr.row-red td { background-color: var(--cotacao-red); }
+        tr.row-green td { background-color: var(--cotacao-green) !important; }
+        tr.row-yellow td { background-color: var(--cotacao-yellow) !important; }
+        tr.row-red td { background-color: var(--cotacao-red) !important; }
 
         /* Carteira */
         .badge-list { display: flex; flex-wrap: wrap; gap:6px; margin-bottom:12px; }
@@ -617,9 +617,14 @@
             };
             const parseDataBR = (str) => {
                 if (!str) return null;
-                const partes = String(str).split('/');
-                if (partes.length===3) {
-                    const d = new Date(parseInt(partes[2]), parseInt(partes[1])-1, parseInt(partes[0]));
+                // Remove hora se existir (ex: "01/06/2026 10:00")
+                const apenasData = String(str).split(' ')[0];
+                const partes = apenasData.split('/');
+                if (partes.length === 3) {
+                    const dia = parseInt(partes[0], 10);
+                    const mes = parseInt(partes[1], 10) - 1;
+                    const ano = parseInt(partes[2], 10);
+                    const d = new Date(ano, mes, dia);
                     return isNaN(d.getTime()) ? null : d;
                 }
                 return null;
@@ -843,7 +848,9 @@
                         const campIcon = camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>';
                         html += `<div class="campaign-card"><div class="campaign-header">${campIcon} ${camp.campanha}</div><div style="font-size:0.8rem; color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex; justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%; background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
                         if (perc >= 100) {
-                            conquistas.push({ nome: camp.campanha, meta, realizado, perc });
+                            // Chave única da campanha: nome + data_inicio + data_fim
+                            const chave = `campanha_${camp.campanha.replace(/\s+/g, '_')}_${camp.data_inicio}_${camp.data_fim}`;
+                            conquistas.push({ nome: camp.campanha, meta, realizado, perc, chave });
                         }
                     });
                     document.getElementById('campanhas-especiais-container').innerHTML = html;
@@ -874,18 +881,43 @@
                 }
             }
 
-            // Modal de celebração
+            // Gerenciamento de metas celebradas (localStorage)
+            function getMetasCelebradas() {
+                try {
+                    return JSON.parse(localStorage.getItem('metas_celebradas')) || [];
+                } catch (e) {
+                    return [];
+                }
+            }
+            function adicionarMetaCelebrada(chave) {
+                const celebradas = getMetasCelebradas();
+                if (!celebradas.includes(chave)) {
+                    celebradas.push(chave);
+                    localStorage.setItem('metas_celebradas', JSON.stringify(celebradas));
+                }
+            }
+
+            // Modal de celebração (agora filtra conquistas ainda não celebradas)
             function mostrarCelebracao(conquistas) {
                 if (!conquistas || conquistas.length === 0) return;
+
+                const celebradas = getMetasCelebradas();
+                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+
+                if (novasConquistas.length === 0) return; // nada novo
+
                 const body = document.getElementById('celebracao-body');
                 let listaHtml = '';
-                conquistas.forEach(c => {
+                novasConquistas.forEach(c => {
                     listaHtml += `
                         <div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.1);">
                             <span><strong>${c.nome}</strong></span>
                             <span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span>
                         </div>`;
+                    // Marca como celebrada
+                    adicionarMetaCelebrada(c.chave);
                 });
+
                 body.innerHTML = `
                     <div class="trofeu">🏆</div>
                     <h2>Parabéns, ${nomeVendedor}!</h2>
@@ -1032,12 +1064,14 @@
                         criarDoughnut('meta-anual-chart', percYear, '#2563eb');
                     }, 0);
 
-                    // Coletar metas batidas para celebração
+                    // Coletar metas batidas para celebração (com chaves de período)
                     const conquistasMetas = [];
-                    if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth });
-                    if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus });
-                    if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem });
-                    if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear });
+                    const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
+                    const semestre = today.getMonth() < 6 ? 1 : 2;
+                    if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
+                    if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
+                    if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
+                    if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
 
                     // Gráfico
                     const evoMap = {};
@@ -1079,16 +1113,25 @@
                     document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat');
                     document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat');
 
-                    // Função de classe para colorir linhas de cotação
+                    // Função de classe para colorir linhas de cotação (corrigida)
                     const hojeRef = new Date(); hojeRef.setHours(0,0,0,0);
                     function classCotacao(item) {
-                        const d = parseDataBR(item['Data Criação']);
-                        if (!d) return '';
+                        const dataStr = item['Data Criação'];
+                        if (!dataStr) return '';
+                        const apenasData = String(dataStr).split(' ')[0];
+                        const partes = apenasData.split('/');
+                        if (partes.length !== 3) return '';
+                        const dia = parseInt(partes[0], 10);
+                        const mes = parseInt(partes[1], 10) - 1;
+                        const ano = parseInt(partes[2], 10);
+                        const d = new Date(ano, mes, dia);
+                        if (isNaN(d.getTime())) return '';
+
                         const diffDays = Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24));
+
                         if (diffDays <= 5) return 'row-green';
-                        else if (diffDays >= 15 && diffDays <= 25) return 'row-yellow';
-                        else if (diffDays > 25) return 'row-red';
-                        return '';
+                        else if (diffDays <= 25) return 'row-yellow';
+                        else return 'row-red';
                     }
                     document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
 
@@ -1281,7 +1324,6 @@
                     const conquistasCampanhas = await renderizarCampanhasEspeciais();
                     const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
                     if (todasConquistas.length > 0) {
-                        // Pequeno delay para garantir que a página renderizou
                         setTimeout(() => mostrarCelebracao(todasConquistas), 500);
                     }
 
