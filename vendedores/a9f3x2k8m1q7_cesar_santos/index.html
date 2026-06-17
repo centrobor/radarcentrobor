@@ -156,6 +156,12 @@
         .value.green { color: var(--success); }
         .value.blue { color: var(--blue-accent); }
         .value.purple { color: var(--purple); }
+        .mini-card-kpi .progress-bar-bg { height:6px; background:#e0e6ed; border-radius:20px; overflow:hidden; margin:8px 0; }
+        .mini-card-kpi .progress-bar-fill { height:100%; border-radius:20px; transition:width 0.3s; }
+        .mini-card-kpi .fill-success { background: var(--success); }
+        .mini-card-kpi .fill-warning { background: var(--warning); }
+        .mini-card-kpi .fill-info { background: var(--info); }
+        .mini-card-kpi .meta-info { font-size:0.7rem; color:var(--text-soft); }
         .month-filter {
             display: flex; align-items: center; justify-content: space-between;
             flex-wrap: wrap; gap:12px; margin-bottom:28px;
@@ -287,6 +293,10 @@
             tr { page-break-inside: avoid; }
             .fa, .fas, .far { display: none !important; }
             .section-title::before { content: "● "; font-weight: bold; }
+            /* Manter cores das linhas no PDF */
+            tr.row-green td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            tr.row-yellow td { background-color: #fff8e1 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            tr.row-red td { background-color: #ffebee !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
         @media (max-width:1000px) {
             body { padding: 0 0 var(--bottom-bar-height) 0; }
@@ -311,7 +321,6 @@
             .kpi-row { grid-template-columns: 1fr 1fr; gap:6px; }
             .mini-card-kpi .value { font-size: 1rem; }
         }
-        /* Estilos da ficha cadastral */
         .ficha-secao {
             background: #f8fafc;
             border-radius: 16px;
@@ -551,7 +560,6 @@
         let notificacoes = [];
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
         let BANNERS = [];
-        // Armazena o histórico de modais para o botão Voltar
         let modalHistory = [];
 
         const cleanNumber = (v) => {
@@ -777,7 +785,6 @@
             modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
         }
 
-        // Função auxiliar para abrir modal preservando histórico
         function abrirModalConteudo(html, titulo) {
             modalHistory.push({ html, titulo });
             document.getElementById('modal-body').innerHTML = html;
@@ -785,7 +792,7 @@
         }
 
         function voltarModal() {
-            modalHistory.pop(); // remove o atual
+            modalHistory.pop();
             if (modalHistory.length > 0) {
                 const anterior = modalHistory[modalHistory.length - 1];
                 document.getElementById('modal-body').innerHTML = anterior.html;
@@ -807,6 +814,13 @@
                 const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
+                // Calcular meta mensal do time (soma de todas as metas de vendedores válidos)
+                const metaTimeMensal = metaRawArr.reduce((acc, m) => {
+                    const id = String(m.id_vendedor||'').trim();
+                    if (!id || id === '80' || id === '1') return acc; // ignora RKB e admin
+                    return acc + cleanNumber(m.meta_mensal);
+                }, 0);
+
                 const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
                 const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
                 const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
@@ -825,7 +839,6 @@
                 const aprov = filterByMonth(aprovFull,'Data');
                 const fat = filterByMonth(fatFull,'Data');
                 let cot = cotFull;
-                // Ordenar cotações por data decrescente (mais recentes primeiro)
                 cot.sort((a,b) => {
                     const dA = parseDataBR(a['Data Criação']);
                     const dB = parseDataBR(b['Data Criação']);
@@ -848,12 +861,21 @@
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                 const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
+                // Percentual da meta do time
+                const percMetaTime = metaTimeMensal > 0 ? (totalFaturado / metaTimeMensal) * 100 : 0;
+
                 document.getElementById('kpi-cards').innerHTML = `
                     <div class="mini-card-kpi"><div class="label">Faturamento Mês</div><div class="value green">${formatarMoeda(totalFaturado)}</div></div>
                     <div class="mini-card-kpi"><div class="label">Pedidos Aprov+Fat</div><div class="value blue">${formatarMoeda(totalAprovFat)}</div></div>
                     <div class="mini-card-kpi"><div class="label">Itens Vendidos</div><div class="value blue">${itensVendidos}</div></div>
                     <div class="mini-card-kpi"><div class="label">Cotações Ativas</div><div class="value purple">${cotAtivas}</div></div>
                     <div class="mini-card-kpi"><div class="label">Clientes Atendidos</div><div class="value">${totalClientes}</div></div>
+                    <div class="mini-card-kpi">
+                        <div class="label">Meta Mensal do Time</div>
+                        <div class="value" style="color:${percMetaTime >= 100 ? 'var(--success)' : 'var(--warning)'}">${percMetaTime.toFixed(1)}%</div>
+                        <div class="progress-bar-bg"><div class="progress-bar-fill ${percMetaTime >= 100 ? 'fill-success' : 'fill-warning'}" style="width:${Math.min(percMetaTime,100)}%"></div></div>
+                        <div class="meta-info">Meta: ${formatarMoeda(metaTimeMensal)}</div>
+                    </div>
                 `;
 
                 const today = new Date(); today.setHours(0,0,0,0);
@@ -1129,7 +1151,7 @@
                                 else statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
                             }
                         }
-                        return `<tr><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer; color:var(--primary); font-weight:600;">${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`;
+                        return `<tr class="carteira-row-${c.status}"><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer; color:var(--primary); font-weight:600;">${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`;
                     }).join('')}</tbody></table></div></div>`;
                 }
                 document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
@@ -1145,7 +1167,7 @@
                     });
                 });
 
-                // Eventos nos nomes de cliente da tabela (usando delegação)
+                // Eventos nos nomes de cliente da tabela
                 document.getElementById('carteira-detalhes').addEventListener('click', function(e) {
                     const cell = e.target.closest('.cliente-nome');
                     if (!cell) return;
@@ -1153,7 +1175,6 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // Definir função global abrirFichaCliente
                 window.abrirFichaCliente = function(nomeUpper) {
                     const cliente = carteiraMap.get(nomeUpper);
                     if (!cliente) {
@@ -1169,7 +1190,6 @@
                         <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
                     </div>`;
 
-                    // Seção Dados Principais
                     html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
                     html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
                     html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
@@ -1184,7 +1204,6 @@
                     html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
                     html += `</div></div>`;
 
-                    // Seção Endereço
                     html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
                     html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
                     html += fichaCampo('fa-home', 'Número', cliente['Número']);
@@ -1196,7 +1215,6 @@
                     html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
                     html += `</div></div>`;
 
-                    // Seção Contato
                     html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
                     html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
                     html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
@@ -1208,7 +1226,6 @@
                     html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
                     html += `</div></div>`;
 
-                    // Botões de ação
                     const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
                     const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
                     html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
@@ -1217,7 +1234,6 @@
                     html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
                     html += '</div>';
 
-                    // Outras filiais
                     if (similares.length > 0) {
                         html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
                         similares.forEach(s => {
@@ -1229,7 +1245,6 @@
                     abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
                 };
 
-                // Função auxiliar para campo da ficha
                 function fichaCampo(icone, label, valor) {
                     const val = valor || '—';
                     return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
@@ -1249,10 +1264,8 @@
                     abrirModalConteudo(html, `Grupo: ${grupo}`);
                 }
 
-                // Expor voltarModal globalmente
                 window.voltarModal = voltarModal;
 
-                // Função para copiar dados do cliente
                 window.copiarDadosCliente = function(nomeUpper) {
                     const cliente = carteiraMap.get(nomeUpper);
                     if (!cliente) return;
