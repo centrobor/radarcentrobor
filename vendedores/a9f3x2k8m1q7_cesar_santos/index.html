@@ -693,6 +693,8 @@
             // Serão definidas em abrirDetalhamentoKPI
             window._kpiColunas = null;
             window._kpiColunaTotal = null;
+            window._kpiModalStack = []; // Pilha para restaurar modais de KPI
+            window.fichaPedidoData = null; // Dados da linha atual
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -963,23 +965,42 @@
                     td.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                        const row = this.closest('tr');
+                        let pedidoData = null;
+                        if (row && row.dataset.row) {
+                            try {
+                                pedidoData = JSON.parse(row.dataset.row.replace(/&quot;/g, '"'));
+                            } catch (err) { /* ignora */ }
+                        }
                         if (nomeCliente) {
                             const kpiModal = document.getElementById('kpi-detail-modal');
                             if (kpiModal.classList.contains('active')) {
-                                ultimoModalKpiHTML = {
+                                window._kpiModalStack.push({
                                     html: document.getElementById('kpi-detail-body').innerHTML,
                                     colunas: colunas,
                                     colunaTotal: colunaTotal
-                                };
+                                });
+                                kpiModal.classList.remove('active');
                             }
-                            kpiModal.classList.remove('active');
-                            window.abrirFichaCliente(nomeCliente.toUpperCase());
+                            window.abrirFichaCliente(nomeCliente.toUpperCase(), '', pedidoData);
                         }
                     });
                 });
             }
 
             function voltarModal() {
+                // Se houver estado salvo do modal de KPI, restaura-o
+                if (window._kpiModalStack.length > 0) {
+                    const state = window._kpiModalStack.pop();
+                    document.getElementById('detail-modal').classList.remove('active');
+                    const kpiBody = document.getElementById('kpi-detail-body');
+                    kpiBody.innerHTML = state.html;
+                    document.getElementById('kpi-detail-modal').classList.add('active');
+                    reaplicarListenersKpiModal(kpiBody, state.colunas, state.colunaTotal);
+                    window.fichaPedidoData = null;
+                    return;
+                }
+
                 modalHistory.pop();
                 if (modalHistory.length > 0) {
                     const anterior = modalHistory[modalHistory.length - 1];
@@ -993,9 +1014,11 @@
                         document.getElementById('kpi-detail-modal').classList.add('active');
                         reaplicarListenersKpiModal(kpiBody, colunas, colunaTotal);
                         ultimoModalKpiHTML = null;
+                        window.fichaPedidoData = null;
                     }
                 }
             }
+            window.voltarModal = voltarModal;
 
             // ==================== DETALHAMENTO DE KPI ====================
             window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
@@ -1009,16 +1032,12 @@
                         dados = globalFat;
                         colunaTotal = 'Valor Mercadoria';
                         colunas = ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'];
-                        window._kpiColunas = colunas;
-                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'aprovados_fat':
                         titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
                         dados = globalAprovFat;
                         colunaTotal = 'Total Bruto';
                         colunas = ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'];
-                        window._kpiColunas = colunas;
-                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'itens':
                         titulo = `Itens Vendidos (${monthLabel})`;
@@ -1026,8 +1045,6 @@
                         dados = itens;
                         colunaTotal = null;
                         colunas = ['Data', 'Cliente', 'Produto', 'Quantidade', 'tipo'];
-                        window._kpiColunas = colunas;
-                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'cotacoes':
                         titulo = `Cotações Ativas (${monthLabel})`;
@@ -1035,8 +1052,6 @@
                         dados = ativas;
                         colunaTotal = 'Valor Total';
                         colunas = ['Número', 'Razão Social', 'Data Criação', 'Valor Total', 'Situação Versão'];
-                        window._kpiColunas = colunas;
-                        window._kpiColunaTotal = colunaTotal;
                         break;
                     case 'clientes':
                         titulo = `Clientes Atendidos (${monthLabel})`;
@@ -1054,12 +1069,12 @@
                         body.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                                 <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                             </div>
                             ${htmlClientes}
                         `;
                         modal.classList.add('active');
-                        modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); ultimoModalKpiHTML = null; } });
+                        modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; } });
                         return;
                     default:
                         body.innerHTML = '<p>Detalhamento não disponível.</p>';
@@ -1067,6 +1082,8 @@
                         return;
                 }
 
+                window._kpiColunas = colunas;
+                window._kpiColunaTotal = colunaTotal;
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1079,7 +1096,8 @@
                     <thead><tr>${colunas.map(c => `<th style="padding:4px 3px;border-bottom:2px solid var(--line);text-align:left;font-size:0.65rem;">${c}</th>`).join('')}</tr></thead><tbody>
                 `;
                 dados.slice(0, 200).forEach(row => {
-                    tabelaHtml += `<tr>`;
+                    const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
+                    tabelaHtml += `<tr data-row="${rowJSON}">`;
                     colunas.forEach(c => {
                         const valor = row[c] || '';
                         const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
@@ -1092,14 +1110,14 @@
                 body.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                     </div>
                     ${tabelaHtml}
                 `;
 
                 reaplicarListenersKpiModal(body, colunas, colunaTotal);
                 modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); ultimoModalKpiHTML = null; } });
+                modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; } });
             };
 
             // ==================== CARD META DO TIME ====================
@@ -1329,7 +1347,7 @@
                 const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
                 document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
-                // Tabelas principais
+                // Função gerarTabela com data-row
                 function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
                     if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
                     const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
@@ -1345,7 +1363,8 @@
                     dados.slice(0,400).forEach((r,idx) => {
                         let extraClass = rowClassFn ? rowClassFn(r) : '';
                         const colunaCliente = colunas.find(c => c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">`;
+                        const rowJSON = JSON.stringify(r).replace(/"/g, '&quot;');
+                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" data-row="${rowJSON}" class="${extraClass}">`;
                         colunas.forEach(c => {
                             const valor = r[c] || '';
                             const isCliente = c === colunaCliente;
@@ -1414,16 +1433,24 @@
                     });
                 });
 
-                // Clique nas linhas das tabelas principais (cliente nome)
-                document.querySelectorAll('.cliente-nome').forEach(td => {
-                    td.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
-                        if (nomeCliente) {
-                            window.abrirFichaCliente(nomeCliente.toUpperCase());
-                        }
+                // Listener para linhas das tabelas principais
+                function adicionarListenersTabelas() {
+                    document.querySelectorAll('.cliente-nome').forEach(td => {
+                        td.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                            const row = this.closest('tr');
+                            let pedidoData = null;
+                            if (row && row.dataset.row) {
+                                try {
+                                    pedidoData = JSON.parse(row.dataset.row.replace(/&quot;/g, '"'));
+                                } catch (err) { /* ignora */ }
+                            }
+                            if (nomeCliente) window.abrirFichaCliente(nomeCliente.toUpperCase(), '', pedidoData);
+                        });
                     });
-                });
+                }
+                adicionarListenersTabelas();
 
                 // Carteira de clientes (mantida)
                 const interacoesGlobais = new Map();
@@ -1540,18 +1567,18 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
+                // abrirFichaCliente ajustado para receber pedidoData e incluir botão de cópia
+                window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
-                        ultimoModalKpiHTML = {
+                        window._kpiModalStack.push({
                             html: document.getElementById('kpi-detail-body').innerHTML,
                             colunas: window._kpiColunas,
                             colunaTotal: window._kpiColunaTotal
-                        };
-                    } else {
-                        ultimoModalKpiHTML = null;
+                        });
+                        kpiModal.classList.remove('active');
                     }
-                    kpiModal.classList.remove('active');
+                    window.fichaPedidoData = pedidoData;
                     mostrarLoadingModal();
                     setTimeout(() => {
                         let cliente = null;
@@ -1578,7 +1605,7 @@
                         let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                             <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
                             <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
-                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
                         </div>`;
 
                         html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
@@ -1617,12 +1644,24 @@
                         html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
                         html += `</div></div>`;
 
+                        if (pedidoData) {
+                            html += '<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>';
+                            html += '<table style="font-size:0.75rem;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>';
+                            Object.keys(pedidoData).forEach(key => {
+                                html += `<tr><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                            });
+                            html += '</tbody></table></div>';
+                        }
+
                         const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
                         const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
                         html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
                         if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
                         if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                        html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
+                        if (pedidoData) {
+                            html += `<button onclick="window.copiarDadosCliente('${nomeUpper}', true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
+                        }
+                        html += `<button onclick="window.copiarDadosCliente('${nomeUpper}', false)" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados Cliente</button>`;
                         html += '</div>';
 
                         if (similares.length > 0) {
@@ -1659,9 +1698,7 @@
                     }, 100);
                 }
 
-                window.voltarModal = voltarModal;
-
-                window.copiarDadosCliente = function(nomeUpper) {
+                window.copiarDadosCliente = function(nomeUpper, incluirPedido = false) {
                     const cliente = carteiraMap.get(nomeUpper);
                     if (!cliente) return;
                     let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
@@ -1672,6 +1709,12 @@
                     texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
                     texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
                     texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                    if (incluirPedido && window.fichaPedidoData) {
+                        texto += '\n═══════════════════════════════════\n  DADOS DO PEDIDO / COTAÇÃO\n═══════════════════════════════════\n';
+                        Object.keys(window.fichaPedidoData).forEach(key => {
+                            texto += `${key}: ${window.fichaPedidoData[key] || '—'}\n`;
+                        });
+                    }
                     navigator.clipboard.writeText(texto).then(() => alert('Dados copiados!')).catch(() => prompt('Copie manualmente:', texto));
                 };
 
@@ -1751,8 +1794,9 @@
                 document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
                 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
                 document.querySelector('.home-btn').addEventListener('click', () => window.location.href='./index.html');
-                document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this) { this.classList.remove('active'); modalHistory=[]; ultimoModalKpiHTML=null; } });
+                document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this) { this.classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null; } });
                 document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target===this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
+                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; window.fichaPedidoData = null; } });
                 document.getElementById('hamburger-btn').addEventListener('click', () => { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow='hidden'; });
                 const closeHamburger = () => { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
@@ -1773,12 +1817,6 @@
                     if (activeEl) activeEl.classList.add('active');
                 }
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
-                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) {
-                    if (e.target === this) {
-                        this.classList.remove('active');
-                        ultimoModalKpiHTML = null;
-                    }
-                });
             }
             init();
         })();
