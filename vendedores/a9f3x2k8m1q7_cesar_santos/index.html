@@ -848,7 +848,6 @@
                         const campIcon = camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>';
                         html += `<div class="campaign-card"><div class="campaign-header">${campIcon} ${camp.campanha}</div><div style="font-size:0.8rem; color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex; justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%; background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
                         if (perc >= 100) {
-                            // Chave única da campanha: nome + data_inicio + data_fim
                             const chave = `campanha_${camp.campanha.replace(/\s+/g, '_')}_${camp.data_inicio}_${camp.data_fim}`;
                             conquistas.push({ nome: camp.campanha, meta, realizado, perc, chave });
                         }
@@ -858,31 +857,31 @@
                 } catch (e) { console.error(e); return []; }
             }
 
-            // Função para disparar confetes
+            // Função para disparar confetes (com zIndex alto)
             function dispararConfetes() {
-    if (typeof confetti === 'function') {
-        confetti({
-            particleCount: 150,
-            spread: 70,
-            origin: { y: 0.6 },
-            zIndex: 10000   // <-- adicionado
-        });
-        setTimeout(() => confetti({
-            particleCount: 100,
-            angle: 60,
-            spread: 55,
-            origin: { x: 0 },
-            zIndex: 10000   // <-- adicionado
-        }), 200);
-        setTimeout(() => confetti({
-            particleCount: 100,
-            angle: 120,
-            spread: 55,
-            origin: { x: 1 },
-            zIndex: 10000   // <-- adicionado
-        }), 400);
-    }
-}
+                if (typeof confetti === 'function') {
+                    confetti({
+                        particleCount: 150,
+                        spread: 70,
+                        origin: { y: 0.6 },
+                        zIndex: 10000
+                    });
+                    setTimeout(() => confetti({
+                        particleCount: 100,
+                        angle: 60,
+                        spread: 55,
+                        origin: { x: 0 },
+                        zIndex: 10000
+                    }), 200);
+                    setTimeout(() => confetti({
+                        particleCount: 100,
+                        angle: 120,
+                        spread: 55,
+                        origin: { x: 1 },
+                        zIndex: 10000
+                    }), 400);
+                }
+            }
 
             // Gerenciamento de metas celebradas (localStorage)
             function getMetasCelebradas() {
@@ -900,7 +899,7 @@
                 }
             }
 
-            // Modal de celebração (agora filtra conquistas ainda não celebradas)
+            // Modal de celebração (filtra conquistas ainda não celebradas)
             function mostrarCelebracao(conquistas) {
                 if (!conquistas || conquistas.length === 0) return;
 
@@ -977,6 +976,13 @@
                         const dA = parseDataBR(a['Data Criação']) || 0;
                         const dB = parseDataBR(b['Data Criação']) || 0;
                         return dB - dA;
+                    });
+                    // Adicionar idade em dias
+                    const hojeRef = new Date(); hojeRef.setHours(0,0,0,0);
+                    cot = cot.map(item => {
+                        const d = parseDataBR(item['Data Criação']);
+                        const idade = d ? Math.floor((hojeRef - d) / (1000 * 60 * 60 * 24)) : null;
+                        return { ...item, 'idade_dias': idade !== null ? idade + ' dias' : 'N/A' };
                     });
                     const aprovFat = filterByMonth(aprovFatFull,'Data');
 
@@ -1117,7 +1123,6 @@
                     document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat');
 
                     // Função de classe para colorir linhas de cotação (corrigida)
-                    const hojeRef = new Date(); hojeRef.setHours(0,0,0,0);
                     function classCotacao(item) {
                         const dataStr = item['Data Criação'];
                         if (!dataStr) return '';
@@ -1136,7 +1141,7 @@
                         else if (diffDays <= 25) return 'row-yellow';
                         else return 'row-red';
                     }
-                    document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
+                    document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao);
 
                     // Busca nas tabelas
                     document.querySelectorAll('.table-search').forEach(input => {
