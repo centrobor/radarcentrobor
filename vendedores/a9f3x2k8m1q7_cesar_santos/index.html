@@ -345,7 +345,7 @@
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
         .loading-text { font-weight: 600; font-size: 1.1rem; color: var(--primary); }
 
-        /* ===== NOVOS ESTILOS PARA O BADGE DE TOTAL ===== */
+        /* ===== TOTAL BADGE ===== */
         .table-toolbar {
             display: flex;
             justify-content: space-between;
@@ -682,7 +682,7 @@
             let globalFat = [];
             let globalCot = [];
             let globalAprovFat = [];
-            let globalMetaMensal = 0; // valor da meta do time para o mês selecionado
+            let globalMetaMensal = 0;
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -933,34 +933,38 @@
                 }
             }
 
-            // ==================== FUNÇÕES DE DETALHAMENTO DOS KPIs ====================
+            // ==================== DETALHAMENTO DE KPI COM ORDEM DE COLUNAS PERSONALIZADA ====================
             window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
                 const modal = document.getElementById('kpi-detail-modal');
                 const body = document.getElementById('kpi-detail-body');
-                let titulo = '', html = '', dados = [], colunaTotal = '';
+                let titulo = '', dados = [], colunaTotal = '', colunas = [];
 
                 switch(tipo) {
                     case 'faturamento':
                         titulo = `Faturamento do Mês (${monthLabel})`;
                         dados = globalFat;
                         colunaTotal = 'Valor Mercadoria';
+                        colunas = ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'];
                         break;
                     case 'aprovados_fat':
                         titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
                         dados = globalAprovFat;
                         colunaTotal = 'Total Bruto';
+                        colunas = ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'];
                         break;
                     case 'itens':
                         titulo = `Itens Vendidos (${monthLabel})`;
                         const itens = [...globalAprov.map(i => ({ ...i, tipo: 'Aprovado' })), ...globalFat.map(i => ({ ...i, tipo: 'Faturado' }))];
                         dados = itens;
-                        colunaTotal = null; // sem total monetário
+                        colunaTotal = null;
+                        colunas = ['Data', 'Cliente', 'Produto', 'Quantidade', 'tipo'];
                         break;
                     case 'cotacoes':
                         titulo = `Cotações Ativas (${monthLabel})`;
                         const ativas = globalCot.filter(c => ['Em Aprovação','Confirmado'].includes(c['Situação Versão']));
                         dados = ativas;
                         colunaTotal = 'Valor Total';
+                        colunas = ['Número', 'Razão Social', 'Data Criação', 'Valor Total', 'Situação Versão'];
                         break;
                     case 'clientes':
                         titulo = `Clientes Atendidos (${monthLabel})`;
@@ -970,66 +974,59 @@
                             if (nome) clientesSet.add(nome);
                         });
                         const listaClientes = Array.from(clientesSet).sort();
-                        html = `<ul style="list-style:none;padding:0;max-height:400px;overflow-y:auto;">${listaClientes.map(c => `<li style="padding:6px 0;border-bottom:1px solid #eee;">${c}</li>`).join('')}</ul>`;
+                        let htmlClientes = `<ul style="list-style:none;padding:0;max-height:400px;overflow-y:auto;">`;
+                        listaClientes.forEach(c => {
+                            htmlClientes += `<li style="padding:6px 0;border-bottom:1px solid #eee;cursor:pointer;color:var(--primary);font-weight:600;" onclick="window.abrirFichaCliente('${c.toUpperCase()}')">${c}</li>`;
+                        });
+                        htmlClientes += '</ul>';
                         body.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                                 <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
                                 <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                             </div>
-                            ${html}
+                            ${htmlClientes}
                         `;
                         modal.classList.add('active');
                         modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
                         return;
                     default:
-                        html = '<p>Detalhamento não disponível.</p>';
-                        body.innerHTML = html;
+                        body.innerHTML = '<p>Detalhamento não disponível.</p>';
                         modal.classList.add('active');
                         return;
                 }
 
-                // Para os tipos com tabela
-                const colunas = dados.length > 0 ? Object.keys(dados[0]) : [];
-                // Filtra colunas para exibir (evitar muitas)
-                const colunasExibir = colunas.slice(0, 8); // limite para não poluir
-                // Identifica coluna de cliente para clique
-                const colunaCliente = colunasExibir.find(c => c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-
-                let tabelaHtml = `<div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">`;
-                tabelaHtml += `<thead><tr>${colunasExibir.map(c => `<th style="padding:6px 4px;border-bottom:2px solid var(--line);text-align:left;">${c}</th>`).join('')}</tr></thead><tbody>`;
+                // Gera tabela com colunas específicas
+                const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
+                let tabelaHtml = `
+                    <div class="table-toolbar">
+                        <div class="search-wrap">
+                            <input type="text" class="table-search-detail" placeholder="🔍 Filtrar...">
+                            ${colunaTotal ? `<span class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalInicial)}</span>` : ''}
+                        </div>
+                    </div>
+                    <div style="overflow-x:auto;"><table style="width:100%;font-size:0.75rem;border-collapse:collapse;">
+                    <thead><tr>${colunas.map(c => `<th style="padding:6px 4px;border-bottom:2px solid var(--line);text-align:left;">${c}</th>`).join('')}</tr></thead><tbody>
+                `;
                 dados.slice(0, 200).forEach(row => {
                     tabelaHtml += `<tr>`;
-                    colunasExibir.forEach(c => {
-                        const isCliente = c === colunaCliente;
+                    colunas.forEach(c => {
                         const valor = row[c] || '';
+                        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
                         tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:4px;border-bottom:1px solid #f0f0f0;">${valor}</td>`;
                     });
                     tabelaHtml += `</tr>`;
                 });
                 tabelaHtml += '</tbody></table></div>';
 
-                // Totalizador (se houver coluna de valor)
-                let totalBadge = '';
-                if (colunaTotal) {
-                    const total = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
-                    totalBadge = `<div class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(total)}</div>`;
-                }
-
                 body.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
                         <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                     </div>
-                    <div class="table-toolbar">
-                        <div class="search-wrap">
-                            <input type="text" class="table-search-detail" placeholder="🔍 Filtrar...">
-                            ${totalBadge}
-                        </div>
-                    </div>
                     ${tabelaHtml}
                 `;
 
-                // Evento de filtro dinâmico no modal
+                // Evento de filtro com atualização do total
                 const searchInput = body.querySelector('.table-search-detail');
                 if (searchInput) {
                     searchInput.addEventListener('input', function() {
@@ -1042,14 +1039,13 @@
                             const show = text.includes(term);
                             row.style.display = show ? '' : 'none';
                             if (show && colunaTotal) {
-                                const cells = row.querySelectorAll('td');
-                                const colIndex = colunasExibir.indexOf(colunaTotal);
-                                if (colIndex !== -1 && cells[colIndex]) {
-                                    totalFiltrado += cleanNumber(cells[colIndex].textContent);
+                                const idx = colunas.indexOf(colunaTotal);
+                                if (idx !== -1) {
+                                    const cell = row.querySelectorAll('td')[idx];
+                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
                                 }
                             }
                         });
-                        // Atualiza badge de total
                         const badge = body.querySelector('.total-badge');
                         if (badge && colunaTotal) {
                             badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
@@ -1057,12 +1053,13 @@
                     });
                 }
 
-                // Evento de clique nas linhas para abrir ficha do cliente
+                // Clique nas linhas para abrir ficha do cliente (fecha modal de KPI antes)
                 body.querySelectorAll('.cliente-nome').forEach(td => {
                     td.addEventListener('click', function(e) {
                         e.stopPropagation();
                         const nomeCliente = this.dataset.cliente || this.textContent.trim();
                         if (nomeCliente) {
+                            document.getElementById('kpi-detail-modal').classList.remove('active');
                             window.abrirFichaCliente(nomeCliente.toUpperCase());
                         }
                     });
@@ -1072,7 +1069,7 @@
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
             };
 
-            // ==================== CARD META DO TIME (SEM CLIQUE) ====================
+            // ==================== CARD META DO TIME ====================
             function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
                 const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
                 const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
@@ -1111,7 +1108,7 @@
                 const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
-                // ===== META DO TIME (MENSAL) BASEADA NA PLANILHA 'metas' =====
+                // ===== META DO TIME =====
                 let metaTimeMensal = 0;
                 if (selectedMonth) {
                     const [mesAbrev, anoShort] = selectedMonth.split('/');
@@ -1162,9 +1159,7 @@
                 });
                 const aprovFat = filterByMonth(aprovFatFull,'Data');
 
-                // Total faturado do vendedor atual
                 const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-                // Total faturado de TODOS os vendedores (para a meta do time) no mês selecionado
                 const totalFaturadoTime = fatRaw.reduce((acc, item) => {
                     const d = parseDataBR(item['Data']);
                     if (!d) return acc;
@@ -1179,7 +1174,7 @@
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
                 const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
 
-                // ===== MONTA OS CARDS COMPACTOS =====
+                // ===== MONTA CARDS KPI =====
                 const kpiRow = document.getElementById('kpi-cards');
                 const monthLabel = selectedMonth || formatMonthKey(new Date());
                 kpiRow.innerHTML = `
@@ -1210,16 +1205,14 @@
                     </div>
                 `;
 
-                // ===== INSERE CARD META DO TIME (SEM CLIQUE) =====
                 renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
 
-                // Guarda dados para detalhamento dos KPIs
                 globalAprov = aprov;
                 globalFat = fat;
                 globalCot = cot;
                 globalAprovFat = aprovFat;
 
-                // ===== RESTANTE DA PÁGINA =====
+                // ===== METAS & PERFORMANCE =====
                 const today = new Date(); today.setHours(0,0,0,0);
                 let cutoffDate = new Date();
                 if (selectedMonth) {
@@ -1315,7 +1308,7 @@
                 const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
                 document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
-                // ===== GERAR TABELAS COM TOOLBAR E TOTAL DINÂMICO =====
+                // ===== TABELAS PRINCIPAIS COM TOTAL DINÂMICO =====
                 function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
                     if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
                     const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
@@ -1365,7 +1358,7 @@
                 }
                 document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
 
-                // ===== EVENTO DE FILTRO COM ATUALIZAÇÃO DO TOTAL =====
+                // Filtro com atualização do total
                 document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
                     input.addEventListener('input', function() {
                         const term = this.value.toLowerCase();
@@ -1396,7 +1389,7 @@
                     });
                 });
 
-                // ===== CLIQUE NO NOME DO CLIENTE NAS TABELAS =====
+                // Clique no nome do cliente nas tabelas principais
                 document.querySelectorAll('.cliente-nome').forEach(td => {
                     td.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -1404,77 +1397,6 @@
                         if (nomeCliente) {
                             window.abrirFichaCliente(nomeCliente.toUpperCase());
                         }
-                    });
-                });
-
-                // ===== CLIQUE NAS LINHAS PARA ABRIR FICHA (já existente) =====
-                function extrairDadosCliente(dados) {
-                    return {
-                        nome: dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '',
-                        cnpj: (dados['CPF/CGC'] || dados['CNPJ'] || dados['CGC'] || '').replace(/[^\d]/g, '')
-                    };
-                }
-
-                function abrirFicha(dados) {
-                    const { nome, cnpj } = extrairDadosCliente(dados);
-                    const nomeUpper = nome.toUpperCase().trim();
-                    const icones = {
-                        'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
-                        'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
-                        'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign', 'total bruto': 'fa-file-invoice-dollar',
-                        'total líquido': 'fa-hand-holding-usd', 'valor mercadoria': 'fa-tag', 'custo': 'fa-coins',
-                        'margem': 'fa-percent', 'depósito': 'fa-warehouse', 'país': 'fa-globe-americas',
-                        'moeda': 'fa-money-bill', '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
-                        'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
-                        'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
-                        'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
-                        'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
-                        'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
-                        'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
-                        'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
-                    };
-                    const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
-                    const linhas = Object.entries(dados).map(([chave, valor]) => {
-                        const chaveLower = chave.toLowerCase().trim();
-                        const icone = icones[chaveLower] || 'fa-file-alt';
-                        const isDestaque = camposDestaque.includes(chaveLower);
-                        const valorFormatado = valor || '—';
-                        return `<div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}"><i class="fas ${icone} ficha-icone"></i><div class="ficha-conteudo"><span class="ficha-label">${chave}</span><span class="ficha-valor">${valorFormatado}</span></div></div>`;
-                    }).join('');
-
-                    let botaoCadastro = '';
-                    if (nomeUpper || cnpj) {
-                        botaoCadastro = `<button onclick="window.abrirFichaCliente('${nomeUpper}', '${cnpj}')" style="background:var(--primary); color:white; padding:6px 16px; border-radius:40px; border:none; font-weight:600; cursor:pointer; font-size:0.8rem;"><i class="fas fa-id-card"></i> Ver Cadastro</button>`;
-                    }
-
-                    const html = `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
-                                    <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
-                                </h3>
-                            </div>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                ${botaoCadastro}
-                                <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">&times;</button>
-                            </div>
-                        </div>
-                        <div class="ficha-lista">${linhas}</div>
-                        <style>.ficha-lista{display:flex;flex-direction:column;gap:8px;}.ficha-item{display:flex;align-items:flex-start;gap:12px;padding:10px 12px;background:#f9fafb;border-radius:12px;border:1px solid #edf2f7;}.ficha-item-destaque{background:#f0fdf4;border-color:#bbf7d0;}.ficha-icone{color:var(--primary);font-size:1rem;width:20px;text-align:center;margin-top:2px;}.ficha-conteudo{flex:1;display:flex;flex-direction:column;gap:2px;}.ficha-label{font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;color:var(--muted);}.ficha-valor{font-size:0.95rem;font-weight:600;color:var(--text-dark);}.ficha-item-destaque .ficha-valor{font-size:1.05rem;color:var(--success);}</style>
-                    `;
-                    modalHistory = [{ html, titulo: 'Detalhes do Pedido' }];
-                    document.getElementById('modal-body').innerHTML = html;
-                    document.getElementById('detail-modal').classList.add('active');
-                }
-
-                const listas = { aprov, fat, cot, aprovfat: aprovFat };
-                document.querySelectorAll('#tabela-aprovados table tbody tr, #tabela-faturados table tbody tr, #tabela-aprovadosfaturados table tbody tr, #tabela-cotacoes table tbody tr').forEach(row => {
-                    row.addEventListener('click', function(e) {
-                        if (e.target.classList.contains('cliente-nome')) return;
-                        const idx = parseInt(this.dataset.idx);
-                        const tipo = this.dataset.tipo;
-                        const lista = listas[tipo];
-                        if (lista && lista[idx]) abrirFicha(lista[idx]);
                     });
                 });
 
@@ -1576,7 +1498,6 @@
                 }
                 document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
 
-                // Eventos badges e nomes
                 document.querySelectorAll('.group-badge').forEach(badge => {
                     badge.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -1595,6 +1516,8 @@
                 });
 
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
+                    // Fecha modal de detalhamento de KPI se estiver aberto
+                    document.getElementById('kpi-detail-modal').classList.remove('active');
                     mostrarLoadingModal();
                     setTimeout(() => {
                         let cliente = null;
