@@ -211,6 +211,9 @@
         tr.row-green td { background-color: var(--cotacao-green) !important; }
         tr.row-yellow td { background-color: var(--cotacao-yellow) !important; }
         tr.row-red td { background-color: var(--cotacao-red) !important; }
+        tr.carteira-row-green td { background-color: var(--cotacao-green) !important; }
+        tr.carteira-row-yellow td { background-color: var(--cotacao-yellow) !important; }
+        tr.carteira-row-red td { background-color: var(--cotacao-red) !important; }
         .badge-list { display: flex; flex-wrap: wrap; gap:6px; margin-bottom:12px; }
         .group-badge { padding:4px 10px; border-radius:14px; font-size:0.72rem; font-weight:600; border-left:4px solid; cursor: pointer; }
         .group-badge.green { border-color:var(--success); color:var(--success); background:rgba(46,125,50,0.08); }
@@ -229,6 +232,10 @@
             position: relative; transform: scale(0.9); transition: transform 0.3s ease;
         }
         .modal.active .modal-content { transform: scale(1); }
+        .modal-loading {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 200px; gap: 16px;
+        }
         .celebracao-content {
             text-align: center; background: linear-gradient(135deg, #ffd700, #ffb347);
             color: #1a1a1a; border-radius: 28px; padding: 32px;
@@ -260,10 +267,9 @@
         .footer-bottom { text-align: center; margin-top:20px; font-size:0.7rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; }
         #print-header { display: none; }
 
-        /* Tela de carregamento */
         .loading-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
+            background: rgba(255,255,255,0.6); backdrop-filter: blur(12px);
             z-index: 9999; display: flex; flex-direction: column;
             justify-content: center; align-items: center; gap: 20px;
             transition: opacity 0.3s;
@@ -271,7 +277,7 @@
         .loading-overlay.hidden { opacity: 0; pointer-events: none; }
         .loading-spinner {
             width: 60px; height: 60px;
-            border: 6px solid #e2e8f0;
+            border: 6px solid rgba(30,58,95,0.2);
             border-top: 6px solid var(--primary);
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -316,6 +322,9 @@
             tr.row-green td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.row-yellow td { background-color: #fff8e1 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.row-red td { background-color: #ffebee !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            tr.carteira-row-green td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            tr.carteira-row-yellow td { background-color: #fff8e1 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            tr.carteira-row-red td { background-color: #ffebee !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
         @media (max-width:1000px) {
             body { padding: 0 0 var(--bottom-bar-height) 0; }
@@ -553,16 +562,17 @@
         let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
         let BANNERS = [];
         let modalHistory = [];
-        let carteiraMapGlobal = new Map(); // para acesso rápido no botão "Ver Cadastro"
+        let carteiraMapGlobal = new Map();
 
-        // Elemento de loading
         const loadingOverlay = document.getElementById('loading-overlay');
-
-        // Função para mostrar/esconder loading
         function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
         function esconderLoading() { loadingOverlay.classList.add('hidden'); }
+        function mostrarLoadingModal() {
+            const modalBody = document.getElementById('modal-body');
+            modalBody.innerHTML = '<div class="modal-loading"><div class="loading-spinner"></div><p>Carregando...</p></div>';
+            document.getElementById('detail-modal').classList.add('active');
+        }
 
-        // Utilitários
         const cleanNumber = (v) => {
             if (v === null || v === undefined || v === '') return 0;
             if (typeof v === 'number') return v;
@@ -606,6 +616,7 @@
         const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
         async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
 
+        // Funções de notificações, carrossel, campanhas, etc. (mantidas na íntegra)
         async function carregarInfoAtualizacao() {
             try {
                 const info = await carregarJSON(BASES.informacoes);
@@ -802,19 +813,19 @@
             }
         }
 
-        // Função principal de renderização com retry
+        // Função principal com retry
         async function carregarDadosComRetry(selectedMonth, tentativas = 0) {
             mostrarLoading();
             try {
                 await renderAll(selectedMonth);
                 esconderLoading();
             } catch (e) {
-                console.error('Erro ao carregar dados:', e);
-                if (tentativas < 10) { // tenta até 10 vezes
-                    document.querySelector('.loading-text').textContent = `Erro ao carregar. Tentando novamente em 3s... (${tentativas+1}/10)`;
+                console.error(e);
+                if (tentativas < 10) {
+                    document.querySelector('.loading-text').textContent = `Erro. Tentando novamente em 3s... (${tentativas+1}/10)`;
                     setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 3000);
                 } else {
-                    loadingOverlay.innerHTML = '<div style="text-align:center;"><p>Falha ao carregar dados.</p><button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; border-radius:20px; background:var(--primary); color:white; border:none; cursor:pointer;">Tentar novamente</button></div>';
+                    loadingOverlay.innerHTML = '<div style="text-align:center;"><p>Falha ao carregar.</p><button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; border-radius:20px; background:var(--primary); color:white; border:none; cursor:pointer;">Tentar novamente</button></div>';
                 }
             }
         }
@@ -1030,7 +1041,6 @@
                 });
             });
 
-            // Função para extrair nome do cliente dos dados
             function extrairNomeCliente(dados) {
                 return dados['Cliente'] || dados['Nome Chave'] || dados['Razão Social'] || dados['Cliente'] || '';
             }
@@ -1110,7 +1120,6 @@
                     });
                 }
             });
-            // Atualiza mapa global para uso no botão "Ver Cadastro"
             carteiraMapGlobal = carteiraMap;
 
             const umAnoAtras = new Date(hojeRef);
@@ -1177,7 +1186,7 @@
             }
             document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
 
-            // Eventos badges
+            // Eventos badges e nomes (delegação)
             document.querySelectorAll('.group-badge').forEach(badge => {
                 badge.addEventListener('click', function(e) {
                     e.stopPropagation();
@@ -1188,7 +1197,6 @@
                 });
             });
 
-            // Eventos nomes clientes
             document.getElementById('carteira-detalhes').addEventListener('click', function(e) {
                 const cell = e.target.closest('.cliente-nome');
                 if (!cell) return;
@@ -1197,73 +1205,76 @@
             });
 
             window.abrirFichaCliente = function(nomeUpper) {
-                const cliente = carteiraMap.get(nomeUpper);
-                if (!cliente) {
-                    alert('Cliente não encontrado no cadastro.');
-                    return;
-                }
-                const palavras = nomeUpper.split(' ');
-                const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== nomeUpper && palavras.some(p => c.nome.toUpperCase().includes(p)));
+                mostrarLoadingModal();
+                setTimeout(() => {
+                    const cliente = carteiraMap.get(nomeUpper);
+                    if (!cliente) {
+                        document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado.</p>';
+                        return;
+                    }
+                    const palavras = nomeUpper.split(' ');
+                    const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== nomeUpper && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
-                let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                    <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
-                    <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>`;
+                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                        <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
+                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>`;
 
-                html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
-                html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
-                html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
-                html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
-                html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
-                html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
-                html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
-                html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
-                html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
-                html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
-                html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
-                html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
-                html += `</div></div>`;
+                    html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
+                    html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
+                    html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
+                    html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
+                    html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
+                    html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
+                    html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
+                    html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
+                    html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
+                    html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
+                    html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
+                    html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
+                    html += `</div></div>`;
 
-                html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
-                html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
-                html += fichaCampo('fa-home', 'Número', cliente['Número']);
-                html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
-                html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
-                html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
-                html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
-                html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
-                html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
-                html += `</div></div>`;
+                    html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
+                    html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
+                    html += fichaCampo('fa-home', 'Número', cliente['Número']);
+                    html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
+                    html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
+                    html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
+                    html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
+                    html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
+                    html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
+                    html += `</div></div>`;
 
-                html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
-                html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
-                html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
-                html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
-                html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
-                html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
-                html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
-                html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
-                html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
-                html += `</div></div>`;
+                    html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
+                    html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
+                    html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
+                    html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
+                    html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
+                    html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
+                    html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
+                    html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
+                    html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
+                    html += `</div></div>`;
 
-                const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
-                const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
-                html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
-                if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
-                if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
-                html += '</div>';
+                    const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+                    const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                    html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+                    if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                    if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                    html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
+                    html += '</div>';
 
-                if (similares.length > 0) {
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
-                    similares.forEach(s => {
-                        html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
-                    });
-                    html += '</div></div>';
-                }
+                    if (similares.length > 0) {
+                        html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras Filiais (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
+                        similares.forEach(s => {
+                            html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
+                        });
+                        html += '</div></div>';
+                    }
 
-                abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
+                    abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
+                }, 150);
             };
 
             function fichaCampo(icone, label, valor) {
@@ -1272,17 +1283,20 @@
             }
 
             function abrirModalGrupo(grupo, clientes) {
-                let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                    <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                    <h3 style="margin:0;"><i class="fas fa-building"></i> Grupo: ${grupo} (${clientes.length})</h3>
-                    <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                </div>`;
-                html += '<table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th></tr></thead><tbody>';
-                clientes.forEach(c => {
-                    html += `<tr><td style="cursor:pointer; color:var(--primary); font-weight:600;" onclick="window.abrirFichaCliente('${c.nomeUpper}')">${c.nome}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td></tr>`;
-                });
-                html += '</tbody></table>';
-                abrirModalConteudo(html, `Grupo: ${grupo}`);
+                mostrarLoadingModal();
+                setTimeout(() => {
+                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                        <h3 style="margin:0;"><i class="fas fa-building"></i> Grupo: ${grupo} (${clientes.length})</h3>
+                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>`;
+                    html += '<table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th></tr></thead><tbody>';
+                    clientes.forEach(c => {
+                        html += `<tr><td style="cursor:pointer; color:var(--primary); font-weight:600;" onclick="window.abrirFichaCliente('${c.nomeUpper}')">${c.nome}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td></tr>`;
+                    });
+                    html += '</tbody></table>';
+                    abrirModalConteudo(html, `Grupo: ${grupo}`);
+                }, 100);
             }
 
             window.voltarModal = voltarModal;
@@ -1344,10 +1358,7 @@
             atualizarBadgeNotificacoes();
             const hoje = new Date();
             currentMonth = formatMonthKey(hoje);
-
-            // Inicia carregamento com retry
             carregarDadosComRetry(currentMonth);
-
             renderCarrossel();
 
             document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
