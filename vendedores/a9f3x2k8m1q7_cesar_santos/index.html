@@ -630,7 +630,7 @@
     <div class="modal" id="celebracao-modal">
         <div class="modal-content celebracao-content" id="celebracao-body"></div>
     </div>
-    <!-- removido #kpi-detail-modal, agora usamos o #detail-modal com histórico -->
+    <div class="modal" id="kpi-detail-modal"><div class="modal-content" id="kpi-detail-body"></div></div>
 
     <script>
         (function() {
@@ -676,6 +676,7 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
+            let ultimoModalKpiHTML = null; // <-- NOVA VARIÁVEL GLOBAL
 
             // Variáveis globais para detalhamento dos KPIs
             let globalAprov = [];
@@ -917,7 +918,6 @@
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
             }
 
-            // ========== FUNÇÕES DE MODAL UNIFICADO COM HISTÓRICO ==========
             function abrirModalConteudo(html, titulo) {
                 modalHistory.push({ html, titulo });
                 document.getElementById('modal-body').innerHTML = html;
@@ -931,11 +931,24 @@
                     document.getElementById('modal-body').innerHTML = anterior.html;
                 } else {
                     document.getElementById('detail-modal').classList.remove('active');
+                    // Se existir um modal de KPI salvo, reabri-lo
+                    if (ultimoModalKpiHTML) {
+                        document.getElementById('kpi-detail-body').innerHTML = ultimoModalKpiHTML;
+                        document.getElementById('kpi-detail-modal').classList.add('active');
+                        const body = document.getElementById('kpi-detail-body');
+                        const searchInput = body.querySelector('.table-search-detail');
+                        if (searchInput) {
+                            searchInput.dispatchEvent(new Event('input')); // força recálculo
+                        }
+                        ultimoModalKpiHTML = null;
+                    }
                 }
             }
 
-            // ==================== DETALHAMENTO DE KPI (agora usa o modal unificado) ====================
+            // ==================== DETALHAMENTO DE KPI COM ORDEM DE COLUNAS PERSONALIZADA ====================
             window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
+                const modal = document.getElementById('kpi-detail-modal');
+                const body = document.getElementById('kpi-detail-body');
                 let titulo = '', dados = [], colunaTotal = '', colunas = [];
 
                 switch(tipo) {
@@ -949,7 +962,7 @@
                         titulo = `Pedidos Aprovados + Faturados (${monthLabel})`;
                         dados = globalAprovFat;
                         colunaTotal = 'Total Bruto';
-                        colunas = ['Data', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'];
+                        colunas = ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'];
                         break;
                     case 'itens':
                         titulo = `Itens Vendidos (${monthLabel})`;
@@ -978,21 +991,23 @@
                             htmlClientes += `<li style="padding:6px 0;border-bottom:1px solid #eee;cursor:pointer;color:var(--primary);font-weight:600;" onclick="window.abrirFichaCliente('${c.toUpperCase()}')">${c}</li>`;
                         });
                         htmlClientes += '</ul>';
-                        const html = `
+                        body.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                                 <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                                <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                             </div>
                             ${htmlClientes}
                         `;
-                        abrirModalConteudo(html, titulo);
+                        modal.classList.add('active');
+                        modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); ultimoModalKpiHTML = null; } });
                         return;
                     default:
-                        abrirModalConteudo('<p>Detalhamento não disponível.</p>', 'Erro');
+                        body.innerHTML = '<p>Detalhamento não disponível.</p>';
+                        modal.classList.add('active');
                         return;
                 }
 
-                // Gera tabela com colunas específicas (compacta)
+                // Gera tabela com colunas específicas – versão compacta
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1001,73 +1016,76 @@
                             ${colunaTotal ? `<span class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalInicial)}</span>` : ''}
                         </div>
                     </div>
-                    <div style="overflow-x:auto;">
-                        <table style="width:100%;font-size:0.7rem;border-collapse:collapse;">
-                        <thead><tr>${colunas.map(c => `<th style="padding:4px 4px;border-bottom:2px solid var(--line);text-align:left;white-space:nowrap;">${c}</th>`).join('')}</tr></thead><tbody>
+                    <div style="overflow-x:auto;"><table style="width:100%;font-size:0.68rem;border-collapse:collapse;white-space:nowrap;">
+                    <thead><tr>${colunas.map(c => `<th style="padding:4px 3px;border-bottom:2px solid var(--line);text-align:left;font-size:0.65rem;">${c}</th>`).join('')}</tr></thead><tbody>
                 `;
                 dados.slice(0, 200).forEach(row => {
                     tabelaHtml += `<tr>`;
                     colunas.forEach(c => {
                         const valor = row[c] || '';
                         const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:4px 2px;border-bottom:1px solid #f0f0f0;font-size:0.7rem;white-space:nowrap;">${valor}</td>`;
+                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
                     });
                     tabelaHtml += `</tr>`;
                 });
                 tabelaHtml += '</tbody></table></div>';
 
-                const htmlFinal = `
+                body.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                     </div>
                     ${tabelaHtml}
                 `;
 
-                abrirModalConteudo(htmlFinal, titulo);
-
                 // Evento de filtro com atualização do total
-                setTimeout(() => {
-                    const searchInput = document.querySelector('.modal.active .table-search-detail');
-                    if (searchInput) {
-                        searchInput.addEventListener('input', function() {
-                            const term = this.value.toLowerCase();
-                            const modalBody = this.closest('#modal-body');
-                            const table = modalBody.querySelector('table');
-                            if (!table) return;
-                            let totalFiltrado = 0;
-                            table.querySelectorAll('tbody tr').forEach(row => {
-                                const text = row.textContent.toLowerCase();
-                                const show = text.includes(term);
-                                row.style.display = show ? '' : 'none';
-                                if (show && colunaTotal) {
-                                    const idx = colunas.indexOf(colunaTotal);
-                                    if (idx !== -1) {
-                                        const cell = row.querySelectorAll('td')[idx];
-                                        if (cell) totalFiltrado += cleanNumber(cell.textContent);
-                                    }
+                const searchInput = body.querySelector('.table-search-detail');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        const table = body.querySelector('table');
+                        if (!table) return;
+                        let totalFiltrado = 0;
+                        table.querySelectorAll('tbody tr').forEach(row => {
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaTotal) {
+                                const idx = colunas.indexOf(colunaTotal);
+                                if (idx !== -1) {
+                                    const cell = row.querySelectorAll('td')[idx];
+                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
                                 }
-                            });
-                            const badge = modalBody.querySelector('.total-badge');
-                            if (badge && colunaTotal) {
-                                badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
                             }
                         });
-                    }
-
-                    // Evento de clique nos clientes dentro do modal
-                    document.querySelectorAll('.modal.active .cliente-nome').forEach(td => {
-                        td.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            const nomeCliente = this.dataset.cliente || this.textContent.trim();
-                            if (nomeCliente) {
-                                // Fecha o modal atual (será restaurado pelo histórico ao voltar)
-                                document.getElementById('detail-modal').classList.remove('active');
-                                window.abrirFichaCliente(nomeCliente.toUpperCase());
-                            }
-                        });
+                        const badge = body.querySelector('.total-badge');
+                        if (badge && colunaTotal) {
+                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                        }
                     });
-                }, 100);
+                }
+
+                // Clique nas linhas para abrir ficha do cliente (fecha modal de KPI antes, salvando o conteúdo)
+                body.querySelectorAll('.cliente-nome').forEach(td => {
+                    td.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
+                        if (nomeCliente) {
+                            // Salvar HTML antes de fechar
+                            const kpiModal = document.getElementById('kpi-detail-modal');
+                            if (kpiModal.classList.contains('active')) {
+                                ultimoModalKpiHTML = document.getElementById('kpi-detail-body').innerHTML;
+                            } else {
+                                ultimoModalKpiHTML = null;
+                            }
+                            kpiModal.classList.remove('active');
+                            window.abrirFichaCliente(nomeCliente.toUpperCase());
+                        }
+                    });
+                });
+
+                modal.classList.add('active');
+                modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); ultimoModalKpiHTML = null; } });
             };
 
             // ==================== CARD META DO TIME ====================
@@ -1170,8 +1188,8 @@
                     return acc + cleanNumber(item['Valor Mercadoria']);
                 }, 0);
 
-                // ===== CORREÇÃO: totalAprovFat deve ser a soma do Total Bruto da tabela aprovFat =====
-                const totalAprovFat = aprovFat.reduce((acc, row) => acc + cleanNumber(row['Total Bruto']), 0);
+                // CORREÇÃO: KPI Aprovados + Faturados usa apenas o Total Bruto da base unificada
+                const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
 
                 const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
                 const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
@@ -1215,11 +1233,101 @@
                 globalCot = cot;
                 globalAprovFat = aprovFat;
 
-                // ===== METAS & PERFORMANCE (mesmo código anterior) =====
-                // (mantido igual, não mexi)
-                // ... [código de metas e gráficos omitido para brevidade, mas presente no arquivo final]
-                // A partir daqui, o restante do código é idêntico ao original, com as correções de clique nas cotações e total dinâmico já aplicadas.
-                // Para não estender demais, vou incluir o código completo na resposta final.
+                // ===== METAS & PERFORMANCE =====
+                const today = new Date(); today.setHours(0,0,0,0);
+                let cutoffDate = new Date();
+                if (selectedMonth) {
+                    const [mesStr,anoStr] = selectedMonth.split('/');
+                    const mesesMap = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+                    const monthIdx = mesesMap[mesStr];
+                    const year = 2000+parseInt(anoStr);
+                    if (monthIdx!==undefined) cutoffDate = lastBusinessDayOfMonth(year,monthIdx);
+                }
+                const year = cutoffDate.getFullYear();
+                const startOfYear = firstBusinessDayOfMonth(year, 0);
+                const faturamentoAcumulado = fatFull.filter(item => {
+                    const d = parseDataBR(item['Data']);
+                    return d && d >= startOfYear && d <= cutoffDate;
+                }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
+
+                const metaMensal = cleanNumber(meta.meta_mensal);
+                const metaSemestral = cleanNumber(meta.meta_semestral);
+                const metaAnual = cleanNumber(meta.meta_anual);
+                const metaPlus = metaMensal*1.1;
+                const monthBound = getMonthBoundaries();
+                const daysPassedMonth = businessDaysPassed(monthBound.start);
+                const daysRemainingMonth = businessDaysRemaining(monthBound.end);
+                const totalDaysMonth = totalBusinessDays(monthBound.start,monthBound.end);
+                const percMonth = metaMensal>0?(totalFaturado/metaMensal)*100:0;
+                const remainingMonth = Math.max(0,metaMensal-totalFaturado);
+                const projectionMonth = (totalFaturado/Math.max(1,daysPassedMonth))*totalDaysMonth;
+                const statusMonth = percMonth >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
+                const percPlus = metaPlus>0?(totalFaturado/metaPlus)*100:0;
+                const remainingPlus = Math.max(0,metaPlus-totalFaturado);
+                const statusPlus = percPlus >= (daysPassedMonth/totalDaysMonth*0.95*100) ? 'on-track' : 'behind';
+                const semesterBound = getSemesterBoundaries();
+                const daysPassedSem = businessDaysPassed(semesterBound.start);
+                const daysRemainingSem = businessDaysRemaining(semesterBound.end);
+                const totalDaysSem = totalBusinessDays(semesterBound.start,semesterBound.end);
+                const percSem = metaSemestral>0?(faturamentoAcumulado/metaSemestral)*100:0;
+                const remainingSem = Math.max(0,metaSemestral-faturamentoAcumulado);
+                const projectionSem = (faturamentoAcumulado/Math.max(1,daysPassedSem))*totalDaysSem;
+                const statusSem = percSem >= (daysPassedSem/totalDaysSem*0.95*100) ? 'on-track' : 'behind';
+                const yearBound = getYearBoundaries();
+                const daysPassedYear = businessDaysPassed(yearBound.start);
+                const daysRemainingYear = businessDaysRemaining(yearBound.end);
+                const totalDaysYear = totalBusinessDays(yearBound.start,yearBound.end);
+                const percYear = metaAnual>0?(faturamentoAcumulado/metaAnual)*100:0;
+                const remainingYear = Math.max(0,metaAnual-faturamentoAcumulado);
+                const projectionYear = (faturamentoAcumulado/Math.max(1,daysPassedYear))*totalDaysYear;
+                const statusYear = percYear >= (daysPassedYear/totalDaysYear*0.95*100) ? 'on-track' : 'behind';
+
+                function criarMetaCard(titulo,metaValor,realizado,perc,restante,diasPass,diasRest,projecao,status,cor,icone,idCanvas) {
+                    const statusBadge = status==='on-track'?'<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>':'<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
+                    return `<div class="meta-card-full"><div class="meta-card-header"><div class="meta-card-title"><span class="dot" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:8px;"></span>${icone} ${titulo}</div>${statusBadge}</div><div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;"><div style="position:relative; width:90px; height:90px;"><canvas id="${idCanvas}" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${Math.min(perc,100).toFixed(1)}%</div></div><div style="flex:1;"><div style="font-size:0.85rem;"><strong>${formatarMoeda(realizado)}</strong> / ${formatarMoeda(metaValor)}</div><div class="meta-grid-stats"><span><strong>${formatarMoeda(restante)}</strong><br>Faltante</span><span><strong>${diasPass}</strong><br>Dias úteis passados</span><span><strong>${diasRest}</strong><br>Dias úteis restantes</span><span><strong>${formatarMoeda(projecao)}</strong><br>Projeção</span></div></div></div></div>`;
+                }
+                let metasHTML = '';
+                metasHTML += criarMetaCard('Meta Mensal',metaMensal,totalFaturado,percMonth,remainingMonth,daysPassedMonth,daysRemainingMonth,projectionMonth,statusMonth,'#2e7d32','<i class="fas fa-calendar-check"></i>','meta-mensal-chart');
+                metasHTML += criarMetaCard('Meta Plus (110%)',metaPlus,totalFaturado,percPlus,remainingPlus,daysPassedMonth,daysRemainingMonth,projectionMonth,statusPlus,'#f59e0b','<i class="fas fa-star"></i>','meta-plus-chart');
+                metasHTML += criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoAcumulado,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart');
+                metasHTML += criarMetaCard('Meta Anual',metaAnual,faturamentoAcumulado,percYear,remainingYear,daysPassedYear,daysRemainingYear,projectionYear,statusYear,'#2563eb','<i class="fas fa-calendar-alt"></i>','meta-anual-chart');
+                document.getElementById('metas-container').innerHTML = metasHTML;
+
+                setTimeout(() => {
+                    criarDoughnut('meta-mensal-chart', percMonth, '#2e7d32');
+                    criarDoughnut('meta-plus-chart', percPlus, '#f59e0b');
+                    criarDoughnut('meta-semestral-chart', percSem, '#ea580c');
+                    criarDoughnut('meta-anual-chart', percYear, '#2563eb');
+                }, 0);
+
+                const conquistasMetas = [];
+                const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
+                const semestre = today.getMonth() < 6 ? 1 : 2;
+                if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
+                if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
+                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
+                if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
+
+                const evoMap = {};
+                aprov.forEach(p => { const chave = p['Competência']||p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Total Bruto']); });
+                fat.forEach(p => { const chave = p['Data']||''; evoMap[chave] = (evoMap[chave]||0)+cleanNumber(p['Valor Mercadoria']); });
+                const chavesOrdenadas = Object.keys(evoMap).sort((a,b) => (parseDataBR(a)||0) - (parseDataBR(b)||0));
+                const valores = chavesOrdenadas.map(k => evoMap[k]);
+                if (chartInstance) chartInstance.destroy();
+                const ctx = document.getElementById('chart-faturamento').getContext('2d');
+                chartInstance = new Chart(ctx, {
+                    type: 'line',
+                    data: { labels: chavesOrdenadas, datasets: [{ label: 'Faturamento', data: valores, borderColor: '#1e3a5f', backgroundColor: 'rgba(30,58,95,0.08)', fill: true, tension: 0.4 }] },
+                    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => 'R$ '+(v/1000).toFixed(0)+'k' } } } }
+                });
+
+                const clienteFat = {};
+                aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']]||0)+cleanNumber(p['Total Bruto']));
+                fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']]||0)+cleanNumber(p['Valor Mercadoria']));
+                const topClientes = Object.entries(clienteFat).sort((a,b)=>b[1]-a[1]).slice(0,5);
+                document.getElementById('top-clientes-container').innerHTML = `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
+                const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
+                document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
 
                 // ===== TABELAS PRINCIPAIS COM TOTAL DINÂMICO =====
                 function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
@@ -1236,11 +1344,12 @@
                     `;
                     dados.slice(0,400).forEach((r,idx) => {
                         let extraClass = rowClassFn ? rowClassFn(r) : '';
+                        // INCLUI "Razão Social" como coluna cliente para tabela de cotações
+                        const colunaCliente = colunas.find(c => c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
                         html += `<tr data-idx="${idx}" data-tipo="${tipo}" class="${extraClass}">`;
                         colunas.forEach(c => {
                             const valor = r[c] || '';
-                            // Identifica a coluna que contém o nome do cliente
-                            const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+                            const isCliente = c === colunaCliente;
                             html += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
                         });
                         html += '</tr>';
@@ -1271,7 +1380,7 @@
                 }
                 document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
 
-                // Filtro com atualização do total (já existente, mas reforçado)
+                // Filtro com atualização do total (dinâmico, igual aos detalhamentos)
                 document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
                     input.addEventListener('input', function() {
                         const term = this.value.toLowerCase();
@@ -1302,7 +1411,7 @@
                     });
                 });
 
-                // Clique no nome do cliente nas tabelas principais (incluindo cotações)
+                // Clique no nome do cliente nas tabelas principais
                 document.querySelectorAll('.cliente-nome').forEach(td => {
                     td.addEventListener('click', function(e) {
                         e.stopPropagation();
@@ -1313,19 +1422,260 @@
                     });
                 });
 
-                // ===== O RESTANTE DO CÓDIGO (carteira, etc.) é idêntico ao original =====
-                // (mantido por questões de espaço, mas presente no arquivo final)
-                // ...
+                // ===== CARTEIRA DE CLIENTES =====
+                const interacoesGlobais = new Map();
+                const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
+                    lista.forEach(item => {
+                        const nome = (item[campoNome] || '').toUpperCase().trim();
+                        if (!nome) return;
+                        const d = parseDataBR(item[campoData]);
+                        if (!d) return;
+                        const vendedor = String(item[campoVendedor] || '').trim();
+                        if (!interacoesGlobais.has(nome) || d > interacoesGlobais.get(nome).data) {
+                            interacoesGlobais.set(nome, { data: d, vendedor });
+                        }
+                    });
+                };
+                registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
+                registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
-                // ===== FINALIZAÇÃO =====
+                const carteiraMap = new Map();
+                carteiraFull.forEach(cli => {
+                    const nome = (cli['Nome Chave'] || '').trim();
+                    const nomeUpper = nome.toUpperCase();
+                    if (nomeUpper && !carteiraMap.has(nomeUpper)) {
+                        carteiraMap.set(nomeUpper, {
+                            ...cli,
+                            nome: nome,
+                            cidade: cli['Cidade'] || '',
+                            uf: cli['UF'] || '',
+                            ativo: (cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+                            cadastrado: true
+                        });
+                    }
+                });
+                carteiraMapGlobal = carteiraMap;
+
+                const umAnoAtras = new Date(hojeRef);
+                umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
+                interacoesGlobais.forEach((info, nome) => {
+                    if (carteiraMap.has(nome)) return;
+                    if (info.data < umAnoAtras) return;
+                    const vendedorInteracao = info.vendedor;
+                    const isVendedorAtual = (vendedorInteracao === codVendedor) || (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+                    if (isVendedorAtual) {
+                        carteiraMap.set(nome, { nome: nome, cidade: '', uf: '', ativo: true, cadastrado: false });
+                    }
+                });
+
+                const clientesStatus = Array.from(carteiraMap, ([nomeUpper, dados]) => {
+                    const ultima = interacoesGlobais.get(nomeUpper)?.data || null;
+                    let status = 'red';
+                    let ultimaStr = 'Sem Interação';
+                    if (ultima) {
+                        const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
+                        ultimaStr = formatarData(ultima);
+                        if (dias <= 30) status = 'green';
+                        else if (dias <= 90) status = 'yellow';
+                    }
+                    return { nome: dados.nome || nomeUpper, status, ultima: ultimaStr, cidade: dados.cidade, uf: dados.uf, ativo: dados.ativo, cadastrado: dados.cadastrado, original: dados, nomeUpper };
+                });
+
+                const totalFiliais = clientesStatus.length;
+                const ativosCount = clientesStatus.filter(c => c.ativo).length;
+                const ufSet = new Set(clientesStatus.map(c => c.uf).filter(Boolean));
+                const cidadeSet = new Set(clientesStatus.map(c => c.cidade).filter(Boolean));
+                document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(120px,1fr)); gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ativosCount}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${ufSet.size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${cidadeSet.size}</strong><br>Cidades</div></div>`;
+
+                const contagem = { green: 0, yellow: 0, red: 0 };
+                const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
+                clientesStatus.forEach(c => {
+                    contagem[c.status]++;
+                    const key = c.nome.split(' ')[0].toUpperCase();
+                    if (!grupos[c.status].has(key)) grupos[c.status].set(key, []);
+                    grupos[c.status].get(key).push(c);
+                });
+                const percCont = (c) => totalFiliais ? ((c / totalFiliais) * 100).toFixed(1) : 0;
+                document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:14px;"><div><strong>${percCont(contagem.green)}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${percCont(contagem.yellow)}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${percCont(contagem.red)}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
+
+                function gerarTabelaClientes(status) {
+                    const filtrados = clientesStatus.filter(c => c.status === status).sort((a, b) => a.nome.localeCompare(b.nome));
+                    if (!filtrados.length) return '';
+                    let badgesHtml = '';
+                    grupos[status].forEach((clientes, key) => {
+                        badgesHtml += `<span class="group-badge ${status}" data-grupo="${key}" data-status="${status}">${key} (${clientes.length})</span>`;
+                    });
+                    return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status === 'green' ? 'success' : status === 'yellow' ? 'warning' : 'danger'});">${status === 'green' ? '🟢 Verdes' : status === 'yellow' ? '🟡 Amarelos' : '🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${badgesHtml}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => {
+                        let statusExtra = '';
+                        if (!c.cadastrado) {
+                            const ultimaData = interacoesGlobais.get(c.nomeUpper)?.data;
+                            if (ultimaData) {
+                                const diasDesdeUltima = Math.floor((today - ultimaData) / (1000 * 60 * 60 * 24));
+                                if (diasDesdeUltima <= 30) statusExtra = '<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>';
+                                else statusExtra = '<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>';
+                            }
+                        }
+                        return `<tr class="carteira-row-${c.status}"><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer; color:var(--primary); font-weight:600;">${c.nome} ${statusExtra}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td><td>${c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`;
+                    }).join('')}</tbody></table></div></div>`;
+                }
+                document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
+
+                document.querySelectorAll('.group-badge').forEach(badge => {
+                    badge.addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        const grupo = this.dataset.grupo;
+                        const status = this.dataset.status;
+                        const clientesDoGrupo = grupos[status].get(grupo) || [];
+                        abrirModalGrupo(grupo, clientesDoGrupo);
+                    });
+                });
+
+                document.getElementById('carteira-detalhes').addEventListener('click', function(e) {
+                    const cell = e.target.closest('.cliente-nome');
+                    if (!cell) return;
+                    const nomeUpper = cell.dataset.nome;
+                    if (nomeUpper) window.abrirFichaCliente(nomeUpper);
+                });
+
+                window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
+                    // Fecha modal de detalhamento de KPI se estiver aberto, salvando seu HTML
+                    const kpiModal = document.getElementById('kpi-detail-modal');
+                    if (kpiModal.classList.contains('active')) {
+                        ultimoModalKpiHTML = document.getElementById('kpi-detail-body').innerHTML;
+                    } else {
+                        ultimoModalKpiHTML = null;
+                    }
+                    kpiModal.classList.remove('active');
+                    mostrarLoadingModal();
+                    setTimeout(() => {
+                        let cliente = null;
+                        cliente = carteiraMap.get(nomeUpper);
+                        if (!cliente && cnpj && cnpj.length >= 11) {
+                            for (let [key, val] of carteiraMap.entries()) {
+                                const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
+                                if (cnpjCad === cnpj) { cliente = val; break; }
+                            }
+                        }
+                        if (!cliente && nomeUpper) {
+                            const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
+                            for (let [key, val] of carteiraMap.entries()) {
+                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
+                            }
+                        }
+                        if (!cliente) {
+                            document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
+                            return;
+                        }
+                        const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
+                        const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
+
+                        let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                            <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                        </div>`;
+
+                        html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
+                        html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
+                        html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
+                        html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
+                        html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
+                        html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
+                        html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
+                        html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
+                        html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
+                        html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
+                        html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
+                        html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
+                        html += `</div></div>`;
+
+                        html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
+                        html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
+                        html += fichaCampo('fa-home', 'Número', cliente['Número']);
+                        html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
+                        html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
+                        html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
+                        html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
+                        html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
+                        html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
+                        html += `</div></div>`;
+
+                        html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
+                        html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
+                        html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
+                        html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
+                        html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
+                        html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
+                        html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
+                        html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
+                        html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
+                        html += `</div></div>`;
+
+                        const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+                        const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                        html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+                        if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                        if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                        html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
+                        html += '</div>';
+
+                        if (similares.length > 0) {
+                            html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Empresas Relacionadas (ou outras filiais) (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
+                            similares.forEach(s => {
+                                html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
+                            });
+                            html += '</div></div>';
+                        }
+
+                        abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
+                    }, 150);
+                };
+
+                function fichaCampo(icone, label, valor) {
+                    const val = valor || '—';
+                    return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
+                }
+
+                function abrirModalGrupo(grupo, clientes) {
+                    mostrarLoadingModal();
+                    setTimeout(() => {
+                        let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+                            <h3 style="margin:0;"><i class="fas fa-building"></i> Grupo: ${grupo} (${clientes.length})</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                        </div>`;
+                        html += '<table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th></tr></thead><tbody>';
+                        clientes.forEach(c => {
+                            html += `<tr><td style="cursor:pointer; color:var(--primary); font-weight:600;" onclick="window.abrirFichaCliente('${c.nomeUpper}')">${c.nome}</td><td>${c.cidade || '—'}</td><td>${c.uf || '—'}</td><td>${c.ultima}</td></tr>`;
+                        });
+                        html += '</tbody></table>';
+                        abrirModalConteudo(html, `Grupo: ${grupo}`);
+                    }, 100);
+                }
+
+                window.voltarModal = voltarModal;
+
+                window.copiarDadosCliente = function(nomeUpper) {
+                    const cliente = carteiraMap.get(nomeUpper);
+                    if (!cliente) return;
+                    let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
+                    texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
+                    texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
+                    texto += `Ramo: ${cliente['Ramo'] || '—'}\nSituação: ${cliente['ATivo/Inativo'] || '—'}\nDt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
+                    texto += `ENDEREÇO\n─────────────────────────────────\nEndereço: ${cliente['Endereço'] || '—'}\nNúmero: ${cliente['Número'] || '—'}\n`;
+                    texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
+                    texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
+                    texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                    navigator.clipboard.writeText(texto).then(() => alert('Dados copiados!')).catch(() => prompt('Copie manualmente:', texto));
+                };
+
                 const conquistasCampanhas = await renderizarCampanhasEspeciais();
                 const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
                 if (todasConquistas.length > 0) setTimeout(() => mostrarCelebracao(todasConquistas), 500);
 
-                // Renderiza meses
                 const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-                const anoAtual = hojeRef.getFullYear();
-                const mesAtualIdx = hojeRef.getMonth();
+                const anoAtual = today.getFullYear();
+                const mesAtualIdx = today.getMonth();
                 const gridMeses = document.getElementById('month-grid');
                 let htmlMeses = '';
                 for (let i=0;i<12;i++) {
@@ -1342,118 +1692,6 @@
                 }));
             }
 
-            // ========== FUNÇÃO ABRIR FICHA CLIENTE (com suporte ao histórico) ==========
-            window.abrirFichaCliente = function(nomeUpper, cnpj = '') {
-                // Fecha o modal atual (será restaurado pelo histórico ao voltar)
-                document.getElementById('detail-modal').classList.remove('active');
-                mostrarLoadingModal();
-                setTimeout(() => {
-                    let cliente = null;
-                    cliente = carteiraMapGlobal.get(nomeUpper);
-                    if (!cliente && cnpj && cnpj.length >= 11) {
-                        for (let [key, val] of carteiraMapGlobal.entries()) {
-                            const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
-                            if (cnpjCad === cnpj) { cliente = val; break; }
-                        }
-                    }
-                    if (!cliente && nomeUpper) {
-                        const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
-                        for (let [key, val] of carteiraMapGlobal.entries()) {
-                            if (palavras.some(p => key.includes(p))) { cliente = val; break; }
-                        }
-                    }
-                    if (!cliente) {
-                        document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
-                        document.getElementById('detail-modal').classList.add('active');
-                        return;
-                    }
-                    const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
-                    const similares = Array.from(carteiraMapGlobal.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
-
-                    let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                        <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
-                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[];" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                    </div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
-                    html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
-                    html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
-                    html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
-                    html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
-                    html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
-                    html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
-                    html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
-                    html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
-                    html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
-                    html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
-                    html += `</div></div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
-                    html += fichaCampo('fa-home', 'Número', cliente['Número']);
-                    html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
-                    html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
-                    html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
-                    html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
-                    html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
-                    html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
-                    html += `</div></div>`;
-
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
-                    html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
-                    html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
-                    html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
-                    html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
-                    html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
-                    html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
-                    html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
-                    html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
-                    html += `</div></div>`;
-
-                    const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
-                    const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
-                    html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
-                    if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
-                    if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                    html += `<button onclick="window.copiarDadosCliente('${nomeUpper}')" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados</button>`;
-                    html += '</div>';
-
-                    if (similares.length > 0) {
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Empresas Relacionadas (ou outras filiais) (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
-                        similares.forEach(s => {
-                            html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
-                        });
-                        html += '</div></div>';
-                    }
-
-                    abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
-                }, 150);
-            };
-
-            function fichaCampo(icone, label, valor) {
-                const val = valor || '—';
-                return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
-            }
-
-            window.copiarDadosCliente = function(nomeUpper) {
-                const cliente = carteiraMapGlobal.get(nomeUpper);
-                if (!cliente) return;
-                let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
-                texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
-                texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
-                texto += `Ramo: ${cliente['Ramo'] || '—'}\nSituação: ${cliente['ATivo/Inativo'] || '—'}\nDt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
-                texto += `ENDEREÇO\n─────────────────────────────────\nEndereço: ${cliente['Endereço'] || '—'}\nNúmero: ${cliente['Número'] || '—'}\n`;
-                texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
-                texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
-                texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
-                navigator.clipboard.writeText(texto).then(() => alert('Dados copiados!')).catch(() => prompt('Copie manualmente:', texto));
-            };
-
-            window.voltarModal = voltarModal;
-
-            // ========== FUNÇÕES AUXILIARES (criarDoughnut, gerarPDF, etc.) ==========
             function criarDoughnut(id, percent, color) {
                 const canvas = document.getElementById(id);
                 if (!canvas) return;
@@ -1483,7 +1721,6 @@
                 }
             }
 
-            // ========== INIT ==========
             async function init() {
                 carregarInfoAtualizacao();
                 await carregarBanners();
@@ -1501,7 +1738,7 @@
                 document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
                 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
                 document.querySelector('.home-btn').addEventListener('click', () => window.location.href='./index.html');
-                document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this) { this.classList.remove('active'); modalHistory=[]; } });
+                document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this) { this.classList.remove('active'); modalHistory=[]; ultimoModalKpiHTML=null; } });
                 document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target===this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
                 document.getElementById('hamburger-btn').addEventListener('click', () => { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow='hidden'; });
                 const closeHamburger = () => { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
@@ -1523,6 +1760,13 @@
                     if (activeEl) activeEl.classList.add('active');
                 }
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                        ultimoModalKpiHTML = null;
+                    }
+                });
             }
             init();
         })();
