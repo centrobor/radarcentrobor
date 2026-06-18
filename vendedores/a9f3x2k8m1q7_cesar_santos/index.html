@@ -274,6 +274,19 @@
         td.cliente-nome:hover {
             text-decoration: underline;
         }
+        /* Linhas clicáveis das tabelas principais */
+        .table-wrapper tr[data-row] {
+            cursor: pointer;
+        }
+        .table-wrapper tr[data-row]:hover td {
+            background: rgba(200,220,240,0.3) !important;
+        }
+        /* Destaque para linhas importantes na ficha do pedido */
+        .row-importante td {
+            background-color: #e8f5e9 !important;
+            font-weight: 700;
+            color: #1b5e20;
+        }
         tr.row-green td { background-color: var(--cotacao-green) !important; }
         tr.row-yellow td { background-color: var(--cotacao-yellow) !important; }
         tr.row-red td { background-color: var(--cotacao-red) !important; }
@@ -448,6 +461,7 @@
             tr.carteira-row-green td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.carteira-row-yellow td { background-color: #fff8e1 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             tr.carteira-row-red td { background-color: #ffebee !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .row-importante td { background-color: #e8f5e9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; font-weight: 700; }
         }
         @media (max-width:1000px) {
             body { padding: 0 0 var(--bottom-bar-height) 0; }
@@ -689,21 +703,19 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
-            let ultimoModalKpiHTML = null; // Objeto { html, colunas, colunaTotal }
+            let ultimoModalKpiHTML = null;
 
-            // Variáveis globais para detalhamento dos KPIs
             let globalAprov = [];
             let globalFat = [];
             let globalCot = [];
             let globalAprovFat = [];
             let globalMetaMensal = 0;
 
-            // Serão definidas em abrirDetalhamentoKPI
             window._kpiColunas = null;
             window._kpiColunaTotal = null;
-            window._kpiModalStack = []; // Pilha para restaurar modais de KPI
-            window.fichaPedidoData = null; // Dados da linha atual
-            window.clienteFichaAtual = null; // Cliente atualmente aberto na ficha
+            window._kpiModalStack = [];
+            window.fichaPedidoData = null;
+            window.clienteFichaAtual = null;
 
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -757,7 +769,7 @@
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
 
-            // ==================== NOTIFICAÇÕES, CARROSSEL, CAMPANHAS ====================
+            // ==================== NOTIFICAÇÕES, CARROSSEL, CAMPANHAS (inalterado) ====================
             async function carregarInfoAtualizacao() {
                 try {
                     const info = await carregarJSON(BASES.informacoes);
@@ -970,35 +982,30 @@
                         }
                     });
                 }
-                body.querySelectorAll('.cliente-nome').forEach(td => {
-                    td.addEventListener('click', function(e) {
-                        e.stopPropagation();
-                        const nomeCliente = this.dataset.cliente || this.textContent.trim();
-                        const row = this.closest('tr');
-                        let pedidoData = null;
-                        if (row && row.dataset.row) {
-                            try {
-                                pedidoData = JSON.parse(row.dataset.row.replace(/&quot;/g, '"'));
-                            } catch (err) { /* ignora */ }
-                        }
-                        if (nomeCliente) {
-                            const kpiModal = document.getElementById('kpi-detail-modal');
-                            if (kpiModal.classList.contains('active')) {
-                                window._kpiModalStack.push({
-                                    html: document.getElementById('kpi-detail-body').innerHTML,
-                                    colunas: colunas,
-                                    colunaTotal: colunaTotal
-                                });
-                                kpiModal.classList.remove('active');
-                            }
-                            window.abrirFichaCliente(nomeCliente.toUpperCase(), '', pedidoData);
-                        }
-                    });
+
+                // Clique na linha inteira do modal de KPI para abrir ficha do cliente
+                body.addEventListener('click', function(e) {
+                    const tr = e.target.closest('tr[data-row]');
+                    if (!tr) return;
+                    if (e.target.closest('input, button, a, .table-search-detail')) return;
+                    let rowData;
+                    try {
+                        rowData = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"'));
+                    } catch (err) { return; }
+                    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
+                    if (nomeCliente) {
+                        window._kpiModalStack.push({
+                            html: body.innerHTML,
+                            colunas: colunas,
+                            colunaTotal: colunaTotal
+                        });
+                        document.getElementById('kpi-detail-modal').classList.remove('active');
+                        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
+                    }
                 });
             }
 
             function voltarModal() {
-                // Se houver estado salvo do modal de KPI, restaura-o
                 if (window._kpiModalStack.length > 0) {
                     const state = window._kpiModalStack.pop();
                     document.getElementById('detail-modal').classList.remove('active');
@@ -1134,7 +1141,6 @@
                 const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
                 const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
                 const kpiRow = document.getElementById('kpi-cards');
-                // Adicionada classe meta-time-card para destaque
                 const cardHTML = `
                     <div class="mini-card-kpi meta-time-card" style="cursor:default;">
                         <div class="kpi-icon"><i class="fas fa-users"></i></div>
@@ -1407,7 +1413,7 @@
                 }
                 document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
 
-                // Filtro dinâmico com total corrigido para todas as tabelas principais
+                // Filtro dinâmico com total corrigido
                 document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
                     input.addEventListener('input', function() {
                         const term = this.value.toLowerCase();
@@ -1442,26 +1448,27 @@
                     });
                 });
 
-                // Listener para linhas das tabelas principais
-                function adicionarListenersTabelas() {
-                    document.querySelectorAll('.cliente-nome').forEach(td => {
-                        td.addEventListener('click', function(e) {
-                            e.stopPropagation();
-                            const nomeCliente = this.dataset.cliente || this.textContent.trim();
-                            const row = this.closest('tr');
-                            let pedidoData = null;
-                            if (row && row.dataset.row) {
-                                try {
-                                    pedidoData = JSON.parse(row.dataset.row.replace(/&quot;/g, '"'));
-                                } catch (err) { /* ignora */ }
-                            }
-                            if (nomeCliente) window.abrirFichaCliente(nomeCliente.toUpperCase(), '', pedidoData);
-                        });
+                // NOVO: Listener de clique nas linhas das tabelas principais (qualquer parte da linha)
+                document.querySelectorAll('.table-wrapper').forEach(wrapper => {
+                    wrapper.addEventListener('click', function(e) {
+                        const tr = e.target.closest('tr[data-row]');
+                        if (!tr) return;
+                        if (e.target.closest('input, button, a, .table-search')) return;
+                        let rowData;
+                        try {
+                            rowData = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"'));
+                        } catch (err) { return; }
+                        const tipo = tr.dataset.tipo;
+                        let nomeCliente = '';
+                        if (tipo === 'aprov') nomeCliente = rowData['Cliente'] || '';
+                        else if (tipo === 'fat') nomeCliente = rowData['Nome Chave'] || '';
+                        else if (tipo === 'aprovfat') nomeCliente = rowData['Cliente'] || '';
+                        else if (tipo === 'cot') nomeCliente = rowData['Razão Social'] || '';
+                        if (nomeCliente) window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
                     });
-                }
-                adicionarListenersTabelas();
+                });
 
-                // Carteira de clientes (mantida)
+                // Carteira de clientes
                 const interacoesGlobais = new Map();
                 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
                     lista.forEach(item => {
@@ -1576,7 +1583,7 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // abrirFichaCliente ajustado para receber pedidoData e incluir botão de cópia
+                // ==================== FICHA DO CLIENTE (COM DESTAQUE VERDE NOS CAMPOS DE VALOR) ====================
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
@@ -1608,7 +1615,6 @@
                             document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
                             return;
                         }
-                        // 🔧 Armazena o cliente encontrado para uso posterior nos botões de cópia
                         window.clienteFichaAtual = cliente;
 
                         const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
@@ -1656,11 +1662,14 @@
                         html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
                         html += `</div></div>`;
 
+                        // Seção de detalhes do pedido com destaque verde nos campos de valor
                         if (pedidoData) {
+                            const camposImportantes = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
                             html += '<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>';
                             html += '<table style="font-size:0.75rem;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>';
                             Object.keys(pedidoData).forEach(key => {
-                                html += `<tr><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                                const classe = camposImportantes.includes(key) ? ' class="row-importante"' : '';
+                                html += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
                             });
                             html += '</tbody></table></div>';
                         }
@@ -1670,7 +1679,6 @@
                         html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
                         if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
                         if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                        // 🔧 Botões de cópia sem o parâmetro nomeUpper
                         if (pedidoData) {
                             html += `<button onclick="window.copiarDadosCliente(true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
                         }
@@ -1711,7 +1719,6 @@
                     }, 100);
                 }
 
-                // 🔧 Função de cópia corrigida (usa clienteFichaAtual e feedback visual)
                 window.copiarDadosCliente = function(incluirPedido = false) {
                     const cliente = window.clienteFichaAtual;
                     if (!cliente) {
@@ -1735,7 +1742,6 @@
                         });
                     }
 
-                    // Feedback visual amigável
                     navigator.clipboard.writeText(texto)
                         .then(() => {
                             const toast = document.createElement('div');
@@ -1745,7 +1751,6 @@
                             setTimeout(() => toast.remove(), 2000);
                         })
                         .catch(() => {
-                            // Fallback: exibe o texto para cópia manual
                             const textarea = document.createElement('textarea');
                             textarea.value = texto;
                             textarea.style.position = 'fixed';
