@@ -728,13 +728,18 @@
             const businessDaysRemaining = (endDate) => { const today=new Date(); today.setHours(0,0,0,0); if(today>endDate) return 0; return businessDaysBetween(today,endDate); };
             const businessDaysPassed = (startDate) => { const today=new Date(); today.setHours(23,59,59,999); if(today<startDate) return 0; return businessDaysBetween(startDate,today); };
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
-            async function carregarJSON(url, timeoutMs = 12000) {
+            async function carregarJSON(url, timeoutMs = 30000) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     try {
         const resp = await fetch(url, { signal: controller.signal });
         if (!resp.ok) throw new Error(`Erro ${resp.status}`);
         return await resp.json();
+    } catch (e) {
+        if (e.name === 'AbortError') {
+            throw new Error('Tempo esgotado para carregar ' + url);
+        }
+        throw e;
     } finally {
         clearTimeout(timeoutId);
     }
@@ -1813,23 +1818,21 @@
             }
 
             async function carregarDadosComRetry(selectedMonth, tentativas = 0) {
-                mostrarLoading();
-                try {
-                    await renderAll(selectedMonth);
-                    esconderLoading();
-                } catch (e) {
-                    console.error(e);
-                    if (tentativas < 3) {
-                        const loadingText = document.querySelector('.loading-text');
-                        if (loadingText) loadingText.textContent = `Erro. Tentando novamente... (${tentativas + 1}/3)`;
-                        setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 3000);
-                    } else {
-                        if (loadingOverlay) {
-                            loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;"><p>❌ Falha ao carregar dados.</p><button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
-                        }
-                    }
-                }
-            }
+    mostrarLoading();
+    try {
+        await renderAll(selectedMonth);
+        esconderLoading();
+    } catch (e) {
+        console.error(e);
+        if (tentativas < 5) {
+            document.querySelector('.loading-text').textContent = 
+                `Problemas na conexão. Tentando novamente... (${tentativas + 1}/5)`;
+            setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 5000);
+        } else {
+            loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;">❌ Falha ao carregar dados.<button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
+        }
+    }
+}
 
             async function init() {
                 carregarInfoAtualizacao();
