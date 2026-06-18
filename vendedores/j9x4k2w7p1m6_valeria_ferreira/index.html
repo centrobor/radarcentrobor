@@ -657,7 +657,7 @@
                         if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
                             loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;"><p>⚠️ Tempo esgotado. Verifique sua conexão.</p><button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
                         }
-                    }, 15000);
+                    }, 30000);
                 }
             }
 
@@ -676,6 +676,13 @@
                     const modal = $('#detail-modal');
                     if (modal) modal.classList.add('active');
                 }
+            }
+
+            // ==================== FUNÇÃO carregarJSON CORRIGIDA (sem timeout) ====================
+            async function carregarJSON(url) {
+                const resp = await fetch(url);
+                if (!resp.ok) throw new Error(`Erro ${resp.status}`);
+                return resp.json();
             }
 
             const cleanNumber = (v) => {
@@ -728,22 +735,6 @@
             const businessDaysRemaining = (endDate) => { const today=new Date(); today.setHours(0,0,0,0); if(today>endDate) return 0; return businessDaysBetween(today,endDate); };
             const businessDaysPassed = (startDate) => { const today=new Date(); today.setHours(23,59,59,999); if(today<startDate) return 0; return businessDaysBetween(startDate,today); };
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
-            async function carregarJSON(url, timeoutMs = 30000) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-        const resp = await fetch(url, { signal: controller.signal });
-        if (!resp.ok) throw new Error(`Erro ${resp.status}`);
-        return await resp.json();
-    } catch (e) {
-        if (e.name === 'AbortError') {
-            throw new Error('Tempo esgotado para carregar ' + url);
-        }
-        throw e;
-    } finally {
-        clearTimeout(timeoutId);
-    }
-}
 
             // ==================== INFORMAÇÕES, BANNERS, NOTIFICAÇÕES ====================
             async function carregarInfoAtualizacao() {
@@ -1818,21 +1809,21 @@
             }
 
             async function carregarDadosComRetry(selectedMonth, tentativas = 0) {
-    mostrarLoading();
-    try {
-        await renderAll(selectedMonth);
-        esconderLoading();
-    } catch (e) {
-        console.error(e);
-        if (tentativas < 5) {
-            document.querySelector('.loading-text').textContent = 
-                `Problemas na conexão. Tentando novamente... (${tentativas + 1}/5)`;
-            setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 5000);
-        } else {
-            loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;">❌ Falha ao carregar dados.<button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
-        }
-    }
-}
+                mostrarLoading();
+                try {
+                    await renderAll(selectedMonth);
+                    esconderLoading();
+                } catch (e) {
+                    console.error(e);
+                    if (tentativas < 5) {
+                        document.querySelector('.loading-text').textContent = 
+                            `Problemas na conexão. Tentando novamente... (${tentativas + 1}/5)`;
+                        setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 5000);
+                    } else {
+                        loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;">❌ Falha ao carregar dados.<button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
+                    }
+                }
+            }
 
             async function init() {
                 carregarInfoAtualizacao();
