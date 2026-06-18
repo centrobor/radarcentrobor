@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* ===== ESTILOS (COMPLETOS, MESMOS DO CÓDIGO ORIGINAL) ===== */
+        /* ===== ESTILOS (COMPLETOS, IGUAIS AOS ANTERIORES) ===== */
         :root {
             --bg: #f0f4f8;
             --card-bg: rgba(255, 255, 255, 0.82);
@@ -182,7 +182,7 @@
         .progress-bar-bg { height: 4px; background: #e0e6ed; border-radius: 4px; overflow: hidden; margin-top: 4px; }
         .progress-bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s; }
 
-        /* Demais estilos (idênticos aos anteriores) */
+        /* Demais estilos (mesmos anteriores) */
         .month-filter {
             display: flex; align-items: center; justify-content: space-between;
             flex-wrap: wrap; gap:12px; margin-bottom:28px;
@@ -633,11 +633,7 @@
             let carteiraMapGlobal = new Map();
             let ultimoModalKpiHTML = null;
 
-            let globalAprov = [];
-            let globalFat = [];
-            let globalCot = [];
-            let globalAprovFat = [];
-            let globalMetaMensal = 0;
+            let globalAprov = [], globalFat = [], globalCot = [], globalAprovFat = [];
 
             window._kpiColunas = null;
             window._kpiColunaTotal = null;
@@ -645,18 +641,34 @@
             window.fichaPedidoData = null;
             window.clienteFichaAtual = null;
 
-            // Helpers seguros para o DOM
+            // Função auxiliar segura para obter elementos
             const $ = (id) => document.getElementById(id);
             const setText = (id, text) => { const el = $(id); if (el) el.textContent = text; };
             const setHTML = (id, html) => { const el = $(id); if (el) el.innerHTML = html; };
-            const addClass = (id, cls) => { const el = $(id); if (el) el.classList.add(cls); };
-            const removeClass = (id, cls) => { const el = $(id); if (el) el.classList.remove(cls); };
-            const show = (id) => { const el = $(id); if (el) el.style.display = ''; };
-            const hide = (id) => { const el = $(id); if (el) el.style.display = 'none'; };
 
             const loadingOverlay = $('#loading-overlay');
-            function mostrarLoading() { if (loadingOverlay) loadingOverlay.classList.remove('hidden'); }
-            function esconderLoading() { if (loadingOverlay) loadingOverlay.classList.add('hidden'); }
+            let loadingTimeout;
+
+            function mostrarLoading() {
+                if (loadingOverlay) {
+                    loadingOverlay.classList.remove('hidden');
+                    clearTimeout(loadingTimeout);
+                    loadingTimeout = setTimeout(() => {
+                        if (loadingOverlay && !loadingOverlay.classList.contains('hidden')) {
+                            loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;"><p>⚠️ Tempo esgotado. Verifique sua conexão.</p><button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
+                        }
+                    }, 15000);
+                }
+            }
+
+            function esconderLoading() {
+                clearTimeout(loadingTimeout);
+                if (loadingOverlay) {
+                    loadingOverlay.classList.add('hidden');
+                    loadingOverlay.innerHTML = '<div class="loading-spinner"></div><div class="loading-text">Consultando dados...</div>';
+                }
+            }
+
             function mostrarLoadingModal() {
                 const modalBody = $('#modal-body');
                 if (modalBody) {
@@ -673,7 +685,6 @@
                 return parseFloat(str) || 0;
             };
 
-            // ==================== NORMALIZAÇÃO ====================
             const normalizar = (str) => {
                 return (str || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                                   .replace(/[\/\-]/g, ' ')
@@ -1798,12 +1809,14 @@
                     esconderLoading();
                 } catch (e) {
                     console.error(e);
-                    if (tentativas < 10) {
+                    if (tentativas < 3) {
                         const loadingText = document.querySelector('.loading-text');
-                        if (loadingText) loadingText.textContent = `Erro. Tentando novamente em 3s... (${tentativas + 1}/10)`;
+                        if (loadingText) loadingText.textContent = `Erro. Tentando novamente... (${tentativas + 1}/3)`;
                         setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas + 1), 3000);
                     } else {
-                        if (loadingOverlay) loadingOverlay.innerHTML = '<div style="text-align:center;"><p>Falha ao carregar.</p><button onclick="location.reload()" style="margin-top:20px; padding:10px 20px; border-radius:20px; background:var(--primary); color:white; border:none; cursor:pointer;">Tentar novamente</button></div>';
+                        if (loadingOverlay) {
+                            loadingOverlay.innerHTML = '<div style="text-align:center;padding:20px;"><p>❌ Falha ao carregar dados.</p><button onclick="location.reload()" style="margin-top:10px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
+                        }
                     }
                 }
             }
