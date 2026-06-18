@@ -8,6 +8,7 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --primary: #1e3a5f;
@@ -919,6 +920,91 @@
             color: #1b5e20;
         }
 
+        /* LOADING OVERLAY */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(30, 58, 95, 0.2);
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+        .loading-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        /* CELEBRAÇÃO */
+        .celebracao-content {
+            text-align: center;
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #1a1a1a;
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        .celebracao-content h2 {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        .celebracao-content .trofeu {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+        .celebracao-content .lista-conquistas {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .celebracao-content button {
+            background: #1e3a5f;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+        .celebracao-content button:hover {
+            background: #2b4c7a;
+            transform: scale(1.05);
+        }
+
         option:disabled {
             color: #aaa !important;
         }
@@ -1199,35 +1285,23 @@
             .wrapper {
                 padding: 0 12px;
             }
-
-            /* Esconde header desktop */
             .header {
                 display: none !important;
             }
-
-            /* Mostra topbar mobile */
             .mobile-topbar {
                 display: flex;
                 margin-bottom: 12px;
             }
-
-            /* Mostra bottom bar */
             .mobile-bottom-bar {
                 display: flex;
             }
-
-            /* Hamburger overlay visível quando ativo */
             .hamburger-overlay {
                 display: block;
             }
-
-            /* Oculta seção de Acessos (título + grid) no mobile */
             .section-title:has(+ .quick-access-grid),
             .quick-access-grid {
                 display: none !important;
             }
-
-            /* Carrossel mais imersivo */
             .carousel-section {
                 border-radius: 20px;
                 margin-bottom: 20px;
@@ -1257,14 +1331,10 @@
                 width: 7px;
                 height: 7px;
             }
-
-            /* Section title */
             .section-title {
                 font-size: 1.2rem;
                 margin-bottom: 14px;
             }
-
-            /* KPI grid */
             .kpi-grid {
                 grid-template-columns: 1fr;
                 gap: 10px;
@@ -1282,8 +1352,6 @@
             .kpi-value {
                 font-size: 1.4rem;
             }
-
-            /* Insights row */
             .insights-row {
                 grid-template-columns: 1fr;
                 gap: 12px;
@@ -1305,8 +1373,6 @@
             .orders-table td {
                 padding: 4px 3px;
             }
-
-            /* Analysis row */
             .analysis-row {
                 grid-template-columns: 1fr;
                 gap: 12px;
@@ -1327,8 +1393,6 @@
             .stat-number {
                 font-size: 1.2rem;
             }
-
-            /* Charts grid */
             .charts-grid {
                 grid-template-columns: 1fr;
                 gap: 12px;
@@ -1342,8 +1406,6 @@
             .chart-container {
                 height: calc(100% - 30px);
             }
-
-            /* Vendor goals list */
             .vendor-goals-list {
                 max-height: none;
                 gap: 8px;
@@ -1361,19 +1423,13 @@
             .vendor-mini-header .vendor-name {
                 font-size: 0.8rem;
             }
-
-            /* Donut */
             .donut-container {
                 height: 120px;
             }
-
-            /* Progress circle */
             .progress-circle-container canvas {
                 width: 90px !important;
                 height: 90px !important;
             }
-
-            /* Modal */
             .modal-content {
                 width: 94vw;
                 max-width: 94vw;
@@ -1386,8 +1442,6 @@
                 right: 8px;
                 font-size: 1.3rem;
             }
-
-            /* Vendor detail modal */
             .vendor-detail-modal .detail-donut-container {
                 width: 140px;
                 height: 140px;
@@ -1399,8 +1453,6 @@
                 grid-template-columns: 1fr 1fr;
                 gap: 8px;
             }
-
-            /* Notif cards */
             .notif-card {
                 flex-direction: row;
                 gap: 10px;
@@ -1423,8 +1475,6 @@
                 font-size: 0.7rem;
                 padding: 6px 12px;
             }
-
-            /* Flutuante */
             .floating-btn {
                 bottom: 80px;
                 right: 16px;
@@ -1432,8 +1482,6 @@
                 height: 48px;
                 font-size: 1.2rem;
             }
-
-            /* FOOTER mobile – simplificado */
             .footer {
                 border-radius: 24px 24px 0 0;
                 padding: 20px 16px 100px;
@@ -1472,25 +1520,22 @@
         }
 
         .header-center {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: nowrap;   /* nunca quebra internamente */
-}
-
-.header-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: nowrap;   /* mantém ícones e sincronização juntos */
-}
-
-.user-info {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-        /* ══════════════ EXTRA SMALL (≤480px) ══════════════ */
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+        }
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: nowrap;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
         @media (max-width: 480px) {
             .mobile-topbar {
                 padding: 0 10px;
@@ -1546,128 +1591,108 @@
             .mobile-bottom-bar .bb-item span {
                 font-size: 0.5rem;
             }
-            
-            
-/* ===== VISÃO GERAL - GRID RESPONSIVO ===== */
-.overview-stats {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-}
-
-@media (max-width: 900px) {
-    .overview-stats {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 10px;
-    }
-}
-
-@media (max-width: 500px) {
-    .overview-stats {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-    .overview-stats .stat-item {
-        padding: 12px 8px;
-    }
-    .overview-stats .stat-number {
-        font-size: 1.3rem !important;
-    }
-    .overview-stats i {
-        font-size: 1.5rem !important;
-    }
-}
-
-/* Análise Mensal - empilha indicadores no mobile */
-@media (max-width: 480px) {
-    .analysis-panel .monthly-stats:not(.overview-stats) {
-        grid-template-columns: 1fr;
-        gap: 12px;
-    }
-}   
-            
+            .overview-stats {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 16px;
+            }
         }
-        
-        
-        
-        /* ══════════════ AJUSTE PARA TELAS MÉDIAS (1001px – 1300px) ══════════════ */
-@media (min-width: 1001px) and (max-width: 1300px) {
-    .header {
-        flex-wrap: nowrap !important;
-        gap: 6px;
-        padding: 6px 16px;
-    }
-
-    .user-section {
-        gap: 6px;
-    }
-
-    .greeting {
-        font-size: 0.85rem;
-        white-space: nowrap;
-    }
-
-    .admin-badge {
-        font-size: 0.6rem;
-        padding: 2px 6px;
-    }
-
-    .user-avatar {
-        width: 36px;
-        height: 36px;
-    }
-
-    .vendor-selector {
-        padding: 4px 10px;
-        font-size: 0.75rem;
-        margin: 0 4px;
-    }
-
-    .dolar-quote {
-        padding: 4px 12px;
-        font-size: 0.7rem;
-        gap: 4px;
-        white-space: nowrap;
-    }
-
-    .header-actions {
-        gap: 6px;
-    }
-
-    .sync-status {
-        padding: 4px 10px;
-        font-size: 0.7rem;
-        gap: 4px;
-        white-space: nowrap;
-    }
-
-    .current-time {
-        font-size: 0.7rem;
-        margin: 0 4px;
-        white-space: nowrap;
-    }
-
-    .user-info {
-        gap: 4px;
-    }
-
-    .icon-btn {
-        font-size: 1rem;
-        padding: 4px;
-    }
-
-    /* Esconde o texto "Segunda-feira, ..." se ainda não couber – opcional */
-    .current-time {
-        max-width: 110px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-}
+        @media (max-width: 900px) {
+            .overview-stats {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+        @media (max-width: 500px) {
+            .overview-stats {
+                grid-template-columns: 1fr;
+                gap: 8px;
+            }
+            .overview-stats .stat-item {
+                padding: 12px 8px;
+            }
+            .overview-stats .stat-number {
+                font-size: 1.3rem !important;
+            }
+            .overview-stats i {
+                font-size: 1.5rem !important;
+            }
+        }
+        @media (max-width: 480px) {
+            .analysis-panel .monthly-stats:not(.overview-stats) {
+                grid-template-columns: 1fr;
+                gap: 12px;
+            }
+        }
+        @media (min-width: 1001px) and (max-width: 1300px) {
+            .header {
+                flex-wrap: nowrap !important;
+                gap: 6px;
+                padding: 6px 16px;
+            }
+            .user-section {
+                gap: 6px;
+            }
+            .greeting {
+                font-size: 0.85rem;
+                white-space: nowrap;
+            }
+            .admin-badge {
+                font-size: 0.6rem;
+                padding: 2px 6px;
+            }
+            .user-avatar {
+                width: 36px;
+                height: 36px;
+            }
+            .vendor-selector {
+                padding: 4px 10px;
+                font-size: 0.75rem;
+                margin: 0 4px;
+            }
+            .dolar-quote {
+                padding: 4px 12px;
+                font-size: 0.7rem;
+                gap: 4px;
+                white-space: nowrap;
+            }
+            .header-actions {
+                gap: 6px;
+            }
+            .sync-status {
+                padding: 4px 10px;
+                font-size: 0.7rem;
+                gap: 4px;
+                white-space: nowrap;
+            }
+            .current-time {
+                font-size: 0.7rem;
+                margin: 0 4px;
+                white-space: nowrap;
+            }
+            .user-info {
+                gap: 4px;
+            }
+            .icon-btn {
+                font-size: 1rem;
+                padding: 4px;
+            }
+            .current-time {
+                max-width: 110px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+        }
     </style>
 </head>
 <body>
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Carregando dados...</div>
+    </div>
 
-    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <!-- MOBILE TOPBAR -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img src="img/perfil_kratos.jpg" alt="Eduardo" class="topbar-avatar" id="topbar-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
@@ -1679,10 +1704,8 @@
         </button>
     </div>
 
-    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <!-- HAMBURGER OVERLAY & MENU -->
     <div class="hamburger-overlay" id="hamburger-overlay"></div>
-
-    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
     <nav class="hamburger-menu" id="hamburger-menu">
         <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
             <i class="fas fa-times"></i>
@@ -1699,9 +1722,7 @@
             <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Início</button>
             <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
             <button class="menu-item" id="menu-faturamento"><i class="fas fa-chart-line"></i> Faturamento</button>
-            
             <button class="menu-item" id="menu-metas"><i class="fas fa-bullseye"></i> Metas</button>
-            
             <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
             <button class="menu-item" id="menu-vendas"><i class="fas fa-tags"></i> Vendas</button>
             <button class="menu-item" id="menu-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
@@ -1724,70 +1745,42 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
-<div class="mobile-bottom-bar" id="mobile-bottom-bar">
-    <button class="bb-item" data-nav="feed" id="bb-feed">
-        <i class="fas fa-newspaper"></i><span>Feed</span>
-    </button>
-    <button class="bb-item" data-nav="faturamento" id="bb-faturamento">
-        <i class="fas fa-chart-line"></i><span>Faturamento</span>
-    </button>
-    
-       <button class="bb-item" data-nav="faturamento" id="bb-metas">
-        <i class="fas fa-bullseye"></i><span>Metas </span>
-    </button>
-    
-    
-    <button class="bb-item" data-nav="custos" id="bb-custos">
-        <i class="fas fa-calculator"></i><span>Custos</span>
-    </button>
-    <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
-        <i class="fas fa-bell"></i><span>Alertas</span>
-        <span class="badge-dot" id="bb-badge-dot" style="display:none;"></span>
-    </button>
-    <button class="bb-item" data-nav="home" id="bb-home">
-        <i class="fas fa-home"></i><span>Início</span>
-    </button>
-</div>
+    <!-- MOBILE BOTTOM BAR -->
+    <div class="mobile-bottom-bar" id="mobile-bottom-bar">
+        <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
+        <button class="bb-item" data-nav="faturamento" id="bb-faturamento"><i class="fas fa-chart-line"></i><span>Faturamento</span></button>
+        <button class="bb-item" data-nav="metas" id="bb-metas"><i class="fas fa-bullseye"></i><span>Metas</span></button>
+        <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button>
+        <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
+        <button class="bb-item" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+    </div>
 
     <div class="wrapper">
         <header class="header" id="desktop-header">
-    <!-- Bloco esquerdo: usuário -->
-    <div class="user-section">
-        <img src="img/perfil_kratos.jpg" alt="Eduardo" class="user-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
-        <span class="greeting" id="greeting-name">Eduardo Mineiro</span>
-        <span class="admin-badge">Adm</span>
-    </div>
-
-    <!-- Bloco central: seletor + cotação (agora ficam juntos) -->
-    <div class="header-center">
-        <select id="vendor-selector" class="vendor-selector">
-            <option value="all">🌐 Todos os colaboradores</option>
-        </select>
-        <a id="dolar-quote" class="dolar-quote" href="https://www.google.com/finance/quote/USD-BRL" target="_blank">
-            <span>Dólar: R$ --</span>
-            <span style="font-size:0.7rem; opacity:0.9;">(média 30d: R$ --)</span>
-        </a>
-    </div>
-
-    <!-- Bloco direito: sincronização + relógio + ícones -->
-    <div class="header-actions">
-        <div class="sync-status"><i class="fas fa-cloud"></i><span id="last-update">Sincronizando...</span><i class="fas fa-sync-alt" id="refresh-btn" style="cursor:pointer;"></i></div>
-        <span id="current-time" class="current-time"></span>
-        <div class="user-info">
-            <button class="icon-btn notification-bell" id="notification-bell" title="Notificações">
-                <i class="fas fa-bell"></i>
-                <span class="badge" id="notification-badge" style="display:none;">0</span>
-            </button>
-            <button class="icon-btn home-btn" id="home-btn" title="Página inicial">
-                <i class="fas fa-home"></i>
-            </button>
-            <button class="icon-btn logout-btn" id="logout-btn" title="Sair">
-                <i class="fas fa-sign-out-alt"></i>
-            </button>
-        </div>
-    </div>
-</header>
+            <div class="user-section">
+                <img src="img/perfil_kratos.jpg" alt="Eduardo" class="user-avatar" onerror="this.src='https://cdn-icons-png.flaticon.com/512/12225/12225881.png'">
+                <span class="greeting" id="greeting-name">Eduardo Mineiro</span>
+                <span class="admin-badge">Adm</span>
+            </div>
+            <div class="header-center">
+                <select id="vendor-selector" class="vendor-selector">
+                    <option value="all">🌐 Todos os colaboradores</option>
+                </select>
+                <a id="dolar-quote" class="dolar-quote" href="https://www.google.com/finance/quote/USD-BRL" target="_blank">
+                    <span>Dólar: R$ --</span>
+                    <span style="font-size:0.7rem; opacity:0.9;">(média 30d: R$ --)</span>
+                </a>
+            </div>
+            <div class="header-actions">
+                <div class="sync-status"><i class="fas fa-cloud"></i><span id="last-update">Sincronizando...</span><i class="fas fa-sync-alt" id="refresh-btn" style="cursor:pointer;"></i></div>
+                <span id="current-time" class="current-time"></span>
+                <div class="user-info">
+                    <button class="icon-btn notification-bell" id="notification-bell" title="Notificações"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
+                    <button class="icon-btn home-btn" id="home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
+                    <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </header>
 
         <div class="carousel-section" id="carousel-section">
             <div class="carousel-container" id="carousel-container"></div>
@@ -1834,30 +1827,26 @@
                         </div>
                         <div class="progress-circle-container"><canvas id="progress-circle" width="120" height="120"></canvas></div>
                     </div>
-                  <div class="analysis-panel">
-    <div class="panel-title"><i class="fas fa-building"></i> Visão Geral</div>
-    <div class="monthly-stats overview-stats">
-        <!-- Ano Atual -->
-        <div class="stat-item" style="background: rgba(30,58,95,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
-            <i class="fas fa-calendar-alt" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 8px;"></i>
-            <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Ano Atual</div>
-            <div class="stat-number" id="overview-year" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
-        </div>
-        <!-- Mês Atual -->
-        <div class="stat-item" style="background: rgba(46,125,50,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
-            <i class="fas fa-calendar-check" style="font-size: 1.8rem; color: var(--success); margin-bottom: 8px;"></i>
-            <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Faturamento Atual do Mês</div>
-            <div class="stat-number" id="overview-month" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
-        </div>
-        <!-- Semestre Atual -->
-        <div class="stat-item" style="background: rgba(2,136,209,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
-            <i class="fas fa-chart-pie" style="font-size: 1.8rem; color: var(--info); margin-bottom: 8px;"></i>
-            <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Faturamento Atual do Semestre</div>
-            <div class="stat-number" id="overview-semester" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
-        </div>
-    </div>
-</div>
-</div>
+                    <div class="analysis-panel">
+                        <div class="panel-title"><i class="fas fa-building"></i> Visão Geral</div>
+                        <div class="monthly-stats overview-stats">
+                            <div class="stat-item" style="background: rgba(30,58,95,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
+                                <i class="fas fa-calendar-alt" style="font-size: 1.8rem; color: var(--primary); margin-bottom: 8px;"></i>
+                                <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Ano Atual</div>
+                                <div class="stat-number" id="overview-year" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
+                            </div>
+                            <div class="stat-item" style="background: rgba(46,125,50,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
+                                <i class="fas fa-calendar-check" style="font-size: 1.8rem; color: var(--success); margin-bottom: 8px;"></i>
+                                <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Faturamento Atual do Mês</div>
+                                <div class="stat-number" id="overview-month" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
+                            </div>
+                            <div class="stat-item" style="background: rgba(2,136,209,0.04); border-radius: 20px; padding: 16px 8px; text-align: center;">
+                                <i class="fas fa-chart-pie" style="font-size: 1.8rem; color: var(--info); margin-bottom: 8px;"></i>
+                                <div class="stat-label" style="font-weight: 600; font-size: 0.8rem; color: var(--text-soft);">Faturamento Atual do Semestre</div>
+                                <div class="stat-number" id="overview-semester" style="font-size: 1.5rem; font-weight: 700; color: var(--text-dark); margin-top: 4px;">R$ 0</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div data-section-id="charts">
@@ -1895,13 +1884,17 @@
         </div>
     </footer>
 
+    <!-- MODAIS -->
     <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
     <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
     <div class="modal vendor-detail-modal" id="vendor-detail-modal"><div class="modal-content" id="vendor-detail-body"></div></div>
+    <div class="modal" id="celebracao-modal">
+        <div class="modal-content celebracao-content" id="celebracao-body"></div>
+    </div>
 
     <script>
         (function() {
-            // ==================== VERIFICAÇÃO DE SESSÃO ====================
+            // VERIFICAÇÃO DE SESSÃO
             if (localStorage.getItem('radar_logged_out') === 'true') {
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out';
                 return;
@@ -1919,10 +1912,9 @@
             }
             localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
-            // ==================== CONFIGURAÇÃO ====================
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
             const BASES = {
-                cadastro: `https://opensheet.elk.sh/${SHEET_ID}/cadastro`,  // ← NOVA LINHA
+                cadastro: `https://opensheet.elk.sh/${SHEET_ID}/cadastro`,
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
@@ -1931,8 +1923,6 @@
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`
-                
-
             };
             const VENDEDORES_MAP = {
                 "33": "Fábio Prado",
@@ -1945,75 +1935,73 @@
                 "61": "Luan Dantas",
             };
 
-            let allFaturados = [],
-                allAprovados = [],
-                allMetas = [],
-                allPedidos = [],
-                BANNERS = [],
-                notificacoes = [],
-                dolarData = [],
-                metasGlobais = [],
-                        cadastros = [];  // ← NOVA LINHA
-
+            let allFaturados = [], allAprovados = [], allMetas = [], allPedidos = [],
+                BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = [
                 { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
                 { titulo: 'Faturamento Diário', link: 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento', icone: 'fa-chart-line', cor: '#1e3a5f', visivel: true },
-                
-                
-                 { titulo: 'Metas do Time', link: 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial', icone: 'fa-bullseye', cor: '#1e3a5f', visivel: true },
-                
-                
-                
+                { titulo: 'Metas do Time', link: 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial', icone: 'fa-bullseye', cor: '#1e3a5f', visivel: true },
                 { titulo: 'Custos', link: 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question', icone: 'fa-calculator', cor: '#1e3a5f', visivel: true },
                 { titulo: 'Vendas', link: 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas', icone: 'fas fa-tags', cor: '#1e3a5f', visivel: true },
                 { titulo: 'Compras', link: 'https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos', icone: 'fas fa-shopping-cart', cor: '#1e3a5f', visivel: true },
                 { titulo: 'Leads', link: 'https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/leads', icone: 'fas fa-user-plus', cor: '#1e3a5f', visivel: true }
             ];
-            let currentSelectedMonth = '',
-                selectedVendor = 'all',
-                charts = {};
+            let currentSelectedMonth = '', selectedVendor = 'all', charts = {};
 
             const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v : parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0);
             const formatCurrency = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const parseDataBR = str => { if (!str) return null; const p = String(str).split('/'); if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])); return null; };
             async function carregarJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error(r.status); return r.json(); }
 
+            function getMetasCelebradas() { try { return JSON.parse(localStorage.getItem('metas_celebradas')) || []; } catch (e) { return []; } }
+            function adicionarMetaCelebrada(chave) {
+                const celebradas = getMetasCelebradas();
+                if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas', JSON.stringify(celebradas)); }
+            }
+            function dispararConfetes() {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10000 });
+                    setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 10000 }), 200);
+                    setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 10000 }), 400);
+                }
+            }
+            function mostrarCelebracao(conquistas) {
+                if (!conquistas || conquistas.length === 0) return;
+                const celebradas = getMetasCelebradas();
+                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+                if (novasConquistas.length === 0) return;
+                const body = document.getElementById('celebracao-body');
+                let listaHtml = '';
+                novasConquistas.forEach(c => {
+                    listaHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatCurrency(c.realizado)} / ${formatCurrency(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`;
+                    adicionarMetaCelebrada(c.chave);
+                });
+                body.innerHTML = `<div class="trofeu">🏆</div><h2>Parabéns!</h2><p>As seguintes metas foram atingidas:</p><div class="lista-conquistas">${listaHtml}</div><p style="font-size:1.1rem;margin-top:10px;">Continue assim! 🚀</p><button id="fechar-celebracao-btn">Fechar</button>`;
+                const modal = document.getElementById('celebracao-modal');
+                modal.classList.add('active');
+                dispararConfetes();
+                document.getElementById('fechar-celebracao-btn').addEventListener('click', () => modal.classList.remove('active'));
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+
             async function fetchAllData() {
-    document.getElementById('last-update').innerText = 'Carregando...';
-    try {
-        const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData] = await Promise.all([
-            carregarJSON(BASES.faturados), 
-            carregarJSON(BASES.aprovados), 
-            carregarJSON(BASES.metas),
-            carregarJSON(BASES.pedidos), 
-            carregarJSON(BASES.banners), 
-            carregarJSON(BASES.postagens),
-            carregarJSON(BASES.dolar), 
-            carregarJSON(BASES.metasGlobais),
-            carregarJSON(BASES.cadastro)  // ← NOVA LINHA
-        ]);
-        allFaturados = faturados; 
-        allAprovados = aprovados; 
-        allMetas = metasVendedores; 
-        allPedidos = pedidos;
-        BANNERS = banners; 
-        notificacoes = postagens; 
-        dolarData = dolar; 
-        metasGlobais = metasGlobaisData;
-        cadastros = cadastroData;  // ← NOVA LINHA
-        document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
-        document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
-        atualizarBadgeNotificacoes(); 
-        renderCarrossel(); 
-        atualizarCotacaoDolar(); 
-        populateVendorSelector(); 
-        refreshAll();
-    } catch (e) { 
-        console.error(e); 
-        document.getElementById('last-update').innerText = 'Erro ao carregar.'; 
-    }
-}
+                document.getElementById('last-update').innerText = 'Carregando...';
+                document.getElementById('loading-overlay').classList.remove('hidden');
+                try {
+                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData] = await Promise.all([
+                        carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
+                        carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
+                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.cadastro)
+                    ]);
+                    allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
+                    BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
+                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
+                } catch(e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
+                finally { document.getElementById('loading-overlay').classList.add('hidden'); }
+            }
 
             function atualizarCotacaoDolar() {
                 const el = document.getElementById('dolar-quote');
@@ -2030,7 +2018,6 @@
                 const entry = metasGlobais.find(m => m['Mês'] === key);
                 return entry ? cleanNumber(entry['Meta (R$)']) : 0;
             }
-
             function getFaturamentoPorVendedorMes(ano, mes, codVend) {
                 const map = {};
                 allFaturados.forEach(f => {
@@ -2047,7 +2034,60 @@
                 return map;
             }
 
-            function refreshAll() { renderKPI(); renderRecentOrders(); populateMonthSelectors(); updateCharts(); updateMonthlyAnalysis(); updateOverview(); renderQuickGrid(); }
+            function verificarCelebracaoMetas() {
+                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const conquistas = [];
+                const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
+                const semestre = mes <= 6 ? 1 : 2;
+                const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const metaMes = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                if (metaMes > 0 && fatMes >= metaMes) {
+                    conquistas.push({ nome: 'Meta Mensal', meta: metaMes, realizado: fatMes, perc: (fatMes/metaMes)*100, chave: `meta_mensal_${anoMes}` });
+                }
+                let fatSemestre = 0, metaSemestre = 0;
+                const inicioSem = mes <= 6 ? 1 : 7;
+                for (let m = inicioSem; m <= mes; m++) {
+                    fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                    metaSemestre += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
+                }
+                if (metaSemestre > 0 && fatSemestre >= metaSemestre) {
+                    conquistas.push({ nome: 'Meta Semestral', meta: metaSemestre, realizado: fatSemestre, perc: (fatSemestre/metaSemestre)*100, chave: `meta_semestral_${ano}_S${semestre}` });
+                }
+                let fatAno = 0, metaAno = 0;
+                for (let m = 1; m <= 12; m++) {
+                    fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                    metaAno += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
+                }
+                if (metaAno > 0 && fatAno >= metaAno) {
+                    conquistas.push({ nome: 'Meta Anual', meta: metaAno, realizado: fatAno, perc: (fatAno/metaAno)*100, chave: `meta_anual_${ano}` });
+                }
+                allMetas.forEach(m => {
+                    const id = String(m.id_vendedor || '').trim();
+                    if (id == '80' || id == '1') return;
+                    const nome = m.vendedor || '';
+                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
+                    if (vendCode && vendCode !== 'all' && id !== vendCode) return;
+                    const metaM = cleanNumber(m.meta_mensal);
+                    let fatVend = 0;
+                    allFaturados.forEach(f => {
+                        const d = parseDataBR(f['Data']);
+                        if (d && d.getFullYear() === ano && d.getMonth()+1 === mes && String(f['Cod. Vendedor']||'').trim() === id) {
+                            fatVend += cleanNumber(f['Valor Mercadoria']);
+                        }
+                    });
+                    if (metaM > 0 && fatVend >= metaM) {
+                        conquistas.push({ nome: `Meta ${VENDEDORES_MAP[id] || nome}`, meta: metaM, realizado: fatVend, perc: (fatVend/metaM)*100, chave: `meta_vend_${id}_${anoMes}` });
+                    }
+                });
+                if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
+            }
+
+            function refreshAll() {
+                renderKPI(); renderRecentOrders(); populateMonthSelectors(); updateCharts();
+                updateMonthlyAnalysis(); updateOverview(); renderQuickGrid();
+                verificarCelebracaoMetas();
+            }
 
             function renderKPI() {
                 const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
@@ -2067,15 +2107,13 @@
                 const fatMesAtual = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
                 const metaMesAtual = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
                 const percAno = metaAno ? (fatAno / metaAno) * 100 : 0, percMes = metaMesAtual ? (fatMesAtual / metaMesAtual) * 100 : 0;
-   
-// Considera apenas pedidos com situação APROVADO ou PARA APROVAÇÃO
-const pedidosValidos = allPedidos.filter(p => {
-    const situacao = (p.Situação || '').trim().toUpperCase();
-    return situacao === 'APROVADO' || situacao === 'PARA APROVAÇÃO';
-});
-const totalPedidos = pedidosValidos.length;
-const aprovados = pedidosValidos.filter(p => (p.Situação || '').trim().toUpperCase() === 'APROVADO').length;
-const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
+                const pedidosValidos = allPedidos.filter(p => {
+                    const situacao = (p.Situação || '').trim().toUpperCase();
+                    return situacao === 'APROVADO' || situacao === 'PARA APROVAÇÃO';
+                });
+                const totalPedidos = pedidosValidos.length;
+                const aprovados = pedidosValidos.filter(p => (p.Situação || '').trim().toUpperCase() === 'APROVADO').length;
+                const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
                 document.getElementById('kpi-cards').innerHTML = `
                     <div class="kpi-card"><div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano</h4></div><div class="kpi-value">R$ ${formatCurrency(fatAno)}</div><div class="progress-bar-bg"><div class="progress-bar-fill fill-success" style="width:${Math.min(percAno,100)}%"></div></div><small>${percAno.toFixed(1)}% da meta anual (R$ ${formatCurrency(metaAno)})</small></div>
                     <div class="kpi-card"><div class="kpi-header"><i class="fas fa-chart-line"></i><h4>Mês Atual</h4></div><div class="kpi-value">R$ ${formatCurrency(fatMesAtual)}</div><div class="progress-bar-bg"><div class="progress-bar-fill fill-warning" style="width:${Math.min(percMes,100)}%"></div></div><small>${percMes.toFixed(1)}% da meta (R$ ${formatCurrency(metaMesAtual)})</small></div>
@@ -2127,220 +2165,103 @@ const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
             function getProgressColor(p) { if (p >= 100) return '#2e7d32'; if (p >= 60) return '#ed6c02'; return '#d32f2f'; }
 
             function renderVendorGoals(monthKey) {
-    const [ano, mes] = monthKey.split('-').map(Number);
-    const vendorEntries = [];
-    const processedNonFabiano = new Set();
-    
-    // Processa as metas da tabela
-    allMetas.forEach(m => {
-        const nome = (m.vendedor || '').trim();
-        if (!nome) return;
-        
-        const id = String(m.id_vendedor || '').trim();
-        
-        // Pula vendedores com código 80 (RKB) e 1 (admin)
-        if (id == '80' || id == '1') return;
-        
-        // Pula Dimas e Eduardo da tabela de metas (serão adicionados manualmente depois)
-        if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
-        
-        const metaM = cleanNumber(m.meta_mensal);
-        
-        if (selectedVendor !== 'all' && id !== selectedVendor) return;
-        
-        if (nome.startsWith('Fabiano')) {
-            vendorEntries.push({
-                vendedor: 'Fabiano',
-                categoria: nome.replace('Fabiano - ', ''),
-                metaMensal: metaM,
-                idVendedor: id,
-                isFabiano: true,
-                fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
-            });
-        } else if (!processedNonFabiano.has(id)) {
-            processedNonFabiano.add(id);
-            vendorEntries.push({
-                vendedor: VENDEDORES_MAP[id] || nome,
-                categoria: '',
-                metaMensal: metaM,
-                idVendedor: id,
-                isFabiano: false
-            });
-        }
-    });
-    
-    // Calcula faturamento para cada vendedor
-    vendorEntries.forEach(e => {
-        if (e.isFabiano) {
-            e.faturado = e.fabianoTipo === 'sincpolias' 
-                ? getFabianoSincPoliasFat(ano, mes) 
-                : getFabianoLavanderiaFat(ano, mes);
-        } else {
-            let fat = 0;
-            allFaturados.forEach(f => {
-                const d = parseDataBR(f['Data']);
-                if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && 
-                    String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
-                    fat += cleanNumber(f['Valor Mercadoria']);
-                }
-            });
-            e.faturado = fat;
-        }
-    });
-    
-    // Calcula faturamento total do mês (excluindo código 80 e 1)
-    let fatGeral = 0;
-    const chavesUsadas = new Set();
-    allFaturados.forEach(f => {
-        const d = parseDataBR(f['Data']);
-        if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
-            const cod = f['Cod. Vendedor']?.trim();
-            // Exclui RKB (80) e admin (1) do faturamento geral
-            if (cod == '80' || cod == '1') return;
-            if (selectedVendor == 'all' || cod === selectedVendor) {
-                // Evita duplicatas por chave única
-                const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
-                if (!chavesUsadas.has(chave)) {
-                    chavesUsadas.add(chave);
-                    fatGeral += cleanNumber(f['Valor Mercadoria']);
-                }
+                const [ano, mes] = monthKey.split('-').map(Number);
+                const vendorEntries = [];
+                const processedNonFabiano = new Set();
+                allMetas.forEach(m => {
+                    const nome = (m.vendedor || '').trim();
+                    if (!nome) return;
+                    const id = String(m.id_vendedor || '').trim();
+                    if (id == '80' || id == '1') return;
+                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
+                    const metaM = cleanNumber(m.meta_mensal);
+                    if (selectedVendor !== 'all' && id !== selectedVendor) return;
+                    if (nome.startsWith('Fabiano')) {
+                        vendorEntries.push({
+                            vendedor: 'Fabiano',
+                            categoria: nome.replace('Fabiano - ', ''),
+                            metaMensal: metaM,
+                            idVendedor: id,
+                            isFabiano: true,
+                            fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
+                        });
+                    } else if (!processedNonFabiano.has(id)) {
+                        processedNonFabiano.add(id);
+                        vendorEntries.push({
+                            vendedor: VENDEDORES_MAP[id] || nome,
+                            categoria: '',
+                            metaMensal: metaM,
+                            idVendedor: id,
+                            isFabiano: false
+                        });
+                    }
+                });
+                vendorEntries.forEach(e => {
+                    if (e.isFabiano) {
+                        e.faturado = e.fabianoTipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
+                    } else {
+                        let fat = 0;
+                        allFaturados.forEach(f => {
+                            const d = parseDataBR(f['Data']);
+                            if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
+                                fat += cleanNumber(f['Valor Mercadoria']);
+                            }
+                        });
+                        e.faturado = fat;
+                    }
+                });
+                let fatGeral = 0;
+                const chavesUsadas = new Set();
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
+                        const cod = f['Cod. Vendedor']?.trim();
+                        if (cod == '80' || cod == '1') return;
+                        if (selectedVendor == 'all' || cod === selectedVendor) {
+                            const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
+                            if (!chavesUsadas.has(chave)) { chavesUsadas.add(chave); fatGeral += cleanNumber(f['Valor Mercadoria']); }
+                        }
+                    }
+                });
+                let metaDimas = 0;
+                allMetas.forEach(m => { const nome = (m.vendedor || '').trim(); if (nome.includes('Dimas')) metaDimas = cleanNumber(m.meta_mensal); });
+                if (metaDimas === 0) metaDimas = getMetaGlobal(ano, mes);
+                vendorEntries.push({ vendedor: 'Dimas', categoria: 'Geral', metaMensal: metaDimas, faturado: fatGeral, isDimas: true });
+                vendorEntries.push({ vendedor: 'Eduardo', categoria: 'Geral', metaMensal: metaDimas, faturado: fatGeral, isEduardo: true });
+                vendorEntries.forEach(e => {
+                    e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
+                    e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
+                    e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
+                });
+                const fabianoCards = vendorEntries.filter(e => e.isFabiano);
+                const outros = vendorEntries.filter(e => !e.isFabiano);
+                outros.sort((a, b) => {
+                    if (a.isDimas) return -1;
+                    if (b.isDimas) return 1;
+                    if (a.isEduardo) return -1;
+                    if (b.isEduardo) return 1;
+                    return b.percentual - a.percentual;
+                });
+                const ordenados = [...fabianoCards, ...outros];
+                const container = document.getElementById('vendor-goals-container');
+                let html = '', fabianoGroupHtml = '';
+                ordenados.forEach((entry, index) => {
+                    const st = getStatusInfo(entry.percentual);
+                    const cor = getProgressColor(entry.percentual);
+                    const falta = Math.max(0, entry.metaMensal - entry.faturado);
+                    const cardHtml = `<div class="vendor-mini-card" data-entry-index="${index}">
+                        <div class="vendor-mini-header"><span class="vendor-name">${entry.vendedor}</span>${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}</div>
+                        <div class="target-row"><div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div><div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div></div>
+                        <div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div><span class="percent-text">${entry.percentual.toFixed(1)}%</span></div>
+                        <div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span></div>
+                        ${entry.metaPlus ? `<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;"><div class="target-row"><div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div><div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div></div><div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div><span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span></div><div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span></div></div>` : ''}
+                    </div>`;
+                    if (entry.isFabiano) fabianoGroupHtml += cardHtml; else html += cardHtml;
+                });
+                container.innerHTML = `<div class="fabiano-group">${fabianoGroupHtml}</div>${html}`;
+                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
+                document.querySelectorAll('.vendor-mini-card').forEach((card, i) => card.addEventListener('click', () => abrirDetalhesMeta(ordenados[i])));
             }
-        }
-    });
-    
-    // Busca a meta do Dimas da tabela de metas
-    let metaDimas = 0;
-    allMetas.forEach(m => {
-        const nome = (m.vendedor || '').trim();
-        if (nome.includes('Dimas')) {
-            metaDimas = cleanNumber(m.meta_mensal);
-        }
-    });
-    
-    // Se não encontrou meta específica para Dimas, usa a meta global
-    if (metaDimas === 0) {
-        metaDimas = getMetaGlobal(ano, mes);
-    }
-    
-    // Adiciona Dimas (Geral) - apenas UMA vez
-    vendorEntries.push({
-        vendedor: 'Dimas',
-        categoria: 'Geral',
-        metaMensal: metaDimas,
-        faturado: fatGeral,
-        isDimas: true
-    });
-    
-    // Adiciona Eduardo com os mesmos valores do Dimas
-    vendorEntries.push({
-        vendedor: 'Eduardo',
-        categoria: 'Geral',
-        metaMensal: metaDimas,
-        faturado: fatGeral,
-        isEduardo: true
-    });
-    
-    // Calcula percentuais
-    vendorEntries.forEach(e => {
-        e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
-        // Meta Plus apenas para quem não é Dimas nem Eduardo
-        e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
-        e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
-    });
-    
-    // Organiza os cards
-    const fabianoCards = vendorEntries.filter(e => e.isFabiano);
-    const outros = vendorEntries.filter(e => !e.isFabiano);
-    
-    // Ordena: Dimas primeiro, depois Eduardo, depois os outros por percentual decrescente
-    outros.sort((a, b) => {
-        if (a.isDimas) return -1; // Dimas sempre primeiro
-        if (b.isDimas) return 1;
-        if (a.isEduardo) return -1; // Eduardo em segundo
-        if (b.isEduardo) return 1;
-        return b.percentual - a.percentual; // Resto ordenado por percentual
-    });
-    
-    const ordenados = [...fabianoCards, ...outros];
-    
-    // Renderiza os cards
-    const container = document.getElementById('vendor-goals-container');
-    let html = '';
-    let fabianoGroupHtml = '';
-    
-    ordenados.forEach((entry, index) => {
-        const st = getStatusInfo(entry.percentual);
-        const cor = getProgressColor(entry.percentual);
-        const falta = Math.max(0, entry.metaMensal - entry.faturado);
-        
-        const cardHtml = `
-            <div class="vendor-mini-card" data-entry-index="${index}">
-                <div class="vendor-mini-header">
-                    <span class="vendor-name">${entry.vendedor}</span>
-                    ${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}
-                </div>
-                <div class="target-row">
-                    <div class="target-info">
-                        <div class="label">Meta Mensal</div>
-                        <div>R$ ${formatCurrency(entry.metaMensal)}</div>
-                    </div>
-                    <div class="target-info">
-                        <div class="label">Faturado</div>
-                        <div>R$ ${formatCurrency(entry.faturado)}</div>
-                    </div>
-                </div>
-                <div class="progress-wrapper">
-                    <div class="mini-progress">
-                        <div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div>
-                    </div>
-                    <span class="percent-text">${entry.percentual.toFixed(1)}%</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span>
-                    <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span>
-                </div>
-                ${entry.metaPlus ? `
-                <div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;">
-                    <div class="target-row">
-                        <div class="target-info">
-                            <div class="label">Meta Plus (+10%)</div>
-                            <div>R$ ${formatCurrency(entry.metaPlus)}</div>
-                        </div>
-                        <div class="target-info">
-                            <div class="label">Atingido</div>
-                            <div>${entry.percentualPlus.toFixed(1)}%</div>
-                        </div>
-                    </div>
-                    <div class="progress-wrapper">
-                        <div class="mini-progress">
-                            <div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div>
-                        </div>
-                        <span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">
-                            ${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}
-                        </span>
-                        <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span>
-                    </div>
-                </div>` : ''}
-            </div>`;
-        
-        if (entry.isFabiano) {
-            fabianoGroupHtml += cardHtml;
-        } else {
-            html += cardHtml;
-        }
-    });
-    
-    container.innerHTML = `<div class="fabiano-group">${fabianoGroupHtml}</div>${html}`;
-    document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
-    
-    // Adiciona eventos de clique
-    document.querySelectorAll('.vendor-mini-card').forEach((card, i) => {
-        card.addEventListener('click', () => abrirDetalhesMeta(ordenados[i]));
-    });
-}
 
             function renderMonthGoalAndDaily(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
@@ -2388,32 +2309,16 @@ const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
             }
 
             function updateOverview() {
-    const now = new Date();
-    const ano = now.getFullYear();
-    const mes = now.getMonth() + 1; // 1 a 12
-    const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
-
-    // --- Ano atual (acumulado de janeiro até o mês atual) ---
-    let fatAno = 0;
-    for (let m = 1; m <= mes; m++) {
-        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-    }
-
-    // --- Mês atual ---
-    const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((s, v) => s + v, 0);
-
-    // --- Semestre atual (acumulado no semestre corrente) ---
-    let fatSemestre = 0;
-    const inicioSemestre = mes <= 6 ? 1 : 7;   // primeiro ou segundo semestre
-    for (let m = inicioSemestre; m <= mes; m++) {
-        fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-    }
-
-    // Atualiza o DOM
-    document.getElementById('overview-year').innerHTML = `R$ ${formatCurrency(fatAno)}`;
-    document.getElementById('overview-month').innerHTML = `R$ ${formatCurrency(fatMes)}`;
-    document.getElementById('overview-semester').innerHTML = `R$ ${formatCurrency(fatSemestre)}`;
-}
+                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                let fatAno = 0; for (let m = 1; m <= mes; m++) fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((s, v) => s + v, 0);
+                let fatSemestre = 0; const inicioSemestre = mes <= 6 ? 1 : 7;
+                for (let m = inicioSemestre; m <= mes; m++) fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                document.getElementById('overview-year').innerHTML = `R$ ${formatCurrency(fatAno)}`;
+                document.getElementById('overview-month').innerHTML = `R$ ${formatCurrency(fatMes)}`;
+                document.getElementById('overview-semester').innerHTML = `R$ ${formatCurrency(fatSemestre)}`;
+            }
 
             function updateCharts() {
                 const ano = new Date().getFullYear();
@@ -2448,13 +2353,7 @@ const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
             function abrirModalPostagem(post) {
                 const modal = document.getElementById('post-modal'), body = document.getElementById('post-modal-body');
                 body.innerHTML = `<button class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</button>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-                    <h2 style="margin:0;"><i class="fas fa-newspaper"></i> ${post.titulo}</h2>
-                    <div style="display:flex;gap:16px;color:var(--text-soft);font-size:0.85rem;">
-                        <span><i class="fas fa-calendar-alt"></i> ${post.data}</span>
-                        <span><i class="fas fa-user"></i> ${post.autor}</span>
-                    </div>
-                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h2 style="margin:0;"><i class="fas fa-newspaper"></i> ${post.titulo}</h2><div style="display:flex;gap:16px;color:var(--text-soft);font-size:0.85rem;"><span><i class="fas fa-calendar-alt"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div></div>
                 <img src="${post.imagem}" style="width:100%;max-height:400px;object-fit:cover;border-radius:16px;margin-bottom:16px;" onerror="this.style.display='none'">
                 <div>${post.texto_html||''}</div>`;
                 modal.classList.add('active');
@@ -2489,84 +2388,39 @@ const percAprov = totalPedidos ? (aprovados / totalPedidos) * 100 : 0;
                 setTimeout(() => { new Chart(document.getElementById('vendorDetailDonut'), { type: 'doughnut', data: { datasets: [{ data: [percent, 100 - percent], backgroundColor: [getProgressColor(percent), '#e5e7eb'], borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); if (metaPlus && document.getElementById('vendorDetailPlusDonut')) { new Chart(document.getElementById('vendorDetailPlusDonut'), { type: 'doughnut', data: { datasets: [{ data: [percPlus, 100 - percPlus], backgroundColor: [getProgressColor(percPlus), '#e5e7eb'], borderWidth: 0, borderRadius: percPlus >= 100 ? 0 : 5 }] }, options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } } }); } }, 100);
             }
 
-function populateVendorSelector() {
-    const select = document.getElementById('vendor-selector');
-    
-    // Filtra apenas vendedores com código diferente de 80 (RKB) e 1 (admin)
-    // e que tenham pagina_destino definida
-    const vendedoresValidos = cadastros.filter(c => 
-        c.codigo_vendedor && 
-        c.codigo_vendedor !== '80' && 
-        c.codigo_vendedor !== '1' && 
-        c.pagina_destino
-    );
-    
-    // Remove duplicatas por codigo_vendedor (caso exista)
-    const vendedoresUnicos = [];
-    const codigosVistos = new Set();
-    vendedoresValidos.forEach(v => {
-        if (!codigosVistos.has(v.codigo_vendedor)) {
-            codigosVistos.add(v.codigo_vendedor);
-            vendedoresUnicos.push(v);
-        }
-    });
-    
-    let options = '<option value="all">🌐 Todos os colaboradores</option>';
-    
-    // Ordena por código do vendedor
-    vendedoresUnicos
-        .sort((a, b) => parseInt(a.codigo_vendedor) - parseInt(b.codigo_vendedor))
-        .forEach(cad => {
-            const nome = VENDEDORES_MAP[cad.codigo_vendedor] || cad.nome_usuario;
-            const link = cad.pagina_destino;
-            options += `<option value="${cad.codigo_vendedor}" data-link="${link}">${nome}</option>`;
-        });
-    
-    select.innerHTML = options;
-    
-    // Mantém a seleção atual se o vendedor ainda existe na lista
-    if (selectedVendor !== 'all') {
-        const existe = vendedoresUnicos.some(v => v.codigo_vendedor === selectedVendor);
-        if (existe) {
-            select.value = selectedVendor;
-        } else {
-            select.value = 'all';
-            selectedVendor = 'all';
-        }
-    } else {
-        select.value = 'all';
-    }
-    
-    // Remove listeners antigos para não duplicar
-    const novoSelect = select.cloneNode(true);
-    select.parentNode.replaceChild(novoSelect, select);
-    
-    novoSelect.addEventListener('change', function() {
-        const selectedOption = this.options[this.selectedIndex];
-        const link = selectedOption.getAttribute('data-link');
-        
-        if (this.value === 'all') {
-            selectedVendor = 'all';
-            refreshAll();
-            return;
-        }
-        
-        if (link && link !== '#' && link !== 'null' && link !== 'undefined') {
-            // Abre em nova guia
-            window.open(link, '_blank');
-            // Volta o seletor para a opção anterior
-            this.value = selectedVendor;
-        } else {
-            // Se não tem link, filtra no dashboard atual
-            selectedVendor = this.value;
-            refreshAll();
-        }
-    });
-}
+            function populateVendorSelector() {
+                const select = document.getElementById('vendor-selector');
+                const vendedoresValidos = cadastros.filter(c => c.codigo_vendedor && c.codigo_vendedor !== '80' && c.codigo_vendedor !== '1' && c.pagina_destino);
+                const vendedoresUnicos = [];
+                const codigosVistos = new Set();
+                vendedoresValidos.forEach(v => { if (!codigosVistos.has(v.codigo_vendedor)) { codigosVistos.add(v.codigo_vendedor); vendedoresUnicos.push(v); } });
+                let options = '<option value="all">🌐 Todos os colaboradores</option>';
+                vendedoresUnicos.sort((a, b) => parseInt(a.codigo_vendedor) - parseInt(b.codigo_vendedor)).forEach(cad => {
+                    const nome = VENDEDORES_MAP[cad.codigo_vendedor] || cad.nome_usuario;
+                    const link = cad.pagina_destino;
+                    options += `<option value="${cad.codigo_vendedor}" data-link="${link}">${nome}</option>`;
+                });
+                select.innerHTML = options;
+                if (selectedVendor !== 'all') {
+                    const existe = vendedoresUnicos.some(v => v.codigo_vendedor === selectedVendor);
+                    select.value = existe ? selectedVendor : 'all';
+                    if (!existe) selectedVendor = 'all';
+                } else select.value = 'all';
+                const novoSelect = select.cloneNode(true);
+                select.parentNode.replaceChild(novoSelect, select);
+                novoSelect.addEventListener('change', function() {
+                    const selectedOption = this.options[this.selectedIndex];
+                    const link = selectedOption.getAttribute('data-link');
+                    if (this.value === 'all') { selectedVendor = 'all'; refreshAll(); return; }
+                    if (link && link !== '#' && link !== 'null' && link !== 'undefined') {
+                        window.open(link, '_blank');
+                        this.value = selectedVendor;
+                    } else { selectedVendor = this.value; refreshAll(); }
+                });
+            }
 
             function renderQuickGrid() { document.getElementById('quick-access-grid').innerHTML = quickItems.filter(i => i.visivel).map(i => `<a href="${i.link}" class="quick-card" style="color:${i.cor}"><i class="fas ${i.icone}" style="color:${i.cor}"></i><span>${i.titulo}</span></a>`).join(''); }
 
-            // ══════════════ HAMBURGER MENU CONTROLS ══════════════
             function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
             function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
             function setActiveBottomBar(nav) { document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active')); const activeEl = document.getElementById('bb-' + nav); if (activeEl) activeEl.classList.add('active'); }
@@ -2586,7 +2440,6 @@ function populateVendorSelector() {
                 document.getElementById('vendor-detail-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-                // Mobile events
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
@@ -2594,13 +2447,7 @@ function populateVendorSelector() {
                 document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
                 document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
                 document.getElementById('menu-faturamento').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento'; });
-                
-                document.getElementById('menu-metas').addEventListener('click', () => { 
-    closeHamburger(); 
-    window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; 
-});
-                
-                
+                document.getElementById('menu-metas').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; });
                 document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
                 document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
                 document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos'; });
@@ -2609,16 +2456,12 @@ function populateVendorSelector() {
                 document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
 
                 setActiveBottomBar('home');
-document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-document.getElementById('bb-faturamento').addEventListener('click', () => { setActiveBottomBar('faturamento'); window.location.href = 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento'; });
-                
-                document.getElementById('bb-metas').addEventListener('click', () => { setActiveBottomBar('Metas do Time'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; });
-                
-                
-                
-document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirModalNotificacoes(); });
-document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-faturamento').addEventListener('click', () => { setActiveBottomBar('faturamento'); window.location.href = 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento'; });
+                document.getElementById('bb-metas').addEventListener('click', () => { setActiveBottomBar('metas'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirModalNotificacoes(); });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
             });
         })();
     </script>
