@@ -1583,7 +1583,7 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // ==================== FICHA DO CLIENTE (COM DESTAQUE VERDE NOS CAMPOS DE VALOR) ====================
+                // ==================== FICHA DO CLIENTE (CORRIGIDA PARA COTAÇÕES SEM CLIENTE CADASTRADO) ====================
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
@@ -1611,10 +1611,71 @@
                                 if (palavras.some(p => key.includes(p))) { cliente = val; break; }
                             }
                         }
+
+                        /* ========== CORREÇÃO AQUI ========== */
                         if (!cliente) {
-                            document.getElementById('modal-body').innerHTML = '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro.</p>';
+                            // Se não há cliente no cadastro, mas temos dados do pedido/cotação,
+                            // montamos uma ficha simplificada com esses dados
+                            if (pedidoData) {
+                                let htmlFallback = `
+                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;">
+                                            <i class="fas fa-arrow-left"></i> Voltar
+                                        </button>
+                                        <h3 style="margin:0;">
+                                            <i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cotação sem cliente'}
+                                        </h3>
+                                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;"
+                                                style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                                    </div>
+                                    <div class="ficha-secao">
+                                        <h4><i class="fas fa-info-circle"></i> Cliente não cadastrado na carteira</h4>
+                                        <p style="color:var(--muted); font-size:0.9rem;">
+                                            Os dados abaixo são apenas da cotação/pedido. Cadastre o cliente no sistema para visualizar a ficha completa.
+                                        </p>
+                                    </div>
+                                    <div class="ficha-secao">
+                                        <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>
+                                        <table style="font-size:0.75rem;">
+                                            <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                                            <tbody>
+                                `;
+
+                                const camposDestaque = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
+                                Object.keys(pedidoData).forEach(key => {
+                                    const classe = camposDestaque.includes(key) ? ' class="row-importante"' : '';
+                                    htmlFallback += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                                });
+
+                                htmlFallback += `
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    <div style="display:flex; gap:8px; margin-top:16px;">
+                                        <button onclick="window.copiarDadosCliente(true)"
+                                                style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;">
+                                            <i class="fas fa-copy"></i> Copiar dados da cotação
+                                        </button>
+                                    </div>
+                                `;
+                                abrirModalConteudo(htmlFallback, `Cotação: ${pedidoData['Razão Social'] || pedidoData['Cliente'] || ''}`);
+                                // Ajusta temporariamente clienteFichaAtual para a função de cópia
+                                window.clienteFichaAtual = {
+                                    nome: pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cliente',
+                                    'Telefone': '',
+                                    'Fone': '',
+                                    'E-Mail': ''
+                                };
+                                return;
+                            }
+
+                            // Se não há pedidoData nem cliente, mantém mensagem original
+                            document.getElementById('modal-body').innerHTML =
+                                '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro e sem dados de pedido.</p>';
                             return;
                         }
+                        /* ======== FIM DA CORREÇÃO ======== */
+
                         window.clienteFichaAtual = cliente;
 
                         const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
