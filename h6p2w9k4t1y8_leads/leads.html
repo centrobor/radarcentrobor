@@ -10,6 +10,7 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
     </script>
     <style>
+        /* ===== ESTILOS COMPLETOS (mantidos) ===== */
         :root {
             --primary: #1e3a5f;
             --primary-dark: #0f2b48;
@@ -1154,7 +1155,7 @@
         </div>
     </div>
 
-    <!-- ===== MODAL: Ficha do Cliente (nova com ações de envio) ===== -->
+    <!-- ===== MODAL: Ficha do Cliente (sem botão voltar) ===== -->
     <div id="clienteFichaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1162,9 +1163,11 @@
                 <button class="close-modal" id="closeClienteFicha">&times;</button>
             </div>
             <div id="clienteFichaContent"></div>
-            <!-- Botões de ação (envio) serão inseridos dinamicamente dentro do conteúdo -->
+            <!-- Apenas botões de ação: E-mail, WhatsApp, Copiar mensagem, Copiar dados -->
             <div class="action-buttons" id="fichaActionButtons">
-                <button id="fichaVoltarLeadBtn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar ao Lead</button>
+                <button id="fichaEmailBtn" class="btn btn-primary"><i class="fas fa-envelope"></i> E-mail</button>
+                <button id="fichaWhatsBtn" class="btn btn-primary"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                <button id="fichaCopyMsgBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Copiar mensagem</button>
                 <button id="fichaCopiarBtn" class="btn btn-primary"><i class="fas fa-copy"></i> Copiar dados</button>
             </div>
         </div>
@@ -1292,7 +1295,7 @@
                 dataInicio: "",
                 dataFim: ""
             };
-            let lastLeadIdClicked = null; // para voltar ao lead
+            let lastLeadIdClicked = null;
 
             const DATA_DANIEL = new Date(2025, 10, 1);
             const DATA_LIMITE_LUAN = new Date(2026, 5, 15);
@@ -1301,7 +1304,7 @@
             const PENDENCIA_VALOR_HOURS = 24;
 
             // ============================================================
-            //  FUNÇÕES AUXILIARES (mantidas do original)
+            //  FUNÇÕES AUXILIARES (mantidas)
             // ============================================================
             function normalizeStr(str) { return (str || "").toString().toLowerCase().normalize('NFD').replace(
                     /[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); }
@@ -1529,21 +1532,50 @@
                 return resolveCanonical(repStr.replace(/^\d+\s*-\s*/, "").trim());
             }
 
-            // ========== FUNÇÃO DE BUSCA NA CARTEIRA (já existente) ==========
+            // ========== FUNÇÃO DE BUSCA NA CARTEIRA (APRIMORADA) ==========
             function findClientInCarteira(lead) {
-                let cnpjLead = normalizeCNPJ(lead["CNPJ"] || ""),
-                    empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "",
-                    emailLead = lead["E-mail"] || "",
-                    whatsLead = lead["WhatsApp"] || "";
+                let cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
+                let empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "";
+                let emailLead = lead["E-mail"] || "";
+                let whatsLead = lead["WhatsApp"] || "";
+                let nomeLead = lead["Nome Completo"] || "";
+
+                // Normaliza nomes para comparação
+                const empresaNorm = normalizeStr(empresaLead);
+                const nomeNorm = normalizeStr(nomeLead);
+
                 for (let cli of carteiraClientes) {
-                    if (cnpjLead && normalizeCNPJ(cli["CPF/CGC"] || "") && cnpjLead === normalizeCNPJ(cli["CPF/CGC"] ||
-                            "")) return cli;
-                    if (cnpjLead && normalizeCNPJ(cli["RG/IE"] || "") && cnpjLead === normalizeCNPJ(cli["RG/IE"] || ""))
-                        return cli;
+                    // 1. Busca por CNPJ (normalizado)
+                    let cnpjCli = normalizeCNPJ(cli["CPF/CGC"] || "");
+                    if (cnpjLead && cnpjCli && cnpjLead === cnpjCli) return cli;
+
+                    // 2. Busca por RG/IE (também pode ser CNPJ)
+                    let rgCli = normalizeCNPJ(cli["RG/IE"] || "");
+                    if (cnpjLead && rgCli && cnpjLead === rgCli) return cli;
+
+                    // 3. Busca por Razão Social (campo "Nome/Razão Social")
+                    let razao = normalizeStr(cli["Nome/Razão Social"] || "");
+                    if (empresaNorm && razao && (empresaNorm === razao || empresaNorm.includes(razao) || razao.includes(
+                            empresaNorm))) return cli;
+
+                    // 4. Busca por Nome Chave
+                    let nomeChave = normalizeStr(cli["Nome Chave"] || "");
+                    if (empresaNorm && nomeChave && (empresaNorm === nomeChave || empresaNorm.includes(nomeChave) ||
+                            nomeChave.includes(empresaNorm))) return cli;
+                    if (nomeNorm && nomeChave && (nomeNorm === nomeChave || nomeNorm.includes(nomeChave) || nomeChave
+                            .includes(nomeNorm))) return cli;
+
+                    // 5. Busca por e-mail
+                    let emailCli = normalizeStr(cli["E-Mail"] || "");
+                    if (emailLead && emailCli && similar(emailLead, emailCli)) return cli;
+
+                    // 6. Busca por telefone
+                    let foneCli = normalizeStr(cli["Telefone"] || "");
+                    if (whatsLead && foneCli && similar(whatsLead, foneCli)) return cli;
+
+                    // 7. Busca por similaridade de nome (fallback)
                     if (isSimilarCompany(empresaLead, cli["Nome/Razão Social"] || "")) return cli;
                     if (isSimilarCompany(empresaLead, cli["Nome Chave"] || "")) return cli;
-                    if (emailLead && cli["E-Mail"] && similar(emailLead, cli["E-Mail"])) return cli;
-                    if (whatsLead && cli["Telefone"] && similar(whatsLead, cli["Telefone"])) return cli;
                 }
                 return null;
             }
@@ -1754,7 +1786,7 @@
             }
 
             // ============================================================
-            //  FUNÇÕES DE RENDERIZAÇÃO (mantidas)
+            //  FUNÇÕES DE RENDERIZAÇÃO
             // ============================================================
             function getFilteredLeads() {
                 return processedLeads.filter(l => {
@@ -1861,7 +1893,7 @@
             }
 
             // ============================================================
-            //  FUNÇÃO showLeadDetail MODIFICADA para verificar carteira
+            //  showLeadDetail com verificação de carteira e indicação se novo/revenda
             // ============================================================
             function showLeadDetail(leadId) {
                 let lead = processedLeads.find(l => l.id === leadId);
@@ -1869,7 +1901,7 @@
                 currentLeadDetail = lead;
                 lastLeadIdClicked = leadId;
 
-                // --- 1) Verifica se o lead possui correspondência na carteira ---
+                // Reconstrói objeto lead original para busca
                 const leadOriginal = {
                     "Nome Completo": lead.nome,
                     "Nome da empresa": lead.empresa,
@@ -1887,16 +1919,26 @@
                 let cliente = findClientInCarteira(leadOriginal);
 
                 if (cliente) {
-                    // Se encontrou cliente na carteira, abre a ficha do cliente com ações
+                    // Abre a ficha do cliente (sem botão voltar)
                     abrirFichaCliente(cliente, lead);
                     return;
                 }
 
-                // --- 2) Caso contrário, abre o detalhe normal do lead ---
+                // --- Detalhe normal do lead com indicação de novo/revenda ---
+                let tipoLead = '';
+                if (lead.isNovoCliente) {
+                    tipoLead =
+                    '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🆕 Cliente Novo</span>';
+                } else if (lead.isRevendaCliente) {
+                    tipoLead =
+                    '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🔄 Revenda</span>';
+                }
+
                 const mensagemPadrao =
                     `Segue o lead para retorno/contato:\n\nNome: ${lead.nome}\nEmpresa: ${lead.empresa}\nCNPJ: ${lead.cnpj || '-'}\nWhatsApp: ${lead.whatsapp}\nE-mail: ${lead.email}\nMensagem: ${lead.mensagem || '-'}`;
+
                 let html = `<div class="detail-list">
-                <div class="detail-item"><i class="fas fa-user"></i><strong>Nome:</strong> ${lead.nome}</div>
+                <div class="detail-item"><i class="fas fa-user"></i><strong>Nome:</strong> ${lead.nome} ${tipoLead}</div>
                 <div class="detail-item"><i class="fas fa-building"></i><strong>Empresa:</strong> ${lead.empresa}</div>
                 <div class="detail-item"><i class="fas fa-id-card"></i><strong>CNPJ:</strong> ${lead.cnpj || '-'}</div>
                 <div class="detail-item"><i class="fab fa-whatsapp"></i><strong>WhatsApp:</strong> ${lead.whatsapp || '-'}</div>
@@ -1908,6 +1950,12 @@
                 <div class="detail-item"><i class="fas fa-comment"></i><strong>Mensagem original:</strong> ${lead.mensagem || '-'}</div>
                 <div class="detail-item"><i class="fas fa-chart-line"></i><strong>Origem (UTM):</strong> ${lead.utmIconHtml} ${lead.utmSource || '-'} ${lead.utmCampaign ? ` / ${lead.utmCampaign}` : ''}</div>
             </div>
+            <div style="background:#fef9e7;padding:12px;border-radius:16px;margin-top:12px;border-left:4px solid #f59e0b;">
+                <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
+                <span style="font-weight:500;">Empresa não localizada na carteira de clientes.</span>
+                ${lead.isNovoCliente ? ' <span style="background:#dbeafe;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;color:#1e40af;">🆕 Cliente Novo</span>' : ''}
+                ${lead.isRevendaCliente ? ' <span style="background:#fef3c7;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;color:#92400e;">🔄 Revenda</span>' : ''}
+            </div>
             <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio:<br>${mensagemPadrao.replace(/\n/g,'<br>')}</div>`;
                 document.getElementById('detailContent').innerHTML = html;
                 document.getElementById('leadDetailModal').style.display = 'flex';
@@ -1918,16 +1966,15 @@
             }
 
             // ============================================================
-            //  FUNÇÃO abrirFichaCliente (com ações de envio e badge detalhado)
+            //  abrirFichaCliente (sem botão voltar ao lead)
             // ============================================================
             function abrirFichaCliente(cliente, lead) {
-                // Fecha o modal de detalhe do lead se estiver aberto
                 document.getElementById('leadDetailModal').style.display = 'none';
 
                 const modal = document.getElementById('clienteFichaModal');
                 const content = document.getElementById('clienteFichaContent');
 
-                // --- Determina o vendedor e o tipo de atribuição ---
+                // Determina vendedor e atribuição
                 let vendedorNome = lead ? lead.vendedorRaw : '';
                 let vendedorCor = vendedorNome ? (nomeVendedorMap.get(vendedorNome)?.cor || getRandomColor(vendedorNome)) :
                     '#6b7280';
@@ -1947,19 +1994,16 @@
                     }
                 }
 
-                // Se não houver vendedor definido, mostra "indeterminado"
                 if (!vendedorNome || vendedorNome === 'Não definido' || vendedorNome === '') {
                     vendedorNome = 'indeterminado – Necessita verificar';
                     vendedorCor = '#94a3b8';
                     atribuicaoLabel = '';
                 }
 
-                // Mensagem padrão para envio (baseada no lead)
                 const mensagemPadrao = lead ?
                     `Segue o lead para retorno/contato:\n\nNome: ${lead.nome}\nEmpresa: ${lead.empresa}\nCNPJ: ${lead.cnpj || '-'}\nWhatsApp: ${lead.whatsapp}\nE-mail: ${lead.email}\nMensagem: ${lead.mensagem || '-'}` :
                     '';
 
-                // Monta a ficha
                 let html = `
                 <div class="ficha-secao">
                     <h4><i class="fas fa-user-tie"></i> Vendedor Responsável</h4>
@@ -2011,7 +2055,6 @@
                 </div>
                 `;
 
-                // Se houver lead, exibe os dados do lead e a mensagem para envio
                 if (lead) {
                     html += `
                     <div class="ficha-secao">
@@ -2035,21 +2078,10 @@
 
                 content.innerHTML = html;
 
-                // Armazena o cliente e lead atuais para cópia e envio
+                // Armazena para cópia
                 window._clienteFichaAtual = { cliente, lead };
 
-                // --- Botões de ação (envio) adicionados na barra de ações ---
-                const actionButtons = document.getElementById('fichaActionButtons');
-                // Remove os botões antigos (exceto os fixos Voltar e Copiar)
-                actionButtons.innerHTML = `
-                    <button id="fichaEmailBtn" class="btn btn-primary"><i class="fas fa-envelope"></i> E-mail</button>
-                    <button id="fichaWhatsBtn" class="btn btn-primary"><i class="fab fa-whatsapp"></i> WhatsApp</button>
-                    <button id="fichaCopyMsgBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Copiar mensagem</button>
-                    <button id="fichaVoltarLeadBtn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar ao Lead</button>
-                    <button id="fichaCopiarBtn" class="btn btn-primary"><i class="fas fa-copy"></i> Copiar dados</button>
-                `;
-
-                // Eventos dos novos botões
+                // Atualiza os botões de ação (já estão no HTML, mas garantimos os eventos)
                 document.getElementById('fichaEmailBtn').onclick = function() {
                     if (lead) handleSend(lead, 'email', mensagemPadrao);
                     else showToast("Lead não disponível para envio.", true);
@@ -2072,23 +2104,11 @@
                             });
                     } else showToast("Lead não disponível.", true);
                 };
-
-                // Botão "Voltar ao Lead"
-                document.getElementById('fichaVoltarLeadBtn').onclick = function() {
-                    modal.style.display = 'none';
-                    if (lastLeadIdClicked) {
-                        showLeadDetail(lastLeadIdClicked);
-                    } else {
-                        showToast('Lead não encontrado para voltar.', true);
-                    }
-                };
-
-                // Botão "Copiar dados" (cliente + lead)
                 document.getElementById('fichaCopiarBtn').onclick = function() {
                     copiarDadosFicha(window._clienteFichaAtual.cliente, window._clienteFichaAtual.lead);
                 };
 
-                // Fechar modal
+                // Fechar
                 document.getElementById('closeClienteFicha').onclick = function() {
                     modal.style.display = 'none';
                 };
@@ -2185,7 +2205,6 @@
                     showToast("Lead marcado como Qualificado por 24h!");
                     processLeads();
                     renderDashboard();
-                    // Fecha qualquer modal aberto
                     document.getElementById('leadDetailModal').style.display = 'none';
                     document.getElementById('clienteFichaModal').style.display = 'none';
                 }
@@ -2526,7 +2545,6 @@
             //  INICIALIZAÇÃO DA UI
             // ============================================================
             function initUI() {
-                // Filtros
                 document.getElementById('vendedorFilter').addEventListener('change', e => { currentFilters.vendedor = e
                         .target.value;
                     renderDashboard(); });
@@ -2557,13 +2575,11 @@
                         .classList.remove('hidden');
                     document.getElementById('showFiltersBtn').style.display = 'none'; };
 
-                // Sidebar widget
                 document.getElementById('toggleSidebar').onclick = () => document.getElementById('sidebar').classList.toggle(
                     'open');
                 document.getElementById('closeSidebar').onclick = () => document.getElementById('sidebar').classList.remove(
                     'open');
 
-                // Botões de exportação
                 document.getElementById('exportRelatorioBtn').onclick = exportRelatorioConversao;
                 document.getElementById('exportLeadsBrutoBtn').onclick = exportLeadsBruto;
                 document.getElementById('exportJsonBtn').onclick = exportJSON;
@@ -2601,7 +2617,6 @@
                     showToast("Perfil atualizado!");
                 };
 
-                // Home e logout
                 document.getElementById('home-btn').onclick = () => { window.location.href =
                         'https://centrobor.github.io/radarcentrobor/'; };
                 document.getElementById('logout-btn').onclick = () => { localStorage.setItem('radar_logged_out', 'true');
@@ -2609,7 +2624,6 @@
                     window.location.href =
                         'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; };
 
-                // Fechar modais
                 document.querySelectorAll('.close-modal').forEach(el => el.addEventListener('click', (e) => { e.target
                         .closest('.modal').style.display = 'none'; }));
                 document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e
@@ -2629,7 +2643,6 @@
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
-                // Itens do menu hamburguer
                 document.getElementById('menu-home').addEventListener('click', function() {
                     closeHamburger();
                     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -2670,7 +2683,6 @@
                     window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out';
                 });
 
-                // Mobile bottom bar
                 document.getElementById('bb-feed').addEventListener('click', function() {
                     window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html';
                 });
@@ -2685,13 +2697,11 @@
 
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-                // Inicializa dados
                 setDefaultYearFilter();
                 fetchAllData();
                 setInterval(fetchAllData, 600000);
             }
 
-            // Inicializa quando DOM estiver pronto
             if (document.readyState === 'loading') {
                 document.addEventListener('DOMContentLoaded', initUI);
             } else {
