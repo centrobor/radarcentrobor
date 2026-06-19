@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Centrobor · CRM de Leads</title>
+    <!-- Favicon adicionado -->
+    <link rel="icon" href="https://centrobor.github.io/radarcentrobor/img/centrobor-logo-branca.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
     </script>
@@ -1266,9 +1268,9 @@
     <script>
         (function() {
             // ============================================================
-            //  CONSTANTES E CONFIGURAÇÕES (mantidas)
+            //  CONSTANTES E CONFIGURAÇÕES
             // ============================================================
-            const SHEET_LEADS = "https://opensheet.elk.sh/1eDF6XnXH2ewU-Zvh73H9XPllPU8LehS1LSJJLlnwPy0/LEADS%20FORMUL%C3%81RIO";
+            const SHEET_LEADS = "https://opensheet.elk.sh/1ENh3TkFxN_k-26XMVBLapvxoBgCHsV7D0n1MHzBegsE/LEADS";
             const SHEET_CARTEIRA = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes";
             const SHEET_VENDEDORES = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/cadastro";
             const SHEET_FINAL = "https://opensheet.elk.sh/1eI87ScC4wFcDeFPz8K-IbpTWTM2Ui2WXjRbQIr3SsdA/leads";
@@ -1302,7 +1304,7 @@
             const PENDENCIA_VALOR_HOURS = 24;
 
             // ============================================================
-            //  FUNÇÕES AUXILIARES (mantidas)
+            //  FUNÇÕES AUXILIARES
             // ============================================================
             function normalizeStr(str) { return (str || "").toString().toLowerCase().normalize('NFD').replace(
                     /[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); }
@@ -1530,13 +1532,12 @@
                 return resolveCanonical(repStr.replace(/^\d+\s*-\s*/, "").trim());
             }
 
-            // ========== BUSCA NA CARTEIRA (APENAS EXATA) ==========
+            // ========== BUSCA NA CARTEIRA (CORRIGIDA) ==========
             function findClientInCarteira(lead) {
                 let cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
                 let empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "";
-                let emailLead = lead["E-mail"] || "";
-                let whatsLead = lead["WhatsApp"] || "";
 
+                // 1. Busca por CNPJ
                 if (cnpjLead.length > 0) {
                     for (let cli of carteiraClientes) {
                         let cnpjCli = normalizeCNPJ(cli["CPF/CGC"] || "");
@@ -1544,32 +1545,41 @@
                         let rgCli = normalizeCNPJ(cli["RG/IE"] || "");
                         if (rgCli === cnpjLead) return cli;
                     }
-                    return null;
                 }
 
+                // 2. Busca por nome da empresa (melhorada)
                 if (empresaLead) {
-                    const empresaNorm = normalizeStr(empresaLead);
-                    const termos = ['ltda', 's/a', 'eireli', 'me', 'epp', 'comercio', 'industrial', 'servicos'];
+                    // Normaliza o nome da empresa do lead, substituindo "/", "." e "-" por espaços
+                    const empresaNorm = normalizeStr(empresaLead.replace(/[\/\.\-]/g, ' '));
+                    // Termos a serem removidos na comparação
+                    const termos = ['ltda', 's/a', 's a', 's.a', 'eireli', 'me', 'epp', 'comercio', 'industrial',
+                        'servicos'
+                    ];
                     let empresaClean = empresaNorm;
                     termos.forEach(t => {
-                        empresaClean = empresaClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
+                        // Como já substituímos "/" e ".", podemos usar \b com segurança
+                        empresaClean = empresaClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '').trim();
                     });
-                    if (!empresaClean) empresaClean = empresaNorm;
+                    if (!empresaClean) empresaClean = empresaNorm; // fallback
 
                     for (let cli of carteiraClientes) {
-                        let razao = normalizeStr(cli["Nome/Razão Social"] || "");
-                        let nomeChave = normalizeStr(cli["Nome Chave"] || "");
-                        let razaoClean = razao;
-                        let nomeChaveClean = nomeChave;
+                        // Para cada cliente na carteira, fazemos o mesmo tratamento
+                        let razao = (cli["Nome/Razão Social"] || "").replace(/[\/\.\-]/g, ' ');
+                        let nomeChave = (cli["Nome Chave"] || "").replace(/[\/\.\-]/g, ' ');
+                        let razaoNorm = normalizeStr(razao);
+                        let nomeChaveNorm = normalizeStr(nomeChave);
+
+                        let razaoClean = razaoNorm;
+                        let nomeChaveClean = nomeChaveNorm;
                         termos.forEach(t => {
-                            razaoClean = razaoClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
-                            nomeChaveClean = nomeChaveClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
+                            razaoClean = razaoClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '').trim();
+                            nomeChaveClean = nomeChaveClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '')
+                                .trim();
                         });
-                        if (!razaoClean) razaoClean = razao;
-                        if (!nomeChaveClean) nomeChaveClean = nomeChave;
+                        if (!razaoClean) razaoClean = razaoNorm;
+                        if (!nomeChaveClean) nomeChaveClean = nomeChaveNorm;
 
                         if (empresaClean === razaoClean || empresaClean === nomeChaveClean) return cli;
-                        if (empresaNorm === razao || empresaNorm === nomeChave) return cli;
                     }
                 }
                 return null;
@@ -1669,13 +1679,11 @@
                             if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
                             if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                         } else {
-                            // --- Sem correspondência na planilha final ---
                             clienteCarteira = findClientInCarteira(lead);
                             let isRev = isRevenda(lead);
                             let statusOriginal = lead["  "] || "";
 
                             if (clienteCarteira) {
-                                // Correspondência exata encontrada na carteira
                                 let rep = clienteCarteira["Representante"] || "";
                                 vendedorRaw = getVendedorFromRepresentante(rep);
                                 if (!vendedorRaw) {
@@ -1688,7 +1696,6 @@
                                 else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
                                 else statusFinal = "Lead Atendido";
                             } else {
-                                // Sem correspondência: define vendedor e status conforme regras
                                 if (isRev) {
                                     vendedorRaw = config.vendedorRevendas || "Não definido";
                                     isRevendaCliente = true;
@@ -1698,7 +1705,6 @@
                                     isNovoCliente = true;
                                     isRevendaCliente = false;
                                 }
-                                // ALTERAÇÃO PRINCIPAL: se status original estiver vazio, usar "Precisa Encaminhar"
                                 statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
                             }
                         }
@@ -1895,7 +1901,7 @@
                     return;
                 }
 
-                // --- Detalhe normal do lead com indicação de verificação manual e vendedor atribuído ---
+                // --- Detalhe normal do lead ---
                 let tipoLead = '';
                 if (lead.isNovoCliente) {
                     tipoLead =
@@ -1946,7 +1952,7 @@
                 const modal = document.getElementById('clienteFichaModal');
                 const content = document.getElementById('clienteFichaContent');
 
-                // Determina vendedor e atribuição (se houver)
+                // Determina vendedor e atribuição
                 let vendedorNome = lead ? lead.vendedorRaw : '';
                 let vendedorCor = vendedorNome ? (nomeVendedorMap.get(vendedorNome)?.cor || getRandomColor(vendedorNome)) :
                     '#6b7280';
@@ -2154,7 +2160,7 @@
             }
 
             // ============================================================
-            //  DEMAIS FUNÇÕES (handleSend, openEditLead, exportações, etc.)
+            //  DEMAIS FUNÇÕES
             // ============================================================
             async function handleSend(lead, tipo, mensagem) {
                 if (tipo === 'email' && !lead.email) { showToast("Lead não possui e-mail.", true); return; }
