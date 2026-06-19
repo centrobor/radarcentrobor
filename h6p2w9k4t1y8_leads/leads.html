@@ -717,7 +717,7 @@
             justify-content: flex-end;
         }
 
-        /* ===== FICHA DO CLIENTE (estilo Radar) ===== */
+        /* ===== FICHA DO CLIENTE ===== */
         .ficha-secao {
             background: #f8fafc;
             border-radius: 16px;
@@ -1155,7 +1155,7 @@
         </div>
     </div>
 
-    <!-- ===== MODAL: Ficha do Cliente (sem botão voltar) ===== -->
+    <!-- ===== MODAL: Ficha do Cliente (apenas para correspondência exata) ===== -->
     <div id="clienteFichaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1163,7 +1163,6 @@
                 <button class="close-modal" id="closeClienteFicha">&times;</button>
             </div>
             <div id="clienteFichaContent"></div>
-            <!-- Apenas botões de ação: E-mail, WhatsApp, Copiar mensagem, Copiar dados -->
             <div class="action-buttons" id="fichaActionButtons">
                 <button id="fichaEmailBtn" class="btn btn-primary"><i class="fas fa-envelope"></i> E-mail</button>
                 <button id="fichaWhatsBtn" class="btn btn-primary"><i class="fab fa-whatsapp"></i> WhatsApp</button>
@@ -1268,7 +1267,7 @@
     <script>
         (function() {
             // ============================================================
-            //  CONSTANTES E CONFIGURAÇÕES (mantidas do original)
+            //  CONSTANTES E CONFIGURAÇÕES (mantidas)
             // ============================================================
             const SHEET_LEADS = "https://opensheet.elk.sh/1ENh3TkFxN_k-26XMVBLapvxoBgCHsV7D0n1MHzBegsE/LEADS";
             const SHEET_CARTEIRA = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes";
@@ -1331,6 +1330,7 @@
             }
 
             function isSimilarCompany(empresaLead, empresaCarteira) {
+                // Esta função será mantida apenas para fallback, mas não será usada na nova lógica principal
                 if (!empresaLead || !empresaCarteira) return false;
                 const normLead = normalizeStr(empresaLead),
                     normCard = normalizeStr(empresaCarteira);
@@ -1342,7 +1342,7 @@
                 for (let wl of wordsLead)
                     for (let wc of wordsCard)
                         if (wl === wc || wl.includes(wc) || wc.includes(wl)) { matches++; break; }
-                return matches / wordsLead.length >= Math.min(0.6, Math.max(0.3, wordsLead.length / wordsCard.length));
+                return matches / wordsLead.length >= 0.9; // threshold alto para evitar falsos positivos
             }
 
             function extractDateFromLead(lead) {
@@ -1411,7 +1411,7 @@
             }
 
             // ============================================================
-            //  FUNÇÕES DE CARREGAMENTO E PROCESSAMENTO (mantidas)
+            //  FUNÇÕES DE CARREGAMENTO E PROCESSAMENTO
             // ============================================================
             function groupSimilarNames(allNames) {
                 const groups = [],
@@ -1532,51 +1532,64 @@
                 return resolveCanonical(repStr.replace(/^\d+\s*-\s*/, "").trim());
             }
 
-            // ========== FUNÇÃO DE BUSCA NA CARTEIRA (APRIMORADA) ==========
+            // ========== NOVA FUNÇÃO DE BUSCA NA CARTEIRA (APENAS EXATA) ==========
             function findClientInCarteira(lead) {
                 let cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
                 let empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "";
                 let emailLead = lead["E-mail"] || "";
                 let whatsLead = lead["WhatsApp"] || "";
-                let nomeLead = lead["Nome Completo"] || "";
 
-                // Normaliza nomes para comparação
-                const empresaNorm = normalizeStr(empresaLead);
-                const nomeNorm = normalizeStr(nomeLead);
-
-                for (let cli of carteiraClientes) {
-                    // 1. Busca por CNPJ (normalizado)
-                    let cnpjCli = normalizeCNPJ(cli["CPF/CGC"] || "");
-                    if (cnpjLead && cnpjCli && cnpjLead === cnpjCli) return cli;
-
-                    // 2. Busca por RG/IE (também pode ser CNPJ)
-                    let rgCli = normalizeCNPJ(cli["RG/IE"] || "");
-                    if (cnpjLead && rgCli && cnpjLead === rgCli) return cli;
-
-                    // 3. Busca por Razão Social (campo "Nome/Razão Social")
-                    let razao = normalizeStr(cli["Nome/Razão Social"] || "");
-                    if (empresaNorm && razao && (empresaNorm === razao || empresaNorm.includes(razao) || razao.includes(
-                            empresaNorm))) return cli;
-
-                    // 4. Busca por Nome Chave
-                    let nomeChave = normalizeStr(cli["Nome Chave"] || "");
-                    if (empresaNorm && nomeChave && (empresaNorm === nomeChave || empresaNorm.includes(nomeChave) ||
-                            nomeChave.includes(empresaNorm))) return cli;
-                    if (nomeNorm && nomeChave && (nomeNorm === nomeChave || nomeNorm.includes(nomeChave) || nomeChave
-                            .includes(nomeNorm))) return cli;
-
-                    // 5. Busca por e-mail
-                    let emailCli = normalizeStr(cli["E-Mail"] || "");
-                    if (emailLead && emailCli && similar(emailLead, emailCli)) return cli;
-
-                    // 6. Busca por telefone
-                    let foneCli = normalizeStr(cli["Telefone"] || "");
-                    if (whatsLead && foneCli && similar(whatsLead, foneCli)) return cli;
-
-                    // 7. Busca por similaridade de nome (fallback)
-                    if (isSimilarCompany(empresaLead, cli["Nome/Razão Social"] || "")) return cli;
-                    if (isSimilarCompany(empresaLead, cli["Nome Chave"] || "")) return cli;
+                // 1. Se o lead tem CNPJ, prioridade máxima: comparar CNPJ normalizado
+                if (cnpjLead.length > 0) {
+                    for (let cli of carteiraClientes) {
+                        let cnpjCli = normalizeCNPJ(cli["CPF/CGC"] || "");
+                        if (cnpjCli === cnpjLead) return cli;
+                        // Também verifica RG/IE (pode conter CNPJ)
+                        let rgCli = normalizeCNPJ(cli["RG/IE"] || "");
+                        if (rgCli === cnpjLead) return cli;
+                    }
+                    // Se chegou aqui, CNPJ não bateu -> NENHUMA outra comparação é permitida
+                    return null;
                 }
+
+                // 2. Se o lead NÃO tem CNPJ, compara nome da empresa de forma exata (após normalização)
+                if (empresaLead) {
+                    const empresaNorm = normalizeStr(empresaLead);
+                    // Remove termos comuns (LTDA, S/A, etc.) para comparação mais flexível, mas ainda exata
+                    const termos = ['ltda', 's/a', 'eireli', 'me', 'epp', 'comercio', 'industrial', 'servicos'];
+                    let empresaClean = empresaNorm;
+                    termos.forEach(t => {
+                        empresaClean = empresaClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
+                    });
+                    // Se depois de limpar ficou vazio, usa o original
+                    if (!empresaClean) empresaClean = empresaNorm;
+
+                    for (let cli of carteiraClientes) {
+                        let razao = normalizeStr(cli["Nome/Razão Social"] || "");
+                        let nomeChave = normalizeStr(cli["Nome Chave"] || "");
+
+                        // Limpa também os termos nos nomes da carteira
+                        let razaoClean = razao;
+                        let nomeChaveClean = nomeChave;
+                        termos.forEach(t => {
+                            razaoClean = razaoClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
+                            nomeChaveClean = nomeChaveClean.replace(new RegExp('\\b' + t + '\\b', 'g'), '').trim();
+                        });
+                        if (!razaoClean) razaoClean = razao;
+                        if (!nomeChaveClean) nomeChaveClean = nomeChave;
+
+                        // Comparação exata (case insensitive e sem acentos)
+                        if (empresaClean === razaoClean || empresaClean === nomeChaveClean) {
+                            return cli;
+                        }
+                        // Também tenta com a normalização completa (sem remover termos) como fallback
+                        if (empresaNorm === razao || empresaNorm === nomeChave) {
+                            return cli;
+                        }
+                    }
+                }
+
+                // 3. Se não encontrou por CNPJ nem nome, retorna null (sem similaridade)
                 return null;
             }
 
@@ -1674,87 +1687,63 @@
                             if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
                             if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                         } else {
+                            // --- Busca na carteira usando a nova lógica exata ---
                             clienteCarteira = findClientInCarteira(lead);
                             let isRev = isRevenda(lead);
                             let statusOriginal = lead["  "] || "";
+
                             if (clienteCarteira) {
+                                // Correspondência exata encontrada
                                 let rep = clienteCarteira["Representante"] || "";
                                 vendedorRaw = getVendedorFromRepresentante(rep);
-                                if (!vendedorRaw) { isNovoCliente = true;
-                                    vendedorRaw = getVendedorPorData(dataObj); } else {
-                                    if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
-                                    else if (statusOriginal.includes("Lead Qualificado")) statusFinal =
-                                        "Lead Qualificado";
-                                    else if (statusOriginal.includes("Proposta") || statusOriginal.includes(
-                                            "Atendido")) statusFinal = "Lead Atendido";
-                                    else if (statusOriginal.includes("Já é Cliente")) statusFinal =
-                                        "Cliente da Carteira";
-                                    else statusFinal = "Lead Atendido";
+                                if (!vendedorRaw) {
+                                    // Se não tem representante, define como "indeterminado"
+                                    vendedorRaw = "indeterminado – Necessita verificar";
                                 }
-                            } else if (isRev) {
-                                vendedorRaw = resolveCanonical(config.vendedorRevendas) || config.vendedorRevendas ||
-                                    "Não definido";
-                                isRevendaCliente = true;
-                                statusFinal = statusOriginal && statusOriginal.trim() !== "" ? statusOriginal :
-                                    "Revenda - Atribuir";
+                                // Define status baseado no lead
+                                if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
+                                else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
+                                else if (statusOriginal.includes("Proposta") || statusOriginal.includes(
+                                    "Atendido")) statusFinal = "Lead Atendido";
+                                else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
+                                else statusFinal = "Lead Atendido";
                             } else {
-                                isNovoCliente = true;
-                                vendedorRaw = getVendedorPorData(dataObj);
-                                statusFinal = statusOriginal && statusOriginal.trim() !== "" ? statusOriginal :
-                                    "Precisa Encaminhar";
+                                // Sem correspondência exata: tratar como novo ou revenda, mas sem atribuir vendedor automaticamente
+                                if (isRev) {
+                                    isRevendaCliente = true;
+                                    statusFinal = statusOriginal && statusOriginal.trim() !== "" ? statusOriginal :
+                                        "Revenda - Verificação Manual";
+                                    // Não atribui vendedor automaticamente
+                                    vendedorRaw = "indeterminado – Necessita verificar";
+                                } else {
+                                    isNovoCliente = true;
+                                    statusFinal = statusOriginal && statusOriginal.trim() !== "" ? statusOriginal :
+                                        "Cliente Novo - Verificação Manual";
+                                    // Não atribui vendedor automaticamente
+                                    vendedorRaw = "indeterminado – Necessita verificar";
+                                }
                             }
-                            if (statusOriginal === "Fechou a Venda") statusFinal = "Gerou Venda";
-                            if (statusOriginal === "Lead desqualificado" || statusOriginal ===
-                                "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
-                            if (statusOriginal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                         }
                     }
 
-                    if (!vendedorRaw && !isManualOverride) {
-                        if (isTempOverride) {
-                            let finalMatch = null;
-                            if (cnpjLead && finalLeadsIndex.has(cnpjLead)) finalMatch = finalLeadsIndex.get(cnpjLead);
-                            else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(
-                                empresaLead);
-                            else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(
-                                nomeLead);
-                            if (finalMatch) {
-                                let vendedorPlanilha = normalizeVendedorName(finalMatch["Vendedor"] || "");
-                                if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
-                                let dataFinalObj = dataObj;
-                                if (finalMatch["Data"]) { let d = new Date(finalMatch["Data"]); if (!isNaN(d.getTime()))
-                                        dataFinalObj = d; }
-                                if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 &&
-                                    dataFinalObj < DATA_LIMITE_LUAN) vendedorRaw = getVendedorPorData(dataFinalObj);
-                                else vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
-                            } else {
-                                let clienteCarteira = findClientInCarteira(lead);
-                                if (clienteCarteira) {
-                                    let rep = clienteCarteira["Representante"] || "";
-                                    vendedorRaw = getVendedorFromRepresentante(rep);
-                                    if (!vendedorRaw) vendedorRaw = getVendedorPorData(dataObj);
-                                } else if (isRevenda(lead)) {
-                                    vendedorRaw = resolveCanonical(config.vendedorRevendas) || config
-                                        .vendedorRevendas || "Não definido";
-                                } else {
-                                    vendedorRaw = getVendedorPorData(dataObj);
-                                }
-                            }
-                        }
+                    // Se ainda não tem vendedor definido, coloca como indeterminado
+                    if (!vendedorRaw) {
+                        vendedorRaw = "indeterminado – Necessita verificar";
                     }
+
+                    // Resolve canonical
                     vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
-                    if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw)) { let newV = { nome: vendedorRaw, email: "",
-                            whatsapp: "", cor: getRandomColor(vendedorRaw) };
+                    if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
+                        let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
                         nomeVendedorMap.set(vendedorRaw, newV);
-                        aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw); }
+                        aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
+                    }
+
                     let vendedorDisplay = vendedorRaw;
-                    const recente = isAtribuicaoRecente(dataObj);
-                    if (!isManualOverride && isNovoCliente && recente && vendedorRaw && vendedorRaw !== "Não definido")
-                        vendedorDisplay =
-                        `<i class="fas fa-star"></i> CLIENTE NOVO ATRIBUIDO - ${vendedorRaw}`;
-                    else if (!isManualOverride && isRevendaCliente && recente && vendedorRaw && vendedorRaw !==
-                        "Não definido") vendedorDisplay =
-                        `<i class="fas fa-sync-alt"></i> REVENDA ATRIBUIDA - ${vendedorRaw}`;
+                    // Se for indeterminado, mostra com ícone de alerta
+                    if (vendedorRaw === "indeterminado – Necessita verificar") {
+                        vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
+                    }
 
                     processedLeads.push({
                         id: leadId,
@@ -1775,9 +1764,9 @@
                         vendedor: vendedorDisplay,
                         vendedorRaw: vendedorRaw,
                         isRevenda: isRevendaCliente,
-                        clienteExistente: !!clienteCarteira && !isNovoCliente && !isRevendaCliente,
-                        isNovoCliente: isNovoCliente,
-                        isRevendaCliente: isRevendaCliente,
+                        clienteExistente: !!clienteCarteira,
+                        isNovoCliente: isNovoCliente && !clienteCarteira,
+                        isRevendaCliente: isRevendaCliente && !clienteCarteira,
                         utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
                         valorVenda: valorVendaFinal
                     });
@@ -1867,6 +1856,7 @@
                         '<tr><td colspan="9" style="text-align:center;padding:40px;">Nenhum lead encontrado</td></tr>'; return; }
                 tbody.innerHTML = leads.map(l => {
                     let vendedorCor = nomeVendedorMap.get(l.vendedorRaw)?.cor || "#6b7280";
+                    if (l.vendedorRaw === "indeterminado – Necessita verificar") vendedorCor = "#94a3b8";
                     let statusClass = getStatusClass(l.status);
                     let statusIconHtml = getStatusIcon(l.status);
                     let valorExibicao = l.valorVenda > 0 ?
@@ -1893,7 +1883,7 @@
             }
 
             // ============================================================
-            //  showLeadDetail com verificação de carteira e indicação se novo/revenda
+            //  showLeadDetail com verificação de carteira (exata)
             // ============================================================
             function showLeadDetail(leadId) {
                 let lead = processedLeads.find(l => l.id === leadId);
@@ -1919,19 +1909,19 @@
                 let cliente = findClientInCarteira(leadOriginal);
 
                 if (cliente) {
-                    // Abre a ficha do cliente (sem botão voltar)
+                    // Abre a ficha do cliente (correspondência exata)
                     abrirFichaCliente(cliente, lead);
                     return;
                 }
 
-                // --- Detalhe normal do lead com indicação de novo/revenda ---
+                // --- Detalhe normal do lead com indicação de verificação manual ---
                 let tipoLead = '';
                 if (lead.isNovoCliente) {
                     tipoLead =
-                    '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🆕 Cliente Novo</span>';
+                        '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🆕 Cliente Novo (Verificação Manual)</span>';
                 } else if (lead.isRevendaCliente) {
                     tipoLead =
-                    '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🔄 Revenda</span>';
+                        '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🔄 Revenda (Verificação Manual)</span>';
                 }
 
                 const mensagemPadrao =
@@ -1952,9 +1942,10 @@
             </div>
             <div style="background:#fef9e7;padding:12px;border-radius:16px;margin-top:12px;border-left:4px solid #f59e0b;">
                 <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
-                <span style="font-weight:500;">Empresa não localizada na carteira de clientes.</span>
-                ${lead.isNovoCliente ? ' <span style="background:#dbeafe;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;color:#1e40af;">🆕 Cliente Novo</span>' : ''}
-                ${lead.isRevendaCliente ? ' <span style="background:#fef3c7;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;color:#92400e;">🔄 Revenda</span>' : ''}
+                <span style="font-weight:500;">Empresa não localizada na carteira de clientes com correspondência exata (CNPJ ou nome).</span>
+                <span style="display:block;margin-top:4px;font-size:0.85rem;color:#92400e;">
+                    ⚠ Verificação manual necessária. Defina o vendedor e o status adequado.
+                </span>
             </div>
             <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio:<br>${mensagemPadrao.replace(/\n/g,'<br>')}</div>`;
                 document.getElementById('detailContent').innerHTML = html;
@@ -1966,7 +1957,7 @@
             }
 
             // ============================================================
-            //  abrirFichaCliente (sem botão voltar ao lead)
+            //  abrirFichaCliente (apenas para correspondência exata)
             // ============================================================
             function abrirFichaCliente(cliente, lead) {
                 document.getElementById('leadDetailModal').style.display = 'none';
@@ -1974,7 +1965,7 @@
                 const modal = document.getElementById('clienteFichaModal');
                 const content = document.getElementById('clienteFichaContent');
 
-                // Determina vendedor e atribuição
+                // Determina vendedor e atribuição (se houver)
                 let vendedorNome = lead ? lead.vendedorRaw : '';
                 let vendedorCor = vendedorNome ? (nomeVendedorMap.get(vendedorNome)?.cor || getRandomColor(vendedorNome)) :
                     '#6b7280';
@@ -2081,7 +2072,7 @@
                 // Armazena para cópia
                 window._clienteFichaAtual = { cliente, lead };
 
-                // Atualiza os botões de ação (já estão no HTML, mas garantimos os eventos)
+                // Botões de ação
                 document.getElementById('fichaEmailBtn').onclick = function() {
                     if (lead) handleSend(lead, 'email', mensagemPadrao);
                     else showToast("Lead não disponível para envio.", true);
@@ -2186,13 +2177,16 @@
 
             // ============================================================
             //  DEMAIS FUNÇÕES (handleSend, openEditLead, exportações, etc.)
-            //  Mantidas do original
             // ============================================================
             async function handleSend(lead, tipo, mensagem) {
                 if (tipo === 'email' && !lead.email) { showToast("Lead não possui e-mail.", true); return; }
                 if (tipo === 'whatsapp' && !lead.whatsapp) { showToast("Lead não possui WhatsApp.", true); return; }
                 let vendedor = nomeVendedorMap.get(lead.vendedorRaw);
-                if (!vendedor && tipo !== 'copy') { showToast("Vendedor não encontrado.", true); return; }
+                if (!vendedor && tipo !== 'copy') {
+                    // Se vendedor for indeterminado, permite envio sem cadastro? Melhor pedir para definir
+                    showToast("Vendedor não definido. Edite o lead para definir um vendedor.", true);
+                    return;
+                }
                 if (tipo === 'email' && !vendedor.email && !await promptCadastroVendedor(lead.vendedorRaw)) return;
                 if (tipo === 'whatsapp' && !vendedor.whatsapp && !await promptCadastroVendedor(lead.vendedorRaw)) return;
 
