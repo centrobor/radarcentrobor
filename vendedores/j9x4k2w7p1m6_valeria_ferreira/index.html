@@ -634,7 +634,6 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
-            let carteiraByCodigoGlobal = new Map();
             let ultimoModalKpiHTML = null;
 
             let globalAprov = [];
@@ -648,6 +647,8 @@
             window._kpiModalStack = [];
             window.fichaPedidoData = null;
             window.clienteFichaAtual = null;
+
+            // NOVO: array global para armazenar as linhas do modal de detalhamento KPI
             window._kpiDetailRowsGlobal = [];
 
             const loadingOverlay = document.getElementById('loading-overlay');
@@ -701,20 +702,6 @@
             const businessDaysPassed = (startDate) => { const today=new Date(); today.setHours(23,59,59,999); if(today<startDate) return 0; return businessDaysBetween(startDate,today); };
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
-
-            // NOVA FUNÇÃO: verifica se dois nomes de empresa são compatíveis
-            function nomesCompativeis(nome1, nome2) {
-                if (!nome1 || !nome2) return false;
-                const limpar = (str) => str.toUpperCase().replace(/[^A-Z0-9À-Ú ]/g, '').trim();
-                const a = limpar(nome1);
-                const b = limpar(nome2);
-                if (a === b) return true;
-                const palavrasA = a.split(/\s+/).filter(p => p.length > 2);
-                const palavrasB = b.split(/\s+/).filter(p => p.length > 2);
-                if (palavrasA.length === 0 || palavrasB.length === 0) return false;
-                const comuns = palavrasA.filter(p => palavrasB.includes(p));
-                return comuns.length > 0;
-            }
 
             async function carregarInfoAtualizacao() {
                 try {
@@ -929,26 +916,28 @@
                 }
 
                 body.addEventListener('click', function(e) {
-    const tr = e.target.closest('tr[data-row]');
-    if (!tr) return;
-    if (e.target.closest('input, button, a, .table-search-detail')) return;
-    let rowData;
-    try {
-        rowData = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"'));
-    } catch (err) {
-        return;
-    }
-    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
-    if (nomeCliente) {
-        window._kpiModalStack.push({
-            html: body.innerHTML,
-            colunas: colunas,
-            colunaTotal: colunaTotal
-        });
-        document.getElementById('kpi-detail-modal').classList.remove('active');
-        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
-    }
-});
+                    const tr = e.target.closest('tr[data-row]');
+                    if (!tr) return;
+                    if (e.target.closest('input, button, a, .table-search-detail')) return;
+                    let rowData;
+                    try {
+                        rowData = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"'));
+                    } catch (err) {
+                        return;
+                    }
+                    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
+                    if (nomeCliente) {
+                        window._kpiModalStack.push({
+                            html: body.innerHTML,
+                            colunas: colunas,
+                            colunaTotal: colunaTotal
+                        });
+                        document.getElementById('kpi-detail-modal').classList.remove('active');
+                        // CORREÇÃO: passa false para busca aproximada no contexto de cotação
+                        const permitirAprox = !(colunas && colunas.includes('Situação Versão'));
+                        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData, permitirAprox);
+                    }
+                });
             }
 
             function voltarModal() {
@@ -1045,7 +1034,7 @@
 
                 window._kpiColunas = colunas;
                 window._kpiColunaTotal = colunaTotal;
-                window._kpiDetailRowsGlobal = dados.slice(0, 200);
+                window._kpiDetailRowsGlobal = dados.slice(0, 200); // armazena para acesso por índice
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1058,15 +1047,15 @@
                     <thead><tr>${colunas.map(c => `<th style="padding:4px 3px;border-bottom:2px solid var(--line);text-align:left;font-size:0.65rem;">${c}</th>`).join('')}</tr></thead><tbody>
                 `;
                 dados.slice(0, 200).forEach((row, idx) => {
-    const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
-    tabelaHtml += `<tr data-row="${rowJSON}" data-idx="${idx}">`;
-    colunas.forEach(c => {
-        const valor = row[c] || '';
-        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
-    });
-    tabelaHtml += `</tr>`;
-});
+                    const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
+                    tabelaHtml += `<tr data-row="${rowJSON}" data-idx="${idx}">`;
+                    colunas.forEach(c => {
+                        const valor = row[c] || '';
+                        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
+                    });
+                    tabelaHtml += `</tr>`;
+                });
                 tabelaHtml += '</tbody></table></div>';
 
                 body.innerHTML = `
@@ -1404,7 +1393,11 @@
                         else if (tipo === 'fat') nomeCliente = rowData['Nome Chave'] || '';
                         else if (tipo === 'aprovfat') nomeCliente = rowData['Cliente'] || '';
                         else if (tipo === 'cot') nomeCliente = rowData['Razão Social'] || '';
-                        if (nomeCliente) window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
+                        if (nomeCliente) {
+                            // CORREÇÃO: para tipo 'cot', passa false para busca aproximada
+                            const permitirAprox = tipo !== 'cot';
+                            window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData, permitirAprox);
+                        }
                     });
                 });
 
@@ -1425,6 +1418,7 @@
                 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
                 const carteiraMap = new Map();
+                // ═══ NOVO: mapa por código do cliente ═══
                 const carteiraByCodigo = new Map();
 
                 carteiraFull.forEach(cli => {
@@ -1453,6 +1447,7 @@
                         });
                     }
 
+                    // Preencher mapa por código
                     const codigo = String(cli['Código'] || '').trim();
                     if (codigo && !carteiraByCodigo.has(codigo)) {
                         carteiraByCodigo.set(codigo, {
@@ -1467,7 +1462,6 @@
                     }
                 });
                 carteiraMapGlobal = carteiraMap;
-                carteiraByCodigoGlobal = carteiraByCodigo;
 
                 const umAnoAtras = new Date(hojeRef);
                 umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
@@ -1550,8 +1544,8 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // ═══ FUNÇÃO abrirFichaCliente COM VALIDAÇÃO DE COMPATIBILIDADE ═══
-                window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
+                // ═══ FUNÇÃO abrirFichaCliente CORRIGIDA (busca por código primeiro, sem busca aproximada para cotações) ═══
+                window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null, permitirBuscaAproximada = true) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
                         window._kpiModalStack.push({
@@ -1565,39 +1559,30 @@
                     mostrarLoadingModal();
                     setTimeout(() => {
                         let cliente = null;
-                        const nomeCotacao = nomeUpper; // Razão Social vinda da cotação
-
-                        // 1. Tenta buscar pelo código do pedido/cotação, mas só aceita se compatível
+                        
+                        // 1. Tenta buscar pelo código do pedido/cotação (campo 'Cliente')
                         if (!cliente && pedidoData && pedidoData['Cliente']) {
                             const codigoPedido = String(pedidoData['Cliente']).trim();
-                            const candidato = carteiraByCodigoGlobal.get(codigoPedido);
-                            if (candidato && nomesCompativeis(nomeCotacao, candidato.nomeUpper)) {
-                                cliente = candidato;
-                            }
+                            cliente = carteiraByCodigo.get(codigoPedido);
                         }
 
-                        // 2. Busca por nome exato
-                        if (!cliente) cliente = carteiraMapGlobal.get(nomeUpper);
+                        // 2. Busca por nome (upper) exato
+                        if (!cliente) cliente = carteiraMap.get(nomeUpper);
 
                         // 3. Busca por CNPJ
                         if (!cliente && cnpj && cnpj.length >= 11) {
-                            for (let [key, val] of carteiraMapGlobal.entries()) {
+                            for (let [key, val] of carteiraMap.entries()) {
                                 const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
                                 if (cnpjCad === cnpj) { cliente = val; break; }
                             }
                         }
 
-                        // 4. Busca por palavras-chave, mas exige compatibilidade forte
-                        if (!cliente && nomeUpper) {
+                        // 4. Busca por palavras-chave no nome SOMENTE se permitido (não para cotações)
+                        if (!cliente && nomeUpper && permitirBuscaAproximada) {
                             const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
-                            let melhorCandidato = null;
-                            for (let [key, val] of carteiraMapGlobal.entries()) {
-                                if (palavras.some(p => key.includes(p)) && nomesCompativeis(nomeUpper, key)) {
-                                    melhorCandidato = val;
-                                    break;
-                                }
+                            for (let [key, val] of carteiraMap.entries()) {
+                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
                             }
-                            cliente = melhorCandidato;
                         }
 
                         if (!cliente) {
@@ -1656,7 +1641,7 @@
                         window.clienteFichaAtual = cliente;
 
                         const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
-                        const similares = Array.from(carteiraMapGlobal.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
+                        const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
                         let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                             <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
