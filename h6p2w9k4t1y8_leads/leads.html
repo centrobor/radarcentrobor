@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Centrobor · CRM de Leads</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
+    </script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
+    </script>
     <style>
         :root {
             --primary: #1e3a5f;
@@ -711,7 +713,7 @@
                 grid-template-columns: 1fr;
             }
         }
-        /* ========== ESTILOS MOBILE (inspirados no Radar) ========== */
+        /* ========== ESTILOS MOBILE (baseados no portal) ========== */
         @media (max-width: 1000px) {
             body {
                 padding: 0 0 var(--bottom-bar-height) 0;
@@ -901,7 +903,7 @@
     </style>
 </head>
 <body>
-    <!-- Mobile Topbar (visível apenas em telas pequenas) -->
+    <!-- Mobile Topbar (visível apenas em telas ≤ 1000px) -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img id="topbar-avatar" class="topbar-avatar" src="https://cdn-icons-png.flaticon.com/512/12225/12225881.png" alt="Avatar">
@@ -1010,7 +1012,7 @@
         <div class="widget-item" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> Recarregar agora</div>
         <div class="widget-item" id="editProfileBtn"><i class="fas fa-user-edit"></i> Editar Perfil</div>
     </div>
-    <!-- Modais -->
+    <!-- Modais (lead detail, edit, configs, perfil, etc.) – mantidos os existentes -->
     <div id="leadDetailModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-info-circle"></i> Detalhes do Lead</h3><button class="close-modal">&times;</button></div><div id="detailContent"></div><div class="action-buttons"><button id="detailEmailBtn" class="btn btn-primary"><i class="fas fa-envelope"></i> Enviar e-mail</button><button id="detailWhatsBtn" class="btn btn-primary"><i class="fab fa-whatsapp"></i> WhatsApp</button><button id="detailCopyBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Copiar</button><button id="detailEditBtn" class="btn btn-outline"><i class="fas fa-edit"></i> Editar</button></div></div></div>
     <div id="editLeadModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Editar Lead (override local)</h3><button class="close-modal">&times;</button></div><form id="editLeadForm"><div class="form-group"><label>Nome</label><input id="editNome"></div><div class="form-group"><label>Empresa</label><input id="editEmpresa"></div><div class="form-group"><label>WhatsApp</label><input id="editWhats"></div><div class="form-group"><label>E-mail</label><input id="editEmail"></div><div class="form-group"><label>Mensagem</label><textarea id="editMensagem" rows="3"></textarea></div><div class="form-group"><label>Status</label><select id="editStatus"><option>Precisa Encaminhar</option><option>Enviado em Andamento</option><option>Lead Atendido</option><option>Gerou Venda</option><option>Não Gerou Venda</option><option>Lead Qualificado</option></select></div><div class="form-group"><label>Vendedor</label><select id="editVendedor"></select></div><div class="action-buttons"><button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar alterações</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
     <div id="configAtribModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Distribuição automática</h3><button class="close-modal">&times;</button></div><div class="form-group"><label>Vendedor para NOVOS clientes (após 15/06/2026):</label><select id="novosVendedorSelect"></select></div><div class="form-group"><label>Vendedor para REVENDAS (qualquer data):</label><select id="revendaVendedorSelect"></select></div><div class="action-buttons"><button id="saveDistribBtn" class="btn btn-primary">Salvar</button><button class="btn btn-secondary close-modal">Cancelar</button></div></div></div>
@@ -1018,6 +1020,21 @@
     <div id="profileModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Editar Perfil</h3><button class="close-modal">&times;</button></div><form id="profileForm"><div class="form-group"><label>Nome de exibição</label><input type="text" id="profileName"></div><div class="form-group"><label>URL da foto</label><input type="url" id="profileAvatar"></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
     <div id="cadastroVendedorModal" class="modal"><div class="modal-content"><div class="modal-header"><h3>Cadastrar Vendedor</h3><button class="close-modal">&times;</button></div><p>O vendedor <strong id="vendedorNomeTemp"></strong> não possui dados de contato completos. Preencha para permitir envio:</p><form id="cadastroVendedorForm"><div class="form-group"><label>E-mail</label><input type="email" id="vendedorEmail" required></div><div class="form-group"><label>WhatsApp (com DDD)</label><input type="tel" id="vendedorWhats" required></div><div class="action-buttons"><button type="submit" class="btn btn-primary">Salvar e enviar</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div></form></div></div>
     <div id="valorVendaModal" class="modal"><div class="modal-content"><div class="modal-header"><h3><i class="fas fa-dollar-sign"></i> Leads com Venda - Valor Pendente</h3><button class="close-modal">&times;</button></div><p style="margin-bottom:16px;color:#64748b;">Estes leads estão marcados como <strong>Gerou Venda</strong> mas ainda não possuem valor informado. Preencha os valores para manter o faturamento atualizado.</p><div id="pendentesContainer" style="max-height: 55vh; overflow-y: auto;"></div><div class="action-buttons"><button id="salvarValoresBtn" class="btn btn-primary"><i class="fas fa-save"></i> Salvar valores</button><button id="adiarValoresBtn" class="btn btn-secondary"><i class="fas fa-clock"></i> Lembrar depois (24h)</button></div></div></div>
+
+    <!-- NOVO MODAL: Ficha do Cliente (inspirado no portal) -->
+    <div id="clienteFichaModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-id-card"></i> <span id="fichaClienteNome">Cliente</span></h3>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div id="fichaClienteContent"></div>
+            <div class="action-buttons" style="justify-content: flex-start;">
+                <button id="fichaVoltarBtn" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar ao Lead</button>
+                <button id="fichaCopiarBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Copiar dados</button>
+            </div>
+        </div>
+    </div>
 
     <footer class="footer">
         <div class="footer-inner">
@@ -1492,6 +1509,9 @@
                         "Não definido") vendedorDisplay =
                         `<i class="fas fa-sync-alt"></i> REVENDA ATRIBUIDA - ${vendedorRaw}`;
 
+                    // Guarda o objeto do cliente encontrado na carteira para usar na ficha
+                    let clienteCarteiraObj = findClientInCarteira(lead);
+
                     processedLeads.push({
                         id: leadId,
                         dataHora: dataObj,
@@ -1515,7 +1535,8 @@
                         isNovoCliente: isNovoCliente,
                         isRevendaCliente: isRevendaCliente,
                         utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
-                        valorVenda: valorVendaFinal
+                        valorVenda: valorVendaFinal,
+                        clienteCarteiraObj: clienteCarteiraObj   // <--- NOVO
                     });
                 }
                 processedLeads.sort((a, b) => b.dataHora - a.dataHora);
@@ -1616,11 +1637,32 @@
                     <td><button class="btn btn-sm btn-outline view-detail" data-id="${l.id}"><i class="fas fa-eye"></i></button></td>
                 </tr>`;
                 }).join('');
-                document.querySelectorAll('.view-detail').forEach(btn => btn.addEventListener('click', (e) => { e
-                    .stopPropagation();
-                    showLeadDetail(btn.dataset.id); }));
-                document.querySelectorAll('#tableBody tr').forEach(tr => tr.addEventListener('click', () => showLeadDetail(
-                    tr.dataset.id)));
+
+                // Adiciona eventos para abrir ficha do cliente se houver correspondência na carteira
+                document.querySelectorAll('#tableBody tr').forEach(tr => {
+                    tr.addEventListener('click', () => {
+                        const leadId = tr.dataset.id;
+                        const lead = processedLeads.find(l => l.id === leadId);
+                        if (lead && lead.clienteCarteiraObj) {
+                            // Abre diretamente a ficha do cliente
+                            abrirFichaCliente(lead.clienteCarteiraObj, lead);
+                        } else {
+                            // Abre o detalhe do lead tradicional
+                            showLeadDetail(leadId);
+                        }
+                    });
+                });
+
+                document.querySelectorAll('.view-detail').forEach(btn => btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const leadId = btn.dataset.id;
+                    const lead = processedLeads.find(l => l.id === leadId);
+                    if (lead && lead.clienteCarteiraObj) {
+                        abrirFichaCliente(lead.clienteCarteiraObj, lead);
+                    } else {
+                        showLeadDetail(leadId);
+                    }
+                }));
             }
 
             function showLeadDetail(leadId) {
@@ -1649,6 +1691,68 @@
                 document.getElementById('detailWhatsBtn').onclick = () => handleSend(lead, 'whatsapp', mensagemPadrao);
                 document.getElementById('detailCopyBtn').onclick = () => handleSend(lead, 'copy', mensagemPadrao);
                 document.getElementById('detailEditBtn').onclick = () => openEditLead(lead);
+            }
+
+            // ---------- FUNÇÃO FICHA CLIENTE ----------
+            function abrirFichaCliente(cliente, lead) {
+                // Destaca o vendedor do lead na ficha
+                const vendedorLead = lead.vendedorRaw;
+                const vendedorCor = nomeVendedorMap.get(vendedorLead)?.cor || '#6b7280';
+
+                // Monta HTML com campos relevantes (estilo do portal)
+                const nomeCliente = cliente["Nome/Razão Social"] || cliente["Nome Chave"] || lead.empresa || lead.nome;
+                document.getElementById('fichaClienteNome').innerText = nomeCliente;
+
+                const campos = [
+                    ['Código', 'Código'],
+                    ['Nome Chave', 'Nome Chave'],
+                    ['Razão Social', 'Nome/Razão Social'],
+                    ['CPF/CNPJ', 'CPF/CGC'],
+                    ['RG/IE', 'RG/IE'],
+                    ['Cidade', 'Cidade'],
+                    ['UF', 'UF'],
+                    ['Telefone', 'Telefone'],
+                    ['E-Mail', 'E-Mail'],
+                    ['Representante', 'Representante']   // vendedor da carteira
+                ];
+
+                let html = '<div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; font-size:0.85rem;">';
+                campos.forEach(([label, key]) => {
+                    const valor = cliente[key] || '—';
+                    const destaque = (key === 'Representante' && vendedorLead) ? 
+                        `<span style="background:${vendedorCor}; color:white; padding:2px 8px; border-radius:12px; font-weight:600;">${vendedorLead}</span>` 
+                        : valor;
+                    html += `<div><strong>${label}:</strong> ${destaque}</div>`;
+                });
+                html += '</div>';
+
+                // Ações (WhatsApp, e-mail, copiar)
+                const telefone = (cliente['Telefone'] || '').replace(/[^0-9+]/g, '');
+                const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                html += '<div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">';
+                if (telefone && telefone.length > 5) {
+                    html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:8px 16px; border-radius:20px; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                }
+                if (email && email.includes('@')) {
+                    html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:8px 16px; border-radius:20px; text-decoration:none; font-weight:600; display:inline-flex; align-items:center; gap:6px;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                }
+                html += '</div>';
+
+                document.getElementById('fichaClienteContent').innerHTML = html;
+                document.getElementById('clienteFichaModal').style.display = 'flex';
+
+                // Botão Voltar ao Lead (fecha ficha e abre detalhe do lead)
+                document.getElementById('fichaVoltarBtn').onclick = () => {
+                    document.getElementById('clienteFichaModal').style.display = 'none';
+                    showLeadDetail(lead.id);
+                };
+                document.getElementById('fichaCopiarBtn').onclick = () => {
+                    let texto = '';
+                    campos.forEach(([label, key]) => {
+                        texto += `${label}: ${cliente[key] || '—'}\n`;
+                    });
+                    navigator.clipboard.writeText(texto).then(() => showToast('Dados copiados!'));
+                };
             }
 
             async function handleSend(lead, tipo, mensagem) {
@@ -1834,7 +1938,7 @@
                 document.getElementById('gerenciarVendedoresModal').style.display = 'flex';
             }
 
-            // ==================== EXPORTAÇÃO: RELATÓRIO DE CONVERSÃO DE LEADS ====================
+            // ==================== EXPORTAÇÕES (mantidas) ====================
             function exportRelatorioConversao() {
                 let data = getFilteredLeads().map(l => ({
                     "Data": formatDateOnlyBR(l.dataHora),
@@ -1860,7 +1964,6 @@
                 showToast("Relatório de Conversão exportado!");
             }
 
-            // ==================== EXPORTAÇÃO: [LEADS] CENTROBOR (FORMATO BRUTO) ====================
             function exportLeadsBruto() {
                 let data = getFilteredLeads().map(l => ({
                     "": l.status,
@@ -1889,7 +1992,6 @@
                 showToast("Leads (formato bruto) exportados!");
             }
 
-            // ==================== EXPORTAÇÃO JSON ====================
             function exportJSON() {
                 let blob = new Blob([JSON.stringify(processedLeads, null, 2)], { type: 'application/json' });
                 let a = document.createElement('a');
@@ -1899,55 +2001,38 @@
                 showToast("Exportação JSON concluída!");
             }
 
-            // ==================== VERIFICAÇÃO DE VALORES DE VENDA PENDENTES ====================
             function checkPendingVendaValues() {
                 const pendentes = processedLeads.filter(l => l.status === "Gerou Venda" && (!l.valorVenda || l
                     .valorVenda <= 0));
                 if (pendentes.length === 0) return;
-
                 let pendingVendaValues = JSON.parse(localStorage.getItem('pendingVendaValues') || '{}');
                 const agora = Date.now();
                 const vinteQuatroHoras = PENDENCIA_VALOR_HOURS * 60 * 60 * 1000;
-
                 const mostrarAgora = pendentes.filter(l => {
                     const registro = pendingVendaValues[l.id];
                     if (!registro) return true;
                     return (agora - registro.lastPrompt) >= vinteQuatroHoras;
                 });
-
                 if (mostrarAgora.length === 0) return;
-
                 abrirModalValoresPendentes(mostrarAgora, pendingVendaValues);
             }
 
             function abrirModalValoresPendentes(leadsPendentes, pendingVendaValues) {
                 const modal = document.getElementById('valorVendaModal');
                 const container = document.getElementById('pendentesContainer');
-
                 container.innerHTML = `
                 <table class="pendentes-table">
-                    <thead>
-                        <tr>
-                            <th>Lead</th>
-                            <th>Empresa</th>
-                            <th>Valor da Venda (R$)</th>
+                    <thead><tr><th>Lead</th><th>Empresa</th><th>Valor da Venda (R$)</th></tr></thead>
+                    <tbody>${leadsPendentes.map(l => `
+                        <tr data-lead-id="${l.id}">
+                            <td>${l.nome}</td>
+                            <td>${l.empresa || '-'}</td>
+                            <td><input type="text" class="input-valor-venda" placeholder="0,00" data-lead-id="${l.id}"></td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        ${leadsPendentes.map(l => `
-                            <tr data-lead-id="${l.id}">
-                                <td>${l.nome}</td>
-                                <td>${l.empresa || '-'}</td>
-                                <td><input type="text" class="input-valor-venda" placeholder="0,00" data-lead-id="${l.id}"></td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
+                    `).join('')}</tbody>
                 </table>
-                <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;">${leadsPendentes.length} lead(s) aguardando valor de venda.</p>
-            `;
-
+                <p style="font-size:0.75rem;color:#94a3b8;margin-top:8px;">${leadsPendentes.length} lead(s) aguardando valor de venda.</p>`;
                 modal.style.display = 'flex';
-
                 const salvarHandler = () => {
                     const inputs = container.querySelectorAll('.input-valor-venda');
                     let salvos = 0;
@@ -1977,34 +2062,23 @@
                     document.getElementById('salvarValoresBtn').removeEventListener('click', salvarHandler);
                     document.getElementById('adiarValoresBtn').removeEventListener('click', adiarHandler);
                 };
-
                 const adiarHandler = () => {
                     const agora = Date.now();
-                    leadsPendentes.forEach(l => {
-                        pendingVendaValues[l.id] = { lastPrompt: agora };
-                    });
+                    leadsPendentes.forEach(l => { pendingVendaValues[l.id] = { lastPrompt: agora }; });
                     localStorage.setItem('pendingVendaValues', JSON.stringify(pendingVendaValues));
                     modal.style.display = 'none';
                     showToast("Lembrete adiado por 24 horas.");
                     document.getElementById('salvarValoresBtn').removeEventListener('click', salvarHandler);
                     document.getElementById('adiarValoresBtn').removeEventListener('click', adiarHandler);
                 };
-
                 document.getElementById('salvarValoresBtn').addEventListener('click', salvarHandler);
                 document.getElementById('adiarValoresBtn').addEventListener('click', adiarHandler);
-
-                const closeModalHandler = () => {
-                    modal.style.display = 'none';
-                    document.getElementById('salvarValoresBtn').removeEventListener('click', salvarHandler);
-                    document.getElementById('adiarValoresBtn').removeEventListener('click', adiarHandler);
-                };
-                modal.querySelector('.close-modal').onclick = closeModalHandler;
-                modal.onclick = (e) => { if (e.target === modal) closeModalHandler(); };
+                modal.querySelector('.close-modal').onclick = () => { modal.style.display = 'none'; };
+                modal.onclick = (e) => { if (e.target === modal) modal.style.display = 'none'; };
             }
 
-            // ==================== INICIALIZAÇÃO DA UI ====================
             function initUI() {
-                // Filtros e botões da área principal (mantidos)
+                // Filtros e demais bindings (mantidos)
                 document.getElementById('vendedorFilter').addEventListener('change', e => { currentFilters.vendedor = e.target.value; renderDashboard(); });
                 document.getElementById('statusFilter').addEventListener('change', e => { currentFilters.status = e.target.value; renderDashboard(); });
                 document.getElementById('searchInput').addEventListener('input', e => { currentFilters.search = e.target.value; renderDashboard(); });
@@ -2053,31 +2127,20 @@
                 document.querySelectorAll('.modal').forEach(modal => modal.addEventListener('click', (e) => { if (e.target === modal) modal.style.display = 'none'; }));
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
                 setInterval(() => document.getElementById('current-time').innerText = new Date().toLocaleString('pt-BR'), 1000);
-
                 setDefaultYearFilter();
                 fetchAllData();
                 setInterval(fetchAllData, 600000);
 
-                // ==================== MOBILE UI ====================
+                // Mobile UI (hamburger, bottom bar)
                 const hamburgerBtn = document.getElementById('hamburger-btn');
                 const hamburgerMenu = document.getElementById('hamburger-menu');
                 const hamburgerOverlay = document.getElementById('hamburger-overlay');
                 const menuCloseBtn = document.getElementById('menu-close-btn');
-
-                function openHamburger() {
-                    hamburgerMenu.classList.add('active');
-                    hamburgerOverlay.classList.add('active');
-                }
-                function closeHamburger() {
-                    hamburgerMenu.classList.remove('active');
-                    hamburgerOverlay.classList.remove('active');
-                }
-
+                function openHamburger() { hamburgerMenu.classList.add('active'); hamburgerOverlay.classList.add('active'); }
+                function closeHamburger() { hamburgerMenu.classList.remove('active'); hamburgerOverlay.classList.remove('active'); }
                 hamburgerBtn.addEventListener('click', openHamburger);
                 menuCloseBtn.addEventListener('click', closeHamburger);
                 hamburgerOverlay.addEventListener('click', closeHamburger);
-
-                // Mapeamento dos itens do menu hamburger
                 document.getElementById('menu-home').addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
                 document.getElementById('menu-feed').addEventListener('click', () => { window.open('https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html', '_blank'); });
                 document.getElementById('menu-distribuicao').addEventListener('click', () => { populateFilters(); document.getElementById('configAtribModal').style.display = 'flex'; closeHamburger(); });
@@ -2087,20 +2150,17 @@
                 document.getElementById('menu-json').addEventListener('click', () => { exportJSON(); closeHamburger(); });
                 document.getElementById('menu-recarregar').addEventListener('click', () => { fetchAllData(); showToast("Dados recarregados!"); closeHamburger(); });
                 document.getElementById('menu-logout').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
-
-                // Barra inferior
                 document.getElementById('bb-home').addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
                 document.getElementById('bb-feed').addEventListener('click', () => { window.open('https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html', '_blank'); });
                 document.getElementById('bb-menu').addEventListener('click', openHamburger);
 
-                // Sincronizar avatar e nome no topbar mobile
+                // Sincronizar topbar mobile
                 const updateTopbar = () => {
                     const avatarSrc = document.getElementById('user-avatar').src;
                     const greetingText = document.getElementById('greeting').innerText.replace(/<[^>]*>/g, '').replace('Olá, ', '').trim();
                     document.getElementById('topbar-avatar').src = avatarSrc;
                     document.getElementById('topbar-greeting').innerText = greetingText;
                 };
-                // Atualizar sempre que o perfil for alterado
                 new MutationObserver(updateTopbar).observe(document.getElementById('user-avatar'), { attributes: true, attributeFilter: ['src'] });
                 new MutationObserver(updateTopbar).observe(document.getElementById('greeting'), { childList: true, subtree: true });
                 updateTopbar();
