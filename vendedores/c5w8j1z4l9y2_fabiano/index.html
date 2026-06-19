@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* ===== ESTILOS GERAIS (mantidos e adaptados) ===== */
+        /* ===== ESTILOS GERAIS (mantidos) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -1842,23 +1842,21 @@
                     return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
                 });
 
-                // Filtrar apenas os dados do Fabiano (código 24) ou relacionados
+                // --- Aprovados: sem filtro de vendedor (todos) ---
                 const aprov = filterByMonth(aprovadosRaw, 'Data')
-                    .filter(item => String(item['Vendedor'] || '').includes('Fabiano') || extrairCodigo(item['Vendedor']) ===
-                        COD_FABIANO)
                     .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
 
+                // --- Faturados: exclui apenas código 80 (mesmo comportamento da página do Dimas) ---
                 const fat = filterByMonth(faturadosRaw, 'Data')
-                    .filter(item => String(item['Cod. Vendedor'] || '').trim() === COD_FABIANO)
+                    .filter(item => { const cod = item['Cod. Vendedor']?.trim(); return cod && cod !== '80'; })
                     .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
 
+                // --- Aprovados+Faturados: sem filtro de vendedor ---
                 const aprovFat = filterByMonth(aprovFatRaw, 'Data')
-                    .filter(item => String(item['Vendedor'] || '').includes('Fabiano') || extrairCodigo(item['Vendedor']) ===
-                        COD_FABIANO)
                     .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
 
+                // --- Cotações: sem filtro de vendedor ---
                 const cot = filterByMonth(cotacoesRaw, 'Data Criação')
-                    .filter(item => extrairCodigo(item['Vendedor']) === COD_FABIANO)
                     .sort((a, b) => (parseDataBR(b['Data Criação']) || 0) - (parseDataBR(a['Data Criação']) || 0));
 
                 function gerarTabela(dados, colunas, tipo, colunaTotal) {
