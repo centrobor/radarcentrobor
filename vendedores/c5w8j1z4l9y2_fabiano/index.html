@@ -7,7 +7,9 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
+        /* ===== ESTILOS GERAIS (mantidos e adaptados) ===== */
         * {
             margin: 0;
             padding: 0;
@@ -56,6 +58,272 @@
             --mobile-topbar-height: 56px;
             --safe-bottom: env(safe-area-inset-bottom, 8px);
         }
+
+        /* ===== LOADING OVERLAY ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(30, 58, 95, 0.2);
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        /* ===== CELEBRAÇÃO ===== */
+        .modal-celebracao .modal-content {
+            text-align: center;
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #1a1a1a;
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        .modal-celebracao .trofeu {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+        .modal-celebracao .lista-conquistas {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .modal-celebracao .btn-fechar-celebracao {
+            background: #1e3a5f;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+        .modal-celebracao .btn-fechar-celebracao:hover {
+            background: #2b4c7a;
+            transform: scale(1.05);
+        }
+
+        /* ===== FICHA DO CLIENTE (MODAL) ===== */
+        .ficha-secao {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .ficha-secao h4 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ficha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 20px;
+        }
+        @media (max-width: 600px) {
+            .ficha-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .ficha-campo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.8rem;
+        }
+        .ficha-campo i {
+            width: 18px;
+            color: var(--primary);
+            text-align: center;
+        }
+        .ficha-campo .campo-label {
+            font-weight: 600;
+            color: var(--muted);
+            min-width: 110px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .ficha-campo .campo-valor {
+            color: var(--text-dark);
+            word-break: break-word;
+        }
+        .ficha-item-destaque {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        /* ===== TOTALIZADOR DINÂMICO NAS TABELAS ===== */
+        .table-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .table-toolbar .search-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .table-toolbar .search-wrap input {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid var(--line);
+            font-size: 0.8rem;
+            width: 200px;
+            flex: 1;
+            min-width: 120px;
+        }
+        .table-toolbar .total-badge {
+            background: var(--primary);
+            color: white;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            letter-spacing: 0.3px;
+        }
+
+        /* ===== TABELAS ===== */
+        .table-wrapper {
+            background: var(--card-bg);
+            backdrop-filter: var(--blur);
+            border-radius: var(--radius-lg);
+            overflow-x: auto;
+            padding: 14px;
+            margin-bottom: 28px;
+            box-shadow: var(--shadow-sm);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+            min-width: 600px;
+        }
+        th {
+            background: rgba(248, 250, 253, 0.95);
+            padding: 10px 8px;
+            font-weight: 700;
+            text-transform: uppercase;
+            border-bottom: 2px solid var(--line);
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid var(--line);
+            cursor: pointer;
+        }
+        tr:hover td {
+            background: rgba(200, 220, 240, 0.3);
+        }
+        td.cliente-nome {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        td.cliente-nome:hover {
+            text-decoration: underline;
+        }
+
+        .section-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        /* ===== MODAIS GERAIS ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            border-radius: 28px;
+            padding: 28px;
+            width: 80vw;
+            max-width: 1100px;
+            max-height: 85vh;
+            overflow-y: auto;
+            position: relative;
+            animation: modalIn 0.3s ease;
+        }
+        @keyframes modalIn {
+            from { opacity: 0; transform: translateY(30px) scale(0.96); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 16px;
+            right: 20px;
+            font-size: 1.8rem;
+            cursor: pointer;
+            color: var(--muted);
+            transition: 0.2s;
+        }
+        .modal-close:hover {
+            color: var(--danger);
+        }
+
+        /* ===== DEMAIS ESTILOS (mantidos) ===== */
         .header {
             display: flex;
             justify-content: space-between;
@@ -148,8 +416,7 @@
             justify-content: center;
             font-weight: 700;
         }
-        
-        /* === PDF BUTTON === */
+
         .btn-pdf {
             background: var(--primary);
             color: white;
@@ -169,7 +436,7 @@
             background: var(--primary-light);
             transform: translateY(-2px);
         }
-        
+
         .carousel-section {
             margin-bottom: 32px;
             border-radius: 32px;
@@ -242,6 +509,7 @@
             background: var(--primary);
             transform: scale(1.4);
         }
+
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -272,6 +540,7 @@
             font-weight: 600;
             font-size: 0.8rem;
         }
+
         .filters-bar {
             display: flex;
             flex-wrap: wrap;
@@ -307,6 +576,7 @@
             color: #aaa;
             background: #f0f0f0;
         }
+
         .segment-row {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -381,6 +651,7 @@
             font-size: 0.7rem;
             color: var(--text-soft);
         }
+
         .chart-evolution {
             background: var(--card-bg);
             backdrop-filter: var(--blur);
@@ -389,14 +660,7 @@
             margin-bottom: 36px;
             border: 1px solid var(--border-light);
         }
-        .section-title {
-            font-size: 1.4rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
+
         .footer {
             background: var(--footer-bg);
             color: var(--footer-text);
@@ -437,134 +701,53 @@
         .footer-social a:hover {
             color: white;
         }
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(6px);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal.active {
-            display: flex;
-        }
-        .modal-content {
-            background: white;
-            border-radius: 28px;
-            padding: 28px;
-            width: 80vw;
-            max-width: 1100px;
-            max-height: 85vh;
-            overflow-y: auto;
-            position: relative;
-            animation: modalIn 0.3s ease;
-        }
-        @keyframes modalIn {
-            from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.96);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
-        .modal-close {
-            position: absolute;
-            top: 16px;
-            right: 20px;
-            font-size: 1.8rem;
-            cursor: pointer;
-            color: var(--muted);
-            transition: 0.2s;
-        }
-        .modal-close:hover {
-            color: var(--danger);
-        }
-        .notif-card {
-            display: flex;
-            gap: 14px;
-            padding: 14px;
-            border-bottom: 1px solid var(--line);
-            cursor: pointer;
-            border-radius: 16px;
-            transition: 0.2s;
-        }
-        .notif-card:hover {
-            background: #f9fafb;
-        }
-        .notif-thumb {
-            width: 80px;
-            height: 70px;
-            object-fit: cover;
-            border-radius: 14px;
-        }
-        .btn-mark-all-read {
-            background: var(--primary-soft);
-            border: 1px solid var(--primary-light);
-            color: var(--primary);
-            padding: 8px 16px;
-            border-radius: 30px;
-            cursor: pointer;
-            font-weight: 600;
-            font-size: 0.8rem;
-            transition: 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .btn-mark-all-read i {
-            font-size: 0.9rem;
-        }
-        .btn-mark-all-read:hover {
-            background: var(--primary);
-            color: white;
-        }
-        
-        /* === IMPRESSÃO === */
+
+        /* ===== MOBILE (mantido) ===== */
         #print-header { display: none; }
         @media print {
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
             .icon-btn, .btn-pdf, .filters-bar, .modal, .footer-social,
             .footer-bottom, .last-update-badge, .logout-btn, .notification-bell,
-            .badge, #bb-badge-dot, .btn-mark-all-read, .footer, .month-select {
+            .badge, #bb-badge-dot, .btn-mark-all-read, .footer, .month-select,
+            .table-toolbar .search-wrap input, .table-toolbar .total-badge {
                 display: none !important;
             }
-            #print-header { 
-                display: block !important; 
-                text-align: center; 
-                margin-bottom: 20px; 
-                border-bottom: 2px solid var(--primary); 
-                padding-bottom: 10px; 
+            #print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--primary);
+                padding-bottom: 10px;
             }
             #print-header h1 { font-size: 18pt; color: var(--primary); margin: 0; }
             #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
-            body, .wrapper { 
-                background: white !important; 
-                padding: 0; 
-                margin: 0; 
-                color: black; 
+            body, .wrapper {
+                background: white !important;
+                padding: 0;
+                margin: 0;
+                color: black;
             }
-            .segment-card, .chart-evolution, .meta-item, .segment-title {
-                background: white !important; 
+            .segment-card, .chart-evolution, .meta-item, .segment-title, .table-wrapper {
+                background: white !important;
                 backdrop-filter: none !important;
-                box-shadow: none !important; 
+                box-shadow: none !important;
                 border: 1px solid #ccc !important;
                 page-break-inside: avoid;
             }
-            canvas, .progress-fill-sm { 
-                -webkit-print-color-adjust: exact !important; 
-                print-color-adjust: exact !important; 
+            canvas, .progress-fill-sm {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
             }
             .meta-item { page-break-inside: avoid; }
+            table { font-size: 8pt; width: 100%; border-collapse: collapse; }
+            th, td { padding: 4px 2px; border: 1px solid #ddd; }
+            th { background: #f5f5f5; }
+            .ficha-item-destaque { background: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+            .table-wrapper table { font-size: 7pt; }
+            .table-wrapper tr { page-break-inside: avoid; }
         }
-        
+
         @media (max-width: 680px) {
             .meta-grid-3col {
                 grid-template-columns: 1fr;
@@ -574,7 +757,7 @@
             }
         }
 
-        /* ══════════════ MOBILE TOPBAR ══════════════ */
+        /* ===== MOBILE TOPBAR, HAMBURGER, BOTTOM BAR (já existentes) ===== */
         .mobile-topbar {
             display: none;
             position: sticky;
@@ -629,7 +812,6 @@
             transform: scale(0.94);
         }
 
-        /* ══════════════ HAMBURGER OVERLAY & MENU ══════════════ */
         .hamburger-overlay {
             display: none;
             position: fixed;
@@ -760,7 +942,6 @@
             transform: scale(0.9);
         }
 
-        /* ══════════════ MOBILE BOTTOM BAR ══════════════ */
         .mobile-bottom-bar {
             display: none;
             position: fixed;
@@ -829,7 +1010,6 @@
             border: 2px solid white;
         }
 
-        /* ══════════════ MEDIA QUERIES MOBILE (≤1000px) ══════════════ */
         @media (max-width: 1000px) {
             body {
                 padding: 0 0 var(--bottom-bar-height) 0;
@@ -863,12 +1043,10 @@
             }
             .carousel-slide img {
                 height: 220px;
-                object-fit: cover;
             }
             .carousel-caption {
                 padding: 14px 16px;
                 font-size: 0.85rem;
-                border-radius: 0 0 20px 20px;
             }
             .carousel-btn {
                 width: 32px;
@@ -942,21 +1120,6 @@
                 right: 12px;
                 font-size: 1.4rem;
             }
-            .notif-card {
-                flex-direction: row;
-                gap: 10px;
-                padding: 10px;
-                border-radius: 10px;
-            }
-            .notif-thumb {
-                width: 60px;
-                height: 50px;
-                border-radius: 10px;
-            }
-            .btn-mark-all-read {
-                font-size: 0.7rem;
-                padding: 6px 12px;
-            }
             .footer {
                 border-radius: 24px 24px 0 0;
                 padding: 20px 16px 100px;
@@ -977,11 +1140,6 @@
             }
             .footer-social {
                 display: none;
-            }
-            .footer-bottom {
-                font-size: 0.65rem;
-                padding-top: 10px;
-                margin-top: 12px;
             }
         }
 
@@ -1039,37 +1197,34 @@
 </head>
 <body>
 
-    <!-- Cabeçalho de impressão -->
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Consultando dados...</div>
+    </div>
+
+    <!-- HEADER DE IMPRESSÃO -->
     <div id="print-header">
         <h1>Fabiano - Coordenador</h1>
         <p>Relatório - Gerado em <span id="print-date"></span></p>
     </div>
 
-    <!-- ══════════════ MOBILE TOPBAR ══════════════ -->
+    <!-- MOBILE TOPBAR -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img src="img/perfil.png" alt="Fabiano" class="topbar-avatar" id="topbar-avatar">
             <span class="topbar-greeting" id="topbar-greeting">Fabiano <span class="coordenador-badge" style="font-size:0.6rem;padding:2px 8px;">Coord.</span></span>
         </div>
-        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu">
-            <i class="fas fa-bars"></i>
-        </button>
+        <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
     </div>
 
-    <!-- ══════════════ HAMBURGER OVERLAY ══════════════ -->
+    <!-- HAMBURGER OVERLAY & MENU -->
     <div class="hamburger-overlay" id="hamburger-overlay"></div>
-
-    <!-- ══════════════ HAMBURGER MENU ══════════════ -->
     <nav class="hamburger-menu" id="hamburger-menu">
-        <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu">
-            <i class="fas fa-times"></i>
-        </button>
+        <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
         <div class="menu-header">
             <img src="img/perfil.png" alt="Fabiano" class="menu-avatar" id="menu-avatar">
-            <div class="menu-user-info">
-                <h4>Fabiano</h4>
-                <span>Coordenador</span>
-            </div>
+            <div class="menu-user-info"><h4>Fabiano</h4><span>Coordenador</span></div>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Principal</div>
@@ -1083,8 +1238,7 @@
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
             <div class="menu-item" style="pointer-events:none;opacity:0.8;">
-                <i class="fas fa-sync-alt"></i>
-                <span id="menu-update-status" style="font-size:0.75rem;">Carregando...</span>
+                <i class="fas fa-sync-alt"></i><span id="menu-update-status" style="font-size:0.75rem;">Carregando...</span>
             </div>
             <div class="menu-item" id="menu-notifications-side">
                 <i class="fas fa-bell"></i> Alertas
@@ -1097,30 +1251,18 @@
         </div>
     </nav>
 
-    <!-- ══════════════ MOBILE BOTTOM BAR ══════════════ -->
+    <!-- MOBILE BOTTOM BAR -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
-        <button class="bb-item active" data-nav="feed" id="bb-feed">
-            <i class="fas fa-newspaper"></i><span>Feed</span>
-        </button>
-        <button class="bb-item" data-nav="custos" id="bb-custos">
-            <i class="fas fa-calculator"></i><span>Custos</span>
-        </button>
-        <button class="bb-item" data-nav="analise" id="bb-analise">
-            <i class="fas fa-ship"></i><span>Análise Custos</span>
-        </button>
-        <button class="bb-item" data-nav="vendas" id="bb-vendas">
-            <i class="fas fa-tags"></i><span>Vendas</span>
-        </button>
-        <button class="bb-item" data-nav="home" id="bb-home">
-            <i class="fas fa-home"></i><span>Início</span>
-        </button>
-        <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas">
-            <i class="fas fa-bell"></i><span>Alertas</span>
-            <span class="badge-dot" id="bb-badge-dot" style="display:none;"></span>
-        </button>
+        <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
+        <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button>
+        <button class="bb-item" data-nav="analise" id="bb-analise"><i class="fas fa-ship"></i><span>Análise Custos</span></button>
+        <button class="bb-item" data-nav="vendas" id="bb-vendas"><i class="fas fa-tags"></i><span>Vendas</span></button>
+        <button class="bb-item active" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+        <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
     </div>
 
     <div class="wrapper">
+        <!-- HEADER DESKTOP -->
         <div class="header" id="desktop-header">
             <div class="user-section">
                 <img src="img/perfil.png" alt="Fabiano" class="user-avatar">
@@ -1136,6 +1278,7 @@
             </div>
         </div>
 
+        <!-- CARROSSEL -->
         <div class="carousel-section">
             <div class="carousel-container" id="carousel-container"></div>
             <div class="carousel-controls">
@@ -1145,6 +1288,7 @@
             <div class="carousel-indicators" id="carousel-indicators"></div>
         </div>
 
+        <!-- TOOLS GRID -->
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>
@@ -1152,23 +1296,40 @@
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas"><div class="tool-icon"><i class="fas fa-tags"></i></div><div class="tool-label">Vendas</div></a>
         </div>
 
+        <!-- FILTRO MENSAL + PDF -->
         <div class="filters-bar">
             <div class="filter-group">
                 <i class="fas fa-calendar-alt"></i>
-                <label>Mês de referência (segmentos):</label>
+                <label>Mês de referência:</label>
                 <select id="monthSelector" class="month-select"></select>
             </div>
             <button class="btn-pdf" id="gerar-pdf-btn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
         </div>
 
+        <!-- SEGMENTOS (CARDS DE METAS) -->
         <div class="segment-row" id="segment-cards"></div>
 
+        <!-- GRÁFICO EVOLUÇÃO -->
         <div class="chart-evolution">
             <div class="section-title"><i class="fas fa-chart-line" style="color: var(--primary);"></i> Evolução Mensal (R$) – Sinc/Polias vs Lavanderia</div>
             <canvas id="evolutionChart" height="280" style="max-height: 300px; width:100%"></canvas>
         </div>
+
+        <!-- NOVO: TABELAS COM TOTALIZADOR DINÂMICO E FICHA DO CLIENTE -->
+        <div class="section-title"><i class="fas fa-check-circle"></i> Pedidos Aprovados</div>
+        <div class="table-wrapper" id="tabela-aprovados"></div>
+
+        <div class="section-title"><i class="fas fa-dollar-sign"></i> Pedidos Faturados</div>
+        <div class="table-wrapper" id="tabela-faturados"></div>
+
+        <div class="section-title"><i class="fas fa-clipboard-list"></i> Pedidos (Aprovados + Faturados)</div>
+        <div class="table-wrapper" id="tabela-aprovadosfaturados"></div>
+
+        <div class="section-title"><i class="fas fa-file-invoice"></i> Cotações</div>
+        <div class="table-wrapper" id="tabela-cotacoes"></div>
     </div>
 
+    <!-- FOOTER -->
     <footer class="footer">
         <div class="footer-inner">
             <div class="footer-logo-section">
@@ -1186,30 +1347,33 @@
         </div>
     </footer>
 
+    <!-- MODAIS -->
+    <div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
     <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
     <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
+    <div class="modal modal-celebracao" id="celebracao-modal">
+        <div class="modal-content" id="celebracao-body"></div>
+    </div>
 
     <script>
         (function() {
-            // ==================== VERIFICAÇÃO DE SESSÃO (PADRÃO RADAR) ====================
-            const BASE_URL = 'https://centrobor.github.io/radarcentrobor';
+            // ==================== VERIFICAÇÃO DE SESSÃO ====================
             if (localStorage.getItem('radar_logged_out') === 'true') {
-                window.location.href = BASE_URL + '/index.html?reason=logged_out';
+                window.location.href = '../../index.html?reason=logged_out';
                 return;
             }
             if (!localStorage.getItem('radar_usuario')) {
-                window.location.href = BASE_URL + '/index.html?reason=expired';
+                window.location.href = '../../index.html?reason=expired';
                 return;
             }
             const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
             const nowDate = Date.now();
             if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
                 localStorage.removeItem('radar_usuario');
-                window.location.href = BASE_URL + '/index.html?reason=expired';
+                window.location.href = '../../index.html?reason=expired';
                 return;
             }
             localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
-            // ==================== FIM VERIFICAÇÃO ====================
 
             // ==================== CONFIGURAÇÃO ====================
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
@@ -1218,17 +1382,85 @@
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
-                informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`
+                informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`,
+                aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
+                aprovadosfaturados: `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`,
+                cotacoes: `https://opensheet.elk.sh/${SHEET_ID}/cotacoes`,
+                carteira: `https://opensheet.elk.sh/${SHEET_ID}/carteiraclientes`
             };
             const COD_FABIANO = "24";
             let faturadosRaw = [],
                 metasRaw = [],
                 BANNERS = [],
-                notificacoes = [];
+                notificacoes = [],
+                aprovadosRaw = [],
+                aprovFatRaw = [],
+                cotacoesRaw = [],
+                carteiraRaw = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications_Fabiano')) || [];
             let evolutionChart = null;
             let currentMonth = null,
                 currentYear = new Date().getFullYear();
+            let carteiraMapGlobal = new Map();
+
+            // ==================== LOADING ====================
+            const loadingOverlay = document.getElementById('loading-overlay');
+
+            function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
+
+            function esconderLoading() { loadingOverlay.classList.add('hidden'); }
+
+            // ==================== CELEBRAÇÃO ====================
+            function dispararConfetes() {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10000 });
+                    setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 10000 }),
+                        200);
+                    setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 10000 }),
+                        400);
+                }
+            }
+
+            function getMetasCelebradas() {
+                try { return JSON.parse(localStorage.getItem('metas_celebradas_fabiano')) || []; } catch (e) { return []; }
+            }
+
+            function adicionarMetaCelebrada(chave) {
+                const celebradas = getMetasCelebradas();
+                if (!celebradas.includes(chave)) {
+                    celebradas.push(chave);
+                    localStorage.setItem('metas_celebradas_fabiano', JSON.stringify(celebradas));
+                }
+            }
+
+            function mostrarCelebracao(conquistas) {
+                if (!conquistas || conquistas.length === 0) return;
+                const celebradas = getMetasCelebradas();
+                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+                if (novasConquistas.length === 0) return;
+
+                const body = document.getElementById('celebracao-body');
+                let listaHtml = '';
+                novasConquistas.forEach(c => {
+                    listaHtml +=
+                        `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`;
+                    adicionarMetaCelebrada(c.chave);
+                });
+                body.innerHTML = `
+                    <div class="trofeu">🏆</div>
+                    <h2>Parabéns, Fabiano!</h2>
+                    <p>Você atingiu as seguintes metas:</p>
+                    <div class="lista-conquistas">${listaHtml}</div>
+                    <p style="font-size:1.1rem; margin-top:10px;">Continue assim! 🚀</p>
+                    <button class="btn-fechar-celebracao" id="fechar-celebracao-btn">Fechar</button>
+                `;
+                const modal = document.getElementById('celebracao-modal');
+                modal.classList.add('active');
+                dispararConfetes();
+                document.getElementById('fechar-celebracao-btn').addEventListener('click', () => { modal.classList.remove(
+                        'active'); });
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
 
             // ==================== UTILITÁRIOS ====================
             const cleanNumber = (v) => {
@@ -1245,10 +1477,186 @@
                 return null;
             };
             const nomeMesExtenso = (mesNum) => {
-                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
+                    'Novembro', 'Dezembro'
+                ];
                 return meses[mesNum - 1];
             };
+            const extrairCodigo = (str) => {
+                const match = String(str || '').match(/^(\d+)/);
+                return match ? match[1] : null;
+            };
 
+            // ==================== FICHA DO CLIENTE ====================
+            function fichaCampo(icone, label, valor) {
+                const val = valor || '—';
+                return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
+            }
+
+            function abrirFichaCliente(nomeUpper, pedidoData) {
+                const modal = document.getElementById('detail-modal');
+                const body = document.getElementById('modal-body');
+
+                let cliente = carteiraMapGlobal.get(nomeUpper);
+                if (!cliente && pedidoData) {
+                    const razao = (pedidoData['Razão Social'] || pedidoData['Cliente'] || '').toUpperCase().trim();
+                    if (razao) cliente = carteiraMapGlobal.get(razao);
+                    if (!cliente) {
+                        const cod = String(pedidoData['Cliente'] || '').trim();
+                        if (cod) {
+                            for (let [key, val] of carteiraMapGlobal.entries()) {
+                                if (String(val['Código'] || '').trim() === cod) { cliente = val; break; }
+                            }
+                        }
+                    }
+                }
+
+                if (!cliente && pedidoData) {
+                    let htmlFallback = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="margin:0;"><i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Pedido'}</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-info-circle"></i> Cliente não localizado na carteira</h4>
+                            <p style="color:var(--muted);">Abaixo os dados do pedido/cotação.</p>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-clipboard-list"></i> Detalhes</h4>
+                            <table style="font-size:0.75rem; width:100%;">
+                                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                                <tbody>
+                    `;
+                    Object.keys(pedidoData).forEach(key => {
+                        htmlFallback += `<tr><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                    });
+                    htmlFallback += `</tbody></table></div>`;
+                    body.innerHTML = htmlFallback;
+                    modal.classList.add('active');
+                    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+                    return;
+                }
+
+                if (cliente) {
+                    const nome = cliente['Nome/Razão Social'] || cliente['Nome Chave'] || nomeUpper;
+                    let html = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${nome}</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-building"></i> Dados da Empresa</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-hashtag', 'Código', cliente['Código'])}
+                                ${fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave'])}
+                                ${fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social'])}
+                                ${fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica'])}
+                                ${fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC'])}
+                                ${fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE'])}
+                                ${fichaCampo('fa-industry', 'Ramo', cliente['Ramo'])}
+                                ${fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro'])}
+                                ${fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo'])}
+                                ${fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora'])}
+                                ${fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito'])}
+                            </div>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-map-marker-alt"></i> Endereço</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-road', 'Endereço', cliente['Endereço'])}
+                                ${fichaCampo('fa-home', 'Número', cliente['Número'])}
+                                ${fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento'])}
+                                ${fichaCampo('fa-map', 'Bairro', cliente['Bairro'])}
+                                ${fichaCampo('fa-city', 'Cidade', cliente['Cidade'])}
+                                ${fichaCampo('fa-map-pin', 'UF', cliente['UF'])}
+                                ${fichaCampo('fa-globe-americas', 'País', cliente['País'])}
+                                ${fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP'])}
+                            </div>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-phone-alt"></i> Contato</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-phone', 'Telefone', cliente['Telefone'])}
+                                ${fichaCampo('fa-fax', 'Fax', cliente['Fax'])}
+                                ${fichaCampo('fa-user', 'Contato', cliente['Contato'])}
+                                ${fichaCampo('fa-building', 'Departamento', cliente['Departamento'])}
+                                ${fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo'])}
+                                ${fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário'])}
+                                ${fichaCampo('fa-phone-volume', 'Fone', cliente['Fone'])}
+                                ${fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail'])}
+                            </div>
+                        </div>
+                    `;
+
+                    if (pedidoData) {
+                        html += `
+                            <div class="ficha-secao">
+                                <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>
+                                <table style="font-size:0.75rem; width:100%;">
+                                    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                                    <tbody>
+                        `;
+                        Object.keys(pedidoData).forEach(key => {
+                            const isDestaque = ['Total Bruto', 'Total Líquido', 'Valor Mercadoria', 'Valor Total'].includes(
+                                key);
+                            html +=
+                                `<tr${isDestaque ? ' style="background:#f0fdf4;"' : ''}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                        });
+                        html += `</tbody></table></div>`;
+                    }
+
+                    const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+                    const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                    html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+                    if (telefone && telefone.length > 5) html +=
+                        `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                    if (email && email.includes('@')) html +=
+                        `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                    html += `<button onclick="copiarDadosCliente()" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Ficha</button>`;
+                    html += '</div>';
+
+                    body.innerHTML = html;
+                    modal.classList.add('active');
+                    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+
+                    window.copiarDadosCliente = function() {
+                        let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
+                        texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
+                        texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
+                        texto += `Ramo: ${cliente['Ramo'] || '—'}\nSituação: ${cliente['ATivo/Inativo'] || '—'}\nDt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
+                        texto += `ENDEREÇO\n─────────────────────────────────\nEndereço: ${cliente['Endereço'] || '—'}\nNúmero: ${cliente['Número'] || '—'}\n`;
+                        texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
+                        texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
+                        texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                        if (pedidoData) {
+                            texto += '\n═══════════════════════════════════\n  DADOS DO PEDIDO / COTAÇÃO\n═══════════════════════════════════\n';
+                            Object.keys(pedidoData).forEach(key => {
+                                texto += `${key}: ${pedidoData[key] || '—'}\n`;
+                            });
+                        }
+                        navigator.clipboard.writeText(texto).then(() => {
+                            const toast = document.createElement('div');
+                            toast.textContent = '✅ Dados copiados!';
+                            toast.style.cssText =
+                                'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#2e7d32; color:white; padding:12px 24px; border-radius:40px; font-weight:600; z-index:9999; box-shadow:0 8px 20px rgba(0,0,0,0.2); animation:fadeInOut 2s forwards;';
+                            document.body.appendChild(toast);
+                            setTimeout(() => toast.remove(), 2000);
+                        }).catch(() => {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = texto;
+                            textarea.style.position = 'fixed';
+                            textarea.style.opacity = '0';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            alert('Dados copiados! (fallback)');
+                        });
+                    };
+                }
+            }
+
+            // ==================== FUNÇÕES DE CÁLCULO (Fabiano) ====================
             function getFabianoSincPoliasFat(ano, mes) {
                 let fat = 0;
                 const regs = new Set();
@@ -1310,6 +1718,7 @@
                 };
             }
 
+            // ==================== RENDER CARDS DE METAS + CELEBRAÇÃO ====================
             function renderSegmentCards(ano, mes) {
                 const metas = getMetasFabiano();
                 const fatSinc = getFabianoSincPoliasFat(ano, mes);
@@ -1336,35 +1745,65 @@
                 const percSincAno = metas.sinc.anual ? (acumSincAno / metas.sinc.anual) * 100 : 0;
                 const percLavAno = metas.lav.anual ? (acumLavAno / metas.lav.anual) * 100 : 0;
                 const semestreLabel = mes <= 6 ? '1º Semestre' : '2º Semestre';
-                const buildItem = (label, bigValue, metaVal, percent, falta) => `
-                <div class="meta-item">
+
+                const buildItem = (label, bigValue, metaVal, percent, falta, chaveMeta) => `
+                <div class="meta-item" data-chave="${chaveMeta}" data-percent="${percent}">
                     <div class="meta-label">${label}</div>
                     <div class="big-number">${formatarMoeda(bigValue)}</div>
                     <div class="meta-value-small">Meta: ${formatarMoeda(metaVal)}</div>
                     <div class="progress-bar-sm"><div class="progress-fill-sm" style="width: ${Math.min(percent,100)}%; background: ${percent>=80?'#2e7d32':'#ed6c02'}"></div></div>
                     <div class="detail-text">${percent.toFixed(1)}% da meta • Faltam ${formatarMoeda(falta)}</div>
                 </div>`;
+
+                // Coletar conquistas para celebração
+                const conquistas = [];
+                const chaveSincMensal = `fabiano_sinc_mensal_${ano}_${mes}`;
+                const chaveLavMensal = `fabiano_lav_mensal_${ano}_${mes}`;
+                const chaveSincSem = `fabiano_sinc_sem_${ano}_${semestreInicio}`;
+                const chaveLavSem = `fabiano_lav_sem_${ano}_${semestreInicio}`;
+                const chaveSincAnual = `fabiano_sinc_anual_${ano}`;
+                const chaveLavAnual = `fabiano_lav_anual_${ano}`;
+
+                if (percSincMes >= 100) conquistas.push({ nome: 'Meta Mensal Sinc/Polias', meta: metas.sinc.mensal,
+                    realizado: fatSinc, perc: percSincMes, chave: chaveSincMensal });
+                if (percLavMes >= 100) conquistas.push({ nome: 'Meta Mensal Lavanderia', meta: metas.lav.mensal,
+                    realizado: fatLav, perc: percLavMes, chave: chaveLavMensal });
+                if (percSincSem >= 100) conquistas.push({ nome: `Meta ${semestreLabel} Sinc/Polias`, meta: metas.sinc
+                        .semestral, realizado: acumSincSem, perc: percSincSem, chave: chaveSincSem });
+                if (percLavSem >= 100) conquistas.push({ nome: `Meta ${semestreLabel} Lavanderia`, meta: metas.lav
+                        .semestral, realizado: acumLavSem, perc: percLavSem, chave: chaveLavSem });
+                if (percSincAno >= 100) conquistas.push({ nome: 'Meta Anual Sinc/Polias', meta: metas.sinc.anual,
+                    realizado: acumSincAno, perc: percSincAno, chave: chaveSincAnual });
+                if (percLavAno >= 100) conquistas.push({ nome: 'Meta Anual Lavanderia', meta: metas.lav.anual,
+                    realizado: acumLavAno, perc: percLavAno, chave: chaveLavAnual });
+
                 const sincHtml = `
                 <div class="segment-card">
                     <div class="segment-title"><i class="fas fa-cogs"></i> Sincronizadas / Polias</div>
                     <div class="meta-grid-3col">
-                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatSinc, metas.sinc.mensal, percSincMes, Math.max(0, metas.sinc.mensal - fatSinc))}
-                        ${buildItem(`${semestreLabel} (acum.)`, acumSincSem, metas.sinc.semestral, percSincSem, Math.max(0, metas.sinc.semestral - acumSincSem))}
-                        ${buildItem(`Anual ${ano} (acum.)`, acumSincAno, metas.sinc.anual, percSincAno, Math.max(0, metas.sinc.anual - acumSincAno))}
+                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatSinc, metas.sinc.mensal, percSincMes, Math.max(0, metas.sinc.mensal - fatSinc), chaveSincMensal)}
+                        ${buildItem(`${semestreLabel} (acum.)`, acumSincSem, metas.sinc.semestral, percSincSem, Math.max(0, metas.sinc.semestral - acumSincSem), chaveSincSem)}
+                        ${buildItem(`Anual ${ano} (acum.)`, acumSincAno, metas.sinc.anual, percSincAno, Math.max(0, metas.sinc.anual - acumSincAno), chaveSincAnual)}
                     </div>
                 </div>`;
                 const lavHtml = `
                 <div class="segment-card">
                     <div class="segment-title"><i class="fas fa-water"></i> Lavanderia</div>
                     <div class="meta-grid-3col">
-                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatLav, metas.lav.mensal, percLavMes, Math.max(0, metas.lav.mensal - fatLav))}
-                        ${buildItem(`${semestreLabel} (acum.)`, acumLavSem, metas.lav.semestral, percLavSem, Math.max(0, metas.lav.semestral - acumLavSem))}
-                        ${buildItem(`Anual ${ano} (acum.)`, acumLavAno, metas.lav.anual, percLavAno, Math.max(0, metas.lav.anual - acumLavAno))}
+                        ${buildItem(`Mensal (${nomeMesExtenso(mes)}/${ano})`, fatLav, metas.lav.mensal, percLavMes, Math.max(0, metas.lav.mensal - fatLav), chaveLavMensal)}
+                        ${buildItem(`${semestreLabel} (acum.)`, acumLavSem, metas.lav.semestral, percLavSem, Math.max(0, metas.lav.semestral - acumLavSem), chaveLavSem)}
+                        ${buildItem(`Anual ${ano} (acum.)`, acumLavAno, metas.lav.anual, percLavAno, Math.max(0, metas.lav.anual - acumLavAno), chaveLavAnual)}
                     </div>
                 </div>`;
                 document.getElementById('segment-cards').innerHTML = sincHtml + lavHtml;
+
+                // Disparar celebração se houver conquistas
+                if (conquistas.length > 0) {
+                    setTimeout(() => mostrarCelebracao(conquistas), 600);
+                }
             }
 
+            // ==================== GRÁFICO ====================
             function renderEvolutionChart(ano) {
                 const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 const sincData = [],
@@ -1381,8 +1820,7 @@
                         labels: mesesLabels,
                         datasets: [
                             { label: 'Sincronizadas / Polias', data: sincData, borderColor: '#1e3a5f',
-                                backgroundColor: 'rgba(30,58,95,0.05)', fill: true, tension: 0.3,
-                            pointRadius: 4 },
+                                backgroundColor: 'rgba(30,58,95,0.05)', fill: true, tension: 0.3, pointRadius: 4 },
                             { label: 'Lavanderia', data: lavData, borderColor: '#d97706',
                                 backgroundColor: 'rgba(217,119,6,0.05)', fill: true, tension: 0.3, pointRadius: 4 }
                         ]
@@ -1397,28 +1835,139 @@
                 });
             }
 
-            function populateMonthSelector() {
-                const hoje = new Date();
-                const anoAtual = hoje.getFullYear();
-                const mesAtual = hoje.getMonth() + 1;
-                const select = document.getElementById('monthSelector');
-                let options = '';
-                for (let m = 1; m <= 12; m++) {
-                    const isFuture = m > mesAtual;
-                    const selected = (m === mesAtual) ? 'selected' : '';
-                    options +=
-                        `<option value="${m}" ${selected} ${isFuture ? 'disabled' : ''}>${m.toString().padStart(2,'0')}/${anoAtual}</option>`;
-                }
-                select.innerHTML = options;
-                select.addEventListener('change', (e) => {
-                    const mes = parseInt(e.target.value);
-                    currentMonth = mes;
-                    renderSegmentCards(anoAtual, currentMonth);
-                    renderEvolutionChart(anoAtual);
+            // ==================== TABELAS COM TOTALIZADOR DINÂMICO ====================
+            function renderTables(ano, mes) {
+                const filterByMonth = (lista, campoData) => lista.filter(item => {
+                    const d = parseDataBR(item[campoData]);
+                    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
                 });
-                currentMonth = mesAtual;
-                renderSegmentCards(anoAtual, currentMonth);
-                renderEvolutionChart(anoAtual);
+
+                // Filtrar apenas os dados do Fabiano (código 24) ou relacionados
+                const aprov = filterByMonth(aprovadosRaw, 'Data')
+                    .filter(item => String(item['Vendedor'] || '').includes('Fabiano') || extrairCodigo(item['Vendedor']) ===
+                        COD_FABIANO)
+                    .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
+
+                const fat = filterByMonth(faturadosRaw, 'Data')
+                    .filter(item => String(item['Cod. Vendedor'] || '').trim() === COD_FABIANO)
+                    .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
+
+                const aprovFat = filterByMonth(aprovFatRaw, 'Data')
+                    .filter(item => String(item['Vendedor'] || '').includes('Fabiano') || extrairCodigo(item['Vendedor']) ===
+                        COD_FABIANO)
+                    .sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
+
+                const cot = filterByMonth(cotacoesRaw, 'Data Criação')
+                    .filter(item => extrairCodigo(item['Vendedor']) === COD_FABIANO)
+                    .sort((a, b) => (parseDataBR(b['Data Criação']) || 0) - (parseDataBR(a['Data Criação']) || 0));
+
+                function gerarTabela(dados, colunas, tipo, colunaTotal) {
+                    if (!dados.length) return '<p>Nenhum registro.</p>';
+                    const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
+                    let html = `
+                        <div class="table-toolbar">
+                            <div class="search-wrap">
+                                <input type="text" class="table-search" placeholder="🔍 Filtrar...">
+                                <span class="total-badge"><i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalInicial)}</span>
+                            </div>
+                        </div>
+                        <table>
+                            <thead><tr>${colunas.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                            <tbody>
+                    `;
+                    dados.slice(0, 400).forEach((r, idx) => {
+                        const colCliente = colunas.find(c => ['Cliente', 'Nome Chave', 'Razão Social'].includes(c));
+                        html += `<tr data-idx="${idx}" data-tipo="${tipo}">` + colunas.map(c => {
+                            const isCliente = c === colCliente;
+                            const valor = r[c] || '';
+                            return `<td${isCliente ? ' class="cliente-nome"' : ''} data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
+                        }).join('') + '</tr>';
+                    });
+                    html += '</tbody></table>';
+                    return html;
+                }
+
+                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência', 'Cliente',
+                    'Produto', 'Quantidade', 'Total Bruto'
+                ], 'aprov', 'Total Bruto');
+                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data', 'Nome Chave', 'Empresa',
+                    'Quantidade', 'Valor Mercadoria'
+                ], 'fat', 'Valor Mercadoria');
+                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data', 'Cliente',
+                    'Produto', 'Quantidade', 'Total Bruto'
+                ], 'aprovfat', 'Total Bruto');
+                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número', 'Data Criação',
+                    'Razão Social', 'Valor Total', 'Situação Versão'
+                ], 'cot', 'Valor Total');
+
+                // Busca dinâmica com atualização do total
+                document.querySelectorAll('.table-wrapper').forEach(wrapper => {
+                    const input = wrapper.querySelector('.table-search');
+                    const badge = wrapper.querySelector('.total-badge');
+                    const table = wrapper.querySelector('table');
+                    if (!input || !badge || !table) return;
+
+                    const headers = Array.from(table.querySelectorAll('thead th')).map(th => th.textContent.trim());
+                    let colunaSoma = 'Total Bruto';
+                    if (headers.includes('Valor Mercadoria')) colunaSoma = 'Valor Mercadoria';
+                    else if (headers.includes('Valor Total')) colunaSoma = 'Valor Total';
+
+                    input.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        let totalFiltrado = 0;
+                        const rows = table.querySelectorAll('tbody tr');
+                        rows.forEach(row => {
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaSoma) {
+                                const idx = headers.indexOf(colunaSoma);
+                                if (idx !== -1) {
+                                    const cell = row.querySelectorAll('td')[idx];
+                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
+                                }
+                            }
+                        });
+                        badge.innerHTML =
+                            `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                    });
+                });
+
+                // Clique nas linhas → abrir ficha do cliente
+                document.querySelectorAll('#tabela-aprovados tbody tr, #tabela-faturados tbody tr, #tabela-cotacoes tbody tr, #tabela-aprovadosfaturados tbody tr')
+                    .forEach(row => {
+                        row.addEventListener('click', function(e) {
+                            if (e.target.closest('a, button')) return;
+                            const idx = parseInt(this.dataset.idx);
+                            const tipo = this.dataset.tipo;
+                            let dados = null;
+                            if (tipo === 'aprov') dados = aprov[idx];
+                            else if (tipo === 'fat') dados = fat[idx];
+                            else if (tipo === 'cot') dados = cot[idx];
+                            else if (tipo === 'aprovfat') dados = aprovFat[idx];
+                            if (!dados) return;
+
+                            const nomeCliente = dados['Razão Social'] || dados['Cliente'] || dados['Nome Chave'] ||
+                            '';
+                            if (nomeCliente) {
+                                abrirFichaCliente(nomeCliente.toUpperCase().trim(), dados);
+                            } else {
+                                const modal = document.getElementById('detail-modal');
+                                const body = document.getElementById('modal-body');
+                                let html =
+                                    `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;"><h3><i class="fas fa-file-invoice"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button></div><div class="ficha-secao"><table style="font-size:0.75rem; width:100%;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>`;
+                                Object.keys(dados).forEach(key => {
+                                    html +=
+                                        `<tr><td><strong>${key}</strong></td><td>${dados[key]||'—'}</td></tr>`;
+                                });
+                                html += `</tbody></table></div>`;
+                                body.innerHTML = html;
+                                modal.classList.add('active');
+                                modal.addEventListener('click', function(e) { if (e.target === modal) modal
+                                        .classList.remove('active'); });
+                            }
+                        });
+                    });
             }
 
             // ==================== CARROSSEL E NOTIFICAÇÕES ====================
@@ -1527,30 +2076,84 @@
                 });
                 modal.classList.add('active');
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove(
-                    'active'); });
+                        'active'); });
             }
 
             // ==================== PDF ====================
             function gerarPDF() {
                 const hoje = new Date();
-                document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR');
+                document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje
+                    .toLocaleTimeString('pt-BR');
                 window.print();
+            }
+
+            // ==================== SELECTOR DE MÊS ====================
+            function populateMonthSelector() {
+                const hoje = new Date();
+                const anoAtual = hoje.getFullYear();
+                const mesAtual = hoje.getMonth() + 1;
+                const select = document.getElementById('monthSelector');
+                let options = '';
+                for (let m = 1; m <= 12; m++) {
+                    const isFuture = m > mesAtual;
+                    const selected = (m === mesAtual) ? 'selected' : '';
+                    options +=
+                        `<option value="${m}" ${selected} ${isFuture ? 'disabled' : ''}>${m.toString().padStart(2,'0')}/${anoAtual}</option>`;
+                }
+                select.innerHTML = options;
+                select.addEventListener('change', (e) => {
+                    const mes = parseInt(e.target.value);
+                    currentMonth = mes;
+                    renderSegmentCards(anoAtual, currentMonth);
+                    renderEvolutionChart(anoAtual);
+                    renderTables(anoAtual, currentMonth);
+                });
+                currentMonth = mesAtual;
+                renderSegmentCards(anoAtual, currentMonth);
+                renderEvolutionChart(anoAtual);
+                renderTables(anoAtual, currentMonth);
             }
 
             // ==================== CARREGAMENTO ====================
             async function fetchAllData() {
+                mostrarLoading();
                 try {
-                    const [faturados, metas, banners, postagens, info] = await Promise.all([
-                        fetch(BASES.faturados).then(r => r.json()),
-                        fetch(BASES.metas).then(r => r.json()),
-                        fetch(BASES.banners).then(r => r.json()),
-                        fetch(BASES.postagens).then(r => r.json()),
-                        fetch(BASES.informacoes).then(r => r.json())
-                    ]);
+                    const [faturados, metas, banners, postagens, info, aprovados, aprovFat, cotacoes, carteira] =
+                        await Promise.all([
+                            fetch(BASES.faturados).then(r => r.json()),
+                            fetch(BASES.metas).then(r => r.json()),
+                            fetch(BASES.banners).then(r => r.json()),
+                            fetch(BASES.postagens).then(r => r.json()),
+                            fetch(BASES.informacoes).then(r => r.json()),
+                            fetch(BASES.aprovados).then(r => r.json()),
+                            fetch(BASES.aprovadosfaturados).then(r => r.json()),
+                            fetch(BASES.cotacoes).then(r => r.json()),
+                            fetch(BASES.carteira).then(r => r.json())
+                        ]);
                     faturadosRaw = faturados;
                     metasRaw = metas;
                     BANNERS = banners;
                     notificacoes = postagens;
+                    aprovadosRaw = aprovados;
+                    aprovFatRaw = aprovFat;
+                    cotacoesRaw = cotacoes;
+                    carteiraRaw = carteira;
+
+                    // Construir mapa da carteira
+                    carteiraMapGlobal = new Map();
+                    carteiraRaw.forEach(cli => {
+                        const nomeChave = (cli['Nome Chave'] || '').trim();
+                        const nomeUpper = nomeChave.toUpperCase();
+                        if (nomeUpper && !carteiraMapGlobal.has(nomeUpper)) {
+                            carteiraMapGlobal.set(nomeUpper, cli);
+                        }
+                        const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
+                        const razaoUpper = razaoSocial.toUpperCase();
+                        if (razaoUpper && razaoUpper !== nomeUpper && !carteiraMapGlobal.has(razaoUpper)) {
+                            carteiraMapGlobal.set(razaoUpper, cli);
+                        }
+                    });
+
                     if (info && info[0]) {
                         let d = info[0].data || '',
                             h = info[0].hora || '';
@@ -1565,8 +2168,13 @@
                     renderCarrossel();
                     atualizarBadgeNotificacoes();
                     populateMonthSelector();
-                } catch (e) { console.error(e);
-                    document.getElementById('last-update-badge').style.display = 'none'; }
+                    esconderLoading();
+                } catch (e) {
+                    console.error(e);
+                    document.getElementById('last-update-badge').style.display = 'none';
+                    esconderLoading();
+                    alert('Erro ao carregar dados. Tente novamente.');
+                }
             }
 
             // ==================== HAMBURGER MENU CONTROLS ====================
@@ -1593,10 +2201,10 @@
                 localStorage.setItem('radar_logged_out', 'true');
                 localStorage.removeItem('radar_usuario');
                 localStorage.removeItem('ultimo_acesso_radar');
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out';
+                window.location.href = '../../index.html?reason=logged_out';
             });
             document.getElementById('home-btn').addEventListener('click', () => {
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/';
+                window.location.href = '../../index.html';
             });
             document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
             document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
@@ -1610,19 +2218,21 @@
                     updateCarrossel(); } }, 6000);
             document.getElementById('footer-year').textContent = new Date().getFullYear();
 
-            // ══════════════ MOBILE EVENT LISTENERS ══════════════
+            // MOBILE
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-
             document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+                window.location.href = '../../index.html'; });
             document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger();
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
             document.getElementById('menu-analise').addEventListener('click', () => { closeHamburger();
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
             document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger();
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
             document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
@@ -1633,15 +2243,18 @@
                 localStorage.setItem('radar_logged_out', 'true');
                 localStorage.removeItem('radar_usuario');
                 localStorage.removeItem('ultimo_acesso_radar');
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
+                window.location.href = '../../index.html?reason=logged_out'; });
 
             setActiveBottomBar('home');
             document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
             document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
             document.getElementById('bb-analise').addEventListener('click', () => { setActiveBottomBar('analise');
-                window.location.href = 'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
+                window.location.href =
+                    'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
             document.getElementById('bb-vendas').addEventListener('click', () => { setActiveBottomBar('vendas');
                 window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
             document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
