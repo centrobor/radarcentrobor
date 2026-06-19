@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -57,6 +58,140 @@
             --mobile-topbar-height: 56px;
             --safe-bottom: env(safe-area-inset-bottom, 8px);
         }
+        /* ===== LOADING OVERLAY ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(6px);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 6px solid rgba(30, 58, 95, 0.2);
+            border-top: 6px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .loading-text {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--primary);
+        }
+
+        /* ===== CELEBRAÇÃO ===== */
+        .modal-celebracao .modal-content {
+            text-align: center;
+            background: linear-gradient(135deg, #ffd700, #ffb347);
+            color: #1a1a1a;
+            border-radius: 28px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+        .modal-celebracao .trofeu {
+            font-size: 4rem;
+            margin-bottom: 16px;
+        }
+        .modal-celebracao .lista-conquistas {
+            text-align: left;
+            margin: 20px 0;
+            font-size: 1rem;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 16px;
+            padding: 16px;
+        }
+        .modal-celebracao .btn-fechar-celebracao {
+            background: #1e3a5f;
+            color: white;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+        .modal-celebracao .btn-fechar-celebracao:hover {
+            background: #2b4c7a;
+            transform: scale(1.05);
+        }
+
+        /* ===== FICHA DO CLIENTE (MODAL) ===== */
+        .ficha-secao {
+            background: #f8fafc;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 16px;
+            border: 1px solid #e2e8f0;
+        }
+        .ficha-secao h4 {
+            font-size: 0.9rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .ficha-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 20px;
+        }
+        @media (max-width: 600px) {
+            .ficha-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .ficha-campo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f5f9;
+            font-size: 0.8rem;
+        }
+        .ficha-campo i {
+            width: 18px;
+            color: var(--primary);
+            text-align: center;
+        }
+        .ficha-campo .campo-label {
+            font-weight: 600;
+            color: var(--muted);
+            min-width: 110px;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        .ficha-campo .campo-valor {
+            color: var(--text-dark);
+            word-break: break-word;
+        }
+        .ficha-item-destaque {
+            background: #f0fdf4;
+            border-color: #bbf7d0;
+        }
+
+        /* ===== OUTROS ESTILOS (mantidos) ===== */
         .header {
             display: flex;
             justify-content: space-between;
@@ -152,11 +287,15 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
-            50% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
+            0%,
+            100% {
+                box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(211, 47, 47, 0);
+            }
         }
 
-        /* === NOVO: FILTRO MENSAL + PDF === */
         .month-filter {
             display: flex;
             align-items: center;
@@ -221,7 +360,6 @@
             transform: translateY(-2px);
         }
 
-        /* === CARROSSEL === */
         .carousel-section {
             margin-bottom: 32px;
             border-radius: 32px;
@@ -315,7 +453,6 @@
             transform: scale(1.4);
         }
 
-        /* === DEMAIS ESTILOS === */
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -346,6 +483,7 @@
             font-weight: 600;
             font-size: 0.8rem;
         }
+
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -398,6 +536,7 @@
             text-align: center;
             font-weight: bold;
         }
+
         .insight-card {
             background: var(--card-bg);
             backdrop-filter: var(--blur);
@@ -418,6 +557,7 @@
             padding-bottom: 10px;
             flex-wrap: wrap;
         }
+
         .charts-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -436,6 +576,7 @@
             height: calc(100% - 40px);
             width: 100%;
         }
+
         .meta-card-full {
             background: white;
             border-radius: var(--radius-sm);
@@ -480,6 +621,7 @@
             font-size: 0.75rem;
             color: var(--text-soft);
         }
+
         .campaign-card {
             background: linear-gradient(135deg, #fffdf7 0%, #fff8e7 100%);
             border: 2px solid #fcd34d;
@@ -519,6 +661,7 @@
             border-radius: 4px;
             transition: width 0.5s;
         }
+
         .table-wrapper {
             background: var(--card-bg);
             backdrop-filter: var(--blur);
@@ -549,6 +692,15 @@
         tr:hover td {
             background: rgba(200, 220, 240, 0.3);
         }
+        td.cliente-nome {
+            color: var(--primary);
+            font-weight: 600;
+        }
+        td.cliente-nome:hover {
+            text-decoration: underline;
+        }
+
+        /* ===== MODAIS ===== */
         .modal {
             position: fixed;
             top: 0;
@@ -584,57 +736,22 @@
         .modal.active .modal-content {
             transform: scale(1);
         }
-
-        /* === NOVO: ESTILOS DA FICHA DE DETALHES COM DESTAQUE VERDE === */
-        .ficha-lista {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .ficha-item {
-            display: flex;
-            align-items: flex-start;
-            gap: 12px;
-            padding: 10px 12px;
-            background: #f9fafb;
-            border-radius: 12px;
-            border: 1px solid #edf2f7;
-        }
-        .ficha-item-destaque {
-            background: #f0fdf4;
-            border-color: #bbf7d0;
-        }
-        .ficha-icone {
-            color: var(--primary);
-            font-size: 1rem;
-            width: 20px;
-            text-align: center;
-            margin-top: 2px;
-        }
-        .ficha-conteudo {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-        }
-        .ficha-label {
-            font-size: 0.7rem;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 16px;
+            font-size: 1.8rem;
+            cursor: pointer;
             color: var(--muted);
+            background: none;
+            border: none;
+            line-height: 1;
         }
-        .ficha-valor {
-            font-size: 0.95rem;
-            font-weight: 600;
+        .modal-close:hover {
             color: var(--text-dark);
         }
-        .ficha-item-destaque .ficha-valor {
-            font-size: 1.05rem;
-            color: var(--success);
-        }
 
-        /* === NOTIFICAÇÕES === */
+        /* ===== NOTIFICAÇÕES ===== */
         .notif-card {
             display: flex;
             gap: 14px;
@@ -646,8 +763,12 @@
             border-radius: 12px;
             margin-bottom: 2px;
         }
-        .notif-card:hover { background: #f9fafb; }
-        .notif-card:last-child { border-bottom: none; }
+        .notif-card:hover {
+            background: #f9fafb;
+        }
+        .notif-card:last-child {
+            border-bottom: none;
+        }
         .notif-thumb {
             width: 80px;
             height: 60px;
@@ -656,7 +777,9 @@
             flex-shrink: 0;
             background: #e5e7eb;
         }
-        .notif-body { flex: 1; }
+        .notif-body {
+            flex: 1;
+        }
         .notif-type {
             font-size: 0.62rem;
             font-weight: 700;
@@ -709,7 +832,9 @@
             background: var(--primary);
             color: white;
         }
-        .btn-mark-all-read i { margin-right: 4px; }
+        .btn-mark-all-read i {
+            margin-right: 4px;
+        }
 
         .footer {
             background: var(--footer-bg);
@@ -728,13 +853,30 @@
             align-items: center;
             gap: 20px;
         }
-        .footer-logo-img { width: 140px; height: 80px; object-fit: contain; }
-        .footer-brand-name { font-weight: 800; color: white; }
-        .footer-tagline { font-size: 0.75rem; color: #94a3b8; max-width: 400px; }
-        .footer-social a { color: var(--footer-text); font-size: 1.3rem; margin-left: 12px; transition: 0.2s; }
-        .footer-social a:hover { color: white; }
+        .footer-logo-img {
+            width: 140px;
+            height: 80px;
+            object-fit: contain;
+        }
+        .footer-brand-name {
+            font-weight: 800;
+            color: white;
+        }
+        .footer-tagline {
+            font-size: 0.75rem;
+            color: #94a3b8;
+            max-width: 400px;
+        }
+        .footer-social a {
+            color: var(--footer-text);
+            font-size: 1.3rem;
+            margin-left: 12px;
+            transition: 0.2s;
+        }
+        .footer-social a:hover {
+            color: white;
+        }
 
-        /* === MOBILE TOPBAR === */
         .mobile-topbar {
             display: none;
             position: sticky;
@@ -752,130 +894,420 @@
             box-shadow: 0 1px 8px rgba(0, 0, 0, 0.04);
             flex-shrink: 0;
         }
-        .mobile-topbar .topbar-left { display: flex; align-items: center; gap: 10px; }
-        .mobile-topbar .topbar-avatar { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary-soft); }
-        .mobile-topbar .topbar-greeting { font-weight: 700; font-size: 0.9rem; color: var(--text-dark); }
+        .mobile-topbar .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .mobile-topbar .topbar-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--primary-soft);
+        }
+        .mobile-topbar .topbar-greeting {
+            font-weight: 700;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
         .mobile-topbar .hamburger-btn {
-            background: none; border: none; font-size: 1.4rem; color: var(--text-dark);
-            cursor: pointer; padding: 8px; border-radius: 12px; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center; width: 40px; height: 40px;
+            background: none;
+            border: none;
+            font-size: 1.4rem;
+            color: var(--text-dark);
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 12px;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
         }
-        .mobile-topbar .hamburger-btn:active { background: rgba(0, 0, 0, 0.05); transform: scale(0.94); }
+        .mobile-topbar .hamburger-btn:active {
+            background: rgba(0, 0, 0, 0.05);
+            transform: scale(0.94);
+        }
 
-        /* === HAMBURGER OVERLAY & MENU === */
         .hamburger-overlay {
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0, 0, 0, 0.5); z-index: 100; opacity: 0; transition: opacity 0.3s ease; pointer-events: none;
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 100;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
         }
-        .hamburger-overlay.active { opacity: 1; pointer-events: all; }
+        .hamburger-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
         .hamburger-menu {
-            position: fixed; top: 0; right: -320px; width: 300px; max-width: 85vw; height: 100%;
-            background: #ffffff; z-index: 110; transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; flex-direction: column; box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
-            border-radius: 20px 0 0 20px; overflow-y: auto; padding: 24px 20px 100px;
+            position: fixed;
+            top: 0;
+            right: -320px;
+            width: 300px;
+            max-width: 85vw;
+            height: 100%;
+            background: #ffffff;
+            z-index: 110;
+            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.18);
+            border-radius: 20px 0 0 20px;
+            overflow-y: auto;
+            padding: 24px 20px 100px;
         }
-        .hamburger-menu.active { right: 0; }
-        .hamburger-menu .menu-header { display: flex; align-items: center; gap: 12px; padding-bottom: 20px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
-        .hamburger-menu .menu-avatar { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 3px solid var(--primary-soft); }
-        .hamburger-menu .menu-user-info h4 { font-size: 1rem; font-weight: 700; color: var(--text-dark); margin: 0; }
-        .hamburger-menu .menu-user-info span { font-size: 0.72rem; color: var(--muted); }
-        .hamburger-menu .menu-section { margin-bottom: 14px; }
-        .hamburger-menu .menu-section-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); margin-bottom: 8px; padding-left: 4px; font-weight: 700; }
+        .hamburger-menu.active {
+            right: 0;
+        }
+        .hamburger-menu .menu-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--line);
+            margin-bottom: 16px;
+        }
+        .hamburger-menu .menu-avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid var(--primary-soft);
+        }
+        .hamburger-menu .menu-user-info h4 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-dark);
+            margin: 0;
+        }
+        .hamburger-menu .menu-user-info span {
+            font-size: 0.72rem;
+            color: var(--muted);
+        }
+        .hamburger-menu .menu-section {
+            margin-bottom: 14px;
+        }
+        .hamburger-menu .menu-section-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-light);
+            margin-bottom: 8px;
+            padding-left: 4px;
+            font-weight: 700;
+        }
         .hamburger-menu .menu-item {
-            display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px;
-            cursor: pointer; transition: 0.2s; font-weight: 500; font-size: 0.9rem; color: var(--text-dark);
-            text-decoration: none; border: none; background: none; width: 100%; text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 14px;
+            border-radius: 14px;
+            cursor: pointer;
+            transition: 0.2s;
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            text-decoration: none;
+            border: none;
+            background: none;
+            width: 100%;
+            text-align: left;
         }
-        .hamburger-menu .menu-item i { width: 22px; text-align: center; font-size: 1rem; color: var(--primary); }
-        .hamburger-menu .menu-item:active { background: var(--primary-soft); transform: scale(0.97); }
-        .hamburger-menu .menu-item.danger { color: var(--danger); }
-        .hamburger-menu .menu-item.danger i { color: var(--danger); }
+        .hamburger-menu .menu-item i {
+            width: 22px;
+            text-align: center;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+        .hamburger-menu .menu-item:active {
+            background: var(--primary-soft);
+            transform: scale(0.97);
+        }
+        .hamburger-menu .menu-item.danger {
+            color: var(--danger);
+        }
+        .hamburger-menu .menu-item.danger i {
+            color: var(--danger);
+        }
         .hamburger-menu .menu-close-btn {
-            position: absolute; top: 18px; right: 18px; background: rgba(0, 0, 0, 0.04);
-            border: none; width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
-            font-size: 1.1rem; color: var(--text-soft); display: flex; align-items: center;
-            justify-content: center; transition: 0.2s; z-index: 5;
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            background: rgba(0, 0, 0, 0.04);
+            border: none;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.1rem;
+            color: var(--text-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            z-index: 5;
         }
-        .hamburger-menu .menu-close-btn:active { background: rgba(0, 0, 0, 0.1); transform: scale(0.9); }
+        .hamburger-menu .menu-close-btn:active {
+            background: rgba(0, 0, 0, 0.1);
+            transform: scale(0.9);
+        }
 
-        /* === MOBILE BOTTOM BAR === */
         .mobile-bottom-bar {
-            display: none; position: fixed; bottom: 0; left: 0; width: 100%;
-            background: rgba(255, 255, 255, 0.94); backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px); border-top: 1px solid rgba(0, 0, 0, 0.06);
-            z-index: 25; padding: 6px 12px calc(6px + var(--safe-bottom));
-            justify-content: space-around; align-items: center;
-            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06); height: var(--bottom-bar-height); gap: 4px;
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.94);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+            z-index: 25;
+            padding: 6px 12px calc(6px + var(--safe-bottom));
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.06);
+            height: var(--bottom-bar-height);
+            gap: 4px;
         }
         .mobile-bottom-bar .bb-item {
-            display: flex; flex-direction: column; align-items: center; gap: 4px;
-            cursor: pointer; padding: 6px 10px; border-radius: 14px; transition: 0.2s;
-            text-decoration: none; color: var(--text-soft); min-width: 50px;
-            border: none; background: none; font-family: inherit; -webkit-tap-highlight-color: transparent;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 14px;
+            transition: 0.2s;
+            text-decoration: none;
+            color: var(--text-soft);
+            min-width: 50px;
+            border: none;
+            background: none;
+            font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
         }
-        .mobile-bottom-bar .bb-item i { font-size: 1.25rem; transition: 0.2s; }
-        .mobile-bottom-bar .bb-item span { font-size: 0.6rem; font-weight: 600; letter-spacing: 0.3px; }
-        .mobile-bottom-bar .bb-item.active { color: var(--primary); }
-        .mobile-bottom-bar .bb-item.active i { transform: translateY(-2px); }
-        .mobile-bottom-bar .bb-item:active { transform: scale(0.9); background: rgba(30, 58, 95, 0.06); }
-        .mobile-bottom-bar .bb-badge { position: relative; }
+        .mobile-bottom-bar .bb-item i {
+            font-size: 1.25rem;
+            transition: 0.2s;
+        }
+        .mobile-bottom-bar .bb-item span {
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .mobile-bottom-bar .bb-item.active {
+            color: var(--primary);
+        }
+        .mobile-bottom-bar .bb-item.active i {
+            transform: translateY(-2px);
+        }
+        .mobile-bottom-bar .bb-item:active {
+            transform: scale(0.9);
+            background: rgba(30, 58, 95, 0.06);
+        }
+        .mobile-bottom-bar .bb-badge {
+            position: relative;
+        }
         .mobile-bottom-bar .bb-badge .badge-dot {
-            position: absolute; top: -2px; right: -4px; width: 9px; height: 9px;
-            background: var(--danger); border-radius: 50%; border: 2px solid white;
+            position: absolute;
+            top: -2px;
+            right: -4px;
+            width: 9px;
+            height: 9px;
+            background: var(--danger);
+            border-radius: 50%;
+            border: 2px solid white;
         }
 
-        /* === IMPRESSÃO === */
-        #print-header { display: none; }
+        #print-header {
+            display: none;
+        }
         @media print {
-            .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
-            .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
-            .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
-            .footer-bottom, .last-update-badge, .logout-btn, .notification-bell,
-            .badge, #bb-badge-dot, .btn-mark-all-read, .footer {
+            .header,
+            .mobile-topbar,
+            .mobile-bottom-bar,
+            .hamburger-overlay,
+            .hamburger-menu,
+            .carousel-section,
+            .carousel-controls,
+            .carousel-indicators,
+            .tools-grid,
+            .icon-btn,
+            .btn-pdf,
+            .month-filter,
+            .table-search,
+            .modal,
+            .footer-social,
+            .footer-bottom,
+            .last-update-badge,
+            .logout-btn,
+            .notification-bell,
+            .badge,
+            #bb-badge-dot,
+            .btn-mark-all-read,
+            .footer,
+            .loading-overlay {
                 display: none !important;
             }
-            #print-header { display: block !important; text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary); padding-bottom: 10px; }
-            #print-header h1 { font-size: 18pt; color: var(--primary); margin: 0; }
-            #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
-            body, .wrapper { background: white; padding: 0; margin: 0; color: black; }
-            .kpi-card, .insight-card, .meta-card-full, .campaign-card, .chart-card, .table-wrapper {
-                background: white !important; backdrop-filter: none !important;
-                box-shadow: none !important; border: 1px solid #ccc !important;
+            #print-header {
+                display: block !important;
+                text-align: center;
+                margin-bottom: 20px;
+                border-bottom: 2px solid var(--primary);
+                padding-bottom: 10px;
+            }
+            #print-header h1 {
+                font-size: 18pt;
+                color: var(--primary);
+                margin: 0;
+            }
+            #print-header p {
+                font-size: 10pt;
+                color: #333;
+                margin: 5px 0 0;
+            }
+            body,
+            .wrapper {
+                background: white;
+                padding: 0;
+                margin: 0;
+                color: black;
+            }
+            .kpi-card,
+            .insight-card,
+            .meta-card-full,
+            .campaign-card,
+            .chart-card,
+            .table-wrapper {
+                background: white !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
                 page-break-inside: avoid;
             }
-            canvas, .meta-progress-fill { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            table { font-size: 8pt; width: 100%; border-collapse: collapse; }
-            th, td { padding: 4px 2px; border: 1px solid #ddd; }
-            th { background: #f5f5f5; }
-            .ficha-item-destaque { background: #f0fdf4 !important; border-color: #bbf7d0 !important; }
+            canvas,
+            .meta-progress-fill {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            table {
+                font-size: 8pt;
+                width: 100%;
+                border-collapse: collapse;
+            }
+            th,
+            td {
+                padding: 4px 2px;
+                border: 1px solid #ddd;
+            }
+            th {
+                background: #f5f5f5;
+            }
+            .ficha-item-destaque {
+                background: #f0fdf4 !important;
+                border-color: #bbf7d0 !important;
+            }
         }
 
-        /* === MEDIA QUERIES MOBILE === */
         @media (max-width: 1000px) {
-            body { padding: 0 0 var(--bottom-bar-height) 0; background: #f5f7fa; }
-            .wrapper { padding: 0 12px; }
-            .header { display: none !important; }
-            .mobile-topbar { display: flex; margin-bottom: 12px; }
-            .mobile-bottom-bar { display: flex; }
-            .hamburger-overlay { display: block; }
-            .tools-grid { display: none !important; }
-            .carousel-section { border-radius: 20px; margin-bottom: 20px; margin-left: -4px; margin-right: -4px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1); }
-            .carousel-slide img { height: 220px; }
-            .carousel-caption { padding: 14px 16px; font-size: 0.85rem; }
-            .carousel-btn { width: 32px; height: 32px; }
-            .kpi-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
-            .month-filter { flex-direction: column; align-items: stretch; border-radius: 20px; padding: 10px 16px; }
-            .btn-pdf { align-self: center; width: 100%; justify-content: center; }
-            .modal-content { width: 94vw; max-width: 94vw; border-radius: 20px; padding: 16px; }
-            .footer { border-radius: 24px 24px 0 0; padding: 20px 16px 100px; }
-            .footer-logo-img { width: 100px; height: 60px; }
-            .footer-social { display: none; }
+            body {
+                padding: 0 0 var(--bottom-bar-height) 0;
+                background: #f5f7fa;
+            }
+            .wrapper {
+                padding: 0 12px;
+            }
+            .header {
+                display: none !important;
+            }
+            .mobile-topbar {
+                display: flex;
+                margin-bottom: 12px;
+            }
+            .mobile-bottom-bar {
+                display: flex;
+            }
+            .hamburger-overlay {
+                display: block;
+            }
+            .tools-grid {
+                display: none !important;
+            }
+            .carousel-section {
+                border-radius: 20px;
+                margin-bottom: 20px;
+                margin-left: -4px;
+                margin-right: -4px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+            }
+            .carousel-slide img {
+                height: 220px;
+            }
+            .carousel-caption {
+                padding: 14px 16px;
+                font-size: 0.85rem;
+            }
+            .carousel-btn {
+                width: 32px;
+                height: 32px;
+            }
+            .kpi-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .month-filter {
+                flex-direction: column;
+                align-items: stretch;
+                border-radius: 20px;
+                padding: 10px 16px;
+            }
+            .btn-pdf {
+                align-self: center;
+                width: 100%;
+                justify-content: center;
+            }
+            .modal-content {
+                width: 94vw;
+                max-width: 94vw;
+                border-radius: 20px;
+                padding: 16px;
+            }
+            .footer {
+                border-radius: 24px 24px 0 0;
+                padding: 20px 16px 100px;
+            }
+            .footer-logo-img {
+                width: 100px;
+                height: 60px;
+            }
+            .footer-social {
+                display: none;
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
 
-    <!-- Cabeçalho de impressão -->
+    <!-- LOADING OVERLAY -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Consultando dados...</div>
+    </div>
+
+    <!-- HEADER DE IMPRESSÃO -->
     <div id="print-header">
         <h1>Dimas - Coordenador</h1>
         <p>Relatório - Gerado em <span id="print-date"></span></p>
@@ -890,10 +1322,8 @@
         <button class="hamburger-btn" id="hamburger-btn" aria-label="Menu"><i class="fas fa-bars"></i></button>
     </div>
 
-    <!-- HAMBURGER OVERLAY -->
+    <!-- HAMBURGER OVERLAY & MENU -->
     <div class="hamburger-overlay" id="hamburger-overlay"></div>
-
-    <!-- HAMBURGER MENU -->
     <nav class="hamburger-menu" id="hamburger-menu">
         <button class="menu-close-btn" id="menu-close-btn" aria-label="Fechar menu"><i class="fas fa-times"></i></button>
         <div class="menu-header">
@@ -925,9 +1355,9 @@
 
     <!-- MOBILE BOTTOM BAR -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
-        <button class="bb-item active" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
+        <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
         <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button>
-        <button class="bb-item" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+        <button class="bb-item active" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
     </div>
 
@@ -964,7 +1394,7 @@
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>
         </div>
 
-        <!-- NOVO: FILTRO MENSAL + PDF -->
+        <!-- FILTRO MENSAL + PDF -->
         <div class="month-filter">
             <div class="filter-left">
                 <i class="fas fa-calendar-alt"></i>
@@ -1033,6 +1463,9 @@
     <div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
     <div class="modal" id="post-modal"><div class="modal-content" id="post-modal-body"></div></div>
     <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
+    <div class="modal modal-celebracao" id="celebracao-modal">
+        <div class="modal-content" id="celebracao-body"></div>
+    </div>
 
     <script>
         (function() {
@@ -1066,15 +1499,25 @@
                 campanhas: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
                 informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`,
                 cotacoes: `https://opensheet.elk.sh/${SHEET_ID}/cotacoes`,
-                aprovadosfaturados: `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`
+                aprovadosfaturados: `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`,
+                carteira: `https://opensheet.elk.sh/${SHEET_ID}/carteiraclientes`
             };
             const COD_DIMAS = "10";
-            let faturadosRaw = [], aprovadosRaw = [], metasVendRaw = [], metasEmpresaRaw = [],
-                BANNERS = [], notificacoes = [], campanhasRaw = [], cotacoesRaw = [], aprovFatRaw = [];
+            let faturadosRaw = [],
+                aprovadosRaw = [],
+                metasVendRaw = [],
+                metasEmpresaRaw = [],
+                BANNERS = [],
+                notificacoes = [],
+                campanhasRaw = [],
+                cotacoesRaw = [],
+                aprovFatRaw = [],
+                carteiraRaw = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications_Dimas')) || [];
             let charts = {};
             let mesSelecionado = null;
             let anoAtual = new Date().getFullYear();
+            let carteiraMapGlobal = new Map();
 
             // ==================== UTILITÁRIOS ====================
             const cleanNumber = (v) => {
@@ -1099,10 +1542,76 @@
                 return match ? match[1] : null;
             };
             const nomeMesExtenso = (mesNum) => {
-                const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro',
+                    'Novembro', 'Dezembro'
+                ];
                 return meses[mesNum - 1];
             };
 
+            // ==================== LOADING ====================
+            const loadingOverlay = document.getElementById('loading-overlay');
+
+            function mostrarLoading() {
+                loadingOverlay.classList.remove('hidden');
+            }
+
+            function esconderLoading() {
+                loadingOverlay.classList.add('hidden');
+            }
+
+            // ==================== CELEBRAÇÃO ====================
+            function dispararConfetes() {
+                if (typeof confetti === 'function') {
+                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10000 });
+                    setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 }, zIndex: 10000 }),
+                        200);
+                    setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 10000 }),
+                        400);
+                }
+            }
+
+            function getMetasCelebradas() {
+                try { return JSON.parse(localStorage.getItem('metas_celebradas_dimas')) || []; } catch (e) { return []; }
+            }
+
+            function adicionarMetaCelebrada(chave) {
+                const celebradas = getMetasCelebradas();
+                if (!celebradas.includes(chave)) {
+                    celebradas.push(chave);
+                    localStorage.setItem('metas_celebradas_dimas', JSON.stringify(celebradas));
+                }
+            }
+
+            function mostrarCelebracao(conquistas) {
+                if (!conquistas || conquistas.length === 0) return;
+                const celebradas = getMetasCelebradas();
+                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+                if (novasConquistas.length === 0) return;
+
+                const body = document.getElementById('celebracao-body');
+                let listaHtml = '';
+                novasConquistas.forEach(c => {
+                    listaHtml +=
+                        `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`;
+                    adicionarMetaCelebrada(c.chave);
+                });
+                body.innerHTML = `
+                    <div class="trofeu">🏆</div>
+                    <h2>Parabéns, Dimas!</h2>
+                    <p>Você atingiu as seguintes metas:</p>
+                    <div class="lista-conquistas">${listaHtml}</div>
+                    <p style="font-size:1.1rem; margin-top:10px;">Continue assim! 🚀</p>
+                    <button class="btn-fechar-celebracao" id="fechar-celebracao-btn">Fechar</button>
+                `;
+                const modal = document.getElementById('celebracao-modal');
+                modal.classList.add('active');
+                dispararConfetes();
+                document.getElementById('fechar-celebracao-btn').addEventListener('click', () => { modal.classList.remove(
+                        'active'); });
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            }
+
+            // ==================== DADOS DO DIMAS (metas) ====================
             function getFaturamentoTotalMes(ano, mes) {
                 let total = 0;
                 faturadosRaw.forEach(f => {
@@ -1149,19 +1658,194 @@
                 return total;
             }
 
-            // ==================== NOVO: GRADE DE MESES ====================
+            // ==================== FICHA DO CLIENTE ====================
+            function fichaCampo(icone, label, valor) {
+                const val = valor || '—';
+                return `<div class="ficha-campo"><i class="fas ${icone}"></i><span class="campo-label">${label}:</span><span class="campo-valor">${val}</span></div>`;
+            }
+
+            function abrirFichaCliente(nomeUpper, pedidoData) {
+                const modal = document.getElementById('detail-modal');
+                const body = document.getElementById('modal-body');
+
+                // Buscar cliente na carteira
+                let cliente = carteiraMapGlobal.get(nomeUpper);
+                if (!cliente && pedidoData) {
+                    // Tentar por código ou razão social
+                    const razao = (pedidoData['Razão Social'] || pedidoData['Cliente'] || '').toUpperCase().trim();
+                    if (razao) cliente = carteiraMapGlobal.get(razao);
+                    if (!cliente) {
+                        const cod = String(pedidoData['Cliente'] || '').trim();
+                        if (cod) {
+                            for (let [key, val] of carteiraMapGlobal.entries()) {
+                                if (String(val['Código'] || '').trim() === cod) { cliente = val; break; }
+                            }
+                        }
+                    }
+                }
+
+                // Se não encontrou, exibe apenas os dados do pedido (fallback)
+                if (!cliente && pedidoData) {
+                    let htmlFallback = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="margin:0;"><i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Pedido'}</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-info-circle"></i> Cliente não localizado na carteira</h4>
+                            <p style="color:var(--muted);">Abaixo os dados do pedido/cotação.</p>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-clipboard-list"></i> Detalhes</h4>
+                            <table style="font-size:0.75rem; width:100%;">
+                                <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                                <tbody>
+                    `;
+                    Object.keys(pedidoData).forEach(key => {
+                        htmlFallback += `<tr><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                    });
+                    htmlFallback += `</tbody></table></div>`;
+                    body.innerHTML = htmlFallback;
+                    modal.classList.add('active');
+                    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+                    return;
+                }
+
+                // Se cliente existe, monta a ficha completa
+                if (cliente) {
+                    const nome = cliente['Nome/Razão Social'] || cliente['Nome Chave'] || nomeUpper;
+                    let html = `
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                            <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${nome}</h3>
+                            <button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-building"></i> Dados da Empresa</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-hashtag', 'Código', cliente['Código'])}
+                                ${fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave'])}
+                                ${fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social'])}
+                                ${fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica'])}
+                                ${fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC'])}
+                                ${fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE'])}
+                                ${fichaCampo('fa-industry', 'Ramo', cliente['Ramo'])}
+                                ${fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro'])}
+                                ${fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo'])}
+                                ${fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora'])}
+                                ${fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito'])}
+                            </div>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-map-marker-alt"></i> Endereço</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-road', 'Endereço', cliente['Endereço'])}
+                                ${fichaCampo('fa-home', 'Número', cliente['Número'])}
+                                ${fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento'])}
+                                ${fichaCampo('fa-map', 'Bairro', cliente['Bairro'])}
+                                ${fichaCampo('fa-city', 'Cidade', cliente['Cidade'])}
+                                ${fichaCampo('fa-map-pin', 'UF', cliente['UF'])}
+                                ${fichaCampo('fa-globe-americas', 'País', cliente['País'])}
+                                ${fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP'])}
+                            </div>
+                        </div>
+                        <div class="ficha-secao">
+                            <h4><i class="fas fa-phone-alt"></i> Contato</h4>
+                            <div class="ficha-grid">
+                                ${fichaCampo('fa-phone', 'Telefone', cliente['Telefone'])}
+                                ${fichaCampo('fa-fax', 'Fax', cliente['Fax'])}
+                                ${fichaCampo('fa-user', 'Contato', cliente['Contato'])}
+                                ${fichaCampo('fa-building', 'Departamento', cliente['Departamento'])}
+                                ${fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo'])}
+                                ${fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário'])}
+                                ${fichaCampo('fa-phone-volume', 'Fone', cliente['Fone'])}
+                                ${fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail'])}
+                            </div>
+                        </div>
+                    `;
+
+                    // Se houver dados do pedido, mostra também
+                    if (pedidoData) {
+                        html += `
+                            <div class="ficha-secao">
+                                <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>
+                                <table style="font-size:0.75rem; width:100%;">
+                                    <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                                    <tbody>
+                        `;
+                        Object.keys(pedidoData).forEach(key => {
+                            const isDestaque = ['Total Bruto', 'Total Líquido', 'Valor Mercadoria', 'Valor Total'].includes(
+                                key);
+                            html +=
+                                `<tr${isDestaque ? ' style="background:#f0fdf4;"' : ''}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                        });
+                        html += `</tbody></table></div>`;
+                    }
+
+                    // Botões de ação (WhatsApp, e-mail, copiar)
+                    const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+                    const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+                    html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+                    if (telefone && telefone.length > 5) html +=
+                        `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+                    if (email && email.includes('@')) html +=
+                        `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+                    html += `<button onclick="copiarDadosCliente()" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Ficha</button>`;
+                    html += '</div>';
+
+                    body.innerHTML = html;
+                    modal.classList.add('active');
+                    modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+
+                    // Função copiar (local)
+                    window.copiarDadosCliente = function() {
+                        let texto = `═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\nDADOS DA EMPRESA\n─────────────────────────────────\n`;
+                        texto += `Código: ${cliente['Código'] || '—'}\nNome Chave: ${cliente['Nome Chave'] || '—'}\nRazão Social: ${cliente['Nome/Razão Social'] || '—'}\n`;
+                        texto += `Tipo: ${cliente['Física/Juridica'] || '—'}\nCPF/CNPJ: ${cliente['CPF/CGC'] || '—'}\nRG/IE: ${cliente['RG/IE'] || '—'}\n`;
+                        texto += `Ramo: ${cliente['Ramo'] || '—'}\nSituação: ${cliente['ATivo/Inativo'] || '—'}\nDt. Cadastro: ${cliente['Dt.Cadastro'] || '—'}\n\n`;
+                        texto += `ENDEREÇO\n─────────────────────────────────\nEndereço: ${cliente['Endereço'] || '—'}\nNúmero: ${cliente['Número'] || '—'}\n`;
+                        texto += `Complemento: ${cliente['Complemento'] || '—'}\nBairro: ${cliente['Bairro'] || '—'}\nCidade: ${cliente['Cidade'] || '—'}\n`;
+                        texto += `UF: ${cliente['UF'] || '—'}\nPaís: ${cliente['País'] || '—'}\nCEP: ${cliente['CEP'] || '—'}\n\nCONTATO\n─────────────────────────────────\n`;
+                        texto += `Telefone: ${cliente['Telefone'] || '—'}\nContato: ${cliente['Contato'] || '—'}\nE-Mail: ${cliente['E-Mail'] || '—'}\n═══════════════════════════════════\n`;
+                        if (pedidoData) {
+                            texto += '\n═══════════════════════════════════\n  DADOS DO PEDIDO / COTAÇÃO\n═══════════════════════════════════\n';
+                            Object.keys(pedidoData).forEach(key => {
+                                texto += `${key}: ${pedidoData[key] || '—'}\n`;
+                            });
+                        }
+                        navigator.clipboard.writeText(texto).then(() => {
+                            const toast = document.createElement('div');
+                            toast.textContent = '✅ Dados copiados!';
+                            toast.style.cssText =
+                                'position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:#2e7d32; color:white; padding:12px 24px; border-radius:40px; font-weight:600; z-index:9999; box-shadow:0 8px 20px rgba(0,0,0,0.2); animation:fadeInOut 2s forwards;';
+                            document.body.appendChild(toast);
+                            setTimeout(() => toast.remove(), 2000);
+                        }).catch(() => {
+                            const textarea = document.createElement('textarea');
+                            textarea.value = texto;
+                            textarea.style.position = 'fixed';
+                            textarea.style.opacity = '0';
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            alert('Dados copiados! (fallback)');
+                        });
+                    };
+                }
+            }
+
+            // ==================== GRADE DE MESES ====================
             function renderizarGradeMeses() {
                 const hoje = new Date();
                 const ano = hoje.getFullYear();
                 const mesAtual = hoje.getMonth() + 1;
                 const grid = document.getElementById('month-grid');
-                const mesesLabels = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-                
-                // Se nenhum mês selecionado, usa o mês atual
+                const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
                 if (!mesSelecionado) {
                     mesSelecionado = formatMonthKey(hoje);
                 }
-                
+
                 let html = '';
                 for (let m = 1; m <= 12; m++) {
                     const isFuture = m > mesAtual;
@@ -1173,15 +1857,14 @@
                     </button>`;
                 }
                 grid.innerHTML = html;
-                
-                // Adicionar eventos de clique
+
                 grid.querySelectorAll('.month-item:not(.future)').forEach(btn => {
                     btn.addEventListener('click', function() {
                         mesSelecionado = this.dataset.mes;
-                        renderizarGradeMeses(); // Re-render para atualizar active
-                        // Extrair mês e ano da chave
+                        renderizarGradeMeses();
                         const [mesStr, anoStr] = mesSelecionado.split('/');
-                        const mesesMap = {jan:1,fev:2,mar:3,abr:4,mai:5,jun:6,jul:7,ago:8,set:9,out:10,nov:11,dez:12};
+                        const mesesMap = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9,
+                            out: 10, nov: 11, dez: 12 };
                         const mes = mesesMap[mesStr];
                         const ano = 2000 + parseInt(anoStr);
                         renderAll(ano, mes);
@@ -1189,15 +1872,15 @@
                 });
             }
 
-            // ==================== NOVO: GERAR PDF ====================
+            // ==================== GERAR PDF ====================
             function gerarPDF() {
-                // Atualizar data de impressão
                 const hoje = new Date();
-                document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje.toLocaleTimeString('pt-BR');
+                document.getElementById('print-date').textContent = hoje.toLocaleDateString('pt-BR') + ' às ' + hoje
+                    .toLocaleTimeString('pt-BR');
                 window.print();
             }
 
-            // ========== RENDER KPI COM ROSCA ==========
+            // ==================== RENDER KPI (com donut) ====================
             function renderKPI(ano, mes) {
                 let fatAno = 0;
                 for (let m = 1; m <= 12; m++) fatAno += getFaturamentoTotalMes(ano, m);
@@ -1208,6 +1891,7 @@
                 const percAno = metaAnualEmp ? (fatAno / metaAnualEmp) * 100 : 0;
                 const percMesCap = Math.min(percMes, 100);
                 const percAnoCap = Math.min(percAno, 100);
+
                 const html = `
                 <div class="kpi-card">
                     <div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano (Centrobor)</h4></div>
@@ -1242,12 +1926,14 @@
                 const remaining = 100 - percent;
                 new Chart(ctx, {
                     type: 'doughnut',
-                    data: { datasets: [{ data: [percent, remaining], backgroundColor: [color, '#e5e7eb'], borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] },
-                    options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false }, legend: { display: false } } }
+                    data: { datasets: [{ data: [percent, remaining], backgroundColor: [color, '#e5e7eb'],
+                            borderWidth: 0, borderRadius: percent >= 100 ? 0 : 5 }] },
+                    options: { cutout: '70%', responsive: false, plugins: { tooltip: { enabled: false },
+                            legend: { display: false } } }
                 });
             }
 
-            // ========== METAS DIMAS ==========
+            // ==================== METAS DIMAS ====================
             function renderMetasDimas(ano, mes) {
                 const metas = getMetasDimas();
                 const fatMes = getFaturamentoTotalMes(ano, mes);
@@ -1261,6 +1947,19 @@
                 const faltaAnual = Math.max(0, metas.anual - acumuladoAno);
                 const semestreLabel = mes <= 6 ? '1º Semestre' : '2º Semestre';
                 const container = document.getElementById('metas-dimas-container');
+
+                // Armazenar conquistas para possível celebração
+                const conquistas = [];
+                if (percMensal >= 100) conquistas.push({ nome: 'Meta Mensal Dimas', meta: metas.mensal, realizado: fatMes,
+                    perc: percMensal, chave: `dimas_mensal_${ano}_${mes}` });
+                if (percSem >= 100) conquistas.push({ nome: `Meta ${semestreLabel} Dimas`, meta: metas.semestral,
+                    realizado: acumuladoSem, perc: percSem, chave: `dimas_sem_${ano}_${mes<=6?'1':'2'}` });
+                if (percAnual >= 100) conquistas.push({ nome: 'Meta Anual Dimas', meta: metas.anual, realizado: acumuladoAno,
+                    perc: percAnual, chave: `dimas_anual_${ano}` });
+
+                // Também verificar campanhas especiais (já renderizadas separadamente)
+                // Elas serão coletadas em renderCampanhasDimas e adicionadas ao array de conquistas
+
                 const html = `
                 <div class="meta-card-full">
                     <div class="meta-card-header"><div class="meta-card-title"><i class="fas fa-calendar-day"></i> Meta Mensal</div><span class="meta-card-badge ${percMensal>=80?'badge-on-track':'badge-behind'}">${percMensal>=100?'Atingido':(percMensal>=60?'No Ritmo':'Atenção')}</span></div>
@@ -1290,9 +1989,11 @@
                     criarDonut('donutMetaSem', Math.min(percSem, 100), '#f59e0b');
                     criarDonut('donutMetaAnual', Math.min(percAnual, 100), '#1e3a5f');
                 }, 50);
+
+                return conquistas;
             }
 
-            // ========== CAMPANHAS ESPECIAIS ==========
+            // ==================== CAMPANHAS ESPECIAIS ====================
             async function renderCampanhasDimas() {
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
@@ -1301,9 +2002,10 @@
                     return cod == COD_DIMAS && cleanNumber(c.meta_valor) > 0;
                 });
                 const container = document.getElementById('campanhas-especiais-container');
+                const conquistas = [];
                 if (!minhas.length) {
                     container.innerHTML = '<p>Nenhuma campanha especial ativa.</p>';
-                    return;
+                    return conquistas;
                 }
                 let html = '';
                 minhas.forEach(camp => {
@@ -1323,11 +2025,21 @@
                         <div class="meta-grid-stats"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div>
                     </div>
                 `;
+                    if (perc >= 100) {
+                        conquistas.push({
+                            nome: `Campanha: ${camp.campanha}`,
+                            meta: meta,
+                            realizado: realizado,
+                            perc: perc,
+                            chave: `campanha_${camp.campanha.replace(/\s+/g,'_')}_${camp.data_inicio}`
+                        });
+                    }
                 });
                 container.innerHTML = html;
+                return conquistas;
             }
 
-            // ========== GRÁFICOS ==========
+            // ==================== GRÁFICOS ====================
             function updateChartsEmpresa(ano) {
                 const mesesLabels = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
                 const fatMensal = mesesLabels.map((_, i) => getFaturamentoTotalMes(ano, i + 1));
@@ -1335,140 +2047,128 @@
                 if (charts.revenueChart) charts.revenueChart.data.datasets[0].data = fatMensal;
                 else charts.revenueChart = new Chart(document.getElementById('revenueChart'), {
                     type: 'line',
-                    data: { labels: mesesLabels, datasets: [{ label: 'Faturamento Real', data: fatMensal, borderColor: '#1e3a5f', fill: true, tension: 0.3 }] },
-                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: v => 'R$ ' + (v / 1000).toFixed(0) + 'k' } } } }
+                    data: { labels: mesesLabels, datasets: [{ label: 'Faturamento Real', data: fatMensal,
+                            borderColor: '#1e3a5f', fill: true, tension: 0.3 }] },
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: { callback: v =>
+                                    'R$ ' + (v / 1000).toFixed(0) + 'k' } } } }
                 });
                 charts.revenueChart.update();
-                if (charts.yearlyGoalsChart) { charts.yearlyGoalsChart.data.datasets[0].data = fatMensal; charts.yearlyGoalsChart.data.datasets[1].data = metaMensal; }
-                else charts.yearlyGoalsChart = new Chart(document.getElementById('yearlyGoalsChart'), {
-                    type: 'bar',
-                    data: { labels: mesesLabels, datasets: [{ label: 'Realizado', data: fatMensal, backgroundColor: '#1e3a5f' }, { label: 'Meta', data: metaMensal, backgroundColor: '#ed6c02' }] },
-                    options: { responsive: true }
-                });
+                if (charts.yearlyGoalsChart) { charts.yearlyGoalsChart.data.datasets[0].data = fatMensal;
+                    charts.yearlyGoalsChart.data.datasets[1].data = metaMensal; } else charts.yearlyGoalsChart =
+                    new Chart(document.getElementById('yearlyGoalsChart'), {
+                        type: 'bar',
+                        data: { labels: mesesLabels, datasets: [{ label: 'Realizado', data: fatMensal,
+                                backgroundColor: '#1e3a5f' }, { label: 'Meta', data: metaMensal,
+                                backgroundColor: '#ed6c02' }] },
+                        options: { responsive: true }
+                    });
                 charts.yearlyGoalsChart.update();
             }
 
-            // ========== TABELAS ==========
+            // ==================== TABELAS ====================
             function renderTables(ano, mes) {
                 const filterByMonth = (lista, campoData) => lista.filter(item => {
                     const d = parseDataBR(item[campoData]);
                     return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
                 });
-                const aprov = filterByMonth(aprovadosRaw, 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
-                const fat = filterByMonth(faturadosRaw.filter(f => { const cod = f['Cod. Vendedor']?.trim(); return cod && cod !== '80'; }), 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
-                const aprovFat = filterByMonth(aprovFatRaw, 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) || 0));
-                const cot = filterByMonth(cotacoesRaw, 'Data Criação').sort((a, b) => (parseDataBR(b['Data Criação']) || 0) - (parseDataBR(a['Data Criação']) || 0));
+                const aprov = filterByMonth(aprovadosRaw, 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(
+                    a.Data) || 0));
+                const fat = filterByMonth(faturadosRaw.filter(f => { const cod = f['Cod. Vendedor']?.trim(); return cod &&
+                        cod !== '80'; }), 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(a.Data) ||
+                    0));
+                const aprovFat = filterByMonth(aprovFatRaw, 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(
+                    a.Data) || 0));
+                const cot = filterByMonth(cotacoesRaw, 'Data Criação').sort((a, b) => (parseDataBR(b['Data Criação']) ||
+                    0) - (parseDataBR(a['Data Criação']) || 0));
 
                 function gerarTabela(dados, colunas, tipo) {
                     if (!dados.length) return '<p>Nenhum registro.</p>';
-                    let html = '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:6px 12px; border-radius:20px; border:1px solid var(--line);"></div><table><thead><tr>' + colunas.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+                    let html =
+                        '<div style="margin-bottom:8px;"><input type="text" class="table-search" placeholder="🔍 Filtrar..." style="padding:6px 12px; border-radius:20px; border:1px solid var(--line);"></div><table><thead><tr>' +
+                        colunas.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
                     dados.slice(0, 400).forEach((r, idx) => {
-                        html += `<tr data-idx="${idx}" data-tipo="${tipo}">` + colunas.map(c => `<td>${r[c]||''}</td>`).join('') + '</tr>';
+                        // Marcar coluna de cliente para tornar clicável
+                        const colCliente = colunas.find(c => ['Cliente', 'Nome Chave', 'Razão Social'].includes(c));
+                        html += `<tr data-idx="${idx}" data-tipo="${tipo}">` + colunas.map(c => {
+                            const isCliente = c === colCliente;
+                            const valor = r[c] || '';
+                            return `<td${isCliente ? ' class="cliente-nome"' : ''} data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
+                        }).join('') + '</tr>';
                     });
                     html += '</tbody></table>';
                     return html;
                 }
-                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'], 'aprov');
-                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data', 'Nome Chave', 'Empresa', 'Quantidade', 'Valor Mercadoria'], 'fat');
-                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data', 'Cliente', 'Produto', 'Quantidade', 'Total Bruto'], 'aprovfat');
-                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número', 'Data Criação', 'Razão Social', 'Valor Total', 'Situação Versão'], 'cot');
-                
+                document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência', 'Cliente',
+                    'Produto', 'Quantidade', 'Total Bruto'
+                ], 'aprov');
+                document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data', 'Nome Chave', 'Empresa',
+                    'Quantidade', 'Valor Mercadoria'
+                ], 'fat');
+                document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data', 'Cliente',
+                    'Produto', 'Quantidade', 'Total Bruto'
+                ], 'aprovfat');
+                document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número', 'Data Criação',
+                    'Razão Social', 'Valor Total', 'Situação Versão'
+                ], 'cot');
+
                 document.querySelectorAll('.table-search').forEach(inp => inp.addEventListener('input', function() {
                     const term = this.value.toLowerCase();
                     const table = this.closest('.table-wrapper').querySelector('table');
-                    if (table) table.querySelectorAll('tbody tr').forEach(row => row.style.display = row.textContent.toLowerCase().includes(term) ? '' : 'none');
+                    if (table) table.querySelectorAll('tbody tr').forEach(row => row.style.display = row
+                        .textContent.toLowerCase().includes(term) ? '' : 'none');
                 }));
-                
-                document.querySelectorAll('#tabela-aprovados tbody tr, #tabela-faturados tbody tr, #tabela-cotacoes tbody tr, #tabela-aprovadosfaturados tbody tr').forEach(row => {
-                    row.addEventListener('click', function() {
-                        const idx = parseInt(this.dataset.idx);
-                        const tipo = this.dataset.tipo;
-                        let dados = null;
-                        if (tipo === 'aprov') dados = aprov[idx];
-                        else if (tipo === 'fat') dados = fat[idx];
-                        else if (tipo === 'cot') dados = cot[idx];
-                        else if (tipo === 'aprovfat') dados = aprovFat[idx];
-                        if (dados) abrirModalDetalhe(dados);
+
+                // ===== CLIQUE NAS LINHAS =====
+                document.querySelectorAll('#tabela-aprovados tbody tr, #tabela-faturados tbody tr, #tabela-cotacoes tbody tr, #tabela-aprovadosfaturados tbody tr')
+                    .forEach(row => {
+                        row.addEventListener('click', function(e) {
+                            // Se clicou em um link ou botão dentro da linha, ignorar
+                            if (e.target.closest('a, button')) return;
+
+                            const idx = parseInt(this.dataset.idx);
+                            const tipo = this.dataset.tipo;
+                            let dados = null;
+                            if (tipo === 'aprov') dados = aprov[idx];
+                            else if (tipo === 'fat') dados = fat[idx];
+                            else if (tipo === 'cot') dados = cot[idx];
+                            else if (tipo === 'aprovfat') dados = aprovFat[idx];
+                            if (!dados) return;
+
+                            // Extrair nome do cliente (prioridade: Razão Social, Cliente, Nome Chave)
+                            const nomeCliente = dados['Razão Social'] || dados['Cliente'] || dados['Nome Chave'] ||
+                            '';
+                            if (nomeCliente) {
+                                // Buscar ficha do cliente e mostrar junto com os dados do pedido
+                                abrirFichaCliente(nomeCliente.toUpperCase().trim(), dados);
+                            } else {
+                                // Fallback: mostrar apenas os dados do pedido
+                                const modal = document.getElementById('detail-modal');
+                                const body = document.getElementById('modal-body');
+                                let html =
+                                    `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;"><h3><i class="fas fa-file-invoice"></i> Detalhes do Pedido</h3><button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.6rem; cursor:pointer;">&times;</button></div><div class="ficha-secao"><table style="font-size:0.75rem; width:100%;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>`;
+                                Object.keys(dados).forEach(key => {
+                                    html +=
+                                        `<tr><td><strong>${key}</strong></td><td>${dados[key]||'—'}</td></tr>`;
+                                });
+                                html += `</tbody></table></div>`;
+                                body.innerHTML = html;
+                                modal.classList.add('active');
+                                modal.addEventListener('click', function(e) { if (e.target === modal) modal
+                                        .classList.remove('active'); });
+                            }
+                        });
                     });
-                });
             }
 
-            // ========== NOVO: MODAL COM DESTAQUE VERDE ==========
-            function abrirModalDetalhe(dados) {
-                const icones = {
-                    'competência': 'fa-calendar-alt', 'data': 'fa-calendar-day', 'vendedor': 'fa-user-tie',
-                    'cliente': 'fa-building', 'razão social': 'fa-building', 'produto': 'fa-box',
-                    'quantidade': 'fa-hashtag', 'valor unitário': 'fa-dollar-sign', 'total bruto': 'fa-file-invoice-dollar',
-                    'total líquido': 'fa-hand-holding-usd', 'valor mercadoria': 'fa-tag', 'custo': 'fa-coins',
-                    'margem': 'fa-percent', 'depósito': 'fa-warehouse', 'país': 'fa-globe-americas',
-                    'moeda': 'fa-money-bill', '% icms': 'fa-percent', '% ipi': 'fa-percent', '% iss': 'fa-percent',
-                    'empresa': 'fa-industry', 'nome chave': 'fa-id-card', 'número': 'fa-hashtag',
-                    'data criação': 'fa-calendar-plus', 'situação versão': 'fa-info-circle',
-                    'representante': 'fa-user-tie', 'cidade': 'fa-city', 'uf': 'fa-map-marker-alt',
-                    'código': 'fa-barcode', 'descrição': 'fa-align-left', 'observação': 'fa-comment',
-                    'status': 'fa-check-circle', 'tipo': 'fa-tag', 'grupo': 'fa-layer-group',
-                    'filial': 'fa-code-branch', 'transportadora': 'fa-truck', 'pedido': 'fa-clipboard-list',
-                    'nota fiscal': 'fa-file-invoice', 'volume': 'fa-cube', 'peso': 'fa-weight-hanging'
-                };
-
-                const camposDestaque = ['total bruto', 'total líquido', 'valor mercadoria', 'valor total'];
-
-                const linhas = Object.entries(dados).map(([chave, valor]) => {
-                    const chaveLower = chave.toLowerCase().trim();
-                    const icone = icones[chaveLower] || 'fa-file-alt';
-                    const isDestaque = camposDestaque.includes(chaveLower);
-                    const valorFormatado = valor || '—';
-                    return `
-                    <div class="ficha-item ${isDestaque ? 'ficha-item-destaque' : ''}">
-                        <i class="fas ${icone} ficha-icone"></i>
-                        <div class="ficha-conteudo">
-                            <span class="ficha-label">${chave}</span>
-                            <span class="ficha-valor">${valorFormatado}</span>
-                        </div>
-                    </div>`;
-                }).join('');
-
-                const html = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
-                    <h3 style="margin:0; display: flex; align-items: center; gap: 10px;">
-                        <i class="fas fa-receipt" style="color: var(--primary);"></i> Detalhes do Pedido
-                    </h3>
-                    <button onclick="document.getElementById('detail-modal').classList.remove('active')"
-                            style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer; line-height:1; padding:0;">
-                        &times;
-                    </button>
-                </div>
-                <div class="ficha-lista">
-                    ${linhas}
-                </div>
-                `;
-                
-                document.getElementById('modal-body').innerHTML = html;
-                document.getElementById('detail-modal').classList.add('active');
-                
-                // Fechar ao clicar fora
-                document.getElementById('detail-modal').addEventListener('click', function(e) {
-                    if (e.target === this) this.classList.remove('active');
-                });
-            }
-
-            // ========== RENDER COMPLETO ==========
-            async function renderAll(ano, mes) {
-                renderKPI(ano, mes);
-                renderMetasDimas(ano, mes);
-                await renderCampanhasDimas();
-                updateChartsEmpresa(ano);
-                renderTables(ano, mes);
-            }
-
-            // ========== CARROSSEL E NOTIFICAÇÕES ==========
+            // ==================== CARROSSEL E NOTIFICAÇÕES ====================
             let currentCarouselIndex = 0;
 
             function renderCarrossel() {
                 const container = document.getElementById('carousel-container');
                 const indicators = document.getElementById('carousel-indicators');
                 if (!BANNERS.length) {
-                    container.innerHTML = '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor"></div>';
+                    container.innerHTML =
+                        '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor"></div>';
                     return;
                 }
                 container.innerHTML = BANNERS.map((b, i) => `
@@ -1479,9 +2179,14 @@
                         <span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data || '—'} &nbsp; <i class="fas fa-user"></i> ${b.autor || '—'}</span>
                     </div>
                 </div>`).join('');
-                indicators.innerHTML = BANNERS.map((_, i) => `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
-                document.querySelectorAll('.indicator-dot').forEach(dot => dot.addEventListener('click', e => { currentCarouselIndex = parseInt(e.target.dataset.idx); updateCarrossel(); }));
-                document.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () => abrirPostagem(BANNERS[currentCarouselIndex])));
+                indicators.innerHTML = BANNERS.map((_, i) =>
+                    `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                document.querySelectorAll('.indicator-dot').forEach(dot => dot.addEventListener('click', e => {
+                    currentCarouselIndex = parseInt(e.target.dataset.idx);
+                    updateCarrossel();
+                }));
+                document.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () =>
+                    abrirPostagem(BANNERS[currentCarouselIndex])));
                 updateCarrossel();
             }
 
@@ -1492,7 +2197,8 @@
             }
 
             function abrirPostagem(post) {
-                const modal = document.getElementById('post-modal'), body = document.getElementById('post-modal-body');
+                const modal = document.getElementById('post-modal'),
+                    body = document.getElementById('post-modal-body');
                 body.innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span>
                 <img src="${post.imagem}" style="width:100%; max-height:300px; object-fit:cover; border-radius:20px;">
                 <h2>${post.titulo}</h2>
@@ -1507,9 +2213,11 @@
                 const badge = document.getElementById('notification-badge');
                 const bbDot = document.getElementById('bb-badge-dot');
                 const menuNotifCount = document.getElementById('menu-notif-count');
-                if (badge) { badge.style.display = unread ? 'flex' : 'none'; badge.textContent = unread; }
+                if (badge) { badge.style.display = unread ? 'flex' : 'none';
+                    badge.textContent = unread; }
                 if (bbDot) { bbDot.style.display = unread ? 'block' : 'none'; }
-                if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none'; menuNotifCount.textContent = unread; }
+                if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none';
+                    menuNotifCount.textContent = unread; }
             }
 
             function marcarTodasComoLido() {
@@ -1520,19 +2228,26 @@
             }
 
             function abrirNotificacoes() {
-                const modal = document.getElementById('notif-modal'), body = document.getElementById('notif-modal-body');
+                const modal = document.getElementById('notif-modal'),
+                    body = document.getElementById('notif-modal-body');
                 const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
                 if (notificacoes.length === 0) {
-                    body.innerHTML = '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span><p style="text-align:center;color:var(--muted);padding:40px;">Nenhum alerta recente.</p>';
+                    body.innerHTML =
+                        '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span><p style="text-align:center;color:var(--muted);padding:40px;">Nenhum alerta recente.</p>';
                 } else {
-                    let html = `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>`;
-                    html += `<div class="notif-modal-header"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>${unreadCount > 0 ? `<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>` : ''}</div>`;
+                    let html =
+                        `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>`;
+                    html +=
+                        `<div class="notif-modal-header"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>${unreadCount > 0 ? `<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>` : ''}</div>`;
                     notificacoes.forEach(n => {
                         const isRead = readNotifications.includes(n.id);
-                        const plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...';
+                        const plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) +
+                            '...';
                         const tipo = n.tipo || 'informativo';
-                        const bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' : '#f3f4f6';
-                        const textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' : '#374151';
+                        const bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' :
+                            '#f3f4f6';
+                        const textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' :
+                            '#374151';
                         html += `<div class="notif-card" data-id="${n.id}">
                             <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
                             <div class="notif-body">
@@ -1550,7 +2265,10 @@
                     body.querySelectorAll('.notif-card').forEach(card => {
                         card.addEventListener('click', () => {
                             const id = card.dataset.id;
-                            if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications_Dimas', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
+                            if (!readNotifications.includes(id)) { readNotifications.push(id);
+                                localStorage.setItem('readNotifications_Dimas', JSON.stringify(
+                                readNotifications));
+                                atualizarBadgeNotificacoes(); }
                             const post = notificacoes.find(p => p.id == id);
                             if (post) abrirPostagem(post);
                             modal.classList.remove('active');
@@ -1558,25 +2276,55 @@
                     });
                 }
                 modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove(
+                        'active'); });
             }
 
-            // ========== CARREGAMENTO INICIAL ==========
+            // ==================== CARREGAMENTO DE DADOS E RENDER ====================
             async function fetchAllData() {
+                mostrarLoading();
                 try {
-                    const [faturados, aprovados, metasVend, metasEmp, banners, posts, campanhas, info, cotacoes, aprovfat] = await Promise.all([
+                    const [faturados, aprovados, metasVend, metasEmp, banners, posts, campanhas, info, cotacoes, aprovfat,
+                        carteira
+                    ] = await Promise.all([
                         fetch(BASES.faturados).then(r => r.json()), fetch(BASES.aprovados).then(r => r.json()),
-                        fetch(BASES.metasVendedores).then(r => r.json()), fetch(BASES.metasEmpresa).then(r => r.json()),
+                        fetch(BASES.metasVendedores).then(r => r.json()), fetch(BASES.metasEmpresa).then(r => r
+                            .json()),
                         fetch(BASES.banners).then(r => r.json()), fetch(BASES.postagens).then(r => r.json()),
                         fetch(BASES.campanhas).then(r => r.json()), fetch(BASES.informacoes).then(r => r.json()),
-                        fetch(BASES.cotacoes).then(r => r.json()), fetch(BASES.aprovadosfaturados).then(r => r.json())
+                        fetch(BASES.cotacoes).then(r => r.json()), fetch(BASES.aprovadosfaturados).then(r => r
+                            .json()),
+                        fetch(BASES.carteira).then(r => r.json())
                     ]);
-                    faturadosRaw = faturados; aprovadosRaw = aprovados; metasVendRaw = metasVend;
-                    metasEmpresaRaw = metasEmp; BANNERS = banners; notificacoes = posts;
-                    campanhasRaw = campanhas; cotacoesRaw = cotacoes; aprovFatRaw = aprovfat;
-                    
+                    faturadosRaw = faturados;
+                    aprovadosRaw = aprovados;
+                    metasVendRaw = metasVend;
+                    metasEmpresaRaw = metasEmp;
+                    BANNERS = banners;
+                    notificacoes = posts;
+                    campanhasRaw = campanhas;
+                    cotacoesRaw = cotacoes;
+                    aprovFatRaw = aprovfat;
+                    carteiraRaw = carteira;
+
+                    // Construir mapa da carteira
+                    carteiraMapGlobal = new Map();
+                    carteiraRaw.forEach(cli => {
+                        const nomeChave = (cli['Nome Chave'] || '').trim();
+                        const nomeUpper = nomeChave.toUpperCase();
+                        if (nomeUpper && !carteiraMapGlobal.has(nomeUpper)) {
+                            carteiraMapGlobal.set(nomeUpper, cli);
+                        }
+                        const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
+                        const razaoUpper = razaoSocial.toUpperCase();
+                        if (razaoUpper && razaoUpper !== nomeUpper && !carteiraMapGlobal.has(razaoUpper)) {
+                            carteiraMapGlobal.set(razaoUpper, cli);
+                        }
+                    });
+
                     if (info && info[0]) {
-                        let d = info[0].data || '', h = info[0].hora || '';
+                        let d = info[0].data || '',
+                            h = info[0].hora || '';
                         if (d.length > 5) d = d.substring(0, 5);
                         if (h.length > 5) h = h.substring(0, 5);
                         document.getElementById('last-update-text').innerText = `Atualizado em: ${d} às ${h} hrs`;
@@ -1585,77 +2333,129 @@
                     }
                     renderCarrossel();
                     atualizarBadgeNotificacoes();
-                    
+
                     const hoje = new Date();
                     anoAtual = hoje.getFullYear();
                     const mes = hoje.getMonth() + 1;
                     mesSelecionado = formatMonthKey(hoje);
-                    
-                    // NOVO: Renderizar grade de meses ao invés do seletor dropdown
+
                     renderizarGradeMeses();
-                    
+
+                    // Renderizar tudo
                     await renderAll(anoAtual, mes);
-                } catch (e) { console.error(e); document.getElementById('last-update-badge').style.display = 'none'; }
+
+                    esconderLoading();
+                } catch (e) {
+                    console.error(e);
+                    document.getElementById('last-update-badge').style.display = 'none';
+                    esconderLoading();
+                    alert('Erro ao carregar dados. Tente novamente.');
+                }
             }
 
-            // ══════════════ HAMBURGER MENU CONTROLS ══════════════
+            async function renderAll(ano, mes) {
+                // Renderizar KPIs, metas, campanhas, gráficos e tabelas
+                renderKPI(ano, mes);
+
+                // Metas e conquistas
+                const conquistasMetas = renderMetasDimas(ano, mes);
+
+                // Campanhas especiais (também retorna conquistas)
+                const conquistasCampanhas = await renderCampanhasDimas();
+
+                const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
+                if (todasConquistas.length > 0) {
+                    // Aguardar um pouco para não conflitar com loading
+                    setTimeout(() => mostrarCelebracao(todasConquistas), 600);
+                }
+
+                updateChartsEmpresa(ano);
+                renderTables(ano, mes);
+            }
+
+            // ==================== EVENTOS ====================
+            document.addEventListener('DOMContentLoaded', () => {
+                // PDF
+                document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
+                // Home
+                document.getElementById('home-btn')?.addEventListener('click', () => { window.location.href =
+                        'https://centrobor.github.io/radarcentrobor/'; });
+                // Logout
+                document.getElementById('logout-btn').addEventListener('click', () => {
+                    localStorage.setItem('radar_logged_out', 'true');
+                    localStorage.removeItem('radar_usuario');
+                    localStorage.removeItem('ultimo_acesso_radar');
+                    window.location.href = '../../index.html?reason=logged_out';
+                });
+                // Notificações
+                document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
+                // Carrossel
+                document.getElementById('prev-btn').addEventListener('click', () => { if (BANNERS.length) {
+                        currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
+                        updateCarrossel(); } });
+                document.getElementById('next-btn').addEventListener('click', () => { if (BANNERS.length) {
+                        currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
+                        updateCarrossel(); } });
+                setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) %
+                        BANNERS.length;
+                        updateCarrossel(); } }, 6000);
+                document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                // Mobile hamburger
+                document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
+                document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
+                document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
+                    window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+                document.getElementById('menu-postagens').addEventListener('click', () => { closeHamburger();
+                    window.location.href =
+                        'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger();
+                    window.location.href =
+                        'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger();
+                    abrirNotificacoes(); });
+                document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
+                    localStorage.setItem('radar_logged_out', 'true');
+                    localStorage.removeItem('radar_usuario');
+                    localStorage.removeItem('ultimo_acesso_radar');
+                    window.location.href = '../../index.html?reason=logged_out'; });
+
+                // Mobile bottom bar
+                function setActiveBottomBar(nav) {
+                    document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove(
+                    'active'));
+                    const activeEl = document.getElementById('bb-' + nav);
+                    if (activeEl) activeEl.classList.add('active');
+                }
+                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
+                    window.location.href =
+                        'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos');
+                    window.location.href =
+                        'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
+                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas');
+                    abrirNotificacoes(); });
+
+                // Iniciar carregamento
+                fetchAllData();
+            });
+
             function openHamburger() {
                 document.getElementById('hamburger-menu').classList.add('active');
                 document.getElementById('hamburger-overlay').classList.add('active');
                 document.body.style.overflow = 'hidden';
             }
+
             function closeHamburger() {
                 document.getElementById('hamburger-menu').classList.remove('active');
                 document.getElementById('hamburger-overlay').classList.remove('active');
                 document.body.style.overflow = '';
             }
-            function setActiveBottomBar(nav) {
-                document.querySelectorAll('.mobile-bottom-bar .bb-item').forEach(el => el.classList.remove('active'));
-                const activeEl = document.getElementById('bb-' + nav);
-                if (activeEl) activeEl.classList.add('active');
-            }
-
-            // Eventos desktop
-            document.getElementById('home-btn')?.addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-            document.getElementById('logout-btn').addEventListener('click', () => {
-                localStorage.setItem('radar_logged_out', 'true');
-                localStorage.removeItem('radar_usuario');
-                localStorage.removeItem('ultimo_acesso_radar');
-                window.location.href = '../../index.html?reason=logged_out';
-            });
-            document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
-            
-            // NOVO: Evento do botão PDF
-            document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
-            
-            document.getElementById('prev-btn').addEventListener('click', () => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length; updateCarrossel(); } });
-            document.getElementById('next-btn').addEventListener('click', () => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); } });
-            setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); } }, 6000);
-            document.getElementById('footer-year').textContent = new Date().getFullYear();
-
-            // Mobile events
-            document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
-            document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
-            document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-            document.getElementById('menu-home').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-            document.getElementById('menu-postagens').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-            document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-            document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.scrollTo({ top: 0, behavior: 'smooth' }); });
-            document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirNotificacoes(); });
-            document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
-                localStorage.setItem('radar_logged_out', 'true');
-                localStorage.removeItem('radar_usuario');
-                localStorage.removeItem('ultimo_acesso_radar');
-                window.location.href = '../../index.html?reason=logged_out';
-            });
-
-            setActiveBottomBar('home');
-            document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-            document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-            document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.scrollTo({ top: 0, behavior: 'smooth' }); });
-            document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirNotificacoes(); });
-
-            fetchAllData();
         })();
     </script>
 </body>
