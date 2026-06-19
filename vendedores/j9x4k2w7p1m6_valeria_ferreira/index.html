@@ -1522,166 +1522,204 @@
                 });
 
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
-                    const kpiModal = document.getElementById('kpi-detail-modal');
-                    if (kpiModal.classList.contains('active')) {
-                        window._kpiModalStack.push({
-                            html: document.getElementById('kpi-detail-body').innerHTML,
-                            colunas: window._kpiColunas,
-                            colunaTotal: window._kpiColunaTotal
-                        });
-                        kpiModal.classList.remove('active');
+    // Fecha o modal KPI se estiver aberto e empilha estado
+    const kpiModal = document.getElementById('kpi-detail-modal');
+    if (kpiModal.classList.contains('active')) {
+        window._kpiModalStack.push({
+            html: document.getElementById('kpi-detail-body').innerHTML,
+            colunas: window._kpiColunas,
+            colunaTotal: window._kpiColunaTotal
+        });
+        kpiModal.classList.remove('active');
+    }
+    window.fichaPedidoData = pedidoData;
+    mostrarLoadingModal();
+
+    setTimeout(() => {
+        // Garante que o nome esteja limpo (maiúsculo e sem espaços nas pontas)
+        let nomeLimpo = nomeUpper ? nomeUpper.toUpperCase().trim() : '';
+        let cliente = null;
+
+        // 1) Busca exata pelo nome limpo no mapa global
+        cliente = carteiraMapGlobal.get(nomeLimpo);
+
+        // 2) Se não achou e veio CNPJ, tenta buscar por CPF/CNPJ
+        if (!cliente && cnpj && cnpj.length >= 11) {
+            for (let [key, val] of carteiraMapGlobal.entries()) {
+                const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
+                if (cnpjCad === cnpj) {
+                    cliente = val;
+                    break;
+                }
+            }
+        }
+
+        // 3) Se ainda não achou e temos pedidoData com código do cliente (campo 'Cliente'),
+        //    tenta localizar pelo código na carteira (mais confiável)
+        if (!cliente && pedidoData && pedidoData['Cliente']) {
+            const codCliente = String(pedidoData['Cliente']).trim();
+            for (let [key, val] of carteiraMapGlobal.entries()) {
+                const codCadastro = String(val['Código'] || '').trim();
+                if (codCadastro === codCliente) {
+                    cliente = val;
+                    break;
+                }
+            }
+        }
+
+        // 4) Fallback por palavras-chave (nome do cliente contido em qualquer chave do mapa)
+        if (!cliente && nomeLimpo) {
+            const palavras = nomeLimpo.split(/\s+/).filter(p => p.length > 2);
+            if (palavras.length) {
+                for (let [key, val] of carteiraMapGlobal.entries()) {
+                    const nomeChave = (val['Nome Chave'] || '').toUpperCase();
+                    const razao = (val['Nome/Razão Social'] || '').toUpperCase();
+                    if (palavras.some(p => nomeChave.includes(p) || razao.includes(p))) {
+                        cliente = val;
+                        break;
                     }
-                    window.fichaPedidoData = pedidoData;
-                    mostrarLoadingModal();
-                    setTimeout(() => {
-                        let cliente = null;
-                        cliente = carteiraMap.get(nomeUpper);
-                        if (!cliente && cnpj && cnpj.length >= 11) {
-                            for (let [key, val] of carteiraMap.entries()) {
-                                const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
-                                if (cnpjCad === cnpj) { cliente = val; break; }
-                            }
-                        }
-                        if (!cliente && nomeUpper) {
-                            const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
-                            for (let [key, val] of carteiraMap.entries()) {
-                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
-                            }
-                        }
+                }
+            }
+        }
 
-                        if (!cliente) {
-                            if (pedidoData) {
-                                let htmlFallback = `
-                                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;">
-                                            <i class="fas fa-arrow-left"></i> Voltar
-                                        </button>
-                                        <h3 style="margin:0;">
-                                            <i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cotação sem cliente'}
-                                        </h3>
-                                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;"
-                                                style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                                    </div>
-                                    <div class="ficha-secao">
-                                        <h4><i class="fas fa-info-circle"></i> Cliente não cadastrado na carteira</h4>
-                                        <p style="color:var(--muted); font-size:0.9rem;">
-                                            Os dados abaixo são apenas da cotação/pedido. Cadastre o cliente no sistema para visualizar a ficha completa.
-                                        </p>
-                                    </div>
-                                    <div class="ficha-secao">
-                                        <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>
-                                        <table style="font-size:0.75rem;">
-                                            <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
-                                            <tbody>
-                                `;
-                                const camposDestaque = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
-                                Object.keys(pedidoData).forEach(key => {
-                                    const classe = camposDestaque.includes(key) ? ' class="row-importante"' : '';
-                                    htmlFallback += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
-                                });
-                                htmlFallback += `
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <div style="display:flex; gap:8px; margin-top:16px;">
-                                        <button onclick="window.copiarDadosCliente(true)"
-                                                style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;">
-                                            <i class="fas fa-copy"></i> Copiar dados da cotação
-                                        </button>
-                                    </div>
-                                `;
-                                abrirModalConteudo(htmlFallback, `Cotação: ${pedidoData['Razão Social'] || pedidoData['Cliente'] || ''}`);
-                                window.clienteFichaAtual = {
-                                    nome: pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cliente',
-                                    'Telefone': '', 'Fone': '', 'E-Mail': ''
-                                };
-                                return;
-                            }
-                            document.getElementById('modal-body').innerHTML =
-                                '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro e sem dados de pedido.</p>';
-                            return;
-                        }
-
-                        window.clienteFichaAtual = cliente;
-
-                        const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
-                        const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
-
-                        let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
-                            <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
-                            <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeUpper}</h3>
-                            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
-                        </div>`;
-
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
-                        html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
-                        html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
-                        html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
-                        html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
-                        html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
-                        html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
-                        html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
-                        html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
-                        html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
-                        html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
-                        html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
-                        html += `</div></div>`;
-
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
-                        html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
-                        html += fichaCampo('fa-home', 'Número', cliente['Número']);
-                        html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
-                        html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
-                        html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
-                        html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
-                        html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
-                        html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
-                        html += `</div></div>`;
-
-                        html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
-                        html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
-                        html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
-                        html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
-                        html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
-                        html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
-                        html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
-                        html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
-                        html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
-                        html += `</div></div>`;
-
-                        if (pedidoData) {
-                            const camposImportantes = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
-                            html += '<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>';
-                            html += '<table style="font-size:0.75rem;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>';
-                            Object.keys(pedidoData).forEach(key => {
-                                const classe = camposImportantes.includes(key) ? ' class="row-importante"' : '';
-                                html += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
-                            });
-                            html += '</tbody></table></div>';
-                        }
-
-                        const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
-                        const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
-                        html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
-                        if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
-                        if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
-                        if (pedidoData) {
-                            html += `<button onclick="window.copiarDadosCliente(true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
-                        }
-                        html += `<button onclick="window.copiarDadosCliente(false)" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados Cliente</button>`;
-                        html += '</div>';
-
-                        if (similares.length > 0) {
-                            html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Empresas Relacionadas (ou outras filiais) (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
-                            similares.forEach(s => {
-                                html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
-                            });
-                            html += '</div></div>';
-                        }
-
-                        abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeUpper}`);
-                    }, 150);
+        // 5) Se nenhuma busca encontrou, exibe o fallback com os dados da cotação
+        if (!cliente) {
+            if (pedidoData) {
+                let htmlFallback = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;">
+                            <i class="fas fa-arrow-left"></i> Voltar
+                        </button>
+                        <h3 style="margin:0;">
+                            <i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cotação sem cliente'}
+                        </h3>
+                        <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;"
+                                style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+                    <div class="ficha-secao">
+                        <h4><i class="fas fa-info-circle"></i> Cliente não cadastrado na carteira</h4>
+                        <p style="color:var(--muted); font-size:0.9rem;">
+                            Os dados abaixo são apenas da cotação/pedido. Cadastre o cliente no sistema para visualizar a ficha completa.
+                        </p>
+                    </div>
+                    <div class="ficha-secao">
+                        <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>
+                        <table style="font-size:0.75rem;">
+                            <thead><tr><th>Campo</th><th>Valor</th></tr></thead>
+                            <tbody>
+                `;
+                const camposDestaque = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
+                Object.keys(pedidoData).forEach(key => {
+                    const classe = camposDestaque.includes(key) ? ' class="row-importante"' : '';
+                    htmlFallback += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+                });
+                htmlFallback += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <div style="display:flex; gap:8px; margin-top:16px;">
+                        <button onclick="window.copiarDadosCliente(true)"
+                                style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;">
+                            <i class="fas fa-copy"></i> Copiar dados da cotação
+                        </button>
+                    </div>
+                `;
+                abrirModalConteudo(htmlFallback, `Cotação: ${pedidoData['Razão Social'] || pedidoData['Cliente'] || ''}`);
+                window.clienteFichaAtual = {
+                    nome: pedidoData['Razão Social'] || pedidoData['Cliente'] || pedidoData['Nome Chave'] || 'Cliente',
+                    'Telefone': '', 'Fone': '', 'E-Mail': ''
                 };
+                return;
+            }
+            document.getElementById('modal-body').innerHTML =
+                '<p style="padding:40px; text-align:center;">Cliente não encontrado no cadastro e sem dados de pedido.</p>';
+            return;
+        }
+
+        // Cliente encontrado – monta a ficha completa
+        window.clienteFichaAtual = cliente;
+
+        const palavras = (cliente.nome || nomeLimpo).split(/\s+/).filter(p => p.length > 2);
+        const similares = Array.from(carteiraMapGlobal.values()).filter(c =>
+            c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() &&
+            palavras.some(p => c.nome.toUpperCase().includes(p))
+        );
+
+        let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
+            <h3 style="margin:0;"><i class="fas fa-id-card"></i> ${cliente.nome || nomeLimpo}</h3>
+            <button onclick="document.getElementById('detail-modal').classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null;" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>`;
+
+        html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
+        html += fichaCampo('fa-hashtag', 'Código', cliente['Código']);
+        html += fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']);
+        html += fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']);
+        html += fichaCampo('fa-venus-mars', 'Tipo', cliente['Física/Juridica']);
+        html += fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']);
+        html += fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']);
+        html += fichaCampo('fa-industry', 'Ramo', cliente['Ramo']);
+        html += fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']);
+        html += fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']);
+        html += fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']);
+        html += fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']);
+        html += `</div></div>`;
+
+        html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
+        html += fichaCampo('fa-road', 'Endereço', cliente['Endereço']);
+        html += fichaCampo('fa-home', 'Número', cliente['Número']);
+        html += fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']);
+        html += fichaCampo('fa-map', 'Bairro', cliente['Bairro']);
+        html += fichaCampo('fa-city', 'Cidade', cliente['Cidade']);
+        html += fichaCampo('fa-map-pin', 'UF', cliente['UF']);
+        html += fichaCampo('fa-globe-americas', 'País', cliente['País']);
+        html += fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']);
+        html += `</div></div>`;
+
+        html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
+        html += fichaCampo('fa-phone', 'Telefone', cliente['Telefone']);
+        html += fichaCampo('fa-fax', 'Fax', cliente['Fax']);
+        html += fichaCampo('fa-user', 'Contato', cliente['Contato']);
+        html += fichaCampo('fa-building', 'Departamento', cliente['Departamento']);
+        html += fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']);
+        html += fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']);
+        html += fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']);
+        html += fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']);
+        html += `</div></div>`;
+
+        if (pedidoData) {
+            const camposImportantes = ['Total Bruto', 'Total Líquido', 'Valor Total', 'Valor Mercadoria'];
+            html += '<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>';
+            html += '<table style="font-size:0.75rem;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>';
+            Object.keys(pedidoData).forEach(key => {
+                const classe = camposImportantes.includes(key) ? ' class="row-importante"' : '';
+                html += `<tr${classe}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`;
+            });
+            html += '</tbody></table></div>';
+        }
+
+        const telefone = (cliente['Telefone'] || cliente['Fone'] || '').replace(/[^0-9+]/g, '');
+        const email = (cliente['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+        html += '<div style="display:flex; gap:8px; margin:16px 0; flex-wrap:wrap;">';
+        if (telefone && telefone.length > 5) html += `<a href="https://wa.me/55${telefone}" target="_blank" style="background:#25D366; color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+        if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" target="_blank" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; text-decoration:none; font-weight:600;"><i class="fas fa-envelope"></i> E-mail</a>`;
+        if (pedidoData) {
+            html += `<button onclick="window.copiarDadosCliente(true)" style="background:var(--primary); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Pedido + Cliente</button>`;
+        }
+        html += `<button onclick="window.copiarDadosCliente(false)" style="background:var(--primary-light); color:white; padding:10px 20px; border-radius:40px; border:none; font-weight:600; cursor:pointer;"><i class="fas fa-copy"></i> Copiar Dados Cliente</button>`;
+        html += '</div>';
+
+        if (similares.length > 0) {
+            html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Empresas Relacionadas (ou outras filiais) (${similares.length})</h4><div style="max-height:200px; overflow-y:auto;">`;
+            similares.forEach(s => {
+                html += `<div style="padding:6px 0; border-bottom:1px solid #eee; cursor:pointer; color:var(--primary);" onclick="window.abrirFichaCliente('${s.nome.toUpperCase()}')">${s.nome} (${s['Cidade'] || '—'}/${s['UF'] || '—'})</div>`;
+            });
+            html += '</div></div>';
+        }
+
+        abrirModalConteudo(html, `Ficha: ${cliente.nome || nomeLimpo}`);
+    }, 150);
+};
 
                 function fichaCampo(icone, label, valor) {
                     const val = valor || '—';
