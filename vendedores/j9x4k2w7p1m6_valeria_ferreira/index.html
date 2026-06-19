@@ -887,53 +887,89 @@
             }
 
             function reaplicarListenersKpiModal(body, colunas, colunaTotal) {
-                const searchInput = body.querySelector('.table-search-detail');
-                if (searchInput) {
-                    searchInput.addEventListener('input', function() {
-                        const term = this.value.toLowerCase();
-                        const table = body.querySelector('table');
-                        if (!table) return;
-                        let totalFiltrado = 0;
-                        table.querySelectorAll('tbody tr').forEach(row => {
-                            const text = row.textContent.toLowerCase();
-                            const show = text.includes(term);
-                            row.style.display = show ? '' : 'none';
-                            if (show && colunaTotal) {
-                                const idx = colunas.indexOf(colunaTotal);
-                                if (idx !== -1) {
-                                    const cell = row.querySelectorAll('td')[idx];
-                                    if (cell) totalFiltrado += cleanNumber(cell.textContent);
-                                }
-                            }
-                        });
-                        const badge = body.querySelector('.total-badge');
-                        if (badge && colunaTotal) {
-                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
-                        }
-                    });
-                }
+    const searchInput = body.querySelector('.table-search-detail');
 
-                body.addEventListener('click', function(e) {
-                    const tr = e.target.closest('tr[data-row]');
-                    if (!tr) return;
-                    if (e.target.closest('input, button, a, .table-search-detail')) return;
-                    let rowData;
-                    try {
-                        // CORREÇÃO: remover o replace desnecessário que quebrava o parse
-                        rowData = JSON.parse(tr.dataset.row);
-                    } catch (err) { return; }
-                    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
-                    if (nomeCliente) {
-                        window._kpiModalStack.push({
-                            html: body.innerHTML,
-                            colunas: colunas,
-                            colunaTotal: colunaTotal
-                        });
-                        document.getElementById('kpi-detail-modal').classList.remove('active');
-                        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
+    if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            const term = this.value.toLowerCase();
+            const table = body.querySelector('table');
+
+            if (!table) return;
+
+            let totalFiltrado = 0;
+
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const show = text.includes(term);
+
+                row.style.display = show ? '' : 'none';
+
+                if (show && colunaTotal) {
+                    const idx = colunas.indexOf(colunaTotal);
+
+                    if (idx !== -1) {
+                        const cell = row.querySelectorAll('td')[idx];
+
+                        if (cell) {
+                            totalFiltrado += cleanNumber(cell.textContent);
+                        }
                     }
-                });
+                }
+            });
+
+            const badge = body.querySelector('.total-badge');
+
+            if (badge && colunaTotal) {
+                badge.innerHTML =
+                    `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
             }
+        });
+    }
+
+    body.addEventListener('click', function(e) {
+
+        const tr = e.target.closest('tr[data-row]');
+        if (!tr) return;
+
+        if (e.target.closest('input, button, a, .table-search-detail')) return;
+
+        let rowData;
+
+        try {
+            rowData = JSON.parse(
+                tr.dataset.row.replace(/&quot;/g, '"')
+            );
+        } catch (err) {
+            return;
+        }
+
+        const nomeCliente =
+            rowData['Cliente'] ||
+            rowData['Nome Chave'] ||
+            rowData['Razão Social'] ||
+            rowData['Nome/Razão Social'] ||
+            '';
+
+        if (nomeCliente) {
+
+            window._kpiModalStack.push({
+                html: body.innerHTML,
+                colunas: colunas,
+                colunaTotal: colunaTotal
+            });
+
+            document.getElementById('kpi-detail-modal').classList.remove('active');
+
+            // IMPORTANTE:
+            // envia também o rowData igual às tabelas normais
+            window.abrirFichaCliente(
+                nomeCliente.toUpperCase(),
+                '',
+                rowData
+            );
+        }
+    });
+}
 
             function voltarModal() {
                 if (window._kpiModalStack.length > 0) {
@@ -1042,13 +1078,17 @@
                 `;
                 dados.slice(0, 200).forEach(row => {
                     const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
-                    tabelaHtml += `<tr data-row="${rowJSON}">`;
-                    colunas.forEach(c => {
-                        const valor = row[c] || '';
-                        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
-                    });
-                    tabelaHtml += `</tr>`;
+                    window._kpiDetailRowsGlobal = dados.slice(0, 200); // salva todas as linhas
+tabelaHtml += dados.slice(0, 200).map((row, idx) => {
+    let tr = `<tr data-idx="${idx}">`;
+    colunas.forEach(c => {
+        const valor = row[c] || '';
+        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+        tr += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
+    });
+    tr += `</tr>`;
+    return tr;
+}).join('');
                 });
                 tabelaHtml += '</tbody></table></div>';
 
@@ -1535,18 +1575,30 @@
                     setTimeout(() => {
                         let cliente = null;
                         cliente = carteiraMap.get(nomeUpper);
-                        if (!cliente && cnpj && cnpj.length >= 11) {
-                            for (let [key, val] of carteiraMap.entries()) {
-                                const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
-                                if (cnpjCad === cnpj) { cliente = val; break; }
-                            }
-                        }
-                        if (!cliente && nomeUpper) {
-                            const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
-                            for (let [key, val] of carteiraMap.entries()) {
-                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
-                            }
-                        }
+
+if (!cliente) {
+
+    for (let [key, val] of carteiraMap.entries()) {
+
+        const nomeChave =
+            (val['Nome Chave'] || '')
+            .toUpperCase()
+            .trim();
+
+        const razao =
+            (val['Nome/Razão Social'] || '')
+            .toUpperCase()
+            .trim();
+
+        if (
+            nomeChave === nomeUpper ||
+            razao === nomeUpper
+        ) {
+            cliente = val;
+            break;
+        }
+    }
+}
 
                         if (!cliente) {
                             if (pedidoData) {
