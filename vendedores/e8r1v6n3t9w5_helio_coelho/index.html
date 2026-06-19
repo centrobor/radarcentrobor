@@ -648,7 +648,6 @@
             window.fichaPedidoData = null;
             window.clienteFichaAtual = null;
 
-            // NOVO: array global para armazenar as linhas do modal de detalhamento KPI
             window._kpiDetailRowsGlobal = [];
 
             const loadingOverlay = document.getElementById('loading-overlay');
@@ -666,7 +665,46 @@
                 const str = String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
                 return parseFloat(str) || 0;
             };
+
+            // ====== NOVAS FUNÇÕES DE NORMALIZAÇÃO (CORREÇÃO DE VARIAÇÕES) ======
+            // Normaliza texto removendo acentos e colocando em minúsculas
+            const normalizarTexto = (str) => {
+                return String(str || '')
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toLowerCase()
+                    .trim();
+            };
+
+            // Compara dois nomes ignorando acentos e maiúsculas
+            const nomesIguais = (a, b) => normalizarTexto(a) === normalizarTexto(b);
+
+            // Extrai o código numérico de uma string (ex.: "03" → 3, "3A" → 3)
+            const extrairCodigoNumerico = (str) => {
+                const numeros = String(str || '').replace(/\D/g, '');
+                return numeros ? parseInt(numeros, 10) : null;
+            };
+
+            // Compara dois códigos de vendedor (podem vir como "3", "03", "003", etc.)
+            const codigosIguais = (cod1, cod2) => {
+                const n1 = extrairCodigoNumerico(cod1);
+                const n2 = extrairCodigoNumerico(cod2);
+                return n1 !== null && n2 !== null && n1 === n2;
+            };
+
+            // Versão antiga extrairCodigo mantida para compatibilidade se necessário
             const extrairCodigo = (str) => { const match = String(str || '').match(/^(\d+)/); return match ? match[1] : null; };
+
+            // Funções de filtro robustas (substituem as originais)
+            const filtrarPorNome = (lista, campo) => 
+                lista.filter(i => normalizarTexto(i[campo]).includes(normalizarTexto(nomeVendedor)));
+
+            const filtrarPorCod = (lista, campo) => 
+                lista.filter(i => codigosIguais(i[campo], codVendedor));
+
+            const filtrarPorCodExtraido = (lista, campo) => 
+                lista.filter(i => codigosIguais(extrairCodigoNumerico(i[campo]), codVendedor));
+
             const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
             const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
             const formatMonthKey = (date) => {
@@ -820,7 +858,7 @@
                 try {
                     const campanhas = await carregarJSON(BASES.campanhas_especiais);
                     const hoje = new Date(); hoje.setHours(0,0,0,0);
-                    const minhas = campanhas.filter(c => (extrairCodigo(c.vendedor_cod)||c.vendedor_cod)==codVendedor && cleanNumber(c.meta_valor)>0);
+                    const minhas = campanhas.filter(c => codigosIguais(extrairCodigoNumerico(c.vendedor_cod), codVendedor) && cleanNumber(c.meta_valor)>0);
                     if (!minhas.length) {
                         document.getElementById('campanhas-especiais-container').innerHTML = '<p style="color:var(--muted);">Nenhuma campanha especial ativa.</p>';
                         return [];
@@ -889,7 +927,6 @@
                 document.getElementById('detail-modal').classList.add('active');
             }
 
-            // Função reescrita para usar data-idx e window._kpiDetailRowsGlobal
             function reaplicarListenersKpiModal(body, colunas, colunaTotal) {
                 const searchInput = body.querySelector('.table-search-detail');
                 if (searchInput) {
@@ -933,7 +970,6 @@
                             colunaTotal: colunaTotal
                         });
                         document.getElementById('kpi-detail-modal').classList.remove('active');
-                        // CORREÇÃO: passa false para busca aproximada no contexto de cotação
                         const permitirAprox = !(colunas && colunas.includes('Situação Versão'));
                         window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData, permitirAprox);
                     }
@@ -1034,7 +1070,7 @@
 
                 window._kpiColunas = colunas;
                 window._kpiColunaTotal = colunaTotal;
-                window._kpiDetailRowsGlobal = dados.slice(0, 200); // armazena para acesso por índice
+                window._kpiDetailRowsGlobal = dados.slice(0, 200);
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1105,7 +1141,8 @@
                 document.getElementById('topbar-greeting').textContent = nomeVendedor.split(' ')[0];
                 document.getElementById('menu-user-name').textContent = nomeVendedor;
 
-                const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
+                // CORREÇÃO: usa codigosIguais para filtrar meta do vendedor
+                const metaArr = metaRawArr.filter(m => codigosIguais(String(m.id_vendedor || '').trim(), codVendedor));
                 const meta = metaArr.length>0 ? metaArr[0] : {};
 
                 let metaTimeMensal = 0;
@@ -1121,16 +1158,13 @@
                     }
                 }
 
-                const filtrarPorNome = (lista,campo) => lista.filter(i => String(i[campo]||'').toLowerCase().includes(nomeVendedor.toLowerCase()));
-                const filtrarPorCod = (lista,campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
-                const filtrarPorCodExtraido = (lista,campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
-
-                const aprovFull = filtrarPorNome(aprovRaw,'Vendedor');
-                const fatFull = filtrarPorCod(fatRaw,'Cod. Vendedor');
-                const cotFull = filtrarPorCodExtraido(cotRaw,'Vendedor');
-                const carteiraFull = filtrarPorCodExtraido(carteiraRaw,'Representante');
+                // Filtros robustos com as novas funções normalizadoras
+                const aprovFull = filtrarPorNome(aprovRaw, 'Vendedor');
+                const fatFull = filtrarPorCod(fatRaw, 'Cod. Vendedor');
+                const cotFull = filtrarPorCodExtraido(cotRaw, 'Vendedor');
+                const carteiraFull = filtrarPorCodExtraido(carteiraRaw, 'Representante');
                 let aprovFatFull = aprovFatRaw;
-                if (aprovFatRaw.length && aprovFatRaw[0].hasOwnProperty('Vendedor')) aprovFatFull = filtrarPorNome(aprovFatRaw,'Vendedor');
+                if (aprovFatRaw.length && aprovFatRaw[0].hasOwnProperty('Vendedor')) aprovFatFull = filtrarPorNome(aprovFatRaw, 'Vendedor');
 
                 const filterByMonth = (lista,campo) => {
                     if (!selectedMonth) return lista;
@@ -1394,13 +1428,13 @@
                         else if (tipo === 'aprovfat') nomeCliente = rowData['Cliente'] || '';
                         else if (tipo === 'cot') nomeCliente = rowData['Razão Social'] || '';
                         if (nomeCliente) {
-                            // CORREÇÃO: para tipo 'cot', passa false para busca aproximada
                             const permitirAprox = tipo !== 'cot';
                             window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData, permitirAprox);
                         }
                     });
                 });
 
+                // CORREÇÃO: usa normalização nas comparações de vendedor em interacoesGlobais
                 const interacoesGlobais = new Map();
                 const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
                     lista.forEach(item => {
@@ -1418,7 +1452,6 @@
                 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
                 const carteiraMap = new Map();
-                // ═══ NOVO: mapa por código do cliente ═══
                 const carteiraByCodigo = new Map();
 
                 carteiraFull.forEach(cli => {
@@ -1447,7 +1480,6 @@
                         });
                     }
 
-                    // Preencher mapa por código
                     const codigo = String(cli['Código'] || '').trim();
                     if (codigo && !carteiraByCodigo.has(codigo)) {
                         carteiraByCodigo.set(codigo, {
@@ -1469,7 +1501,8 @@
                     if (carteiraMap.has(nome)) return;
                     if (info.data < umAnoAtras) return;
                     const vendedorInteracao = info.vendedor;
-                    const isVendedorAtual = (vendedorInteracao === codVendedor) || (vendedorInteracao.toUpperCase() === nomeVendedor.toUpperCase());
+                    // CORREÇÃO: usa codigosIguais e nomesIguais
+                    const isVendedorAtual = codigosIguais(vendedorInteracao, codVendedor) || nomesIguais(vendedorInteracao, nomeVendedor);
                     if (isVendedorAtual) {
                         carteiraMap.set(nome, { nome: nome, cidade: '', uf: '', ativo: true, cadastrado: false });
                     }
@@ -1544,7 +1577,7 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // ═══ FUNÇÃO abrirFichaCliente CORRIGIDA (busca por código primeiro, sem busca aproximada para cotações) ═══
+                // Função abrirFichaCliente corrigida (usa normalização na busca)
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null, permitirBuscaAproximada = true) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
@@ -1560,16 +1593,13 @@
                     setTimeout(() => {
                         let cliente = null;
                         
-                        // 1. Tenta buscar pelo código do pedido/cotação (campo 'Cliente')
                         if (!cliente && pedidoData && pedidoData['Cliente']) {
                             const codigoPedido = String(pedidoData['Cliente']).trim();
                             cliente = carteiraByCodigo.get(codigoPedido);
                         }
 
-                        // 2. Busca por nome (upper) exato
                         if (!cliente) cliente = carteiraMap.get(nomeUpper);
 
-                        // 3. Busca por CNPJ
                         if (!cliente && cnpj && cnpj.length >= 11) {
                             for (let [key, val] of carteiraMap.entries()) {
                                 const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
@@ -1577,11 +1607,12 @@
                             }
                         }
 
-                        // 4. Busca por palavras-chave no nome SOMENTE se permitido (não para cotações)
+                        // Busca aproximada usando normalização (se permitido)
                         if (!cliente && nomeUpper && permitirBuscaAproximada) {
-                            const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
+                            const palavras = normalizarTexto(nomeUpper).split(/\s+/).filter(p => p.length > 2);
                             for (let [key, val] of carteiraMap.entries()) {
-                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
+                                const keyNormalizada = normalizarTexto(key);
+                                if (palavras.some(p => keyNormalizada.includes(p))) { cliente = val; break; }
                             }
                         }
 
@@ -1640,8 +1671,13 @@
 
                         window.clienteFichaAtual = cliente;
 
-                        const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
-                        const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
+                        const palavras = normalizarTexto(cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
+                        const similares = Array.from(carteiraMap.values()).filter(c => {
+                            if (!c.nome) return false;
+                            const nomeAtual = normalizarTexto(cliente.nome || '');
+                            const nomeC = normalizarTexto(c.nome);
+                            return nomeC !== nomeAtual && palavras.some(p => nomeC.includes(p));
+                        });
 
                         let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                             <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
