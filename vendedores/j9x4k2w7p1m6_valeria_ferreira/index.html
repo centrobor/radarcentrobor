@@ -916,23 +916,26 @@
                 }
 
                 body.addEventListener('click', function(e) {
-                    const tr = e.target.closest('tr[data-idx]');
-                    if (!tr) return;
-                    if (e.target.closest('input, button, a, .table-search-detail')) return;
-                    const idx = parseInt(tr.dataset.idx);
-                    const rowData = window._kpiDetailRowsGlobal[idx];
-                    if (!rowData) return;
-                    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
-                    if (nomeCliente) {
-                        window._kpiModalStack.push({
-                            html: body.innerHTML,
-                            colunas: colunas,
-                            colunaTotal: colunaTotal
-                        });
-                        document.getElementById('kpi-detail-modal').classList.remove('active');
-                        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
-                    }
-                });
+    const tr = e.target.closest('tr[data-row]');
+    if (!tr) return;
+    if (e.target.closest('input, button, a, .table-search-detail')) return;
+    let rowData;
+    try {
+        rowData = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"'));
+    } catch (err) {
+        return;
+    }
+    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
+    if (nomeCliente) {
+        window._kpiModalStack.push({
+            html: body.innerHTML,
+            colunas: colunas,
+            colunaTotal: colunaTotal
+        });
+        document.getElementById('kpi-detail-modal').classList.remove('active');
+        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
+    }
+});
             }
 
             function voltarModal() {
@@ -1042,14 +1045,15 @@
                     <thead><tr>${colunas.map(c => `<th style="padding:4px 3px;border-bottom:2px solid var(--line);text-align:left;font-size:0.65rem;">${c}</th>`).join('')}</tr></thead><tbody>
                 `;
                 dados.slice(0, 200).forEach((row, idx) => {
-                    tabelaHtml += `<tr data-idx="${idx}">`;
-                    colunas.forEach(c => {
-                        const valor = row[c] || '';
-                        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
-                    });
-                    tabelaHtml += `</tr>`;
-                });
+    const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
+    tabelaHtml += `<tr data-row="${rowJSON}" data-idx="${idx}">`;
+    colunas.forEach(c => {
+        const valor = row[c] || '';
+        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
+    });
+    tabelaHtml += `</tr>`;
+});
                 tabelaHtml += '</tbody></table></div>';
 
                 body.innerHTML = `
