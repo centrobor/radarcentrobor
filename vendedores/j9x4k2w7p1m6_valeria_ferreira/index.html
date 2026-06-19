@@ -9,7 +9,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* ===== ESTILOS COMPLETOS ===== */
+        /* ===== ESTILOS COMPLETOS (mantidos originais) ===== */
         :root {
             --bg: #f0f4f8;
             --card-bg: rgba(255, 255, 255, 0.82);
@@ -648,6 +648,9 @@
             window.fichaPedidoData = null;
             window.clienteFichaAtual = null;
 
+            // NOVO: array global para armazenar as linhas do modal de detalhamento KPI
+            window._kpiDetailRowsGlobal = [];
+
             const loadingOverlay = document.getElementById('loading-overlay');
             function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
             function esconderLoading() { loadingOverlay.classList.add('hidden'); }
@@ -886,90 +889,51 @@
                 document.getElementById('detail-modal').classList.add('active');
             }
 
+            // Função reescrita para usar data-idx e window._kpiDetailRowsGlobal
             function reaplicarListenersKpiModal(body, colunas, colunaTotal) {
-    const searchInput = body.querySelector('.table-search-detail');
-
-    if (searchInput) {
-        searchInput.addEventListener('input', function() {
-            const term = this.value.toLowerCase();
-            const table = body.querySelector('table');
-
-            if (!table) return;
-
-            let totalFiltrado = 0;
-
-            table.querySelectorAll('tbody tr').forEach(row => {
-                const text = row.textContent.toLowerCase();
-                const show = text.includes(term);
-
-                row.style.display = show ? '' : 'none';
-
-                if (show && colunaTotal) {
-                    const idx = colunas.indexOf(colunaTotal);
-
-                    if (idx !== -1) {
-                        const cell = row.querySelectorAll('td')[idx];
-
-                        if (cell) {
-                            totalFiltrado += cleanNumber(cell.textContent);
+                const searchInput = body.querySelector('.table-search-detail');
+                if (searchInput) {
+                    searchInput.addEventListener('input', function() {
+                        const term = this.value.toLowerCase();
+                        const table = body.querySelector('table');
+                        if (!table) return;
+                        let totalFiltrado = 0;
+                        table.querySelectorAll('tbody tr').forEach(row => {
+                            const idx = parseInt(row.dataset.idx);
+                            const rowData = window._kpiDetailRowsGlobal[idx];
+                            const text = row.textContent.toLowerCase();
+                            const show = text.includes(term);
+                            row.style.display = show ? '' : 'none';
+                            if (show && colunaTotal && rowData) {
+                                totalFiltrado += cleanNumber(rowData[colunaTotal]);
+                            }
+                        });
+                        const badge = body.querySelector('.total-badge');
+                        if (badge && colunaTotal) {
+                            badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
                         }
-                    }
+                    });
                 }
-            });
 
-            const badge = body.querySelector('.total-badge');
-
-            if (badge && colunaTotal) {
-                badge.innerHTML =
-                    `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+                body.addEventListener('click', function(e) {
+                    const tr = e.target.closest('tr[data-idx]');
+                    if (!tr) return;
+                    if (e.target.closest('input, button, a, .table-search-detail')) return;
+                    const idx = parseInt(tr.dataset.idx);
+                    const rowData = window._kpiDetailRowsGlobal[idx];
+                    if (!rowData) return;
+                    const nomeCliente = rowData['Cliente'] || rowData['Nome Chave'] || rowData['Razão Social'] || '';
+                    if (nomeCliente) {
+                        window._kpiModalStack.push({
+                            html: body.innerHTML,
+                            colunas: colunas,
+                            colunaTotal: colunaTotal
+                        });
+                        document.getElementById('kpi-detail-modal').classList.remove('active');
+                        window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData);
+                    }
+                });
             }
-        });
-    }
-
-    body.addEventListener('click', function(e) {
-
-        const tr = e.target.closest('tr[data-row]');
-        if (!tr) return;
-
-        if (e.target.closest('input, button, a, .table-search-detail')) return;
-
-        let rowData;
-
-        try {
-            rowData = JSON.parse(
-                tr.dataset.row.replace(/&quot;/g, '"')
-            );
-        } catch (err) {
-            return;
-        }
-
-        const nomeCliente =
-            rowData['Cliente'] ||
-            rowData['Nome Chave'] ||
-            rowData['Razão Social'] ||
-            rowData['Nome/Razão Social'] ||
-            '';
-
-        if (nomeCliente) {
-
-            window._kpiModalStack.push({
-                html: body.innerHTML,
-                colunas: colunas,
-                colunaTotal: colunaTotal
-            });
-
-            document.getElementById('kpi-detail-modal').classList.remove('active');
-
-            // IMPORTANTE:
-            // envia também o rowData igual às tabelas normais
-            window.abrirFichaCliente(
-                nomeCliente.toUpperCase(),
-                '',
-                rowData
-            );
-        }
-    });
-}
 
             function voltarModal() {
                 if (window._kpiModalStack.length > 0) {
@@ -1050,12 +1014,12 @@
                         body.innerHTML = `
                             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                                 <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                                <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null; window._kpiDetailRowsGlobal=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                             </div>
                             ${htmlClientes}
                         `;
                         modal.classList.add('active');
-                        modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; } });
+                        modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; window._kpiDetailRowsGlobal = []; } });
                         return;
                     default:
                         body.innerHTML = '<p>Detalhamento não disponível.</p>';
@@ -1065,6 +1029,7 @@
 
                 window._kpiColunas = colunas;
                 window._kpiColunaTotal = colunaTotal;
+                window._kpiDetailRowsGlobal = dados.slice(0, 200); // armazena para acesso por índice
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1076,33 +1041,28 @@
                     <div style="overflow-x:auto;"><table style="width:100%;font-size:0.68rem;border-collapse:collapse;white-space:nowrap;">
                     <thead><tr>${colunas.map(c => `<th style="padding:4px 3px;border-bottom:2px solid var(--line);text-align:left;font-size:0.65rem;">${c}</th>`).join('')}</tr></thead><tbody>
                 `;
-                dados.slice(0, 200).forEach(row => {
-                    const rowJSON = JSON.stringify(row).replace(/"/g, '&quot;');
-                    window._kpiDetailRowsGlobal = dados.slice(0, 200); // salva todas as linhas
-tabelaHtml += dados.slice(0, 200).map((row, idx) => {
-    let tr = `<tr data-idx="${idx}">`;
-    colunas.forEach(c => {
-        const valor = row[c] || '';
-        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
-        tr += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
-    });
-    tr += `</tr>`;
-    return tr;
-}).join('');
+                dados.slice(0, 200).forEach((row, idx) => {
+                    tabelaHtml += `<tr data-idx="${idx}">`;
+                    colunas.forEach(c => {
+                        const valor = row[c] || '';
+                        const isCliente = (c === 'Cliente' || c === 'Nome Chave' || c === 'Razão Social');
+                        tabelaHtml += `<td class="${isCliente ? 'cliente-nome' : ''}" data-cliente="${isCliente ? valor : ''}" style="padding:2px 3px;border-bottom:1px solid #f0f0f0;font-size:0.68rem;">${valor}</td>`;
+                    });
+                    tabelaHtml += `</tr>`;
                 });
                 tabelaHtml += '</tbody></table></div>';
 
                 body.innerHTML = `
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
                         <h3 style="margin:0;"><i class="fas fa-chart-pie"></i> ${titulo}</h3>
-                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null;" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
+                        <button onclick="document.getElementById('kpi-detail-modal').classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null; window._kpiDetailRowsGlobal=[];" style="background:none; border:none; font-size:1.6rem; color:var(--muted); cursor:pointer;">&times;</button>
                     </div>
                     ${tabelaHtml}
                 `;
 
                 reaplicarListenersKpiModal(body, colunas, colunaTotal);
                 modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; } });
+                modal.addEventListener('click', function(e) { if (e.target === modal) { modal.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; window._kpiDetailRowsGlobal = []; } });
             };
 
             function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
@@ -1447,7 +1407,6 @@ tabelaHtml += dados.slice(0, 200).map((row, idx) => {
                 registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
                 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
-                /* ================ CORREÇÃO PRINCIPAL ================ */
                 const carteiraMap = new Map();
                 carteiraFull.forEach(cli => {
                     const nomeChave = (cli['Nome Chave'] || '').trim();
@@ -1462,7 +1421,6 @@ tabelaHtml += dados.slice(0, 200).map((row, idx) => {
                             cadastrado: true
                         });
                     }
-                    // Indexa também pela Razão Social (se diferente)
                     const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
                     const razaoUpper = razaoSocial.toUpperCase();
                     if (razaoUpper && razaoUpper !== nomeUpper && !carteiraMap.has(razaoUpper)) {
@@ -1476,7 +1434,6 @@ tabelaHtml += dados.slice(0, 200).map((row, idx) => {
                         });
                     }
                 });
-                /* ================================================== */
                 carteiraMapGlobal = carteiraMap;
 
                 const umAnoAtras = new Date(hojeRef);
@@ -1575,30 +1532,18 @@ tabelaHtml += dados.slice(0, 200).map((row, idx) => {
                     setTimeout(() => {
                         let cliente = null;
                         cliente = carteiraMap.get(nomeUpper);
-
-if (!cliente) {
-
-    for (let [key, val] of carteiraMap.entries()) {
-
-        const nomeChave =
-            (val['Nome Chave'] || '')
-            .toUpperCase()
-            .trim();
-
-        const razao =
-            (val['Nome/Razão Social'] || '')
-            .toUpperCase()
-            .trim();
-
-        if (
-            nomeChave === nomeUpper ||
-            razao === nomeUpper
-        ) {
-            cliente = val;
-            break;
-        }
-    }
-}
+                        if (!cliente && cnpj && cnpj.length >= 11) {
+                            for (let [key, val] of carteiraMap.entries()) {
+                                const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
+                                if (cnpjCad === cnpj) { cliente = val; break; }
+                            }
+                        }
+                        if (!cliente && nomeUpper) {
+                            const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
+                            for (let [key, val] of carteiraMap.entries()) {
+                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
+                            }
+                        }
 
                         if (!cliente) {
                             if (pedidoData) {
@@ -1875,7 +1820,7 @@ if (!cliente) {
                 document.querySelector('.home-btn').addEventListener('click', () => window.location.href='./index.html');
                 document.getElementById('detail-modal').addEventListener('click', function(e) { if (e.target===this) { this.classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null; } });
                 document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target===this || e.target.classList.contains('modal-close')) this.classList.remove('active'); });
-                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; window.fichaPedidoData = null; } });
+                document.getElementById('kpi-detail-modal').addEventListener('click', function(e) { if (e.target === this) { this.classList.remove('active'); window._kpiModalStack = []; ultimoModalKpiHTML = null; window.fichaPedidoData = null; window._kpiDetailRowsGlobal = []; } });
                 document.getElementById('hamburger-btn').addEventListener('click', () => { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow='hidden'; });
                 const closeHamburger = () => { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
