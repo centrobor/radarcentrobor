@@ -1071,11 +1071,10 @@
         </div>
     </nav>
 
-    <!-- ===== MOBILE BOTTOM BAR (sem o botão Menu) ===== -->
+    <!-- ===== MOBILE BOTTOM BAR (sem botão Menu) ===== -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
         <button class="bb-item active" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
-        <!-- Botão Menu removido conforme solicitado -->
     </div>
 
     <!-- ===== TOAST ===== -->
@@ -1330,7 +1329,6 @@
             }
 
             function isSimilarCompany(empresaLead, empresaCarteira) {
-                // Mantida apenas para fallback, não usada na nova lógica
                 if (!empresaLead || !empresaCarteira) return false;
                 const normLead = normalizeStr(empresaLead),
                     normCard = normalizeStr(empresaCarteira);
@@ -1671,13 +1669,13 @@
                             if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
                             if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
                         } else {
-                            // --- Sem correspondência na carteira (exata) ---
+                            // --- Sem correspondência na planilha final ---
                             clienteCarteira = findClientInCarteira(lead);
                             let isRev = isRevenda(lead);
                             let statusOriginal = lead["  "] || "";
 
                             if (clienteCarteira) {
-                                // Correspondência exata encontrada
+                                // Correspondência exata encontrada na carteira
                                 let rep = clienteCarteira["Representante"] || "";
                                 vendedorRaw = getVendedorFromRepresentante(rep);
                                 if (!vendedorRaw) {
@@ -1692,28 +1690,24 @@
                             } else {
                                 // Sem correspondência: define vendedor e status conforme regras
                                 if (isRev) {
-                                    // É revenda: usa vendedor de revendas
                                     vendedorRaw = config.vendedorRevendas || "Não definido";
                                     isRevendaCliente = true;
                                     isNovoCliente = false;
                                 } else {
-                                    // Cliente novo: usa vendedor de novos
                                     vendedorRaw = config.vendedorNovos || getVendedorPorData(dataObj) || "Não definido";
                                     isNovoCliente = true;
                                     isRevendaCliente = false;
                                 }
-                                // Status: se já tem, mantém; senão, "Precisa Encaminhar" (não mais "Lead Qualificado")
+                                // ALTERAÇÃO PRINCIPAL: se status original estiver vazio, usar "Precisa Encaminhar"
                                 statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
                             }
                         }
                     }
 
-                    // Se ainda não tem vendedor definido, coloca como indeterminado
                     if (!vendedorRaw) {
                         vendedorRaw = "indeterminado – Necessita verificar";
                     }
 
-                    // Resolve canonical
                     vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
                     if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
                         let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
@@ -1721,7 +1715,6 @@
                         aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
                     }
 
-                    // Monta o display do vendedor com tags
                     let vendedorDisplay = vendedorRaw;
                     if (vendedorRaw === "indeterminado – Necessita verificar") {
                         vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
@@ -2174,8 +2167,10 @@
                 if (tipo === 'email' && !vendedor.email && !await promptCadastroVendedor(lead.vendedorRaw)) return;
                 if (tipo === 'whatsapp' && !vendedor.whatsapp && !await promptCadastroVendedor(lead.vendedorRaw)) return;
 
+                // Altera status de "Precisa Encaminhar" para "Lead Qualificado" temporariamente (24h)
                 if (lead.status === "Precisa Encaminhar") {
                     localOverrides[lead.id] = {
+                        ...localOverrides[lead.id],
                         tempStatus: "Lead Qualificado",
                         tempExpiry: Date.now() + TEMP_STATUS_HOURS * 60 * 60 * 1000
                     };
@@ -2669,7 +2664,6 @@
                     document.querySelectorAll('.bb-item').forEach(el => el.classList.remove('active'));
                     this.classList.add('active');
                 });
-                // O botão 'bb-menu' foi removido e seu evento não é mais necessário
 
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
