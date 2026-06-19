@@ -634,6 +634,7 @@
             let BANNERS = [];
             let modalHistory = [];
             let carteiraMapGlobal = new Map();
+            let carteiraByCodigoGlobal = new Map();
             let ultimoModalKpiHTML = null;
 
             let globalAprov = [];
@@ -647,8 +648,6 @@
             window._kpiModalStack = [];
             window.fichaPedidoData = null;
             window.clienteFichaAtual = null;
-
-            // NOVO: array global para armazenar as linhas do modal de detalhamento KPI
             window._kpiDetailRowsGlobal = [];
 
             const loadingOverlay = document.getElementById('loading-overlay');
@@ -702,6 +701,20 @@
             const businessDaysPassed = (startDate) => { const today=new Date(); today.setHours(23,59,59,999); if(today<startDate) return 0; return businessDaysBetween(startDate,today); };
             const totalBusinessDays = (start,end) => businessDaysBetween(start,end);
             async function carregarJSON(url) { const resp=await fetch(url); if(!resp.ok) throw new Error(`Erro ${resp.status}`); return resp.json(); }
+
+            // NOVA FUNÇÃO: verifica se dois nomes de empresa são compatíveis
+            function nomesCompativeis(nome1, nome2) {
+                if (!nome1 || !nome2) return false;
+                const limpar = (str) => str.toUpperCase().replace(/[^A-Z0-9À-Ú ]/g, '').trim();
+                const a = limpar(nome1);
+                const b = limpar(nome2);
+                if (a === b) return true;
+                const palavrasA = a.split(/\s+/).filter(p => p.length > 2);
+                const palavrasB = b.split(/\s+/).filter(p => p.length > 2);
+                if (palavrasA.length === 0 || palavrasB.length === 0) return false;
+                const comuns = palavrasA.filter(p => palavrasB.includes(p));
+                return comuns.length > 0;
+            }
 
             async function carregarInfoAtualizacao() {
                 try {
@@ -1032,7 +1045,7 @@
 
                 window._kpiColunas = colunas;
                 window._kpiColunaTotal = colunaTotal;
-                window._kpiDetailRowsGlobal = dados.slice(0, 200); // armazena para acesso por índice
+                window._kpiDetailRowsGlobal = dados.slice(0, 200);
                 const totalInicial = colunaTotal ? dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0) : 0;
                 let tabelaHtml = `
                     <div class="table-toolbar">
@@ -1412,7 +1425,6 @@
                 registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
 
                 const carteiraMap = new Map();
-                // ═══ NOVO: mapa por código do cliente ═══
                 const carteiraByCodigo = new Map();
 
                 carteiraFull.forEach(cli => {
@@ -1441,7 +1453,6 @@
                         });
                     }
 
-                    // Preencher mapa por código
                     const codigo = String(cli['Código'] || '').trim();
                     if (codigo && !carteiraByCodigo.has(codigo)) {
                         carteiraByCodigo.set(codigo, {
@@ -1456,6 +1467,7 @@
                     }
                 });
                 carteiraMapGlobal = carteiraMap;
+                carteiraByCodigoGlobal = carteiraByCodigo;
 
                 const umAnoAtras = new Date(hojeRef);
                 umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
@@ -1538,7 +1550,7 @@
                     if (nomeUpper) window.abrirFichaCliente(nomeUpper);
                 });
 
-                // ═══ FUNÇÃO abrirFichaCliente CORRIGIDA (busca por código primeiro) ═══
+                // ═══ FUNÇÃO abrirFichaCliente COM VALIDAÇÃO DE COMPATIBILIDADE ═══
                 window.abrirFichaCliente = function(nomeUpper, cnpj = '', pedidoData = null) {
                     const kpiModal = document.getElementById('kpi-detail-modal');
                     if (kpiModal.classList.contains('active')) {
@@ -1553,30 +1565,39 @@
                     mostrarLoadingModal();
                     setTimeout(() => {
                         let cliente = null;
-                        
-                        // 1. Tenta buscar pelo código do pedido/cotação (campo 'Cliente')
+                        const nomeCotacao = nomeUpper; // Razão Social vinda da cotação
+
+                        // 1. Tenta buscar pelo código do pedido/cotação, mas só aceita se compatível
                         if (!cliente && pedidoData && pedidoData['Cliente']) {
                             const codigoPedido = String(pedidoData['Cliente']).trim();
-                            cliente = carteiraByCodigo.get(codigoPedido);
+                            const candidato = carteiraByCodigoGlobal.get(codigoPedido);
+                            if (candidato && nomesCompativeis(nomeCotacao, candidato.nomeUpper)) {
+                                cliente = candidato;
+                            }
                         }
 
-                        // 2. Busca por nome (upper)
-                        if (!cliente) cliente = carteiraMap.get(nomeUpper);
+                        // 2. Busca por nome exato
+                        if (!cliente) cliente = carteiraMapGlobal.get(nomeUpper);
 
                         // 3. Busca por CNPJ
                         if (!cliente && cnpj && cnpj.length >= 11) {
-                            for (let [key, val] of carteiraMap.entries()) {
+                            for (let [key, val] of carteiraMapGlobal.entries()) {
                                 const cnpjCad = (val['CPF/CGC'] || '').replace(/[^\d]/g, '');
                                 if (cnpjCad === cnpj) { cliente = val; break; }
                             }
                         }
 
-                        // 4. Busca por palavras-chave no nome
+                        // 4. Busca por palavras-chave, mas exige compatibilidade forte
                         if (!cliente && nomeUpper) {
                             const palavras = nomeUpper.split(/\s+/).filter(p => p.length > 2);
-                            for (let [key, val] of carteiraMap.entries()) {
-                                if (palavras.some(p => key.includes(p))) { cliente = val; break; }
+                            let melhorCandidato = null;
+                            for (let [key, val] of carteiraMapGlobal.entries()) {
+                                if (palavras.some(p => key.includes(p)) && nomesCompativeis(nomeUpper, key)) {
+                                    melhorCandidato = val;
+                                    break;
+                                }
                             }
+                            cliente = melhorCandidato;
                         }
 
                         if (!cliente) {
@@ -1635,7 +1656,7 @@
                         window.clienteFichaAtual = cliente;
 
                         const palavras = (cliente.nome || nomeUpper).split(/\s+/).filter(p => p.length > 2);
-                        const similares = Array.from(carteiraMap.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
+                        const similares = Array.from(carteiraMapGlobal.values()).filter(c => c.nome && c.nome.toUpperCase() !== cliente.nome.toUpperCase() && palavras.some(p => c.nome.toUpperCase().includes(p)));
 
                         let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
                             <button onclick="voltarModal()" style="background:none; border:none; color: var(--primary); cursor:pointer; font-size:0.9rem; padding:0;"><i class="fas fa-arrow-left"></i> Voltar</button>
