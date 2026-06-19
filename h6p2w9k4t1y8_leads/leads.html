@@ -10,7 +10,6 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
     </script>
     <style>
-        /* ===== ESTILOS GERAIS (mantidos originais) ===== */
         :root {
             --primary: #1e3a5f;
             --primary-dark: #0f2b48;
@@ -61,7 +60,7 @@
             flex: 1;
         }
 
-        /* ===== HEADER DESKTOP (original) ===== */
+        /* ===== HEADER DESKTOP ===== */
         .header {
             display: flex;
             justify-content: space-between;
@@ -133,7 +132,7 @@
             background: rgba(30, 58, 95, 0.06);
         }
 
-        /* ===== ELEMENTOS MOBILE (baseados no portal Radar) ===== */
+        /* ===== MOBILE TOPBAR ===== */
         .mobile-topbar {
             display: none;
             position: sticky;
@@ -269,6 +268,7 @@
             object-fit: cover;
         }
 
+        /* ===== MOBILE BOTTOM BAR ===== */
         .mobile-bottom-bar {
             display: none;
             position: fixed;
@@ -598,7 +598,7 @@
             background: var(--primary-light);
         }
 
-        /* ===== SIDEBAR WIDGET (configurações) ===== */
+        /* ===== SIDEBAR WIDGET ===== */
         .widget-sidebar {
             position: fixed;
             top: 0;
@@ -652,7 +652,7 @@
             background: white;
             border-radius: 36px;
             padding: 24px;
-            max-width: 700px;
+            max-width: 720px;
             width: 90%;
             max-height: 85vh;
             overflow-y: auto;
@@ -769,11 +769,17 @@
         }
         .vendedor-badge {
             display: inline-block;
-            padding: 4px 14px;
+            padding: 5px 16px;
             border-radius: 30px;
             font-weight: 700;
-            font-size: 0.8rem;
+            font-size: 0.85rem;
             color: white;
+        }
+        .vendedor-badge .atribuicao-tag {
+            font-size: 0.65rem;
+            opacity: 0.85;
+            font-weight: 400;
+            margin-left: 6px;
         }
 
         /* ===== FORMULÁRIOS ===== */
@@ -1148,7 +1154,7 @@
         </div>
     </div>
 
-    <!-- ===== MODAL: Ficha do Cliente (nova) ===== -->
+    <!-- ===== MODAL: Ficha do Cliente (nova com ações de envio) ===== -->
     <div id="clienteFichaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -1156,7 +1162,8 @@
                 <button class="close-modal" id="closeClienteFicha">&times;</button>
             </div>
             <div id="clienteFichaContent"></div>
-            <div class="action-buttons">
+            <!-- Botões de ação (envio) serão inseridos dinamicamente dentro do conteúdo -->
+            <div class="action-buttons" id="fichaActionButtons">
                 <button id="fichaVoltarLeadBtn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar ao Lead</button>
                 <button id="fichaCopiarBtn" class="btn btn-primary"><i class="fas fa-copy"></i> Copiar dados</button>
             </div>
@@ -1863,7 +1870,6 @@
                 lastLeadIdClicked = leadId;
 
                 // --- 1) Verifica se o lead possui correspondência na carteira ---
-                // Reconstrói o objeto lead original a partir dos dados (para passar para findClientInCarteira)
                 const leadOriginal = {
                     "Nome Completo": lead.nome,
                     "Nome da empresa": lead.empresa,
@@ -1881,7 +1887,7 @@
                 let cliente = findClientInCarteira(leadOriginal);
 
                 if (cliente) {
-                    // Se encontrou cliente na carteira, abre a ficha do cliente
+                    // Se encontrou cliente na carteira, abre a ficha do cliente com ações
                     abrirFichaCliente(cliente, lead);
                     return;
                 }
@@ -1912,7 +1918,7 @@
             }
 
             // ============================================================
-            //  FUNÇÃO abrirFichaCliente (nova) - exibe ficha do cliente
+            //  FUNÇÃO abrirFichaCliente (com ações de envio e badge detalhado)
             // ============================================================
             function abrirFichaCliente(cliente, lead) {
                 // Fecha o modal de detalhe do lead se estiver aberto
@@ -1921,16 +1927,46 @@
                 const modal = document.getElementById('clienteFichaModal');
                 const content = document.getElementById('clienteFichaContent');
 
-                // Dados do vendedor responsável (do lead)
+                // --- Determina o vendedor e o tipo de atribuição ---
                 let vendedorNome = lead ? lead.vendedorRaw : '';
                 let vendedorCor = vendedorNome ? (nomeVendedorMap.get(vendedorNome)?.cor || getRandomColor(vendedorNome)) :
                     '#6b7280';
+                let atribuicaoLabel = '';
+                let atribuicaoIcon = '';
+
+                if (lead) {
+                    if (lead.isRevendaCliente) {
+                        atribuicaoLabel = 'atribuído por revenda';
+                        atribuicaoIcon = '<i class="fas fa-sync-alt"></i>';
+                    } else if (lead.isNovoCliente) {
+                        atribuicaoLabel = 'atribuído por cliente novo';
+                        atribuicaoIcon = '<i class="fas fa-star"></i>';
+                    } else {
+                        atribuicaoLabel = 'cliente existente';
+                        atribuicaoIcon = '<i class="fas fa-check-circle"></i>';
+                    }
+                }
+
+                // Se não houver vendedor definido, mostra "indeterminado"
+                if (!vendedorNome || vendedorNome === 'Não definido' || vendedorNome === '') {
+                    vendedorNome = 'indeterminado – Necessita verificar';
+                    vendedorCor = '#94a3b8';
+                    atribuicaoLabel = '';
+                }
+
+                // Mensagem padrão para envio (baseada no lead)
+                const mensagemPadrao = lead ?
+                    `Segue o lead para retorno/contato:\n\nNome: ${lead.nome}\nEmpresa: ${lead.empresa}\nCNPJ: ${lead.cnpj || '-'}\nWhatsApp: ${lead.whatsapp}\nE-mail: ${lead.email}\nMensagem: ${lead.mensagem || '-'}` :
+                    '';
 
                 // Monta a ficha
                 let html = `
                 <div class="ficha-secao">
                     <h4><i class="fas fa-user-tie"></i> Vendedor Responsável</h4>
-                    <span class="vendedor-badge" style="background:${vendedorCor};">${vendedorNome || 'Não definido'}</span>
+                    <span class="vendedor-badge" style="background:${vendedorCor};">
+                        ${vendedorNome}
+                        ${atribuicaoLabel ? `<span class="atribuicao-tag">${atribuicaoIcon} ${atribuicaoLabel}</span>` : ''}
+                    </span>
                 </div>
                 <div class="ficha-secao">
                     <h4><i class="fas fa-building"></i> Dados da Empresa</h4>
@@ -1975,7 +2011,7 @@
                 </div>
                 `;
 
-                // Se houver lead, exibe também os dados do lead relacionados
+                // Se houver lead, exibe os dados do lead e a mensagem para envio
                 if (lead) {
                     html += `
                     <div class="ficha-secao">
@@ -1991,25 +2027,63 @@
                             ${fichaCampo('fas fa-calendar', 'Data/Hora', lead.dataStr)}
                         </div>
                     </div>
+                    <div class="mensagem-padrao">
+                        <i class="fas fa-copy"></i> Mensagem para envio:<br>${mensagemPadrao.replace(/\n/g,'<br>')}
+                    </div>
                     `;
                 }
 
                 content.innerHTML = html;
 
-                // Armazena o cliente e lead atuais para cópia
+                // Armazena o cliente e lead atuais para cópia e envio
                 window._clienteFichaAtual = { cliente, lead };
 
-                // Botões
+                // --- Botões de ação (envio) adicionados na barra de ações ---
+                const actionButtons = document.getElementById('fichaActionButtons');
+                // Remove os botões antigos (exceto os fixos Voltar e Copiar)
+                actionButtons.innerHTML = `
+                    <button id="fichaEmailBtn" class="btn btn-primary"><i class="fas fa-envelope"></i> E-mail</button>
+                    <button id="fichaWhatsBtn" class="btn btn-primary"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+                    <button id="fichaCopyMsgBtn" class="btn btn-outline"><i class="fas fa-copy"></i> Copiar mensagem</button>
+                    <button id="fichaVoltarLeadBtn" class="btn btn-secondary"><i class="fas fa-arrow-left"></i> Voltar ao Lead</button>
+                    <button id="fichaCopiarBtn" class="btn btn-primary"><i class="fas fa-copy"></i> Copiar dados</button>
+                `;
+
+                // Eventos dos novos botões
+                document.getElementById('fichaEmailBtn').onclick = function() {
+                    if (lead) handleSend(lead, 'email', mensagemPadrao);
+                    else showToast("Lead não disponível para envio.", true);
+                };
+                document.getElementById('fichaWhatsBtn').onclick = function() {
+                    if (lead) handleSend(lead, 'whatsapp', mensagemPadrao);
+                    else showToast("Lead não disponível para envio.", true);
+                };
+                document.getElementById('fichaCopyMsgBtn').onclick = function() {
+                    if (lead) {
+                        navigator.clipboard.writeText(mensagemPadrao).then(() => showToast("Mensagem copiada!"))
+                            .catch(() => {
+                                const textarea = document.createElement('textarea');
+                                textarea.value = mensagemPadrao;
+                                document.body.appendChild(textarea);
+                                textarea.select();
+                                document.execCommand('copy');
+                                document.body.removeChild(textarea);
+                                showToast("Mensagem copiada (fallback)!");
+                            });
+                    } else showToast("Lead não disponível.", true);
+                };
+
+                // Botão "Voltar ao Lead"
                 document.getElementById('fichaVoltarLeadBtn').onclick = function() {
                     modal.style.display = 'none';
                     if (lastLeadIdClicked) {
-                        // Reabre o detalhe do lead
                         showLeadDetail(lastLeadIdClicked);
                     } else {
                         showToast('Lead não encontrado para voltar.', true);
                     }
                 };
 
+                // Botão "Copiar dados" (cliente + lead)
                 document.getElementById('fichaCopiarBtn').onclick = function() {
                     copiarDadosFicha(window._clienteFichaAtual.cliente, window._clienteFichaAtual.lead);
                 };
@@ -2080,7 +2154,6 @@
                 navigator.clipboard.writeText(texto).then(() => {
                     showToast('✅ Dados copiados com sucesso!');
                 }).catch(() => {
-                    // fallback
                     const textarea = document.createElement('textarea');
                     textarea.value = texto;
                     document.body.appendChild(textarea);
@@ -2093,7 +2166,7 @@
 
             // ============================================================
             //  DEMAIS FUNÇÕES (handleSend, openEditLead, exportações, etc.)
-            //  Mantidas do original, sem alterações significativas
+            //  Mantidas do original
             // ============================================================
             async function handleSend(lead, tipo, mensagem) {
                 if (tipo === 'email' && !lead.email) { showToast("Lead não possui e-mail.", true); return; }
@@ -2112,16 +2185,22 @@
                     showToast("Lead marcado como Qualificado por 24h!");
                     processLeads();
                     renderDashboard();
+                    // Fecha qualquer modal aberto
                     document.getElementById('leadDetailModal').style.display = 'none';
+                    document.getElementById('clienteFichaModal').style.display = 'none';
                 }
 
-                if (tipo === 'email') window.location.href =
-                    `mailto:${vendedor.email}?subject=Lead%20${encodeURIComponent(lead.nome)}&body=${encodeURIComponent(mensagem)}`;
-                else if (tipo === 'whatsapp') { let numero = vendedor.whatsapp.replace(/\D/g, ''); if (!numero.startsWith(
-                        '55')) numero = '55' + numero; window.open(
-                        `https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank'); } else if (tipo ===
-                    'copy') { navigator.clipboard.writeText(mensagem);
-                    showToast("Mensagem copiada!"); }
+                if (tipo === 'email') {
+                    window.location.href =
+                        `mailto:${vendedor.email}?subject=Lead%20${encodeURIComponent(lead.nome)}&body=${encodeURIComponent(mensagem)}`;
+                } else if (tipo === 'whatsapp') {
+                    let numero = vendedor.whatsapp.replace(/\D/g, '');
+                    if (!numero.startsWith('55')) numero = '55' + numero;
+                    window.open(`https://wa.me/${numero}?text=${encodeURIComponent(mensagem)}`, '_blank');
+                } else if (tipo === 'copy') {
+                    navigator.clipboard.writeText(mensagem);
+                    showToast("Mensagem copiada!");
+                }
             }
 
             function promptCadastroVendedor(nomeVendedor) {
