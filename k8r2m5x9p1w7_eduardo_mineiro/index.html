@@ -1916,7 +1916,12 @@
                         <div class="campaign-stats" id="campaign-stats"></div>
                     </div>
                 </div>
-                <button id="campaign-detail-btn"><i class="fas fa-chevron-right"></i> Ver detalhes</button>
+                <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                    <div id="campaign-days-left" style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 0.85rem; color: #1e3a5f; background: rgba(30,58,95,0.08); padding: 6px 14px; border-radius: 30px; white-space: nowrap;">
+                        <i class="fas fa-calendar-alt"></i> <span id="days-left-text">--</span>
+                    </div>
+                    <button id="campaign-detail-btn"><i class="fas fa-chevron-right"></i> Ver detalhes</button>
+                </div>
             </div>
         </div>
 
@@ -2174,6 +2179,30 @@
                     else if (perc >= 70) proximos++;
                 }
                 detalhes.sort((a, b) => b.perc - a.perc);
+
+                // --- NOVO: cálculo de dias restantes ---
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                let diasRestantes = Infinity;
+                ativas.forEach(camp => {
+                    const fim = parseDataBR(camp.data_fim);
+                    if (fim) {
+                        const diff = Math.ceil((fim - hoje) / (1000 * 60 * 60 * 24));
+                        if (diff < diasRestantes) diasRestantes = diff;
+                    }
+                });
+                const daysLeftEl = document.getElementById('campaign-days-left');
+                const daysTextEl = document.getElementById('days-left-text');
+                if (diasRestantes !== Infinity && diasRestantes > 0) {
+                    daysTextEl.textContent = `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
+                    daysLeftEl.style.display = 'flex';
+                } else if (diasRestantes === 0) {
+                    daysTextEl.textContent = 'Termina hoje';
+                    daysLeftEl.style.display = 'flex';
+                } else {
+                    daysLeftEl.style.display = 'none';
+                }
+                // --- fim do novo bloco ---
 
                 const nomeCampanha = ativas[0].campanha || 'Campanha';
 
