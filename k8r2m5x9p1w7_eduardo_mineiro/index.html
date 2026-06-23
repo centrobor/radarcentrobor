@@ -202,6 +202,118 @@
                 box-shadow: 0 0 0 8px rgba(211, 47, 47, 0);
             }
         }
+        /* Barra de status da campanha */
+        #campaign-status-bar {
+            display: none;
+            margin: -8px 0 20px 0;
+        }
+        #campaign-status-bar .campaign-banner {
+            background: linear-gradient(135deg, #fef9e7 0%, #fdebd0 100%);
+            border-left: 6px solid #f39c12;
+            border-radius: 16px;
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.15);
+            transition: all 0.2s;
+        }
+        #campaign-status-bar .campaign-banner:hover {
+            box-shadow: 0 6px 20px rgba(243, 156, 18, 0.25);
+        }
+        #campaign-status-bar .campaign-icon {
+            font-size: 2rem;
+            line-height: 1;
+        }
+        #campaign-status-bar .campaign-info {
+            display: flex;
+            flex-direction: column;
+        }
+        #campaign-status-bar .campaign-title {
+            font-weight: 700;
+            font-size: 1rem;
+            color: #7d6608;
+        }
+        #campaign-status-bar .campaign-stats {
+            font-size: 0.85rem;
+            color: #5d4e37;
+        }
+        #campaign-status-bar .campaign-stats strong {
+            color: #1e3a5f;
+        }
+        #campaign-detail-btn {
+            background: #1e3a5f;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 8px rgba(30, 58, 95, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        #campaign-detail-btn:hover {
+            background: #2b4c7a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(30, 58, 95, 0.3);
+        }
+        #campaign-detail-btn:active {
+            transform: scale(0.96);
+        }
+        /* Modal de detalhes da campanha */
+        #campaign-detail-modal .modal-content {
+            max-width: 800px;
+        }
+        .campaign-detail-table {
+            width: 100%;
+            font-size: 0.8rem;
+            border-collapse: collapse;
+            margin-top: 8px;
+        }
+        .campaign-detail-table th {
+            padding: 8px 10px;
+            border-bottom: 2px solid #e5e7eb;
+            text-align: left;
+            font-weight: 700;
+            color: var(--text-soft);
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 0.3px;
+        }
+        .campaign-detail-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #f1f5f9;
+        }
+        .campaign-detail-table tr:last-child td {
+            border-bottom: none;
+        }
+        .campaign-detail-table .status-badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 30px;
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+        .status-atingiu {
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+        .status-proximo {
+            background: #fff3e0;
+            color: #e65100;
+        }
+        .status-em-andamento {
+            background: #fce4e4;
+            color: #b71c1c;
+        }
+        /* Carrossel e demais estilos existentes... */
         .carousel-section {
             margin-bottom: 32px;
             border-radius: 32px;
@@ -1517,6 +1629,18 @@
                 padding-top: 10px;
                 margin-top: 12px;
             }
+            #campaign-status-bar .campaign-banner {
+                flex-direction: column;
+                align-items: flex-start;
+                padding: 12px 16px;
+            }
+            #campaign-status-bar .campaign-banner .campaign-info {
+                width: 100%;
+            }
+            #campaign-detail-btn {
+                align-self: stretch;
+                justify-content: center;
+            }
         }
 
         .header-center {
@@ -1782,6 +1906,20 @@
             </div>
         </header>
 
+        <!-- BARRA DE STATUS DA CAMPANHA ATIVA -->
+        <div id="campaign-status-bar">
+            <div class="campaign-banner">
+                <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
+                    <span class="campaign-icon">🏆</span>
+                    <div class="campaign-info">
+                        <div class="campaign-title" id="campaign-title">Campanha ativa</div>
+                        <div class="campaign-stats" id="campaign-stats"></div>
+                    </div>
+                </div>
+                <button id="campaign-detail-btn"><i class="fas fa-chevron-right"></i> Ver detalhes</button>
+            </div>
+        </div>
+
         <div class="carousel-section" id="carousel-section">
             <div class="carousel-container" id="carousel-container"></div>
             <div class="carousel-controls"><button class="carousel-btn" id="prev-btn"><i class="fas fa-chevron-left"></i></button><button class="carousel-btn" id="next-btn"><i class="fas fa-chevron-right"></i></button></div>
@@ -1892,6 +2030,11 @@
         <div class="modal-content celebracao-content" id="celebracao-body"></div>
     </div>
 
+    <!-- MODAL DE DETALHES DA CAMPANHA -->
+    <div class="modal" id="campaign-detail-modal">
+        <div class="modal-content" id="campaign-detail-body"></div>
+    </div>
+
     <script>
         (function() {
             // VERIFICAÇÃO DE SESSÃO
@@ -1922,7 +2065,8 @@
                 pedidos: `https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos`,
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
-                dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`
+                dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`,
+                campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`
             };
             const VENDEDORES_MAP = {
                 "33": "Fábio Prado",
@@ -1936,7 +2080,8 @@
             };
 
             let allFaturados = [], allAprovados = [], allMetas = [], allPedidos = [],
-                BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [];
+                BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [],
+                campanhasData = []; // <-- novo
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = [
                 { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
@@ -1985,20 +2130,154 @@
                 modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
             }
 
+            // ---------- FUNÇÕES DA CAMPANHA ----------
+            function isCampaignActive(camp) {
+                if (!camp.data_inicio || !camp.data_fim) return false;
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                const inicio = parseDataBR(camp.data_inicio);
+                const fim = parseDataBR(camp.data_fim);
+                if (!inicio || !fim) return false;
+                return inicio <= hoje && hoje <= fim;
+            }
+
+            // Renderiza a barra de status e também retorna os dados processados para uso na celebração
+            function processarCampanhasAtivas(campanhas) {
+                const ativas = campanhas.filter(isCampaignActive);
+                if (ativas.length === 0) return null;
+
+                const mapVendedor = new Map();
+                ativas.forEach(camp => {
+                    const cod = String(camp.vendedor_cod || '').trim();
+                    if (!cod) return;
+                    const meta = cleanNumber(camp.meta_valor);
+                    const realizado = cleanNumber(camp.realizado_valor);
+                    if (!mapVendedor.has(cod)) {
+                        mapVendedor.set(cod, {
+                            cod,
+                            nome: camp.vendedor_nome || cod,
+                            metaTotal: 0,
+                            realizadoTotal: 0,
+                        });
+                    }
+                    const entry = mapVendedor.get(cod);
+                    entry.metaTotal += meta;
+                    entry.realizadoTotal += realizado;
+                });
+
+                const detalhes = [];
+                let atingidos = 0, proximos = 0;
+                for (const [cod, entry] of mapVendedor) {
+                    const perc = entry.metaTotal > 0 ? (entry.realizadoTotal / entry.metaTotal) * 100 : 0;
+                    detalhes.push({ ...entry, perc });
+                    if (perc >= 100) atingidos++;
+                    else if (perc >= 70) proximos++;
+                }
+                detalhes.sort((a, b) => b.perc - a.perc);
+
+                const nomeCampanha = ativas[0].campanha || 'Campanha';
+
+                // Atualiza a barra
+                const bar = document.getElementById('campaign-status-bar');
+                const titleEl = document.getElementById('campaign-title');
+                const statsEl = document.getElementById('campaign-stats');
+                const detailBtn = document.getElementById('campaign-detail-btn');
+
+                titleEl.textContent = `🏅 ${nomeCampanha}`;
+                statsEl.innerHTML = `
+                    <strong>${atingidos}</strong> vendedor${atingidos !== 1 ? 'es' : ''} atingiram a meta
+                    ${proximos > 0 ? ` • <strong>${proximos}</strong> estão próximos (≥70%)` : ''}
+                `;
+                bar.style.display = 'block';
+
+                // Evento do botão "Ver detalhes"
+                detailBtn.onclick = () => {
+                    abrirModalDetalhesCampanha(detalhes, nomeCampanha);
+                };
+
+                return { detalhes, atingidos, proximos, nomeCampanha };
+            }
+
+            function abrirModalDetalhesCampanha(detalhes, nomeCampanha) {
+                const modal = document.getElementById('campaign-detail-modal');
+                const body = document.getElementById('campaign-detail-body');
+                let html = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <h3 style="margin:0;"><i class="fas fa-trophy"></i> ${nomeCampanha}</h3>
+                        <button onclick="document.getElementById('campaign-detail-modal').classList.remove('active')" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+                    </div>
+                    <div style="overflow-x:auto;">
+                        <table class="campaign-detail-table">
+                            <thead>
+                                <tr>
+                                    <th>Vendedor</th>
+                                    <th style="text-align:right;">Meta (R$)</th>
+                                    <th style="text-align:right;">Realizado (R$)</th>
+                                    <th style="text-align:right;">%</th>
+                                    <th style="text-align:center;">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                detalhes.forEach(d => {
+                    const perc = d.perc;
+                    let statusClass, statusText;
+                    if (perc >= 100) { statusClass = 'status-atingiu'; statusText = '✅ Atingiu'; }
+                    else if (perc >= 70) { statusClass = 'status-proximo'; statusText = '📈 Próximo'; }
+                    else { statusClass = 'status-em-andamento'; statusText = '⏳ Em andamento'; }
+                    html += `
+                        <tr>
+                            <td style="font-weight:600;">${d.nome}</td>
+                            <td style="text-align:right;">${formatCurrency(d.metaTotal)}</td>
+                            <td style="text-align:right;">${formatCurrency(d.realizadoTotal)}</td>
+                            <td style="text-align:right; font-weight:700;">${perc.toFixed(1)}%</td>
+                            <td style="text-align:center;"><span class="status-badge ${statusClass}">${statusText}</span></td>
+                        </tr>
+                    `;
+                });
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                body.innerHTML = html;
+                modal.classList.add('active');
+                // Fechar ao clicar fora
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.classList.remove('active');
+                });
+            }
+
+            // ---------- FIM DAS FUNÇÕES DA CAMPANHA ----------
+
             async function fetchAllData() {
                 document.getElementById('last-update').innerText = 'Carregando...';
                 document.getElementById('loading-overlay').classList.remove('hidden');
                 try {
-                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData] = await Promise.all([
+                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData, campanhas] = await Promise.all([
                         carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
                         carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
-                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.cadastro)
+                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.cadastro),
+                        carregarJSON(BASES.campanhas_especiais)
                     ]);
                     allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
                     BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
+                    campanhasData = campanhas;
+
                     document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
                     document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
                     atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
+
+                    // Processa campanhas ativas e exibe barra
+                    const resultadoCampanha = processarCampanhasAtivas(campanhasData);
+                    if (resultadoCampanha) {
+                        // Já atualizou a barra, agora guardamos os dados para a celebração
+                        window._campanhaDetalhes = resultadoCampanha.detalhes;
+                    } else {
+                        document.getElementById('campaign-status-bar').style.display = 'none';
+                        window._campanhaDetalhes = null;
+                    }
+
                 } catch(e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
                 finally { document.getElementById('loading-overlay').classList.add('hidden'); }
             }
@@ -2034,6 +2313,7 @@
                 return map;
             }
 
+            // Verificação de celebração de metas (inclui campanhas)
             function verificarCelebracaoMetas() {
                 const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
                 const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
@@ -2080,6 +2360,22 @@
                         conquistas.push({ nome: `Meta ${VENDEDORES_MAP[id] || nome}`, meta: metaM, realizado: fatVend, perc: (fatVend/metaM)*100, chave: `meta_vend_${id}_${anoMes}` });
                     }
                 });
+
+                // ---- ADIÇÃO: verificar campanhas ativas ----
+                if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+                    window._campanhaDetalhes.forEach(d => {
+                        if (d.perc >= 100) {
+                            conquistas.push({
+                                nome: `Campanha: ${d.nome}`,
+                                meta: d.metaTotal,
+                                realizado: d.realizadoTotal,
+                                perc: d.perc,
+                                chave: `campanha_${d.cod}_${d.nome.replace(/\s+/g,'_')}`
+                            });
+                        }
+                    });
+                }
+
                 if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
             }
 
@@ -2438,6 +2734,7 @@
                 document.getElementById('post-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('notif-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('vendor-detail-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+                document.getElementById('campaign-detail-modal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
