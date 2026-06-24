@@ -1609,157 +1609,158 @@
             }
 
             function processLeads() {
-                cleanExpiredTempOverrides();
-                const finalLeadsIndex = new Map();
-                for (const lf of leadsFinal) {
-                    const cnpj = normalizeCNPJ(lf["CNPJ"] || ""),
-                        nomeEmpresa = normalizeStr(lf["Empresa"] || lf["Nome"] || ""),
-                        nomeLead = normalizeStr(lf["Nome"] || "");
-                    if (cnpj) finalLeadsIndex.set(cnpj, lf);
-                    if (nomeEmpresa) finalLeadsIndex.set(nomeEmpresa, lf);
-                    if (nomeLead) finalLeadsIndex.set(nomeLead, lf);
+    cleanExpiredTempOverrides();
+    const finalLeadsIndex = new Map();
+    for (const lf of leadsFinal) {
+        const cnpj = normalizeCNPJ(lf["CNPJ"] || ""),
+            nomeEmpresa = normalizeStr(lf["Empresa"] || lf["Nome"] || ""),
+            nomeLead = normalizeStr(lf["Nome"] || "");
+        if (cnpj) finalLeadsIndex.set(cnpj, lf);
+        if (nomeEmpresa) finalLeadsIndex.set(nomeEmpresa, lf);
+        if (nomeLead) finalLeadsIndex.set(nomeLead, lf);
+    }
+    processedLeads = [];
+    const seenIds = new Set();
+    for (const lead of rawLeads) {
+        // ===== CORREÇÃO: validar CNPJ antes de usar como chave única =====
+        let cnpjLeadRaw = normalizeCNPJ(lead["CNPJ"] || "");
+        // Só considera CNPJ válido se tiver pelo menos 11 dígitos (tamanho mínimo de CNPJ real)
+        let cnpjValido = cnpjLeadRaw.length >= 11 ? cnpjLeadRaw : "";
+        let empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || ""),
+            nomeLead = normalizeStr(lead["Nome Completo"] || "");
+        let leadId = lead["ID"] || `${lead["UTM CONTENT"]}_${lead["WhatsApp"]}` ||
+            `lead_${Math.random().toString(36).substr(2,9)}`;
+        
+        // Normaliza WhatsApp removendo tudo que não for dígito (para evitar duplicatas por formatação)
+        let whatsNormalizado = (lead["WhatsApp"] || "").replace(/\D/g, '');
+        let uniqueKey = cnpjValido || `${empresaLead}|${nomeLead}|${whatsNormalizado}`;
+        
+        if (seenIds.has(uniqueKey)) continue;
+        seenIds.add(uniqueKey);
+        // ===== FIM DA CORREÇÃO =====
+
+        let dataObj = extractDateFromLead(lead);
+        let override = localOverrides[leadId];
+        let isManualOverride = override && override.edited === true;
+        let isTempOverride = override && override.tempStatus && override.tempExpiry && Date.now() < override.tempExpiry;
+
+        let statusFinal = "",
+            vendedorRaw = "",
+            valorVendaFinal = 0;
+        let isNovoCliente = false,
+            isRevendaCliente = false,
+            clienteCarteira = null;
+
+        if (override && override.valorVenda !== undefined && override.valorVenda !== null) {
+            valorVendaFinal = Number(override.valorVenda) || 0;
+        }
+
+        if (isManualOverride) {
+            statusFinal = override.status;
+            vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
+        } else if (isTempOverride) {
+            statusFinal = override.tempStatus;
+        } else {
+            let finalMatch = null;
+            if (cnpjValido && finalLeadsIndex.has(cnpjValido)) finalMatch = finalLeadsIndex.get(cnpjValido);
+            else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(empresaLead);
+            else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
+            else
+                for (let [key, value] of finalLeadsIndex.entries())
+                    if (key.length > 3 && (isSimilarCompany(empresaLead, key) || isSimilarCompany(nomeLead, key))) { finalMatch = value; break; }
+
+            if (finalMatch) {
+                statusFinal = finalMatch["Status"] || lead["  "] || "";
+                let vendedorPlanilha = normalizeVendedorName(finalMatch["Vendedor"] || "");
+                if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
+                let dataFinalObj = dataObj;
+                if (finalMatch["Data"]) { let d = new Date(finalMatch["Data"]); if (!isNaN(d.getTime())) dataFinalObj = d; }
+                if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 && dataFinalObj < DATA_LIMITE_LUAN) vendedorRaw = getVendedorPorData(dataFinalObj);
+                else vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
+                if (!override || override.valorVenda === undefined) {
+                    valorVendaFinal = cleanCurrency(finalMatch["Valor da Venda"] || 0);
                 }
-                processedLeads = [];
-                const seenIds = new Set();
-                for (const lead of rawLeads) {
-                    let cnpjLead = normalizeCNPJ(lead["CNPJ"] || ""),
-                        empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || ""),
-                        nomeLead = normalizeStr(lead["Nome Completo"] || "");
-                    let leadId = lead["ID"] || `${lead["UTM CONTENT"]}_${lead["WhatsApp"]}` ||
-                        `lead_${Math.random().toString(36).substr(2,9)}`;
-                    let uniqueKey = cnpjLead || `${empresaLead}|${nomeLead}|${lead["WhatsApp"] || ""}`;
-                    if (seenIds.has(uniqueKey)) continue;
-                    seenIds.add(uniqueKey);
-                    let dataObj = extractDateFromLead(lead);
-                    let override = localOverrides[leadId];
-                    let isManualOverride = override && override.edited === true;
-                    let isTempOverride = override && override.tempStatus && override.tempExpiry && Date.now() < override
-                        .tempExpiry;
+                if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
+                if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
+            } else {
+                clienteCarteira = findClientInCarteira(lead);
+                let isRev = isRevenda(lead);
+                let statusOriginal = lead["  "] || "";
 
-                    let statusFinal = "",
-                        vendedorRaw = "",
-                        valorVendaFinal = 0;
-                    let isNovoCliente = false,
-                        isRevendaCliente = false,
-                        clienteCarteira = null;
-
-                    if (override && override.valorVenda !== undefined && override.valorVenda !== null) {
-                        valorVendaFinal = Number(override.valorVenda) || 0;
-                    }
-
-                    if (isManualOverride) {
-                        statusFinal = override.status;
-                        vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
-                    } else if (isTempOverride) {
-                        statusFinal = override.tempStatus;
-                    } else {
-                        let finalMatch = null;
-                        if (cnpjLead && finalLeadsIndex.has(cnpjLead)) finalMatch = finalLeadsIndex.get(cnpjLead);
-                        else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(
-                            empresaLead);
-                        else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
-                        else
-                            for (let [key, value] of finalLeadsIndex.entries())
-                                if (key.length > 3 && (isSimilarCompany(empresaLead, key) || isSimilarCompany(
-                                        nomeLead, key))) { finalMatch = value; break; }
-
-                        if (finalMatch) {
-                            statusFinal = finalMatch["Status"] || lead["  "] || "";
-                            let vendedorPlanilha = normalizeVendedorName(finalMatch["Vendedor"] || "");
-                            if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
-                            let dataFinalObj = dataObj;
-                            if (finalMatch["Data"]) { let d = new Date(finalMatch["Data"]); if (!isNaN(d.getTime()))
-                                    dataFinalObj = d; }
-                            if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 &&
-                                dataFinalObj < DATA_LIMITE_LUAN) vendedorRaw = getVendedorPorData(dataFinalObj);
-                            else vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
-                            if (!override || override.valorVenda === undefined) {
-                                valorVendaFinal = cleanCurrency(finalMatch["Valor da Venda"] || 0);
-                            }
-                            if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
-                            if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
-                        } else {
-                            clienteCarteira = findClientInCarteira(lead);
-                            let isRev = isRevenda(lead);
-                            let statusOriginal = lead["  "] || "";
-
-                            if (clienteCarteira) {
-                                let rep = clienteCarteira["Representante"] || "";
-                                vendedorRaw = getVendedorFromRepresentante(rep);
-                                if (!vendedorRaw) {
-                                    vendedorRaw = "indeterminado – Necessita verificar";
-                                }
-                                if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
-                                else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
-                                else if (statusOriginal.includes("Proposta") || statusOriginal.includes(
-                                    "Atendido")) statusFinal = "Lead Atendido";
-                                else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
-                                else statusFinal = "Lead Atendido";
-                            } else {
-                                if (isRev) {
-                                    vendedorRaw = config.vendedorRevendas || "Não definido";
-                                    isRevendaCliente = true;
-                                    isNovoCliente = false;
-                                } else {
-                                    vendedorRaw = config.vendedorNovos || getVendedorPorData(dataObj) || "Não definido";
-                                    isNovoCliente = true;
-                                    isRevendaCliente = false;
-                                }
-                                statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
-                            }
-                        }
-                    }
-
+                if (clienteCarteira) {
+                    let rep = clienteCarteira["Representante"] || "";
+                    vendedorRaw = getVendedorFromRepresentante(rep);
                     if (!vendedorRaw) {
                         vendedorRaw = "indeterminado – Necessita verificar";
                     }
-
-                    vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
-                    if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
-                        let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
-                        nomeVendedorMap.set(vendedorRaw, newV);
-                        aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
+                    if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
+                    else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
+                    else if (statusOriginal.includes("Proposta") || statusOriginal.includes("Atendido")) statusFinal = "Lead Atendido";
+                    else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
+                    else statusFinal = "Lead Atendido";
+                } else {
+                    if (isRev) {
+                        vendedorRaw = config.vendedorRevendas || "Não definido";
+                        isRevendaCliente = true;
+                        isNovoCliente = false;
+                    } else {
+                        vendedorRaw = config.vendedorNovos || getVendedorPorData(dataObj) || "Não definido";
+                        isNovoCliente = true;
+                        isRevendaCliente = false;
                     }
-
-                    let vendedorDisplay = vendedorRaw;
-                    if (vendedorRaw === "indeterminado – Necessita verificar") {
-                        vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
-                    } else if (isNovoCliente && vendedorRaw && vendedorRaw !== "Não definido") {
-                        vendedorDisplay =
-                            `<i class="fas fa-user-plus"></i> ATRIBUIDO POR CLIENTE NOVO - ${vendedorRaw}`;
-                    } else if (isRevendaCliente && vendedorRaw && vendedorRaw !== "Não definido") {
-                        vendedorDisplay =
-                            `<i class="fas fa-sync-alt"></i> ATRIBUIDO POR REVENDA - ${vendedorRaw}`;
-                    }
-
-                    processedLeads.push({
-                        id: leadId,
-                        dataHora: dataObj,
-                        dataStr: formatDateBR(dataObj),
-                        nome: lead["Nome Completo"] || "",
-                        empresa: lead["Nome da empresa"] || "",
-                        whatsapp: lead["WhatsApp"] || "",
-                        email: lead["E-mail"] || "",
-                        cnpj: lead["CNPJ"] || "",
-                        mensagem: lead["Mensagem"] || "",
-                        utmSource: lead["UTM SOURCE"] || "",
-                        utmMedium: lead["UTM MEDIUM"] || "",
-                        utmCampaign: lead["UTM CAMPAIGN"] || "",
-                        utmTerm: lead["UTM TERM"] || "",
-                        utmContent: lead["UTM CONTENT"] || "",
-                        status: statusFinal,
-                        vendedor: vendedorDisplay,
-                        vendedorRaw: vendedorRaw,
-                        isRevenda: isRevendaCliente,
-                        clienteExistente: !!clienteCarteira,
-                        isNovoCliente: isNovoCliente && !clienteCarteira,
-                        isRevendaCliente: isRevendaCliente && !clienteCarteira,
-                        utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
-                        valorVenda: valorVendaFinal
-                    });
+                    statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
                 }
-                processedLeads.sort((a, b) => b.dataHora - a.dataHora);
             }
+        }
+
+        if (!vendedorRaw) {
+            vendedorRaw = "indeterminado – Necessita verificar";
+        }
+
+        vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
+        if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
+            let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
+            nomeVendedorMap.set(vendedorRaw, newV);
+            aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
+        }
+
+        let vendedorDisplay = vendedorRaw;
+        if (vendedorRaw === "indeterminado – Necessita verificar") {
+            vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
+        } else if (isNovoCliente && vendedorRaw && vendedorRaw !== "Não definido") {
+            vendedorDisplay = `<i class="fas fa-user-plus"></i> ATRIBUIDO POR CLIENTE NOVO - ${vendedorRaw}`;
+        } else if (isRevendaCliente && vendedorRaw && vendedorRaw !== "Não definido") {
+            vendedorDisplay = `<i class="fas fa-sync-alt"></i> ATRIBUIDO POR REVENDA - ${vendedorRaw}`;
+        }
+
+        processedLeads.push({
+            id: leadId,
+            dataHora: dataObj,
+            dataStr: formatDateBR(dataObj),
+            nome: lead["Nome Completo"] || "",
+            empresa: lead["Nome da empresa"] || "",
+            whatsapp: lead["WhatsApp"] || "",
+            email: lead["E-mail"] || "",
+            cnpj: lead["CNPJ"] || "",
+            mensagem: lead["Mensagem"] || "",
+            utmSource: lead["UTM SOURCE"] || "",
+            utmMedium: lead["UTM MEDIUM"] || "",
+            utmCampaign: lead["UTM CAMPAIGN"] || "",
+            utmTerm: lead["UTM TERM"] || "",
+            utmContent: lead["UTM CONTENT"] || "",
+            status: statusFinal,
+            vendedor: vendedorDisplay,
+            vendedorRaw: vendedorRaw,
+            isRevenda: isRevendaCliente,
+            clienteExistente: !!clienteCarteira,
+            isNovoCliente: isNovoCliente && !clienteCarteira,
+            isRevendaCliente: isRevendaCliente && !clienteCarteira,
+            utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
+            valorVenda: valorVendaFinal
+        });
+    }
+    processedLeads.sort((a, b) => b.dataHora - a.dataHora);
+}
 
             // ============================================================
             //  FUNÇÕES DE RENDERIZAÇÃO
