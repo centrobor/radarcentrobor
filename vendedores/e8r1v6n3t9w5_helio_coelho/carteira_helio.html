@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ranking de Clientes – Hélio Coelho | 2025–2026 (Carteira + Faturamento)</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <!-- SheetJS para geração de Excel -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <style>
         /* ===== ESTILOS GERAIS (mesmos do código anterior) ===== */
         :root {
@@ -82,6 +84,8 @@
         .btn-outline:hover { background: #eef3f9; }
         .btn-pdf { background: #d32f2f; color: white; }
         .btn-pdf:hover { background: #b71c1c; }
+        .btn-excel { background: #1e6e3e; color: white; }
+        .btn-excel:hover { background: #145a2e; }
         .kpi-row {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -277,6 +281,7 @@
                 <button class="btn btn-primary" id="btn-buscar"><i class="fas fa-search"></i> Buscar</button>
                 <button class="btn btn-outline" id="btn-limpar" title="Recarregar"><i class="fas fa-sync-alt"></i></button>
                 <button class="btn btn-pdf" id="btn-pdf" title="Gerar PDF"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn btn-excel" id="btn-excel" title="Gerar Excel"><i class="fas fa-file-excel"></i> Excel</button>
             </div>
         </div>
 
@@ -378,6 +383,7 @@
             const btnBuscar = document.getElementById('btn-buscar');
             const btnLimpar = document.getElementById('btn-limpar');
             const btnPdf = document.getElementById('btn-pdf');
+            const btnExcel = document.getElementById('btn-excel');
             const loadingIndicator = document.getElementById('loading-indicator');
             const resultadoContainer = document.getElementById('resultado-container');
             const tbodyRanking = document.getElementById('tbody-ranking');
@@ -396,7 +402,10 @@
             const kpiClientesCarteira = document.getElementById('kpi-clientes-carteira');
             const printPeriodo = document.getElementById('print-periodo');
 
+            // Armazenar dados para exportação Excel
             let dadosAgrupados = new Map();
+            let ultimoRanking = [];
+            let ultimoSemFaturamento = [];
             let gruposSemFaturamento = [];
             let totalGruposCarteira = 0;
             let totalClientesCarteira = 0;
@@ -618,6 +627,10 @@
                     rankingComFaturamento.sort((a, b) => b.faturamento - a.faturamento);
                     gruposSemFaturamento.sort((a, b) => a.grupo.localeCompare(b.grupo));
 
+                    // Armazena para exportação
+                    ultimoRanking = rankingComFaturamento;
+                    ultimoSemFaturamento = gruposSemFaturamento;
+
                     totalGruposCarteira = dadosAgrupados.size;
 
                     const totalFaturamento = rankingComFaturamento.reduce((s, g) => s + g.faturamento, 0);
@@ -822,6 +835,71 @@
                 document.getElementById('fechar-modal-btn').addEventListener('click', fecharModal);
             }
 
+            // ============ FUNÇÃO PARA GERAR EXCEL ============
+            function gerarExcel() {
+                // Verifica se a biblioteca SheetJS está disponível
+                if (typeof XLSX === 'undefined') {
+                    alert('A biblioteca de Excel não foi carregada. Verifique sua conexão com a internet.');
+                    return;
+                }
+
+                if (ultimoRanking.length === 0 && ultimoSemFaturamento.length === 0) {
+                    alert('Nenhum dado disponível para exportar. Realize uma consulta primeiro.');
+                    return;
+                }
+
+                const wb = XLSX.utils.book_new();
+
+                // Aba 1: Ranking (grupos com faturamento)
+                const rankingData = ultimoRanking.map((item, idx) => ({
+                    'Posição': idx + 1,
+                    'Grupo': item.grupo,
+                    'Faturamento Total': formatarMoeda(item.faturamento),
+                    'Nº de Filiais': item.numFiliais,
+                    'Filiais': Array.from(item.filiais.keys()).join(', ')
+                }));
+                const wsRanking = XLSX.utils.json_to_sheet(rankingData);
+                XLSX.utils.book_append_sheet(wb, wsRanking, 'Ranking');
+
+                // Aba 2: Grupos sem faturamento
+                const semFatData = ultimoSemFaturamento.map(item => ({
+                    'Grupo': item.grupo,
+                    'Nº de Filiais': item.filiais.size,
+                    'Filiais': Array.from(item.filiais.keys()).join(', ')
+                }));
+                const wsSemFat = XLSX.utils.json_to_sheet(semFatData);
+                XLSX.utils.book_append_sheet(wb, wsSemFat, 'Sem Faturamento');
+
+                // Aba 3: Detalhes de todos os pedidos
+                const detalhesLinhas = [];
+                dadosAgrupados.forEach((grupoData, nomeGrupo) => {
+                    grupoData.pedidos.forEach(fat => {
+                        const valorMerc = extrairValor(fat[' Valor Mercadoria '] || fat['Valor Mercadoria']);
+                        const custo = extrairValor(fat['Custo']);
+                        detalhesLinhas.push({
+                            'Grupo': nomeGrupo,
+                            'Data': fat['Data'] || '',
+                            'Filial': fat['Nome Chave'] || '',
+                            'Nota Fiscal': fat['Nota Fiscal'] || fat['NF'] || '',
+                            'Código': fat['Código'] || fat['Codigo'] || '',
+                            'Descrição': fat['Descrição'] || fat['Descricao'] || '',
+                            'Quantidade': fat['Quantidade'] || '0',
+                            'Valor Merc.': formatarMoeda(valorMerc),
+                            'Custo': formatarMoeda(custo),
+                            'Margem': fat['Margem'] || ''
+                        });
+                    });
+                });
+
+                if (detalhesLinhas.length > 0) {
+                    const wsDetalhes = XLSX.utils.json_to_sheet(detalhesLinhas);
+                    XLSX.utils.book_append_sheet(wb, wsDetalhes, 'Detalhes dos Pedidos');
+                }
+
+                const periodo = `${dataInicioInput.value}_a_${dataFimInput.value}`;
+                XLSX.writeFile(wb, `Ranking_Helio_Coelho_${periodo}.xlsx`);
+            }
+
             function definirDataPadrao() {
                 const hoje = new Date();
                 const ano = hoje.getFullYear();
@@ -853,6 +931,8 @@
                 printPeriodo.textContent = `Período: ${dataInicioInput.value} a ${dataFimInput.value}`;
                 window.print();
             });
+
+            btnExcel.addEventListener('click', gerarExcel);
 
             definirDataPadrao();
             carregarDados(dataInicioInput.value, dataFimInput.value);
