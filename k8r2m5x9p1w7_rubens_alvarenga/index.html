@@ -2343,70 +2343,70 @@
 
             // Verificação de celebração de metas (inclui campanhas)
             function verificarCelebracaoMetas() {
-    const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
-    const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
-    const conquistas = [];
-    const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
-    const semestre = mes <= 6 ? 1 : 2;
-    const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
-    const metaMes = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
-    if (metaMes > 0 && fatMes >= metaMes) {
-        conquistas.push({ nome: 'Meta Mensal', meta: metaMes, realizado: fatMes, perc: (fatMes/metaMes)*100, chave: `meta_mensal_${anoMes}` });
-    }
-    let fatSemestre = 0, metaSemestre = 0;
-    const inicioSem = mes <= 6 ? 1 : 7;
-    for (let m = inicioSem; m <= mes; m++) {
-        fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-        metaSemestre += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
-    }
-    if (metaSemestre > 0 && fatSemestre >= metaSemestre) {
-        conquistas.push({ nome: 'Meta Semestral', meta: metaSemestre, realizado: fatSemestre, perc: (fatSemestre/metaSemestre)*100, chave: `meta_semestral_${ano}_S${semestre}` });
-    }
-    let fatAno = 0, metaAno = 0;
-    for (let m = 1; m <= 12; m++) {
-        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-        metaAno += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
-    }
-    if (metaAno > 0 && fatAno >= metaAno) {
-        conquistas.push({ nome: 'Meta Anual', meta: metaAno, realizado: fatAno, perc: (fatAno/metaAno)*100, chave: `meta_anual_${ano}` });
-    }
-    allMetas.forEach(m => {
-        const id = String(m.id_vendedor || '').trim();
-        if (id == '80' || id == '1') return;
-        const nome = m.vendedor || '';
-        if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
-        if (vendCode && vendCode !== 'all' && id !== vendCode) return;
-        const metaM = cleanNumber(m.meta_mensal);
-        let fatVend = 0;
-        allFaturados.forEach(f => {
-            const d = parseDataBR(f['Data']);
-            if (d && d.getFullYear() === ano && d.getMonth()+1 === mes && String(f['Cod. Vendedor']||'').trim() === id) {
-                fatVend += cleanNumber(f['Valor Mercadoria']);
-            }
-        });
-        if (metaM > 0 && fatVend >= metaM) {
-            conquistas.push({ nome: `Meta ${VENDEDORES_MAP[id] || nome}`, meta: metaM, realizado: fatVend, perc: (fatVend/metaM)*100, chave: `meta_vend_${id}_${anoMes}` });
-        }
-    });
-
-    // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS ----
-    if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
-        window._campanhaDetalhes.forEach(d => {
-            // Usando >= 99.99 para evitar falsos negativos por arredondamento
-            if (d.perc >= 99.99) {
-                conquistas.push({
-                    nome: `Campanha (${d.nome}):`,
-                    meta: d.metaTotal,
-                    realizado: d.realizadoTotal,
-                    perc: d.perc,
-                    chave: `campanha_${d.cod}_${d.nome.replace(/\s+/g,'_')}`
+                const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const conquistas = [];
+                const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
+                const semestre = mes <= 6 ? 1 : 2;
+                const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
+                const metaMes = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
+                if (metaMes > 0 && fatMes >= metaMes) {
+                    conquistas.push({ nome: 'Meta Mensal', meta: metaMes, realizado: fatMes, perc: (fatMes/metaMes)*100, chave: `meta_mensal_${anoMes}` });
+                }
+                let fatSemestre = 0, metaSemestre = 0;
+                const inicioSem = mes <= 6 ? 1 : 7;
+                for (let m = inicioSem; m <= mes; m++) {
+                    fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                    metaSemestre += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
+                }
+                if (metaSemestre > 0 && fatSemestre >= metaSemestre) {
+                    conquistas.push({ nome: 'Meta Semestral', meta: metaSemestre, realizado: fatSemestre, perc: (fatSemestre/metaSemestre)*100, chave: `meta_semestral_${ano}_S${semestre}` });
+                }
+                let fatAno = 0, metaAno = 0;
+                for (let m = 1; m <= 12; m++) {
+                    fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
+                    metaAno += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
+                }
+                if (metaAno > 0 && fatAno >= metaAno) {
+                    conquistas.push({ nome: 'Meta Anual', meta: metaAno, realizado: fatAno, perc: (fatAno/metaAno)*100, chave: `meta_anual_${ano}` });
+                }
+                allMetas.forEach(m => {
+                    const id = String(m.id_vendedor || '').trim();
+                    if (id == '80' || id == '1') return;
+                    const nome = m.vendedor || '';
+                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
+                    if (vendCode && vendCode !== 'all' && id !== vendCode) return;
+                    const metaM = cleanNumber(m.meta_mensal);
+                    let fatVend = 0;
+                    allFaturados.forEach(f => {
+                        const d = parseDataBR(f['Data']);
+                        if (d && d.getFullYear() === ano && d.getMonth()+1 === mes && String(f['Cod. Vendedor']||'').trim() === id) {
+                            fatVend += cleanNumber(f['Valor Mercadoria']);
+                        }
+                    });
+                    if (metaM > 0 && fatVend >= metaM) {
+                        conquistas.push({ nome: `Meta ${VENDEDORES_MAP[id] || nome}`, meta: metaM, realizado: fatVend, perc: (fatVend/metaM)*100, chave: `meta_vend_${id}_${anoMes}` });
+                    }
                 });
-            }
-        });
-    }
 
-    if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
-}
+                // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS ----
+                if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+                    window._campanhaDetalhes.forEach(d => {
+                        // Usando >= 99.99 para evitar falsos negativos por arredondamento
+                        if (d.perc >= 99.99) {
+                            conquistas.push({
+                                nome: `Campanha: ${d.nome}`,
+                                meta: d.metaTotal,
+                                realizado: d.realizadoTotal,
+                                perc: d.perc,
+                                chave: `campanha_${d.cod}_${d.nome.replace(/\s+/g,'_')}`
+                            });
+                        }
+                    });
+                }
+
+                if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
+            }
 
             function refreshAll() {
                 renderKPI(); renderRecentOrders(); populateMonthSelectors(); updateCharts();
