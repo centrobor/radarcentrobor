@@ -765,6 +765,21 @@
             color: var(--text-soft);
         }
 
+        /* ===== BOTÃO MARCAR LIDAS (NOTIFICAÇÕES) ===== */
+        .btn-mark-all-read {
+            background: var(--primary-soft);
+            border: 1px solid var(--primary-light);
+            color: var(--primary);
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.78rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         /* ===== MOBILE (mantido) ===== */
         #print-header { display: none; }
         @media print {
@@ -1335,7 +1350,7 @@
                 <span class="last-update-badge" id="last-update-badge" style="display:none;">
                     <i class="fas fa-sync-alt"></i> <span id="last-update-text">Atualizado em: --</span>
                 </span>
-                <button class="icon-btn notification-bell" id="notification-bell"><i class="fas fa-bell"></i><span class="badge" id="notification-badge">0</span></button>
+                <button class="icon-btn notification-bell" id="notification-bell"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
                 <button class="icon-btn home-btn" id="home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
                 <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
             </div>
@@ -1705,7 +1720,6 @@
                     ${buildItem(`Anual ${ano} (acum.)`, acumLavAno, metas.lav.anual, percLavAno, Math.max(0, metas.lav.anual - acumLavAno), `fabiano_lav_anual_${ano}`)}
                 </div></div>`;
 
-                // NOVO: busca campanhas e mescla conquistas
                 const conquistasCampanhas = await renderizarCampanhasEspeciaisFabiano();
                 const todasConquistas = [...conquistas, ...conquistasCampanhas];
                 if (todasConquistas.length > 0) setTimeout(() => mostrarCelebracao(todasConquistas), 600);
@@ -1803,12 +1817,74 @@
                 updateCarrossel();
             }
             function updateCarrossel() { document.getElementById('carousel-container').style.transform = `translateX(-${currentCarouselIndex * 100}%)`; document.querySelectorAll('.indicator-dot').forEach(d => d.classList.remove('active')); document.querySelector(`.indicator-dot[data-idx="${currentCarouselIndex}"]`)?.classList.add('active'); }
-            function abrirPostagem(post) { const modal = document.getElementById('post-modal'); document.getElementById('post-modal-body').innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span><img src="${post.imagem}" style="width:100%; max-height:300px; object-fit:cover; border-radius:20px; margin-bottom:20px;"><h2>${post.titulo}</h2><div style="display:flex; gap:20px; margin:12px 0;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div><div>${post.texto_html || ''}</div>`; modal.classList.add('active'); }
-            function atualizarBadgeNotificacoes() { const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length; document.getElementById('notification-badge').style.display = unread ? 'flex' : 'none'; document.getElementById('notification-badge').textContent = unread; document.getElementById('bb-badge-dot').style.display = unread ? 'block' : 'none'; document.getElementById('menu-notif-count').style.display = unread ? 'flex' : 'none'; document.getElementById('menu-notif-count').textContent = unread; }
-            function abrirNotificacoes() { const modal = document.getElementById('notif-modal'); const body = document.getElementById('notif-modal-body'); let html = `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span><div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h2><i class="fas fa-bell"></i> Alertas</h2><button id="markAllReadBtn" class="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button></div>`; notificacoes.forEach(n => { const isRead = readNotifications.includes(n.id); const plain = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 100); html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem || 'https://via.placeholder.com/80x60'}" class="notif-thumb"><div><strong>${n.titulo}</strong><div style="font-size:0.7rem;">${n.data} • ${n.autor}</div><div>${plain}...</div><span style="color:${isRead ? 'gray' : 'green'}">${isRead ? '✓ Lida' : '● Nova'}</span></div></div>`; }); body.innerHTML = html; document.getElementById('markAllReadBtn')?.addEventListener('click', () => { notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); }); localStorage.setItem('readNotifications_Fabiano', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); abrirNotificacoes(); }); body.querySelectorAll('.notif-card').forEach(card => { card.addEventListener('click', () => { const id = card.dataset.id; if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications_Fabiano', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); } const post = notificacoes.find(p => p.id == id); if (post) abrirPostagem(post); modal.classList.remove('active'); }); }); modal.classList.add('active'); modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); }); }
+            function abrirPostagem(post) {
+                const modal = document.getElementById('post-modal');
+                document.getElementById('post-modal-body').innerHTML = `
+                    <span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span>
+                    <img src="${post.imagem}" style="width:100%; max-height:300px; object-fit:cover; border-radius:20px; margin-bottom:20px;" onerror="this.style.display='none'">
+                    <h2>${post.titulo}</h2>
+                    <div style="display:flex; gap:20px; margin:12px 0;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div>
+                    <div>${post.texto_html || ''}</div>
+                `;
+                modal.classList.add('active');
+            }
+            function atualizarBadgeNotificacoes() {
+                const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                const badge = document.getElementById('notification-badge');
+                const bbDot = document.getElementById('bb-badge-dot');
+                const menuCount = document.getElementById('menu-notif-count');
+                if (badge) { badge.style.display = unread ? 'flex' : 'none'; badge.textContent = unread; }
+                if (bbDot) bbDot.style.display = unread ? 'block' : 'none';
+                if (menuCount) { menuCount.style.display = unread ? 'flex' : 'none'; menuCount.textContent = unread; }
+            }
+            function abrirNotificacoes() {
+                const modal = document.getElementById('notif-modal');
+                const body = document.getElementById('notif-modal-body');
+                let html = `
+                    <span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                        <h2><i class="fas fa-bell"></i> Alertas</h2>
+                        <button id="markAllReadBtn" class="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>
+                    </div>
+                `;
+                notificacoes.forEach(n => {
+                    const isRead = readNotifications.includes(n.id);
+                    const plain = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 100);
+                    html += `
+                        <div class="notif-card" data-id="${n.id}" style="display:flex; gap:14px; padding:14px; border-bottom:1px solid var(--line); cursor:pointer; border-radius:12px;">
+                            <img src="${n.imagem || 'https://via.placeholder.com/80x60'}" style="width:80px; height:60px; border-radius:12px; object-fit:cover;" onerror="this.style.display='none'">
+                            <div>
+                                <strong>${n.titulo}</strong>
+                                <div style="font-size:0.7rem;">${n.data} • ${n.autor}</div>
+                                <div>${plain}...</div>
+                                <span style="color:${isRead ? 'gray' : 'green'}">${isRead ? '✓ Lida' : '● Nova'}</span>
+                            </div>
+                        </div>`;
+                });
+                body.innerHTML = html;
+                document.getElementById('markAllReadBtn')?.addEventListener('click', () => {
+                    notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); });
+                    localStorage.setItem('readNotifications_Fabiano', JSON.stringify(readNotifications));
+                    atualizarBadgeNotificacoes();
+                    abrirNotificacoes();
+                });
+                body.querySelectorAll('.notif-card').forEach(card => {
+                    card.addEventListener('click', () => {
+                        const id = card.dataset.id;
+                        if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications_Fabiano', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
+                        const post = notificacoes.find(p => p.id == id);
+                        if (post) abrirPostagem(post);
+                        modal.classList.remove('active');
+                    });
+                });
+                modal.classList.add('active');
+            }
 
             // ==================== PDF ====================
-            function gerarPDF() { document.getElementById('print-date').textContent = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR'); window.print(); }
+            function gerarPDF() {
+                document.getElementById('print-date').textContent = new Date().toLocaleDateString('pt-BR') + ' às ' + new Date().toLocaleTimeString('pt-BR');
+                window.print();
+            }
 
             // ==================== SELECTOR DE MÊS ====================
             function populateMonthSelector() {
@@ -1869,6 +1945,17 @@
             // ==================== HAMBURGER MENU CONTROLS ====================
             function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
             function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
+
+            // ==================== FECHAR MODAIS AO CLICAR FORA ====================
+            document.getElementById('detail-modal').addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+            document.getElementById('post-modal').addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
+            document.getElementById('notif-modal').addEventListener('click', function(e) {
+                if (e.target === this) this.classList.remove('active');
+            });
 
             // ==================== EVENTOS ====================
             document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); window.location.href = '../../index.html?reason=logged_out'; });
