@@ -2342,7 +2342,7 @@
             }
 
             // Verificação de celebração de metas (inclui campanhas)
-            function verificarCelebracaoMetas() {
+           function verificarCelebracaoMetas() {
     const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
     const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
     const conquistas = [];
@@ -2389,6 +2389,26 @@
         }
     });
 
+    // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS ----
+    if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+        // Obter o nome da campanha (usado na barra amarela)
+        const nomeCampanha = (campanhasData.find(isCampaignActive) || {}).campanha || 'Campanha';
+        window._campanhaDetalhes.forEach(d => {
+            if (d.perc >= 99.99) {
+                conquistas.push({
+                    // Nome combinado: "Campanha (Nome da Campanha) - Nome do Vendedor"
+                    nome: `Campanha (${nomeCampanha}) - ${d.nome}`,
+                    meta: d.metaTotal,
+                    realizado: d.realizadoTotal,
+                    perc: d.perc,
+                    chave: `campanha_${d.cod}_${nomeCampanha.replace(/\s+/g,'_')}`
+                });
+            }
+        });
+    }
+
+    if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
+}
     // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS ----
     if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
         window._campanhaDetalhes.forEach(d => {
