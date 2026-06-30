@@ -2293,19 +2293,18 @@
                     BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
                     campanhasData = campanhas;
 
-                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
-                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
-                    atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
-
-                    // Processa campanhas ativas e exibe barra
+                    // Processa campanhas ativas e exibe barra (ANTES de refreshAll)
                     const resultadoCampanha = processarCampanhasAtivas(campanhasData);
                     if (resultadoCampanha) {
-                        // Já atualizou a barra, agora guardamos os dados para a celebração
                         window._campanhaDetalhes = resultadoCampanha.detalhes;
                     } else {
                         document.getElementById('campaign-status-bar').style.display = 'none';
                         window._campanhaDetalhes = null;
                     }
+
+                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+                    atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
 
                 } catch(e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
                 finally { document.getElementById('loading-overlay').classList.add('hidden'); }
@@ -2390,10 +2389,11 @@
                     }
                 });
 
-                // ---- ADIÇÃO: verificar campanhas ativas ----
+                // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS ----
                 if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
                     window._campanhaDetalhes.forEach(d => {
-                        if (d.perc >= 100) {
+                        // Usando >= 99.99 para evitar falsos negativos por arredondamento
+                        if (d.perc >= 99.99) {
                             conquistas.push({
                                 nome: `Campanha: ${d.nome}`,
                                 meta: d.metaTotal,
