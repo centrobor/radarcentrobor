@@ -2086,7 +2086,7 @@
 
             let allFaturados = [], allAprovados = [], allMetas = [], allPedidos = [],
                 BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [],
-                campanhasData = []; // <-- novo
+                campanhasData = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = [
                 { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
@@ -2146,84 +2146,82 @@
                 return inicio <= hoje && hoje <= fim;
             }
 
-            // Renderiza a barra de status e também retorna os dados processados para uso na celebração
             function processarCampanhasAtivas(campanhas) {
-    const ativas = campanhas.filter(isCampaignActive);
-    if (ativas.length === 0) return null;
+                const ativas = campanhas.filter(isCampaignActive);
+                if (ativas.length === 0) return null;
 
-    const mapVendedor = new Map();
-    ativas.forEach(camp => {
-        const cod = String(camp.vendedor_cod || '').trim();
-        if (!cod) return;
-        const meta = cleanNumber(camp.meta_valor);
-        const realizado = cleanNumber(camp.realizado_valor);
-        if (!mapVendedor.has(cod)) {
-            mapVendedor.set(cod, {
-                cod,
-                nome: camp.vendedor_nome || cod,
-                metaTotal: 0,
-                realizadoTotal: 0,
-            });
-        }
-        const entry = mapVendedor.get(cod);
-        entry.metaTotal += meta;
-        entry.realizadoTotal += realizado;
-    });
+                const mapVendedor = new Map();
+                ativas.forEach(camp => {
+                    const cod = String(camp.vendedor_cod || '').trim();
+                    if (!cod) return;
+                    const meta = cleanNumber(camp.meta_valor);
+                    const realizado = cleanNumber(camp.realizado_valor);
+                    if (!mapVendedor.has(cod)) {
+                        mapVendedor.set(cod, {
+                            cod,
+                            nome: camp.vendedor_nome || cod,
+                            metaTotal: 0,
+                            realizadoTotal: 0,
+                        });
+                    }
+                    const entry = mapVendedor.get(cod);
+                    entry.metaTotal += meta;
+                    entry.realizadoTotal += realizado;
+                });
 
-    const detalhes = [];
-    let atingidos = 0, proximos = 0;
-    for (const [cod, entry] of mapVendedor) {
-        const perc = entry.metaTotal > 0 ? (entry.realizadoTotal / entry.metaTotal) * 100 : 0;
-        // Aqui adicionamos o nome da campanha (usando a primeira campanha ativa, ou uma string vazia)
-        const nomeCampanha = ativas[0].campanha || 'Campanha';
-        detalhes.push({ ...entry, perc, nomeCampanha });
-        if (perc >= 100) atingidos++;
-        else if (perc >= 70) proximos++;
-    }
-    detalhes.sort((a, b) => b.perc - a.perc);
+                const detalhes = [];
+                let atingidos = 0, proximos = 0;
+                for (const [cod, entry] of mapVendedor) {
+                    const perc = entry.metaTotal > 0 ? (entry.realizadoTotal / entry.metaTotal) * 100 : 0;
+                    const nomeCampanha = ativas[0].campanha || 'Campanha';
+                    detalhes.push({ ...entry, perc, nomeCampanha });
+                    if (perc >= 100) atingidos++;
+                    else if (perc >= 70) proximos++;
+                }
+                detalhes.sort((a, b) => b.perc - a.perc);
 
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    let diasRestantes = Infinity;
-    ativas.forEach(camp => {
-        const fim = parseDataBR(camp.data_fim);
-        if (fim) {
-            const diff = Math.ceil((fim - hoje) / (1000 * 60 * 60 * 24));
-            if (diff < diasRestantes) diasRestantes = diff;
-        }
-    });
-    const daysLeftEl = document.getElementById('campaign-days-left');
-    const daysTextEl = document.getElementById('days-left-text');
-    if (diasRestantes !== Infinity && diasRestantes > 0) {
-        daysTextEl.textContent = `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
-        daysLeftEl.style.display = 'flex';
-    } else if (diasRestantes === 0) {
-        daysTextEl.textContent = 'Termina hoje';
-        daysLeftEl.style.display = 'flex';
-    } else {
-        daysLeftEl.style.display = 'none';
-    }
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+                let diasRestantes = Infinity;
+                ativas.forEach(camp => {
+                    const fim = parseDataBR(camp.data_fim);
+                    if (fim) {
+                        const diff = Math.ceil((fim - hoje) / (1000 * 60 * 60 * 24));
+                        if (diff < diasRestantes) diasRestantes = diff;
+                    }
+                });
+                const daysLeftEl = document.getElementById('campaign-days-left');
+                const daysTextEl = document.getElementById('days-left-text');
+                if (diasRestantes !== Infinity && diasRestantes > 0) {
+                    daysTextEl.textContent = `Faltam ${diasRestantes} dia${diasRestantes > 1 ? 's' : ''}`;
+                    daysLeftEl.style.display = 'flex';
+                } else if (diasRestantes === 0) {
+                    daysTextEl.textContent = 'Termina hoje';
+                    daysLeftEl.style.display = 'flex';
+                } else {
+                    daysLeftEl.style.display = 'none';
+                }
 
-    const nomeCampanha = ativas[0].campanha || 'Campanha';
+                const nomeCampanha = ativas[0].campanha || 'Campanha';
 
-    const bar = document.getElementById('campaign-status-bar');
-    const titleEl = document.getElementById('campaign-title');
-    const statsEl = document.getElementById('campaign-stats');
-    const detailBtn = document.getElementById('campaign-detail-btn');
+                const bar = document.getElementById('campaign-status-bar');
+                const titleEl = document.getElementById('campaign-title');
+                const statsEl = document.getElementById('campaign-stats');
+                const detailBtn = document.getElementById('campaign-detail-btn');
 
-    titleEl.textContent = `🏅 ${nomeCampanha}`;
-    statsEl.innerHTML = `
-        <strong>${atingidos}</strong> vendedor${atingidos !== 1 ? 'es' : ''} atingiram a meta
-        ${proximos > 0 ? ` • <strong>${proximos}</strong> estão próximos (≥70%)` : ''}
-    `;
-    bar.style.display = 'block';
+                titleEl.textContent = `🏅 ${nomeCampanha}`;
+                statsEl.innerHTML = `
+                    <strong>${atingidos}</strong> vendedor${atingidos !== 1 ? 'es' : ''} atingiram a meta
+                    ${proximos > 0 ? ` • <strong>${proximos}</strong> estão próximos (≥70%)` : ''}
+                `;
+                bar.style.display = 'block';
 
-    detailBtn.onclick = () => {
-        abrirModalDetalhesCampanha(detalhes, nomeCampanha);
-    };
+                detailBtn.onclick = () => {
+                    abrirModalDetalhesCampanha(detalhes, nomeCampanha);
+                };
 
-    return { detalhes, atingidos, proximos, nomeCampanha };
-}
+                return { detalhes, atingidos, proximos, nomeCampanha };
+            }
 
             function abrirModalDetalhesCampanha(detalhes, nomeCampanha) {
                 const modal = document.getElementById('campaign-detail-modal');
@@ -2269,7 +2267,6 @@
                 `;
                 body.innerHTML = html;
                 modal.classList.add('active');
-                // Fechar ao clicar fora
                 modal.addEventListener('click', function(e) {
                     if (e.target === modal) modal.classList.remove('active');
                 });
@@ -2291,7 +2288,6 @@
                     BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
                     campanhasData = campanhas;
 
-                    // Processa campanhas ativas e exibe barra (ANTES de refreshAll)
                     const resultadoCampanha = processarCampanhasAtivas(campanhasData);
                     if (resultadoCampanha) {
                         window._campanhaDetalhes = resultadoCampanha.detalhes;
@@ -2323,6 +2319,7 @@
                 const entry = metasGlobais.find(m => m['Mês'] === key);
                 return entry ? cleanNumber(entry['Meta (R$)']) : 0;
             }
+
             function getFaturamentoPorVendedorMes(ano, mes, codVend) {
                 const map = {};
                 allFaturados.forEach(f => {
@@ -2331,81 +2328,190 @@
                     const cod = f['Cod. Vendedor']?.trim(); if (!cod || cod == '80') return;
                     if (codVend && codVend !== 'all' && cod !== codVend) return;
                     map[cod] = (map[cod] || 0) + cleanNumber(f['Valor Mercadoria']);
-                }); return map;
-            }
-            function getMetaPorVendedorMes(ano, mes, codVend) {
-                const map = {};
-                allMetas.forEach(m => { const cod = String(m.id_vendedor || '').trim(); if (!cod || cod == '80') return; if (codVend && codVend !== 'all' && cod !== codVend) return; map[cod] = cleanNumber(m.meta_mensal); });
+                });
                 return map;
             }
 
-            // Verificação de celebração de metas (inclui campanhas)
-           function verificarCelebracaoMetas() {
-    const now = new Date(), ano = now.getFullYear(), mes = now.getMonth() + 1;
-    const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
-    const conquistas = [];
-    const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
-    const semestre = mes <= 6 ? 1 : 2;
-    const fatMes = Object.values(getFaturamentoPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0);
-    const metaMes = vendCode ? Object.values(getMetaPorVendedorMes(ano, mes, vendCode)).reduce((a, b) => a + b, 0) : getMetaGlobal(ano, mes);
-    if (metaMes > 0 && fatMes >= metaMes) {
-        conquistas.push({ nome: 'Meta Mensal', meta: metaMes, realizado: fatMes, perc: (fatMes/metaMes)*100, chave: `meta_mensal_${anoMes}` });
-    }
-    let fatSemestre = 0, metaSemestre = 0;
-    const inicioSem = mes <= 6 ? 1 : 7;
-    for (let m = inicioSem; m <= mes; m++) {
-        fatSemestre += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-        metaSemestre += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
-    }
-    if (metaSemestre > 0 && fatSemestre >= metaSemestre) {
-        conquistas.push({ nome: 'Meta Semestral', meta: metaSemestre, realizado: fatSemestre, perc: (fatSemestre/metaSemestre)*100, chave: `meta_semestral_${ano}_S${semestre}` });
-    }
-    let fatAno = 0, metaAno = 0;
-    for (let m = 1; m <= 12; m++) {
-        fatAno += Object.values(getFaturamentoPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0);
-        metaAno += vendCode ? Object.values(getMetaPorVendedorMes(ano, m, vendCode)).reduce((s, v) => s + v, 0) : getMetaGlobal(ano, m);
-    }
-    if (metaAno > 0 && fatAno >= metaAno) {
-        conquistas.push({ nome: 'Meta Anual', meta: metaAno, realizado: fatAno, perc: (fatAno/metaAno)*100, chave: `meta_anual_${ano}` });
-    }
-    allMetas.forEach(m => {
-        const id = String(m.id_vendedor || '').trim();
-        if (id == '80' || id == '1') return;
-        const nome = m.vendedor || '';
-        if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
-        if (vendCode && vendCode !== 'all' && id !== vendCode) return;
-        const metaM = cleanNumber(m.meta_mensal);
-        let fatVend = 0;
-        allFaturados.forEach(f => {
-            const d = parseDataBR(f['Data']);
-            if (d && d.getFullYear() === ano && d.getMonth()+1 === mes && String(f['Cod. Vendedor']||'').trim() === id) {
-                fatVend += cleanNumber(f['Valor Mercadoria']);
-            }
-        });
-        if (metaM > 0 && fatVend >= metaM) {
-            // Incluindo "Mensal" no nome da conquista
-            conquistas.push({ nome: `Meta Mensal: ${VENDEDORES_MAP[id] || nome}`, meta: metaM, realizado: fatVend, perc: (fatVend/metaM)*100, chave: `meta_vend_${id}_${anoMes}` });
-        }
-    });
-
-    // ---- VERIFICAÇÃO DE CAMPANHAS ATIVAS (com nome da campanha + nome do vendedor) ----
-    if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
-        window._campanhaDetalhes.forEach(d => {
-            // usando >= 99.99 para evitar falsos negativos por arredondamento
-            if (d.perc >= 99.99) {
-                conquistas.push({
-                    nome: `Campanha ${d.nomeCampanha}: ${d.nome}`,
-                    meta: d.metaTotal,
-                    realizado: d.realizadoTotal,
-                    perc: d.perc,
-                    chave: `campanha_${d.cod}_${d.nomeCampanha.replace(/\s+/g,'_')}`
+            function getMetaPorVendedorMes(ano, mes, codVend) {
+                const map = {};
+                allMetas.forEach(m => {
+                    const cod = String(m.id_vendedor || '').trim();
+                    if (!cod || cod == '80') return;
+                    if (codVend && codVend !== 'all' && cod !== codVend) return;
+                    map[cod] = cleanNumber(m.meta_mensal);
                 });
+                return map;
             }
-        });
-    }
 
-    if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
-}
+            // ===== FUNÇÃO REFINADA DE CELEBRAÇÃO DE METAS =====
+            function verificarCelebracaoMetas() {
+                const now = new Date();
+                const ano = now.getFullYear();
+                const mes = now.getMonth() + 1;
+                const vendCode = selectedVendor !== 'all' ? selectedVendor : null;
+                const conquistas = [];
+                const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
+                const semestre = mes <= 6 ? 1 : 2;
+
+                // 1) Meta Mensal do Time (Dimas/Eduardo)
+                const fatMesTime = Object.values(getFaturamentoPorVendedorMes(ano, mes, null)).reduce((a, b) => a + b, 0);
+                const metaMesTime = getMetaGlobal(ano, mes);
+                if (metaMesTime > 0 && fatMesTime >= metaMesTime) {
+                    conquistas.push({
+                        nome: 'Meta Mensal (Time)',
+                        meta: metaMesTime,
+                        realizado: fatMesTime,
+                        perc: (fatMesTime / metaMesTime) * 100,
+                        chave: `meta_mensal_time_${anoMes}`
+                    });
+                }
+                // Meta Plus do Time
+                const metaPlusTime = metaMesTime * 1.1;
+                if (metaPlusTime > 0 && fatMesTime >= metaPlusTime) {
+                    conquistas.push({
+                        nome: 'Meta Plus (+10%) (Time)',
+                        meta: metaPlusTime,
+                        realizado: fatMesTime,
+                        perc: (fatMesTime / metaPlusTime) * 100,
+                        chave: `meta_plus_time_${anoMes}`
+                    });
+                }
+
+                // 2) Meta Semestral do Time
+                let fatSemestreTime = 0, metaSemestreTime = 0;
+                const inicioSem = mes <= 6 ? 1 : 7;
+                for (let m = inicioSem; m <= mes; m++) {
+                    fatSemestreTime += Object.values(getFaturamentoPorVendedorMes(ano, m, null)).reduce((s, v) => s + v, 0);
+                    metaSemestreTime += getMetaGlobal(ano, m);
+                }
+                if (metaSemestreTime > 0 && fatSemestreTime >= metaSemestreTime) {
+                    conquistas.push({
+                        nome: `Meta Semestral (Time) - ${semestre === 1 ? '1º' : '2º'} Semestre`,
+                        meta: metaSemestreTime,
+                        realizado: fatSemestreTime,
+                        perc: (fatSemestreTime / metaSemestreTime) * 100,
+                        chave: `meta_semestral_time_${ano}_S${semestre}`
+                    });
+                }
+
+                // 3) Meta Anual do Time
+                let fatAnoTime = 0, metaAnoTime = 0;
+                for (let m = 1; m <= 12; m++) {
+                    fatAnoTime += Object.values(getFaturamentoPorVendedorMes(ano, m, null)).reduce((s, v) => s + v, 0);
+                    metaAnoTime += getMetaGlobal(ano, m);
+                }
+                if (metaAnoTime > 0 && fatAnoTime >= metaAnoTime) {
+                    conquistas.push({
+                        nome: 'Meta Anual (Time)',
+                        meta: metaAnoTime,
+                        realizado: fatAnoTime,
+                        perc: (fatAnoTime / metaAnoTime) * 100,
+                        chave: `meta_anual_time_${ano}`
+                    });
+                }
+
+                // 4) Metas Individuais (cada vendedor)
+                const metasIndividuais = allMetas.filter(m => {
+                    const id = String(m.id_vendedor || '').trim();
+                    if (id == '80' || id == '1') return false;
+                    const nome = m.vendedor || '';
+                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return false;
+                    if (vendCode && vendCode !== 'all' && id !== vendCode) return false;
+                    return true;
+                });
+
+                metasIndividuais.forEach(m => {
+                    const id = String(m.id_vendedor || '').trim();
+                    const nome = m.vendedor || '';
+                    const metaM = cleanNumber(m.meta_mensal);
+                    // Faturamento individual no mês
+                    let fatVend = 0;
+                    allFaturados.forEach(f => {
+                        const d = parseDataBR(f['Data']);
+                        if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes && String(f['Cod. Vendedor'] || '').trim() === id) {
+                            fatVend += cleanNumber(f['Valor Mercadoria']);
+                        }
+                    });
+
+                    // Meta Mensal Individual
+                    if (metaM > 0 && fatVend >= metaM) {
+                        conquistas.push({
+                            nome: `Meta Mensal: ${VENDEDORES_MAP[id] || nome}`,
+                            meta: metaM,
+                            realizado: fatVend,
+                            perc: (fatVend / metaM) * 100,
+                            chave: `meta_vend_mensal_${id}_${anoMes}`
+                        });
+                    }
+                    // Meta Plus Individual (+10%)
+                    const metaPlus = metaM * 1.1;
+                    if (metaPlus > 0 && fatVend >= metaPlus) {
+                        conquistas.push({
+                            nome: `Meta Plus (+10%): ${VENDEDORES_MAP[id] || nome}`,
+                            meta: metaPlus,
+                            realizado: fatVend,
+                            perc: (fatVend / metaPlus) * 100,
+                            chave: `meta_vend_plus_${id}_${anoMes}`
+                        });
+                    }
+
+                    // Meta Semestral Individual
+                    const metaSem = cleanNumber(m.meta_semestral);
+                    if (metaSem > 0) {
+                        let fatSem = 0;
+                        for (let mm = inicioSem; mm <= mes; mm++) {
+                            const fatMap = getFaturamentoPorVendedorMes(ano, mm, id);
+                            fatSem += Object.values(fatMap).reduce((s, v) => s + v, 0);
+                        }
+                        if (fatSem >= metaSem) {
+                            conquistas.push({
+                                nome: `Meta Semestral: ${VENDEDORES_MAP[id] || nome}`,
+                                meta: metaSem,
+                                realizado: fatSem,
+                                perc: (fatSem / metaSem) * 100,
+                                chave: `meta_vend_semestral_${id}_${ano}_S${semestre}`
+                            });
+                        }
+                    }
+
+                    // Meta Anual Individual
+                    const metaAnoInd = cleanNumber(m.meta_anual);
+                    if (metaAnoInd > 0) {
+                        let fatAnoInd = 0;
+                        for (let mm = 1; mm <= 12; mm++) {
+                            const fatMap = getFaturamentoPorVendedorMes(ano, mm, id);
+                            fatAnoInd += Object.values(fatMap).reduce((s, v) => s + v, 0);
+                        }
+                        if (fatAnoInd >= metaAnoInd) {
+                            conquistas.push({
+                                nome: `Meta Anual: ${VENDEDORES_MAP[id] || nome}`,
+                                meta: metaAnoInd,
+                                realizado: fatAnoInd,
+                                perc: (fatAnoInd / metaAnoInd) * 100,
+                                chave: `meta_vend_anual_${id}_${ano}`
+                            });
+                        }
+                    }
+                });
+
+                // 5) Campanhas Especiais (já capturadas)
+                if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+                    window._campanhaDetalhes.forEach(d => {
+                        if (d.perc >= 99.99) {
+                            conquistas.push({
+                                nome: `Campanha ${d.nomeCampanha}: ${d.nome}`,
+                                meta: d.metaTotal,
+                                realizado: d.realizadoTotal,
+                                perc: d.perc,
+                                chave: `campanha_${d.cod}_${d.nomeCampanha.replace(/\s+/g,'_')}`
+                            });
+                        }
+                    });
+                }
+
+                // Se houver conquistas, mostrar celebração
+                if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
+            }
 
             function refreshAll() {
                 renderKPI(); renderRecentOrders(); populateMonthSelectors(); updateCharts();
