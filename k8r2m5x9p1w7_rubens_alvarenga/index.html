@@ -1842,6 +1842,57 @@
 }
         
         
+        /* ===== ESTILOS PARA O POPUP DE CELEBRAÇÃO AGRUPADO ===== */
+.celebracao-group {
+    margin-bottom: 16px;
+    background: rgba(255, 255, 255, 0.5);
+    border-radius: 12px;
+    padding: 8px 12px;
+}
+.celebracao-group:last-child {
+    margin-bottom: 0;
+}
+.celebracao-group-title {
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: var(--primary);
+    padding: 6px 0 4px 0;
+    border-bottom: 2px solid rgba(30, 58, 95, 0.2);
+    margin-bottom: 8px;
+}
+.celebracao-group-items {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.celebracao-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 4px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+}
+.celebracao-item:last-child {
+    border-bottom: none;
+}
+.celebracao-item .item-nome {
+    color: var(--text-dark);
+    font-weight: 500;
+}
+.celebracao-item .item-valores {
+    color: var(--text-soft);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.7);
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+}
+        
+        
     </style>
 </head>
 <body>
@@ -2152,23 +2203,97 @@
                 }
             }
             function mostrarCelebracao(conquistas) {
-                if (!conquistas || conquistas.length === 0) return;
-                const celebradas = getMetasCelebradas();
-                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
-                if (novasConquistas.length === 0) return;
-                const body = document.getElementById('celebracao-body');
-                let listaHtml = '';
-                novasConquistas.forEach(c => {
-                    listaHtml += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatCurrency(c.realizado)} / ${formatCurrency(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`;
-                    adicionarMetaCelebrada(c.chave);
-                });
-                body.innerHTML = `<div class="trofeu">🏆</div><h2>Isso aí!</h2><p>As seguintes metas foram atingidas:</p><div class="lista-conquistas">${listaHtml}</div><p style="font-size:1.1rem;margin-top:10px;">Logo teremos mais! 🚀</p><button id="fechar-celebracao-btn">Fechar</button>`;
-                const modal = document.getElementById('celebracao-modal');
-                modal.classList.add('active');
-                dispararConfetes();
-                document.getElementById('fechar-celebracao-btn').addEventListener('click', () => modal.classList.remove('active'));
-                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
-            }
+    if (!conquistas || conquistas.length === 0) return;
+
+    const celebradas = getMetasCelebradas();
+    const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+    if (novasConquistas.length === 0) return;
+
+    // ===== FUNÇÃO PARA EXTRAIR O GRUPO (VENDEDOR) DE CADA CONQUISTA =====
+    function getGroupKey(item) {
+        const nome = item.nome;
+        // 1. Metas do Time (Dimas/Eduardo)
+        if (nome.includes('(Time)')) return '🏢 Time / Geral';
+        // 2. Metas do Fabiano
+        if (nome.includes('Fabiano')) return '🏭 Fabiano (Especiais)';
+        // 3. Metas Individuais (extrai o nome do vendedor após os dois pontos)
+        if (nome.includes(': ')) {
+            const partes = nome.split(': ');
+            const vendedor = partes[partes.length - 1];
+            return `👤 ${vendedor}`;
+        }
+        // 4. Campanhas (já vem com o nome do vendedor no final)
+        if (nome.includes('Campanha')) {
+            const partes = nome.split(': ');
+            const vendedor = partes[partes.length - 1] || 'Campanha';
+            return `🏆 ${vendedor}`;
+        }
+        return '📌 Outras Metas';
+    }
+
+    // ===== AGRUPAR AS CONQUISTAS =====
+    const grupos = {};
+    novasConquistas.forEach(item => {
+        const key = getGroupKey(item);
+        if (!grupos[key]) grupos[key] = [];
+        grupos[key].push(item);
+    });
+
+    // Ordenar os grupos: Time primeiro, depois Fabiano, depois os demais (ordem alfabética)
+    const ordemPrioridade = ['🏢 Time / Geral', '🏭 Fabiano (Especiais)'];
+    const keysOrdenadas = Object.keys(grupos).sort((a, b) => {
+        const posA = ordemPrioridade.indexOf(a);
+        const posB = ordemPrioridade.indexOf(b);
+        if (posA !== -1 && posB !== -1) return posA - posB;
+        if (posA !== -1) return -1;
+        if (posB !== -1) return 1;
+        return a.localeCompare(b);
+    });
+
+    // ===== MONTAR O HTML =====
+    const body = document.getElementById('celebracao-body');
+    let listaHtml = '';
+
+    keysOrdenadas.forEach(groupKey => {
+        const items = grupos[groupKey];
+        listaHtml += `<div class="celebracao-group">
+            <div class="celebracao-group-title">${groupKey}</div>
+            <div class="celebracao-group-items">`;
+
+        items.forEach(c => {
+            listaHtml += `<div class="celebracao-item">
+                <span class="item-nome"><strong>${c.nome}</strong></span>
+                <span class="item-valores">${formatCurrency(c.realizado)} / ${formatCurrency(c.meta)} (${c.perc.toFixed(1)}%)</span>
+            </div>`;
+        });
+
+        listaHtml += `</div></div>`;
+    });
+
+    // Monta o modal completo
+    body.innerHTML = `
+        <div class="trofeu">🏆</div>
+        <h2>Isso aí!</h2>
+        <p>As seguintes metas foram atingidas:</p>
+        <div class="lista-conquistas">${listaHtml}</div>
+        <p style="font-size:1.1rem;margin-top:10px;">Logo teremos mais! 🚀</p>
+        <button id="fechar-celebracao-btn">Fechar</button>
+    `;
+
+    const modal = document.getElementById('celebracao-modal');
+    modal.classList.add('active');
+    dispararConfetes();
+
+    document.getElementById('fechar-celebracao-btn').addEventListener('click', () => {
+        modal.classList.remove('active');
+    });
+    modal.addEventListener('click', function(e) {
+        if (e.target === modal) modal.classList.remove('active');
+    });
+
+    // Marcar as conquistas como celebradas
+    novasConquistas.forEach(c => adicionarMetaCelebrada(c.chave));
+}
 
             // ---------- FUNÇÕES DA CAMPANHA ----------
             function isCampaignActive(camp) {
