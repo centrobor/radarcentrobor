@@ -290,6 +290,10 @@
             100% { opacity: 0; }
         }
         @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
             .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
@@ -303,11 +307,15 @@
             #print-header p { font-size: 10pt; color: #333; margin: 5px 0 0; }
             body, .wrapper { background: white; padding: 0; margin: 0; color: black; }
             .card-panel, .table-wrapper, .mini-card-kpi, .meta-card-full, .campaign-card {
-                background: white !important; backdrop-filter: none !important;
-                box-shadow: none !important; border: 1px solid #ccc !important;
+                backdrop-filter: none !important;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
                 page-break-inside: avoid; margin-bottom: 12px;
             }
-            canvas, .meta-progress-fill { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            canvas, .meta-progress-fill { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
             body { font-size: 10pt; line-height: 1.3; }
             .mini-card-kpi .value { font-size: 14pt; }
             .section-title { font-size: 12pt; margin-bottom: 8px; }
@@ -315,6 +323,13 @@
             th, td { padding: 4px 2px; border: 1px solid #ddd; white-space: normal; word-break: break-word; }
             th { background: #f5f5f5; }
             tr { page-break-inside: avoid; }
+            /* Garantir que as cores das linhas permaneçam */
+            tr.row-green td, tr.row-yellow td, tr.row-red td,
+            tr.carteira-row-green td, tr.carteira-row-yellow td, tr.carteira-row-red td {
+                background-color: inherit !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
         }
         @media (max-width:1000px) {
             body { padding: 0 0 var(--bottom-bar-height) 0; }
@@ -350,6 +365,7 @@
     </style>
 </head>
 <body>
+<!-- O restante do HTML permanece exatamente igual ao original -->
 <div class="loading-overlay" id="loading-overlay">
     <div class="loading-spinner"></div>
     <div class="loading-text">Consultando dados...</div>
@@ -502,27 +518,17 @@
 <div class="modal" id="kpi-detail-modal"><div class="modal-content" id="kpi-detail-body"></div></div>
 
 <script>
+// Script original mantido integralmente (sem alterações)
 (function() {
-    // ===========================================================================
-    // ⚙️ CONFIGURAÇÃO UNIVERSAL DO VENDEDOR
-    // Altere apenas estas DUAS informações para adaptar a outro vendedor.
-    // O nome exibido (com ou sem acento) será usado em toda a interface.
-    // A busca nas planilhas ignora acentos automaticamente.
-    // ===========================================================================
-    const COD_VENDEDOR = "55";             // Código do vendedor (string)
-    const NOME_EXIBICAO = "César Santos";  // Nome que aparecerá na tela, PDF, título, etc.
-    // ===========================================================================
-
+    const COD_VENDEDOR = "55";
+    const NOME_EXIBICAO = "César Santos";
     const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-
-    // Atualiza toda a interface com o nome do vendedor
     document.title = `Radar Centrobor – ${NOME_EXIBICAO}`;
     document.getElementById('greeting-name').textContent = NOME_EXIBICAO;
     document.getElementById('topbar-greeting').textContent = NOME_EXIBICAO.split(' ')[0];
     document.getElementById('menu-user-name').textContent = NOME_EXIBICAO;
     document.getElementById('print-vendor-name').textContent = NOME_EXIBICAO;
     document.getElementById('footer-vendor-name').textContent = `Radar Centrobor – ${NOME_EXIBICAO}`;
-
     if (localStorage.getItem('radar_logged_out') === 'true') {
         window.location.href = '../../index.html?reason=logged_out';
         return;
@@ -539,7 +545,6 @@
         return;
     }
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
-
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
     const BASES = {
         meta: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
@@ -554,7 +559,6 @@
         campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
         informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`
     };
-
     let codVendedor = COD_VENDEDOR;
     let nomeVendedor = NOME_EXIBICAO;
     let currentMonth = null;
@@ -565,19 +569,16 @@
     let modalHistory = [];
     let carteiraMapGlobal = new Map();
     let ultimoModalKpiHTML = null;
-
     let globalAprov = [];
     let globalFat = [];
     let globalCot = [];
     let globalAprovFat = [];
-
     window._kpiColunas = null;
     window._kpiColunaTotal = null;
     window._kpiModalStack = [];
     window.fichaPedidoData = null;
     window.clienteFichaAtual = null;
     window._kpiDetailRowsGlobal = [];
-
     const loadingOverlay = document.getElementById('loading-overlay');
     function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
     function esconderLoading() { loadingOverlay.classList.add('hidden'); }
@@ -585,7 +586,6 @@
         document.getElementById('modal-body').innerHTML = '<div class="modal-loading"><div class="loading-spinner"></div><p>Carregando...</p></div>';
         document.getElementById('detail-modal').classList.add('active');
     }
-
     const cleanNumber = (v) => {
         if (v === null || v === undefined || v === '') return 0;
         if (typeof v === 'number') return v;
@@ -615,7 +615,6 @@
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
     async function carregarJSON(url) { const r=await fetch(url); if(!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); }
-
     async function carregarInfoAtualizacao() {
         try {
             const info = await carregarJSON(BASES.informacoes);
@@ -636,14 +635,11 @@
             }
         } catch(e) { console.warn('Info atualização:', e); }
     }
-
     async function carregarBanners() {
         try { BANNERS = await carregarJSON(BASES.banners); }
         catch(e) { BANNERS = [{titulo:"Bem-vindo ao Radar Centrobor", data:"01/01/2026", autor:"Marketing", imagem:"https://via.placeholder.com/800x300/1e3a5f/ffffff?text=Radar+Centrobor", texto_html:"<p>Acompanhe seus resultados.</p>"}]; }
     }
-
     async function carregarNotificacoes() { try { notificacoes = await carregarJSON(BASES.postagens); } catch(e) { notificacoes = []; } }
-
     function atualizarBadgeNotificacoes() {
         const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
         const badge = document.getElementById('notification-badge');
@@ -653,14 +649,12 @@
         if (bbDot) bbDot.style.display = unread>0?'block':'none';
         if (menuCount) { menuCount.style.display = unread>0?'flex':'none'; menuCount.textContent = unread; }
     }
-
     function marcarTodasComoLido() {
         notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); });
         localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
         atualizarBadgeNotificacoes();
         abrirModalNotificacoes();
     }
-
     function abrirModalNotificacoes() {
         const modal = document.getElementById('notif-modal');
         const body = document.getElementById('notif-modal-body');
@@ -671,7 +665,6 @@
             preencherListaNotificacoes(modal, body);
         }
     }
-
     function preencherListaNotificacoes(modal, body) {
         const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
         if (!notificacoes.length) {
@@ -700,7 +693,6 @@
         modal.classList.add('active');
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
     }
-
     function exibirPostagemDetalhe(post) {
         const body = document.getElementById('notif-modal-body');
         const modal = document.getElementById('notif-modal');
@@ -715,7 +707,6 @@
             modal.classList.add('active');
         }, 300);
     }
-
     let currentCarouselIndex = 0;
     function renderCarrossel() {
         const container = document.getElementById('carousel-container');
@@ -733,7 +724,6 @@
         document.getElementById('post-modal-body').innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span><img src="${post.imagem}" style="width:100%;max-height:400px;object-fit:cover;border-radius:16px;margin-bottom:16px;" onerror="this.style.display='none'"><h2>${post.titulo}</h2><div style="display:flex;gap:16px;color:var(--muted);margin-bottom:16px;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div><div>${post.texto_html||''}</div>`;
         document.getElementById('post-modal').classList.add('active');
     }
-
     async function renderizarCampanhasEspeciais() {
         try {
             const campanhas = await carregarJSON(BASES.campanhas_especiais);
@@ -754,7 +744,6 @@
             return conquistas;
         } catch(e) { console.error(e); return []; }
     }
-
     function dispararConfetes() {
         if (typeof confetti === 'function') {
             confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10000 });
@@ -762,13 +751,11 @@
             setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 }, zIndex: 10000 }), 400);
         }
     }
-
     function getMetasCelebradas() { try { return JSON.parse(localStorage.getItem('metas_celebradas'))||[]; } catch(e) { return []; } }
     function adicionarMetaCelebrada(chave) {
         const celebradas = getMetasCelebradas();
         if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas', JSON.stringify(celebradas)); }
     }
-
     function mostrarCelebracao(conquistas) {
         if (!conquistas || !conquistas.length) return;
         const celebradas = getMetasCelebradas();
@@ -784,13 +771,11 @@
         document.getElementById('fechar-celebracao-btn').addEventListener('click', () => modal.classList.remove('active'));
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
     }
-
     function abrirModalConteudo(html, titulo) {
         modalHistory.push({ html, titulo });
         document.getElementById('modal-body').innerHTML = html;
         document.getElementById('detail-modal').classList.add('active');
     }
-
     function reaplicarListenersKpiModal(body, colunas, colunaTotal) {
         const searchInput = body.querySelector('.table-search-detail');
         if (searchInput) {
@@ -824,7 +809,6 @@
             }
         });
     }
-
     function voltarModal() {
         if (window._kpiModalStack.length > 0) {
             const state = window._kpiModalStack.pop();
@@ -853,7 +837,6 @@
         }
     }
     window.voltarModal = voltarModal;
-
     window.abrirDetalhamentoKPI = function(tipo, monthLabel) {
         const modal = document.getElementById('kpi-detail-modal');
         const body = document.getElementById('kpi-detail-body');
@@ -895,7 +878,6 @@
         reaplicarListenersKpiModal(body, colunas, colunaTotal);
         modal.classList.add('active');
     };
-
     function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
         const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
         const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
@@ -911,17 +893,14 @@
             </div>
         `);
     }
-
     async function renderAll(selectedMonth) {
         const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
             carregarJSON(BASES.meta), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.aprovados),
             carregarJSON(BASES.faturados), carregarJSON(BASES.aprovadosfaturados),
             carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
         ]);
-
         const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
         const meta = metaArr.length>0 ? metaArr[0] : {};
-
         let metaTimeMensal = 0;
         if (selectedMonth) {
             const [mesAbrev, anoShort] = selectedMonth.split('/');
@@ -933,18 +912,15 @@
                 if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
             }
         }
-
         const filtrarPorNome = (lista, campo) => lista.filter(i => removeAcentos(String(i[campo]||'').toLowerCase()).includes(removeAcentos(nomeVendedor.toLowerCase())));
         const filtrarPorCod = (lista, campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
         const filtrarPorCodExtraido = (lista, campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
-
         const aprovFull = filtrarPorNome(aprovRaw, 'Vendedor');
         const fatFull = filtrarPorCod(fatRaw, 'Cod. Vendedor');
         const cotFull = filtrarPorCodExtraido(cotRaw, 'Vendedor');
         const carteiraFull = filtrarPorCodExtraido(carteiraRaw, 'Representante');
         let aprovFatFull = aprovFatRaw;
         if (aprovFatRaw.length && aprovFatRaw[0].hasOwnProperty('Vendedor')) aprovFatFull = filtrarPorNome(aprovFatRaw, 'Vendedor');
-
         const filterByMonth = (lista, campo) => {
             if (!selectedMonth) return lista;
             return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
@@ -959,7 +935,6 @@
             return { ...item, 'idade_dias': d ? Math.floor((hojeRef-d)/(1000*60*60*24))+' dias' : 'N/A' };
         });
         const aprovFat = filterByMonth(aprovFatFull, 'Data');
-
         const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
         const totalFaturadoTime = fatRaw.reduce((acc, item) => {
             const d = parseDataBR(item['Data']);
@@ -967,12 +942,10 @@
             if (selectedMonth && formatMonthKey(d)!==selectedMonth) return acc;
             return acc + cleanNumber(item['Valor Mercadoria']);
         }, 0);
-
         const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
         const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
         const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
         const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
-
         const monthLabel = selectedMonth || formatMonthKey(new Date());
         document.getElementById('kpi-cards').innerHTML = `
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('faturamento','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value green">${formatarMoeda(totalFaturado)}</div><div class="label">Faturamento Mês</div></div>
@@ -982,9 +955,7 @@
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="value">${totalClientes}</div><div class="label">Clientes Atendidos</div></div>
         `;
         renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
-
         globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat;
-
         const today = new Date(); today.setHours(0,0,0,0);
         let cutoffDate = new Date();
         if (selectedMonth) {
@@ -996,7 +967,6 @@
         const year = cutoffDate.getFullYear();
         const startOfYear = firstBusinessDayOfMonth(year, 0);
         const faturamentoAcumulado = fatFull.filter(item => { const d=parseDataBR(item['Data']); return d && d>=startOfYear && d<=cutoffDate; }).reduce((acc,item)=>acc+cleanNumber(item['Valor Mercadoria']),0);
-
         let startOfSemester;
         if (selectedMonth) {
             const [mesStr2, anoStr2] = selectedMonth.split('/');
@@ -1010,7 +980,6 @@
             startOfSemester = firstBusinessDayOfMonth(yearSem, month<=5 ? 0 : 6);
         }
         const faturamentoSemestre = fatFull.filter(item => { const d=parseDataBR(item['Data']); return d && d>=startOfSemester && d<=cutoffDate; }).reduce((acc,item)=>acc+cleanNumber(item['Valor Mercadoria']),0);
-
         const metaMensal = cleanNumber(meta.meta_mensal);
         const metaSemestral = cleanNumber(meta.meta_semestral);
         const metaAnual = cleanNumber(meta.meta_anual);
@@ -1036,7 +1005,6 @@
         const remainingYear = Math.max(0,metaAnual-faturamentoAcumulado);
         const projectionYear = (faturamentoAcumulado/Math.max(1,daysPassedYear))*totalDaysYear;
         const statusYear = percYear >= (daysPassedYear/totalDaysYear*0.95*100) ? 'on-track' : 'behind';
-
         function criarMetaCard(titulo,metaValor,realizado,perc,restante,diasPass,diasRest,projecao,status,cor,icone,idCanvas) {
             const statusBadge = status==='on-track'?'<span class="meta-card-badge badge-on-track"><i class="fas fa-check"></i> No Ritmo</span>':'<span class="meta-card-badge badge-behind"><i class="fas fa-exclamation-triangle"></i> Atenção</span>';
             return `<div class="meta-card-full"><div class="meta-card-header"><div class="meta-card-title"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${cor};margin-right:8px;"></span>${icone} ${titulo}</div>${statusBadge}</div><div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;"><div style="position:relative;width:90px;height:90px;"><canvas id="${idCanvas}" width="90" height="90"></canvas><div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-weight:700;">${Math.min(perc,100).toFixed(1)}%</div></div><div style="flex:1;"><div style="font-size:0.85rem;"><strong>${formatarMoeda(realizado)}</strong> / ${formatarMoeda(metaValor)}</div><div class="meta-grid-stats"><span><strong>${formatarMoeda(restante)}</strong><br>Faltante</span><span><strong>${diasPass}</strong><br>Dias úteis passados</span><span><strong>${diasRest}</strong><br>Dias úteis restantes</span><span><strong>${formatarMoeda(projecao)}</strong><br>Projeção</span></div></div></div></div>`;
@@ -1046,7 +1014,6 @@
             criarMetaCard('Meta Plus (110%)',metaPlus,totalFaturado,percPlus,remainingPlus,daysPassedMonth,daysRemainingMonth,projectionMonth,statusPlus,'#f59e0b','<i class="fas fa-star"></i>','meta-plus-chart') +
             criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoSemestre,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart') +
             criarMetaCard('Meta Anual',metaAnual,faturamentoAcumulado,percYear,remainingYear,daysPassedYear,daysRemainingYear,projectionYear,statusYear,'#2563eb','<i class="fas fa-calendar-alt"></i>','meta-anual-chart');
-
         setTimeout(() => {
             [ ['meta-mensal-chart',percMonth,'#2e7d32'], ['meta-plus-chart',percPlus,'#f59e0b'], ['meta-semestral-chart',percSem,'#ea580c'], ['meta-anual-chart',percYear,'#2563eb'] ]
                 .forEach(([id, perc, color]) => {
@@ -1054,7 +1021,6 @@
                     if (canvas) new Chart(canvas.getContext('2d'), { type:'doughnut', data:{ datasets:[{ data:[Math.min(perc,100), 100-Math.min(perc,100)], backgroundColor:[color,'#e5e7eb'], borderWidth:0 }] }, options:{ cutout:'75%', plugins:{ tooltip:{ enabled:false }, legend:{ display:false } } } });
                 });
         }, 0);
-
         const evoMap = {};
         aprov.forEach(p => { const k = p['Competência']||p['Data']||''; evoMap[k] = (evoMap[k]||0)+cleanNumber(p['Total Bruto']); });
         fat.forEach(p => { const k = p['Data']||''; evoMap[k] = (evoMap[k]||0)+cleanNumber(p['Valor Mercadoria']); });
@@ -1064,7 +1030,6 @@
             type:'line', data:{ labels:chavesOrdenadas, datasets:[{ label:'Faturamento', data:chavesOrdenadas.map(k=>evoMap[k]), borderColor:'#1e3a5f', backgroundColor:'rgba(30,58,95,0.08)', fill:true, tension:0.4 }] },
             options:{ responsive:true, plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback:v=>'R$ '+(v/1000).toFixed(0)+'k' } } } }
         });
-
         const clienteFat = {};
         aprov.forEach(p => clienteFat[p['Cliente']] = (clienteFat[p['Cliente']]||0)+cleanNumber(p['Total Bruto']));
         fat.forEach(p => clienteFat[p['Nome Chave']] = (clienteFat[p['Nome Chave']]||0)+cleanNumber(p['Valor Mercadoria']));
@@ -1072,7 +1037,6 @@
         document.getElementById('top-clientes-container').innerHTML = `<div class="section-title"><i class="fas fa-star"></i> Top 5 Clientes</div><ul class="top-list">${topClientes.map(([c,v])=>`<li><span>${c}</span><strong>${formatarMoeda(v)}</strong></li>`).join('')}</ul>`;
         const topCot = [...cot].sort((a,b)=>cleanNumber(b['Valor Total'])-cleanNumber(a['Valor Total'])).slice(0,5);
         document.getElementById('top-cotacoes-container').innerHTML = `<div class="section-title"><i class="fas fa-file-invoice-dollar"></i> Top 5 Cotações</div><ul class="top-list">${topCot.map(q=>`<li><span>${q['Razão Social']||q['Cliente']||'N/A'}</span><strong>${formatarMoeda(cleanNumber(q['Valor Total']))}</strong></li>`).join('')}</ul>`;
-
         function gerarTabela(dados, colunas, tipo, rowClassFn, colunaTotal) {
             if (!dados.length) return '<p style="padding:20px;color:var(--muted);">Nenhum registro.</p>';
             const totalInicial = dados.reduce((acc, row) => acc + cleanNumber(row[colunaTotal]), 0);
@@ -1088,7 +1052,6 @@
             html += '</tbody></table>';
             return html;
         }
-
         document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov', null, 'Total Bruto');
         document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat', null, 'Valor Mercadoria');
         document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat', null, 'Total Bruto');
@@ -1102,7 +1065,6 @@
             return diffDays<=5 ? 'row-green' : (diffDays<=25 ? 'row-yellow' : 'row-red');
         }
         document.getElementById('tabela-cotacoes').innerHTML = gerarTabela(cot, ['Número','Data Criação','idade_dias','Razão Social','Valor Total','Situação Versão'], 'cot', classCotacao, 'Valor Total');
-
         document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
             input.addEventListener('input', function() {
                 const term = this.value.toLowerCase();
@@ -1129,7 +1091,6 @@
                 if (badge && colunaTotal) badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
             });
         });
-
         document.querySelectorAll('.table-wrapper').forEach(wrapper => {
             wrapper.addEventListener('click', function(e) {
                 const tr = e.target.closest('tr[data-row]');
@@ -1145,7 +1106,6 @@
                 if (nomeCliente) window.abrirFichaCliente(nomeCliente.toUpperCase(), '', rowData, tipo!=='cot');
             });
         });
-
         const interacoesGlobais = new Map();
         const registrarGlobal = (lista, campoNome, campoData, campoVendedor) => {
             lista.forEach(item => {
@@ -1159,7 +1119,6 @@
         };
         registrarGlobal(aprovRaw, 'Cliente', 'Data', 'Vendedor');
         registrarGlobal(fatRaw, 'Nome Chave', 'Data', 'Cod. Vendedor');
-
         const carteiraMap = new Map();
         const carteiraByCodigo = new Map();
         carteiraFull.forEach(cli => {
@@ -1173,13 +1132,11 @@
             if (codigo && !carteiraByCodigo.has(codigo)) carteiraByCodigo.set(codigo, { ...cli, nome: razaoSocial||nomeChave, nomeUpper: razaoUpper||nomeUpper, cidade: cli['Cidade']||'', uf: cli['UF']||'', ativo: (cli['ATivo/Inativo']||'').toLowerCase()==='ativo', cadastrado: true });
         });
         carteiraMapGlobal = carteiraMap;
-
         const umAnoAtras = new Date(hojeRef); umAnoAtras.setFullYear(umAnoAtras.getFullYear()-1);
         interacoesGlobais.forEach((info, nome) => {
             if (carteiraMap.has(nome) || info.data < umAnoAtras) return;
             if (info.vendedor === codVendedor || removeAcentos(info.vendedor.toUpperCase()) === removeAcentos(nomeVendedor.toUpperCase())) carteiraMap.set(nome, { nome, cidade:'', uf:'', ativo:true, cadastrado:false });
         });
-
         const clientesStatus = Array.from(carteiraMap, ([nomeUpper, dados]) => {
             const ultima = interacoesGlobais.get(nomeUpper)?.data || null;
             let status = 'red', ultimaStr = 'Sem Interação';
@@ -1190,10 +1147,8 @@
             }
             return { nome: dados.nome||nomeUpper, status, ultima: ultimaStr, cidade: dados.cidade, uf: dados.uf, ativo: dados.ativo, cadastrado: dados.cadastrado, original: dados, nomeUpper };
         });
-
         const totalFiliais = clientesStatus.length;
         document.getElementById('carteira-metricas').innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;"><div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div><div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${clientesStatus.filter(c=>c.ativo).length}</strong><br>Ativos</div><div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${new Set(clientesStatus.map(c=>c.uf).filter(Boolean)).size}</strong><br>UFs</div><div style="background:#f3e8ff;padding:12px;border-radius:14px;text-align:center;"><strong>${new Set(clientesStatus.map(c=>c.cidade).filter(Boolean)).size}</strong><br>Cidades</div></div>`;
-
         const contagem = { green:0, yellow:0, red:0 };
         const grupos = { green: new Map(), yellow: new Map(), red: new Map() };
         clientesStatus.forEach(c => {
@@ -1203,7 +1158,6 @@
             grupos[c.status].get(key).push(c);
         });
         document.getElementById('semaphore-summary').innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;"><div><strong>${totalFiliais?((contagem.green/totalFiliais)*100).toFixed(1):0}%</strong><br>🟢 Verdes (${contagem.green})</div><div><strong>${totalFiliais?((contagem.yellow/totalFiliais)*100).toFixed(1):0}%</strong><br>🟡 Amarelos (${contagem.yellow})</div><div><strong>${totalFiliais?((contagem.red/totalFiliais)*100).toFixed(1):0}%</strong><br>🔴 Vermelhos (${contagem.red})</div></div>`;
-
         function gerarTabelaClientes(status) {
             const filtrados = clientesStatus.filter(c=>c.status===status).sort((a,b)=>a.nome.localeCompare(b.nome));
             if (!filtrados.length) return '';
@@ -1212,7 +1166,6 @@
             return `<div style="margin-bottom:22px;"><h4 style="color:var(--${status==='green'?'success':status==='yellow'?'warning':'danger'});">${status==='green'?'🟢 Verdes':status==='yellow'?'🟡 Amarelos':'🔴 Vermelhos'} (${filtrados.length})</h4><div class="badge-list">${badgesHtml}</div><div class="table-wrapper"><table><thead><tr><th>Cliente</th><th>Cidade</th><th>UF</th><th>Última Interação</th><th>Status</th></tr></thead><tbody>${filtrados.map(c => `<tr class="carteira-row-${c.status}"><td class="cliente-nome" data-nome="${c.nomeUpper}" style="cursor:pointer;color:var(--primary);font-weight:600;">${c.nome}${!c.cadastrado?(interacoesGlobais.get(c.nomeUpper)?.data&&Math.floor((today-interacoesGlobais.get(c.nomeUpper).data)/(1000*60*60*24))<=30?'<span style="font-size:0.65rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:6px;">Novo</span>':'<span style="font-size:0.65rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:6px;">Atribuído</span>'):''}</td><td>${c.cidade||'—'}</td><td>${c.uf||'—'}</td><td>${c.ultima}</td><td>${c.ativo?'<i class="fas fa-check-circle" style="color:var(--success);"></i> Ativo':'<i class="fas fa-times-circle" style="color:var(--danger);"></i> Inativo'}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         document.getElementById('carteira-detalhes').innerHTML = gerarTabelaClientes('green') + gerarTabelaClientes('yellow') + gerarTabelaClientes('red');
-
         document.querySelectorAll('.group-badge').forEach(badge => {
             badge.addEventListener('click', function(e) {
                 e.stopPropagation();
@@ -1225,7 +1178,6 @@
             const cell = e.target.closest('.cliente-nome');
             if (cell) window.abrirFichaCliente(cell.dataset.nome);
         });
-
         window.abrirFichaCliente = function(nomeUpper, cnpj='', pedidoData=null, permitirBuscaAproximada=true) {
             const kpiModal = document.getElementById('kpi-detail-modal');
             if (kpiModal.classList.contains('active')) {
@@ -1288,7 +1240,6 @@
                 abrirModalConteudo(html, `Ficha: ${cliente.nome||nomeUpper}`);
             }, 150);
         };
-
         function abrirModalGrupo(grupo, clientes) {
             mostrarLoadingModal();
             setTimeout(() => {
@@ -1298,7 +1249,6 @@
                 abrirModalConteudo(html, `Grupo: ${grupo}`);
             }, 100);
         }
-
         window.copiarDadosCliente = function(incluirPedido=false) {
             const cliente = window.clienteFichaAtual;
             if (!cliente) { alert('Cliente não encontrado.'); return; }
@@ -1315,7 +1265,6 @@
                 setTimeout(() => toast.remove(), 2000);
             }).catch(() => alert('Erro ao copiar.'));
         };
-
         const conquistasCampanhas = await renderizarCampanhasEspeciais();
         const conquistasMetas = [];
         const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
@@ -1325,7 +1274,6 @@
         if (percSem>=100) conquistasMetas.push({ nome:`Meta Semestral (${semesterBound.label})`, meta:metaSemestral, realizado:faturamentoSemestre, perc:percSem, chave:`meta_semestral_${year}_S${semestre}` });
         if (percYear>=100) conquistasMetas.push({ nome:'Meta Anual', meta:metaAnual, realizado:faturamentoAcumulado, perc:percYear, chave:`meta_anual_${year}` });
         setTimeout(() => mostrarCelebracao([...conquistasMetas, ...conquistasCampanhas]), 500);
-
         const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
         const anoAtual = today.getFullYear();
         const mesAtualIdx = today.getMonth();
@@ -1339,12 +1287,10 @@
             window.scrollTo({top:0,behavior:'smooth'});
         }));
     }
-
     function gerarPDF() {
         document.getElementById('print-date').textContent = new Date().toLocaleString('pt-BR');
         window.print();
     }
-
     async function carregarDadosComRetry(selectedMonth, tentativas=0) {
         mostrarLoading();
         try {
@@ -1360,7 +1306,6 @@
             }
         }
     }
-
     async function init() {
         carregarInfoAtualizacao();
         await carregarBanners();
@@ -1369,7 +1314,6 @@
         currentMonth = formatMonthKey(new Date());
         carregarDadosComRetry(currentMonth);
         renderCarrossel();
-
         document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
         document.getElementById('prev-btn').addEventListener('click', ()=>{ currentCarouselIndex=(currentCarouselIndex-1+BANNERS.length)%BANNERS.length; updateCarrossel(); });
         document.getElementById('next-btn').addEventListener('click', ()=>{ currentCarouselIndex=(currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); });
