@@ -1223,6 +1223,33 @@
                     return d && d >= startOfYear && d <= cutoffDate;
                 }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
 
+                // ═══ CORREÇÃO: faturamento específico do semestre ═══
+                let startOfSemester;
+                if (selectedMonth) {
+                    const [mesStr2, anoStr2] = selectedMonth.split('/');
+                    const mesesMap2 = {jan:0,fev:1,mar:2,abr:3,mai:4,jun:5,jul:6,ago:7,set:8,out:9,nov:10,dez:11};
+                    const monthIdx2 = mesesMap2[mesStr2];
+                    const yearSem = 2000 + parseInt(anoStr2);
+                    if (monthIdx2 <= 5) {
+                        startOfSemester = firstBusinessDayOfMonth(yearSem, 0); // 1º semestre
+                    } else {
+                        startOfSemester = firstBusinessDayOfMonth(yearSem, 6); // 2º semestre
+                    }
+                } else {
+                    const yearSem = today.getFullYear();
+                    const month = today.getMonth();
+                    if (month <= 5) {
+                        startOfSemester = firstBusinessDayOfMonth(yearSem, 0);
+                    } else {
+                        startOfSemester = firstBusinessDayOfMonth(yearSem, 6);
+                    }
+                }
+
+                const faturamentoSemestre = fatFull.filter(item => {
+                    const d = parseDataBR(item['Data']);
+                    return d && d >= startOfSemester && d <= cutoffDate;
+                }).reduce((acc, item) => acc + cleanNumber(item['Valor Mercadoria']), 0);
+
                 const metaMensal = cleanNumber(meta.meta_mensal);
                 const metaSemestral = cleanNumber(meta.meta_semestral);
                 const metaAnual = cleanNumber(meta.meta_anual);
@@ -1242,9 +1269,9 @@
                 const daysPassedSem = businessDaysPassed(semesterBound.start);
                 const daysRemainingSem = businessDaysRemaining(semesterBound.end);
                 const totalDaysSem = totalBusinessDays(semesterBound.start,semesterBound.end);
-                const percSem = metaSemestral>0?(faturamentoAcumulado/metaSemestral)*100:0;
-                const remainingSem = Math.max(0,metaSemestral-faturamentoAcumulado);
-                const projectionSem = (faturamentoAcumulado/Math.max(1,daysPassedSem))*totalDaysSem;
+                const percSem = metaSemestral>0?(faturamentoSemestre/metaSemestral)*100:0;
+                const remainingSem = Math.max(0,metaSemestral-faturamentoSemestre);
+                const projectionSem = (faturamentoSemestre/Math.max(1,daysPassedSem))*totalDaysSem;
                 const statusSem = percSem >= (daysPassedSem/totalDaysSem*0.95*100) ? 'on-track' : 'behind';
                 const yearBound = getYearBoundaries();
                 const daysPassedYear = businessDaysPassed(yearBound.start);
@@ -1262,7 +1289,7 @@
                 let metasHTML = '';
                 metasHTML += criarMetaCard('Meta Mensal',metaMensal,totalFaturado,percMonth,remainingMonth,daysPassedMonth,daysRemainingMonth,projectionMonth,statusMonth,'#2e7d32','<i class="fas fa-calendar-check"></i>','meta-mensal-chart');
                 metasHTML += criarMetaCard('Meta Plus (110%)',metaPlus,totalFaturado,percPlus,remainingPlus,daysPassedMonth,daysRemainingMonth,projectionMonth,statusPlus,'#f59e0b','<i class="fas fa-star"></i>','meta-plus-chart');
-                metasHTML += criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoAcumulado,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart');
+                metasHTML += criarMetaCard(`Meta Semestral (${semesterBound.label})`,metaSemestral,faturamentoSemestre,percSem,remainingSem,daysPassedSem,daysRemainingSem,projectionSem,statusSem,'#ea580c','<i class="fas fa-calendar-week"></i>','meta-semestral-chart');
                 metasHTML += criarMetaCard('Meta Anual',metaAnual,faturamentoAcumulado,percYear,remainingYear,daysPassedYear,daysRemainingYear,projectionYear,statusYear,'#2563eb','<i class="fas fa-calendar-alt"></i>','meta-anual-chart');
                 document.getElementById('metas-container').innerHTML = metasHTML;
 
@@ -1788,7 +1815,7 @@
                 const semestre = today.getMonth() < 6 ? 1 : 2;
                 if (percMonth >= 100) conquistasMetas.push({ nome: 'Meta Mensal', meta: metaMensal, realizado: totalFaturado, perc: percMonth, chave: `meta_mensal_${anoMes}` });
                 if (percPlus >= 100) conquistasMetas.push({ nome: 'Meta Plus (110%)', meta: metaPlus, realizado: totalFaturado, perc: percPlus, chave: `meta_plus_${anoMes}` });
-                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoAcumulado, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
+                if (percSem >= 100) conquistasMetas.push({ nome: `Meta Semestral (${semesterBound.label})`, meta: metaSemestral, realizado: faturamentoSemestre, perc: percSem, chave: `meta_semestral_${year}_S${semestre}` });
                 if (percYear >= 100) conquistasMetas.push({ nome: 'Meta Anual', meta: metaAnual, realizado: faturamentoAcumulado, perc: percYear, chave: `meta_anual_${year}` });
                 const todasConquistas = [...conquistasMetas, ...conquistasCampanhas];
                 if (todasConquistas.length > 0) setTimeout(() => mostrarCelebracao(todasConquistas), 500);
