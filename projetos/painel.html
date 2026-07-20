@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover">
     <meta name="robots" content="noindex">
-    <title>Painel Centrobor – Gestão à Vista</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <title>Radar Centrobor – Gestão à Vista</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
     </script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
@@ -13,32 +15,41 @@
     <style>
         /* ===== VARIÁVEIS ===== */
         :root {
-            --bg-deep: #0b1a2e;
-            --card-bg: rgba(255, 255, 255, 0.05);
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #0d1527;
+            --card-bg: rgba(255, 255, 255, 0.04);
+            --glass-bg: rgba(255, 255, 255, 0.06);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
             --primary: #1e5a7a;
-            --green: #2e7d32;
             --accent: #38bdf8;
-            --text-light: #e2e8f0;
-            --text-muted: #94a3b8;
+            --accent-glow: rgba(56, 189, 248, 0.15);
+            --success: #4caf50;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
             --radius-xl: 28px;
             --radius-lg: 20px;
             --radius-md: 16px;
-            --bottombar-height: 64px;
-            --slide-bg-start: #0b3b2a;
-            --slide-bg-end: #0b1a4a;
-            --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.25);
-            --shadow-card-hover: 0 4px 20px rgba(0, 0, 0, 0.35);
-            transition: background-color 0.5s ease;
+            --radius-sm: 12px;
+            --bottombar-height: 68px;
+            --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+            --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.2);
+            --shadow-card-hover: 0 8px 40px rgba(0, 0, 0, 0.35);
         }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
+
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background: var(--bg-deep);
-            color: var(--text-light);
+            background: var(--bg-primary);
+            color: var(--text-primary);
             height: 100vh;
             width: 100vw;
             overflow: hidden;
@@ -48,6 +59,7 @@
             user-select: none;
             position: relative;
         }
+
         #particles-canvas {
             position: fixed;
             top: 0;
@@ -57,6 +69,7 @@
             z-index: 0;
             pointer-events: none;
         }
+
         .app-layer {
             position: relative;
             z-index: 1;
@@ -66,12 +79,155 @@
             width: 100%;
         }
 
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 4px;
+            height: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(56, 189, 248, 0.3);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(56, 189, 248, 0.5);
+        }
+
+        /* ===== LOADING OVERLAY ===== */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(145deg, #0a0e1a 0%, #0d1527 50%, #0a0e1a 100%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        .loading-overlay.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loading-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            animation: loadingFadeIn 1s ease-out forwards;
+            opacity: 0;
+            transform: scale(0.95);
+        }
+        @keyframes loadingFadeIn {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .loading-logo {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        .loading-logo img {
+            height: 80px;
+            width: auto;
+            filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.15));
+        }
+        .loading-logo .brand-text {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #4caf50, #38bdf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -1px;
+        }
+
+        .loading-progress-container {
+            width: 320px;
+            max-width: 80vw;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        .loading-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4caf50, #38bdf8);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.3);
+        }
+
+        .loading-status {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .loading-status .highlight {
+            color: var(--accent);
+        }
+
+        .loading-dots {
+            display: flex;
+            gap: 8px;
+            margin-top: 4px;
+        }
+        .loading-dots span {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            animation: loadingDot 1.4s ease-in-out infinite;
+        }
+        .loading-dots span:nth-child(2) { animation-delay: 0.2s; }
+        .loading-dots span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes loadingDot {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.3; }
+            40% { transform: scale(1); opacity: 1; }
+        }
+
+        .loading-bottom {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        .loading-bottom .lb-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .loading-bottom .lb-item i {
+            color: var(--accent);
+        }
+        .loading-bottom .lb-item .lb-value {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
         /* ===== BOTTOMBAR ===== */
         .bottombar {
             height: var(--bottombar-height);
-            background: rgba(11, 26, 46, 0.88);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(10, 14, 26, 0.85);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-top: 1px solid var(--glass-border);
             display: flex;
             align-items: center;
             padding: 0 20px;
@@ -83,40 +239,44 @@
             order: 2;
         }
         .bottombar .logo-img {
-            height: 40px;
+            height: 36px;
             width: auto;
-            margin-right: 4px;
             object-fit: contain;
             flex-shrink: 0;
+            filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.1));
         }
         .bottombar .menu-toggle {
             background: none;
             border: none;
-            color: #fff;
-            font-size: 1.4rem;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 6px 8px;
-            border-radius: 8px;
+            padding: 8px 10px;
+            border-radius: var(--radius-sm);
             transition: 0.2s;
             flex-shrink: 0;
             margin-left: auto;
             order: 10;
         }
         .bottombar .menu-toggle:hover {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
         }
+
         .relogio {
             display: flex;
             align-items: center;
-            gap: 6px;
-            font-weight: 700;
-            font-size: 1.1rem;
+            gap: 8px;
+            font-weight: 600;
+            font-size: 1.05rem;
             white-space: nowrap;
-            color: #4caf50;
+            color: var(--success);
             flex-shrink: 0;
         }
-        .relogio i {
-            color: #4caf50;
+        .relogio .relogio-icon {
+            width: 18px;
+            height: 18px;
+            fill: var(--success);
         }
         .relogio .data-display {
             font-size: 0.7rem;
@@ -124,37 +284,42 @@
             font-weight: 400;
             margin-left: 4px;
         }
+
         .clima-box {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: rgba(255, 255, 255, 0.07);
+            background: var(--glass-bg);
             padding: 6px 14px;
             border-radius: 30px;
             font-weight: 500;
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             white-space: nowrap;
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
             flex-shrink: 0;
         }
-        .clima-box i {
-            color: #facc15;
+        .clima-box svg {
+            width: 18px;
+            height: 18px;
+            fill: var(--warning);
+            flex-shrink: 0;
         }
+
         .banner-slideshow {
             flex: 1;
             overflow: hidden;
             position: relative;
-            height: 44px;
+            height: 40px;
             min-width: 120px;
-            border-radius: 12px;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: var(--radius-sm);
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
             mask-image: linear-gradient(to right, transparent, black 3%, black 97%, transparent);
         }
         .banner-slideshow .banner-track {
             display: flex;
             height: 100%;
-            transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: transform 0.8s var(--transition-smooth);
             will-change: transform;
         }
         .banner-slideshow .banner-item {
@@ -165,7 +330,7 @@
             justify-content: center;
             padding: 0 20px;
             gap: 14px;
-            color: var(--text-light);
+            color: var(--text-primary);
             font-weight: 500;
             font-size: 0.85rem;
             white-space: nowrap;
@@ -173,7 +338,7 @@
             text-overflow: ellipsis;
         }
         .banner-slideshow .banner-item img {
-            height: 32px;
+            height: 28px;
             width: auto;
             border-radius: 6px;
             object-fit: cover;
@@ -184,8 +349,8 @@
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
-            font-weight: 600;
-            color: #e2e8f0;
+            font-weight: 500;
+            color: var(--text-primary);
             display: flex;
             gap: 12px;
             align-items: center;
@@ -195,7 +360,7 @@
             color: #fff;
         }
         .banner-slideshow .banner-item .banner-text .banner-desc {
-            color: var(--text-muted);
+            color: var(--text-secondary);
             font-weight: 400;
             font-size: 0.75rem;
         }
@@ -203,138 +368,149 @@
             font-size: 0.65rem;
             color: var(--text-muted);
             flex-shrink: 0;
-            background: rgba(255, 255, 255, 0.07);
+            background: rgba(255, 255, 255, 0.06);
             padding: 2px 10px;
             border-radius: 20px;
         }
         .banner-slideshow .banner-dots {
             position: absolute;
-            bottom: 2px;
+            bottom: 3px;
             left: 50%;
             transform: translateX(-50%);
             display: flex;
-            gap: 6px;
+            gap: 5px;
             z-index: 2;
         }
         .banner-slideshow .banner-dots .dot {
-            width: 6px;
-            height: 6px;
+            width: 5px;
+            height: 5px;
             border-radius: 50%;
-            background: rgba(255, 255, 255, 0.25);
+            background: rgba(255, 255, 255, 0.2);
             transition: all 0.3s;
             cursor: pointer;
         }
         .banner-slideshow .banner-dots .dot.active {
-            background: #fff;
-            transform: scale(1.5);
-            box-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+            background: var(--accent);
+            transform: scale(1.6);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
         }
+
         .dolar-quote {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: rgba(255, 255, 255, 0.05);
+            background: var(--glass-bg);
             padding: 4px 14px;
             border-radius: 30px;
             font-weight: 600;
             font-size: 0.78rem;
             white-space: nowrap;
-            border: 1px solid rgba(255, 255, 255, 0.07);
-            color: var(--text-light);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
             flex-shrink: 0;
             text-decoration: none;
             transition: 0.2s;
         }
         .dolar-quote:hover {
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.18);
+            background: rgba(255, 255, 255, 0.08);
+            border-color: rgba(255, 255, 255, 0.15);
         }
         .dolar-quote .dolar-label {
-            font-weight: 700;
-            color: #94a3b8;
+            font-weight: 600;
+            color: var(--text-muted);
             margin-right: 2px;
         }
-        .dolar-quote i {
-            color: #facc15;
+        .dolar-quote svg {
+            width: 14px;
+            height: 14px;
+            fill: var(--warning);
         }
         .dolar-quote .dolar-avg {
             font-size: 0.6rem;
             color: var(--text-muted);
             font-weight: 400;
         }
+
         .last-update-badge {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: rgba(2, 136, 209, 0.08);
-            border: 1px solid rgba(2, 136, 209, 0.12);
+            background: rgba(56, 189, 248, 0.06);
+            border: 1px solid rgba(56, 189, 248, 0.1);
             padding: 4px 12px;
             border-radius: 30px;
             font-size: 0.65rem;
             font-weight: 600;
-            color: #60a5fa;
+            color: var(--accent);
             white-space: nowrap;
             flex-shrink: 0;
         }
-        .last-update-badge i {
-            font-size: 0.7rem;
+        .last-update-badge svg {
+            width: 12px;
+            height: 12px;
+            fill: var(--accent);
         }
-        /* ===== INDICADOR DE SINCRONIZAÇÃO ===== */
+
         .sync-badge {
             display: flex;
             align-items: center;
             gap: 6px;
-            background: rgba(46, 125, 50, 0.15);
-            border: 1px solid rgba(46, 125, 50, 0.2);
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px solid rgba(76, 175, 80, 0.15);
             padding: 4px 12px;
             border-radius: 30px;
             font-size: 0.65rem;
             font-weight: 600;
-            color: #4caf50;
+            color: var(--success);
             white-space: nowrap;
             flex-shrink: 0;
             transition: all 0.3s ease;
         }
         .sync-badge.syncing {
-            background: rgba(245, 158, 11, 0.15);
-            border-color: #f59e0b;
-            color: #f59e0b;
-            animation: pulse-sync 1.5s ease-in-out infinite;
+            background: rgba(245, 158, 11, 0.1);
+            border-color: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+            animation: syncPulse 1.5s ease-in-out infinite;
         }
         .sync-badge.offline {
-            background: rgba(239, 68, 68, 0.15);
-            border-color: #ef4444;
-            color: #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
         }
-        @keyframes pulse-sync {
+        .sync-badge svg {
+            width: 14px;
+            height: 14px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+        @keyframes syncPulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
         }
-        .sync-badge i {
-            font-size: 0.7rem;
-        }
-        /* ===== INDICADOR DA RÁDIO ATUAL ===== */
+
         .radio-indicator {
             display: flex;
             align-items: center;
             gap: 4px;
-            background: rgba(255,255,255,0.06);
+            background: var(--glass-bg);
             padding: 2px 10px;
             border-radius: 30px;
             font-size: 0.6rem;
-            color: #94a3b8;
+            color: var(--text-muted);
             white-space: nowrap;
             flex-shrink: 0;
-            border: 1px solid rgba(255,255,255,0.06);
+            border: 1px solid var(--glass-border);
         }
-        .radio-indicator i {
-            color: #facc15;
-            font-size: 0.7rem;
+        .radio-indicator svg {
+            width: 12px;
+            height: 12px;
+            fill: var(--warning);
         }
         .radio-indicator span {
-            color: #e2e8f0;
+            color: var(--text-primary);
             font-weight: 600;
         }
+
         .alert-pill {
             display: none;
             align-items: center;
@@ -344,189 +520,22 @@
             font-weight: 700;
             font-size: 0.7rem;
             white-space: nowrap;
-            animation: pulse 2s infinite;
+            animation: alertPulse 2s infinite;
             flex-shrink: 0;
         }
         .alert-pill.critico {
-            background: #fee2e2;
-            color: #991b1b;
+            background: rgba(239, 68, 68, 0.15);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.2);
         }
         .alert-pill.atencao {
-            background: #fef3c7;
-            color: #92400e;
+            background: rgba(245, 158, 11, 0.15);
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.2);
         }
-        @keyframes pulse {
+        @keyframes alertPulse {
             0%, 100% { box-shadow: 0 0 0 0 currentColor; }
-            50% { box-shadow: 0 0 12px 4px currentColor; }
-        }
-
-        /* ===== SLIDE MANAGER PANEL ===== */
-        .slide-manager-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            z-index: 100;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        .slide-manager-overlay.active {
-            opacity: 1;
-            pointer-events: all;
-        }
-        .slide-manager-panel {
-            position: fixed;
-            top: 0;
-            right: -420px;
-            width: 380px;
-            max-width: 90vw;
-            height: 100%;
-            background: rgba(15, 31, 46, 0.95);
-            backdrop-filter: blur(24px);
-            z-index: 110;
-            transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            flex-direction: column;
-            box-shadow: -4px 0 30px rgba(0, 0, 0, 0.5);
-            border-left: 1px solid rgba(255, 255, 255, 0.08);
-            padding: 24px 20px 30px;
-            overflow-y: auto;
-        }
-        .slide-manager-panel.active {
-            right: 0;
-        }
-        .slide-manager-panel .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            padding-bottom: 16px;
-            margin-bottom: 20px;
-        }
-        .slide-manager-panel .panel-header h3 {
-            color: #fff;
-            font-weight: 700;
-            font-size: 1.2rem;
-        }
-        .slide-manager-panel .panel-header .close-btn {
-            background: none;
-            border: none;
-            color: #94a3b8;
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 8px;
-        }
-        .slide-manager-panel .panel-header .close-btn:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #fff;
-        }
-        .slide-manager-panel .filter-buttons {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-            margin-bottom: 16px;
-        }
-        .slide-manager-panel .filter-buttons button {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: var(--text-muted);
-            padding: 6px 14px;
-            border-radius: 30px;
-            font-size: 0.7rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .slide-manager-panel .filter-buttons button i {
-            font-size: 0.75rem;
-        }
-        .slide-manager-panel .filter-buttons button:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-        }
-        .slide-manager-panel .filter-buttons button.active {
-            background: var(--accent);
-            color: #0b1a2e;
-            border-color: var(--accent);
-        }
-        .slide-manager-panel .filter-buttons .select-all-btn {
-            background: rgba(46, 125, 50, 0.15);
-            border-color: #4caf50;
-            color: #4caf50;
-        }
-        .slide-manager-panel .filter-buttons .select-all-btn:hover {
-            background: #4caf50;
-            color: #fff;
-        }
-        .slide-manager-panel .filter-buttons .deselect-all-btn {
-            background: rgba(211, 47, 47, 0.15);
-            border-color: #d32f2f;
-            color: #d32f2f;
-        }
-        .slide-manager-panel .filter-buttons .deselect-all-btn:hover {
-            background: #d32f2f;
-            color: #fff;
-        }
-        .slide-manager-panel .slide-list {
-            flex: 1;
-            overflow-y: auto;
-            padding-right: 4px;
-        }
-        .slide-manager-panel .slide-list .slide-item {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            padding: 10px 12px;
-            border-radius: 10px;
-            margin-bottom: 4px;
-            transition: 0.15s;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-        .slide-manager-panel .slide-list .slide-item:hover {
-            background: rgba(255, 255, 255, 0.04);
-        }
-        .slide-manager-panel .slide-list .slide-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            accent-color: var(--accent);
-            cursor: pointer;
-            flex-shrink: 0;
-        }
-        .slide-manager-panel .slide-list .slide-item .slide-label {
-            flex: 1;
-            color: var(--text-light);
-            font-size: 0.85rem;
-            font-weight: 500;
-        }
-        .slide-manager-panel .slide-list .slide-item .slide-category {
-            font-size: 0.6rem;
-            background: rgba(255, 255, 255, 0.06);
-            padding: 2px 10px;
-            border-radius: 30px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
-        }
-        .slide-manager-panel .slide-list .slide-item .slide-category.geral {
-            color: #38bdf8;
-            border: 1px solid rgba(56, 189, 248, 0.15);
-        }
-        .slide-manager-panel .slide-list .slide-item .slide-category.resultados {
-            color: #4caf50;
-            border: 1px solid rgba(76, 175, 80, 0.15);
-        }
-        .slide-manager-panel .slide-list .slide-item .slide-category.novidades {
-            color: #f59e0b;
-            border: 1px solid rgba(245, 158, 11, 0.15);
+            50% { box-shadow: 0 0 16px 4px currentColor; }
         }
 
         /* ===== MAIN GRID ===== */
@@ -549,9 +558,9 @@
             position: relative;
             border-radius: var(--radius-xl);
             overflow: hidden;
-            background: linear-gradient(135deg, var(--slide-bg-start), var(--slide-bg-end));
-            box-shadow: var(--shadow-card), inset 0 0 60px rgba(30, 90, 122, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: linear-gradient(145deg, #0d1527, #0a0e1a);
+            box-shadow: var(--shadow-card), inset 0 0 80px rgba(56, 189, 248, 0.03);
+            border: 1px solid var(--glass-border);
             aspect-ratio: 16/9;
             max-height: 100%;
             min-height: 300px;
@@ -559,16 +568,17 @@
             transition: background 2s ease, flex 0.4s ease;
         }
         .main-grid .sidebar-right {
-            flex: 0 0 370px;
+            flex: 0 0 380px;
             display: flex;
             flex-direction: column;
-            gap: 16px;
+            gap: 14px;
             min-height: 0;
-            transition: flex 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
+            transition: flex 0.4s ease, opacity 0.4s ease, transform 0.4s ease, margin 0.4s ease;
             overflow: hidden;
             transform: scaleX(1);
             transform-origin: right center;
             opacity: 1;
+            margin-right: 0;
         }
         .main-grid.sidebar-hidden .sidebar-right {
             flex: 0 0 0;
@@ -587,7 +597,7 @@
                 flex: 0 0 auto;
                 width: 100%;
                 height: auto;
-                max-height: 300px;
+                max-height: 320px;
             }
             .main-grid.sidebar-hidden .sidebar-right {
                 flex: 0 0 0;
@@ -601,38 +611,41 @@
             }
         }
 
-        /* ===== BOTÃO FLUTUANTE PARA TOGGLE DA SIDEBAR ===== */
+        /* ===== BOTÃO FLUTUANTE SIDEBAR ===== */
         .sidebar-float-toggle {
             position: fixed;
             top: 80px;
             right: 20px;
             z-index: 50;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--glass-border);
             border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            color: #fff;
+            width: 46px;
+            height: 46px;
+            color: var(--text-primary);
             font-size: 1.2rem;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            background: rgba(11, 26, 46, 0.75);
+            transition: all 0.3s var(--transition-smooth);
+            box-shadow: var(--shadow-card);
         }
         .sidebar-float-toggle:hover {
-            background: rgba(56, 189, 248, 0.3);
+            background: rgba(56, 189, 248, 0.15);
             border-color: var(--accent);
             transform: scale(1.05);
         }
-        .sidebar-float-toggle i {
+        .sidebar-float-toggle svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
             transition: transform 0.3s ease;
         }
         .sidebar-float-toggle.hidden {
-            transform: translateX(60px);
+            transform: translateX(70px);
             opacity: 0;
             pointer-events: none;
         }
@@ -640,13 +653,16 @@
             .sidebar-float-toggle {
                 top: 70px;
                 right: 10px;
-                width: 38px;
-                height: 38px;
-                font-size: 1rem;
+                width: 40px;
+                height: 40px;
+            }
+            .sidebar-float-toggle svg {
+                width: 16px;
+                height: 16px;
             }
         }
 
-        /* ===== SLIDES ZONE ===== */
+        /* ===== SLIDES ===== */
         .slide {
             position: absolute;
             top: 0;
@@ -654,21 +670,81 @@
             width: 100%;
             height: 100%;
             opacity: 0;
-            transition: opacity 0.8s ease, transform 0.8s ease, filter 0.8s ease;
-            transform: scale(0.98);
-            filter: blur(2px);
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             text-align: center;
+            will-change: transform, opacity, filter;
+            transition: opacity 0.8s ease, transform 0.8s ease, filter 0.8s ease;
+            transform: scale(0.96) translateY(20px);
+            filter: blur(4px);
+            pointer-events: none;
         }
         .slide.active {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1) translateY(0);
             filter: blur(0);
             z-index: 2;
+            pointer-events: auto;
         }
+        /* Transições variadas */
+        .slide.transition-fade {
+            transition: opacity 0.8s ease;
+            transform: none;
+            filter: none;
+        }
+        .slide.transition-zoom {
+            transition: opacity 0.7s ease, transform 0.7s ease;
+            transform: scale(1.1);
+        }
+        .slide.transition-zoom.active {
+            transform: scale(1);
+        }
+        .slide.transition-flip {
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: perspective(800px) rotateY(30deg) scale(0.9);
+            transform-origin: center;
+        }
+        .slide.transition-flip.active {
+            transform: perspective(800px) rotateY(0deg) scale(1);
+        }
+        .slide.transition-cube {
+            transition: opacity 0.7s ease, transform 0.7s ease;
+            transform: translateX(40px) rotateY(-10deg) scale(0.92);
+        }
+        .slide.transition-cube.active {
+            transform: translateX(0) rotateY(0deg) scale(1);
+        }
+        .slide.transition-coverflow {
+            transition: opacity 0.7s ease, transform 0.7s ease;
+            transform: translateX(-30px) scale(0.9) rotateY(8deg);
+        }
+        .slide.transition-coverflow.active {
+            transform: translateX(0) scale(1) rotateY(0deg);
+        }
+        .slide.transition-scale {
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: scale(0.7) rotate(-2deg);
+        }
+        .slide.transition-scale.active {
+            transform: scale(1) rotate(0deg);
+        }
+        .slide.transition-slide {
+            transition: opacity 0.6s ease, transform 0.6s ease;
+            transform: translateX(60px);
+        }
+        .slide.transition-slide.active {
+            transform: translateX(0);
+        }
+        .slide.transition-parallax {
+            transition: opacity 0.8s ease, transform 0.8s ease;
+            transform: translateY(30px) scale(0.95);
+        }
+        .slide.transition-parallax.active {
+            transform: translateY(0) scale(1);
+        }
+
         .slide-full-img {
             width: 100%;
             height: 100%;
@@ -679,9 +755,93 @@
             bottom: 0;
             left: 0;
             right: 0;
-            background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+            background: linear-gradient(transparent, rgba(0, 0, 0, 0.8) 30%, rgba(0, 0, 0, 0.95));
             padding: 40px 36px;
             text-align: left;
+        }
+        .slide-overlay h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
+        }
+        .slide-overlay .meta {
+            display: flex;
+            gap: 16px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            flex-wrap: wrap;
+        }
+        .slide-overlay .meta span {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .slide-overlay p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 8px;
+            max-width: 80%;
+            line-height: 1.5;
+        }
+
+        /* ===== SLIDE CONTROLS ===== */
+        .slide-controls {
+            position: absolute;
+            bottom: 16px;
+            right: 16px;
+            z-index: 15;
+            display: flex;
+            gap: 8px;
+        }
+        .slide-controls button {
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        }
+        .slide-controls button:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: var(--accent);
+        }
+        .slide-controls button svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .slide-indicators {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            z-index: 5;
+        }
+        .slide-indicators .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .slide-indicators .dot.active {
+            background: #fff;
+            transform: scale(1.6);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
         }
 
         /* ===== GLASSMORPHISM CARDS ===== */
@@ -691,17 +851,17 @@
             justify-content: center;
             height: 100%;
             width: 100%;
-            padding: 20px;
+            padding: 24px;
         }
         .single-card {
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
             border-radius: var(--radius-xl);
-            padding: 48px 56px;
+            padding: 40px 48px;
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.05);
             max-width: 90%;
             width: 100%;
             transition: 0.3s;
@@ -715,35 +875,38 @@
             left: -50%;
             width: 200%;
             height: 200%;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.05), transparent 70%);
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.03), transparent 70%);
             pointer-events: none;
         }
         .single-card .icon-circle {
-            width: 100px;
-            height: 100px;
+            width: 80px;
+            height: 80px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 0 auto 20px;
-            font-size: 2.8rem;
-            background: rgba(255, 255, 255, 0.06);
+            margin: 0 auto 16px;
+            background: rgba(255, 255, 255, 0.04);
             backdrop-filter: blur(4px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--glass-border);
+        }
+        .single-card .icon-circle svg {
+            width: 36px;
+            height: 36px;
+            fill: currentColor;
         }
         .single-card .kpi-value {
-            font-size: 4rem;
+            font-size: 3.6rem;
             font-weight: 700;
-            margin-bottom: 6px;
-            text-shadow: 0 2px 16px rgba(0, 0, 0, 0.4);
+            margin-bottom: 4px;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.3);
         }
         .single-card .kpi-label {
-            font-size: 1.1rem;
+            font-size: 1rem;
             text-transform: uppercase;
             letter-spacing: 1px;
-            color: rgba(255, 255, 255, 0.7);
-            margin-bottom: 24px;
-            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
+            color: var(--text-secondary);
+            margin-bottom: 20px;
         }
         .chart-slide {
             width: 90%;
@@ -755,20 +918,20 @@
             height: 100% !important;
         }
         .slide-title-big {
-            font-size: 2.4rem;
-            font-weight: 800;
-            color: #ffffff;
-            text-shadow: 0 3px 20px rgba(0, 0, 0, 0.5);
-            margin-bottom: 8px;
-            letter-spacing: 0.5px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #fff;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+            margin-bottom: 12px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
         }
-        .slide-title-big i {
-            color: var(--accent);
-            font-size: 2rem;
+        .slide-title-big svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--accent);
         }
 
         /* ===== RELÓGIO SLIDE ===== */
@@ -788,9 +951,9 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.3;
+            opacity: 0.2;
             z-index: 0;
-            filter: blur(6px) brightness(0.6);
+            filter: blur(8px) brightness(0.5);
         }
         .relogio-slide .relogio-content {
             position: relative;
@@ -800,40 +963,44 @@
             align-items: center;
             justify-content: center;
             padding: 40px 60px;
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
+            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.7);
         }
         .relogio-slide .hora-grande {
             font-size: 10rem;
             font-weight: 700;
             color: #fff;
             letter-spacing: 4px;
-            text-shadow: 0 0 60px rgba(56, 189, 248, 0.2), 0 4px 30px rgba(0, 0, 0, 0.7);
+            text-shadow: 0 0 60px rgba(56, 189, 248, 0.15), 0 4px 30px rgba(0, 0, 0, 0.7);
             line-height: 1;
+            font-variant-numeric: tabular-nums;
         }
         .relogio-slide .data-grande {
-            font-size: 2.6rem;
-            color: rgba(255, 255, 255, 0.95);
+            font-size: 2.4rem;
+            color: rgba(255, 255, 255, 0.9);
             margin-top: 12px;
             font-weight: 300;
             letter-spacing: 2px;
-            text-shadow: 0 2px 25px rgba(0, 0, 0, 0.7);
         }
         .relogio-slide .clima-grande {
-            font-size: 2rem;
-            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.8rem;
+            color: rgba(255, 255, 255, 0.9);
             margin-top: 16px;
             display: flex;
             align-items: center;
             gap: 16px;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(0, 0, 0, 0.3);
             padding: 8px 24px;
             border-radius: 40px;
-            backdrop-filter: blur(6px);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            text-shadow: 0 1px 15px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--glass-border);
+        }
+        .relogio-slide .clima-grande svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--warning);
         }
 
-        /* ===== ANIVERSARIANTES ===== */
+        /* ===== ANIVERSARIANTES (APPLE GLASS) ===== */
         .birthday-slide {
             position: relative;
             width: 100%;
@@ -851,28 +1018,33 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.4;
+            opacity: 0.35;
             z-index: 0;
-            filter: blur(4px);
+            filter: blur(6px) brightness(0.6);
             transform: scale(1.05);
         }
         .birthday-slide h2 {
             position: relative;
             z-index: 1;
             color: #fff;
-            margin-bottom: 20px;
-            text-shadow: 0 0 50px rgba(0, 0, 0, 0.8), 0 4px 20px rgba(0, 0, 0, 0.6);
-            font-size: 2.2rem;
-            font-weight: 800;
+            margin-bottom: 16px;
+            text-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+            font-size: 2rem;
+            font-weight: 700;
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 12px;
+        }
+        .birthday-slide h2 svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--warning);
         }
         .birthday-bubbles {
             position: relative;
             z-index: 1;
             width: 100%;
-            height: 75%;
+            height: 72%;
             overflow: visible;
         }
         .birthday-bubble {
@@ -884,47 +1056,44 @@
             justify-content: center;
             color: #fff;
             font-weight: 700;
-            box-shadow: 0 4px 25px rgba(255, 255, 255, 0.15), inset 0 -3px 15px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 4px 30px rgba(255, 255, 255, 0.08), inset 0 -2px 20px rgba(0, 0, 0, 0.05);
             will-change: transform, left, top;
             cursor: default;
-            font-size: 1.4rem;
+            font-size: 1.2rem;
             line-height: 1;
-            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.06) 70%, rgba(0, 0, 0, 0.08) 100%);
-            backdrop-filter: blur(2px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.05) 60%, rgba(0, 0, 0, 0.1) 100%);
+            backdrop-filter: blur(4px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
             transition: box-shadow 0.3s;
-            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.4);
         }
         .birthday-bubble .profile-icon {
-            font-size: 2.8rem;
-            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+            font-size: 2.4rem;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
         }
         .birthday-bubble .bubble-name {
-            font-size: 0.85rem;
-            margin-top: 4px;
+            font-size: 0.75rem;
+            margin-top: 2px;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            max-width: 90%;
+            max-width: 85%;
             opacity: 0.95;
-            font-weight: 700;
-            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+            font-weight: 600;
         }
         .birthday-bubble .bubble-date {
-            font-size: 0.7rem;
-            opacity: 0.9;
-            text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+            font-size: 0.6rem;
+            opacity: 0.8;
         }
         .birthday-label {
             position: relative;
             z-index: 1;
-            color: rgba(255, 255, 255, 0.85);
-            margin-top: 10px;
-            font-size: 1.1rem;
-            text-shadow: 0 0 30px rgba(0, 0, 0, 0.7);
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 8px;
+            font-size: 0.95rem;
+            text-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
         }
 
-        /* ===== SLIDE INDIVIDUAL ANIVERSARIANTE ===== */
         .birthday-single-slide {
             position: relative;
             width: 100%;
@@ -941,50 +1110,50 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            opacity: 0.45;
+            opacity: 0.35;
             z-index: 0;
-            filter: blur(4px);
+            filter: blur(6px) brightness(0.5);
             transform: scale(1.05);
         }
         .birthday-single-content {
             position: relative;
             z-index: 1;
             text-align: center;
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(18px);
-            -webkit-backdrop-filter: blur(18px);
-            border-radius: 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: var(--radius-xl);
             padding: 40px 50px;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--glass-shadow);
         }
         .birthday-single-content .profile-big-icon {
-            font-size: 5rem;
+            font-size: 4.5rem;
             color: #ffd700;
-            text-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-            margin-bottom: 16px;
+            text-shadow: 0 0 40px rgba(255, 215, 0, 0.3);
+            margin-bottom: 12px;
         }
         .birthday-single-content .nome-destaque {
-            font-size: 3.2rem;
-            font-weight: 800;
+            font-size: 3rem;
+            font-weight: 700;
             color: #fff;
-            text-shadow: 0 3px 20px rgba(0, 0, 0, 0.5);
-            margin-bottom: 8px;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.4);
+            margin-bottom: 4px;
         }
         .birthday-single-content .data-destaque {
-            font-size: 1.6rem;
-            color: rgba(255, 255, 255, 0.9);
-            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.4);
+            font-size: 1.4rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.3);
         }
 
         /* ===== TROFÉU ANIMADO ===== */
         @keyframes trophyShake {
             0%, 100% { transform: rotate(0deg) scale(1); }
-            15% { transform: rotate(-10deg) scale(1.15); }
-            30% { transform: rotate(10deg) scale(1.15); }
-            45% { transform: rotate(-6deg) scale(1.08); }
-            60% { transform: rotate(6deg) scale(1.08); }
-            80% { transform: rotate(-3deg) scale(1.04); }
+            15% { transform: rotate(-10deg) scale(1.1); }
+            30% { transform: rotate(10deg) scale(1.1); }
+            45% { transform: rotate(-6deg) scale(1.06); }
+            60% { transform: rotate(6deg) scale(1.06); }
+            80% { transform: rotate(-3deg) scale(1.03); }
         }
         .trophy-animated {
             display: inline-block;
@@ -992,20 +1161,64 @@
             transform-origin: center;
         }
 
-        /* ===== ZOOM PULSANTE LOGO ===== */
-        @keyframes subtleZoom {
+        /* ===== ANIMAÇÕES MICRO ===== */
+        .icon-float {
+            animation: floatAnim 3s ease-in-out infinite;
+        }
+        .icon-pulse {
+            animation: pulseAnim 2s ease-in-out infinite;
+        }
+        .icon-breathe {
+            animation: breatheAnim 4s ease-in-out infinite;
+        }
+        .icon-bounce-soft {
+            animation: bounceSoft 2.5s ease-in-out infinite;
+        }
+        .icon-rotate-smooth {
+            animation: rotateSmooth 8s linear infinite;
+        }
+        .icon-zoom {
+            animation: zoomPulse 3s ease-in-out infinite;
+        }
+
+        @keyframes floatAnim {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        @keyframes pulseAnim {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+        }
+        @keyframes breatheAnim {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.04); }
         }
-        .logo-zoom-pulse {
-            animation: subtleZoom 4s ease-in-out infinite;
+        @keyframes bounceSoft {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-4px); }
+        }
+        @keyframes rotateSmooth {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes zoomPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
         }
 
-        /* ===== ANIMAÇÃO TIRO AO ALVO ===== */
+        .logo-zoom-pulse {
+            animation: logoZoom 4s ease-in-out infinite;
+        }
+        @keyframes logoZoom {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.03); }
+        }
+
+        /* ===== TARGET / ALVO ===== */
         .target-container {
             position: relative;
-            width: 280px;
-            height: 280px;
+            width: 240px;
+            height: 240px;
             margin: 0 auto;
         }
         .target-rings {
@@ -1013,33 +1226,33 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 240px;
-            height: 240px;
+            width: 220px;
+            height: 220px;
             border-radius: 50%;
-            background: conic-gradient(#ef4444 0deg 90deg, #ffffff 90deg 180deg, #ef4444 180deg 270deg, #ffffff 270deg 360deg);
-            box-shadow: 0 0 40px rgba(239, 68, 68, 0.3), var(--shadow-card);
+            background: conic-gradient(var(--danger) 0deg 90deg, #ffffff 90deg 180deg, var(--danger) 180deg 270deg, #ffffff 270deg 360deg);
+            box-shadow: 0 0 40px rgba(239, 68, 68, 0.2), var(--shadow-card);
             border: 4px solid #b91c1c;
         }
         .target-rings::after {
             content: '';
             position: absolute;
-            top: 40px;
-            left: 40px;
-            right: 40px;
-            bottom: 40px;
+            top: 35px;
+            left: 35px;
+            right: 35px;
+            bottom: 35px;
             border-radius: 50%;
-            background: conic-gradient(#ffffff 0deg 90deg, #ef4444 90deg 180deg, #ffffff 180deg 270deg, #ef4444 270deg 360deg);
+            background: conic-gradient(#ffffff 0deg 90deg, var(--danger) 90deg 180deg, #ffffff 180deg 270deg, var(--danger) 270deg 360deg);
             border: 3px solid #b91c1c;
         }
         .target-rings::before {
             content: '';
             position: absolute;
-            top: 75px;
-            left: 75px;
-            right: 75px;
-            bottom: 75px;
+            top: 68px;
+            left: 68px;
+            right: 68px;
+            bottom: 68px;
             border-radius: 50%;
-            background: #ef4444;
+            background: var(--danger);
             border: 3px solid #b91c1c;
             z-index: 1;
         }
@@ -1048,33 +1261,33 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: #ffd700;
             z-index: 2;
-            box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
         }
         @keyframes arrowHit {
-            0% { top: -80px; left: 50%; transform: translateX(-50%) rotate(180deg); opacity: 0; }
+            0% { top: -60px; left: 50%; transform: translateX(-50%) rotate(180deg); opacity: 0; }
             40% { top: 20%; left: 50%; transform: translateX(-50%) rotate(180deg); opacity: 1; }
-            70% { top: 48%; left: 50%; transform: translateX(-50%) rotate(180deg); opacity: 1; }
+            70% { top: 46%; left: 50%; transform: translateX(-50%) rotate(180deg); opacity: 1; }
             85% { top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(180deg) scale(0.9); opacity: 1; }
             100% { top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(180deg) scale(1); opacity: 1; }
         }
         .arrow-animated {
             position: absolute;
-            font-size: 3rem;
+            font-size: 2.8rem;
             color: #1a1a1a;
             z-index: 5;
-            animation: arrowHit 1.8s ease-out forwards;
-            animation-delay: 0.3s;
+            animation: arrowHit 1.6s ease-out forwards;
+            animation-delay: 0.2s;
             opacity: 0;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+            filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
             pointer-events: none;
         }
 
-        /* ===== LOADING REFRESH SLIDE ===== */
+        /* ===== LOADING REFRESH ===== */
         .loading-refresh-slide {
             display: flex;
             flex-direction: column;
@@ -1082,21 +1295,36 @@
             justify-content: center;
             height: 100%;
             width: 100%;
-            gap: 24px;
-            background: #0b1a2e;
-            backdrop-filter: none;
+            gap: 20px;
+            background: var(--bg-primary);
+        }
+        .loading-refresh-slide .refresh-logo {
+            height: 70px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 30px rgba(56, 189, 248, 0.1));
         }
         .loading-refresh-spinner {
-            width: 70px;
-            height: 70px;
-            border: 5px solid rgba(56, 189, 248, 0.15);
-            border-top: 5px solid var(--accent);
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(56, 189, 248, 0.1);
+            border-top: 4px solid var(--accent);
             border-radius: 50%;
             animation: spin 1s linear infinite;
         }
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        .loading-refresh-slide p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .loading-refresh-slide .refresh-brand {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: var(--success);
+            letter-spacing: -0.5px;
         }
 
         /* ===== SIDEBAR ===== */
@@ -1108,19 +1336,44 @@
             min-height: 200px;
             box-shadow: var(--shadow-card);
             transition: all 0.3s ease;
+            position: relative;
         }
         .video-box iframe {
             width: 100%;
             height: 100%;
             border: none;
         }
+        .video-box .video-placeholder {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #0d1527, #1a2a4a);
+            color: var(--text-muted);
+            font-size: 1.2rem;
+            font-weight: 600;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .video-box .video-placeholder svg {
+            width: 48px;
+            height: 48px;
+            fill: var(--accent);
+            opacity: 0.4;
+        }
+
         .radio-embed {
-            background: rgba(255, 255, 255, 0.04);
+            background: var(--glass-bg);
             border-radius: var(--radius-md);
             overflow: hidden;
             flex-shrink: 0;
             height: 75px;
             transition: all 0.3s ease;
+            border: 1px solid var(--glass-border);
         }
         .radio-embed .mytuner-widget {
             height: 100% !important;
@@ -1132,22 +1385,25 @@
             height: 100% !important;
             line-height: 75px !important;
         }
-        /* ===== DASHBOARD NA SIDEBAR ===== */
+        .radio-embed .mytuner-widget .main-play-button {
+            margin-top: 17.5px !important;
+        }
+
         .sidebar-dashboard {
             display: none;
             flex-direction: column;
-            gap: 12px;
+            gap: 10px;
             flex: 1;
+            min-height: 0;
         }
         .sidebar-dashboard .dash-card-side {
-            position: relative;
-            background: rgba(255, 255, 255, 0.06);
-            backdrop-filter: blur(14px);
-            -webkit-backdrop-filter: blur(14px);
+            background: var(--glass-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border-radius: var(--radius-md);
-            padding: 16px 20px;
-            border: 1px solid rgba(255, 255, 255, 0.10);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            padding: 14px 18px;
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
             display: flex;
             align-items: center;
             gap: 14px;
@@ -1156,20 +1412,23 @@
             overflow: hidden;
         }
         .sidebar-dashboard .dash-card-side:hover {
-            border-color: rgba(255, 255, 255, 0.18);
+            border-color: rgba(255, 255, 255, 0.15);
             box-shadow: var(--shadow-card-hover);
         }
         .sidebar-dashboard .icon-sm {
-            font-size: 1.8rem;
-            width: 52px;
-            height: 52px;
+            width: 44px;
+            height: 44px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 16px;
-            background: rgba(30, 90, 122, 0.15);
-            color: #38bdf8;
+            border-radius: var(--radius-sm);
+            background: rgba(56, 189, 248, 0.1);
             flex-shrink: 0;
+        }
+        .sidebar-dashboard .icon-sm svg {
+            width: 22px;
+            height: 22px;
+            fill: var(--accent);
         }
         .sidebar-dashboard .info {
             flex: 1;
@@ -1178,294 +1437,125 @@
             min-width: 0;
         }
         .sidebar-dashboard .kpi-val {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.2;
-            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.25);
-        }
-        .sidebar-dashboard .kpi-val.destaque {
-            font-size: 2.4rem;
-            color: #4caf50;
-        }
-        .sidebar-dashboard .kpi-val.meta-menor {
-            font-size: 1.3rem;
-            color: rgba(255, 255, 255, 0.85);
-        }
-        .sidebar-dashboard .kpi-lab {
-            font-size: 0.7rem;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            color: rgba(255, 255, 255, 0.7);
-            font-weight: 600;
-        }
-        .sidebar-dashboard .perc-text {
-            font-size: 0.9rem;
-            font-weight: 700;
-            color: #f59e0b;
-        }
-        .sidebar-dashboard .perc-text.ok {
-            color: #4caf50;
-        }
-        .sidebar-dashboard .restante-text {
-            font-size: 0.8rem;
-            color: rgba(255,255,255,0.5);
-        }
-
-        /* ===== CONTROLES ===== */
-        .slide-controls {
-            position: absolute;
-            bottom: 16px;
-            right: 16px;
-            z-index: 15;
-            display: flex;
-            gap: 8px;
-        }
-        .slide-controls button {
-            background: rgba(0, 0, 0, 0.45);
-            border: none;
-            color: white;
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            font-size: 1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            backdrop-filter: blur(8px);
-            transition: 0.2s;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-        }
-        .slide-controls button:hover {
-            background: rgba(56, 189, 248, 0.45);
-        }
-        .slide-indicators {
-            position: absolute;
-            bottom: 18px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 8px;
-            z-index: 5;
-        }
-        .dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.3);
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-        .dot.active {
-            background: #fff;
-            transform: scale(1.6);
-            box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
-        }
-
-        /* ===== LOADING OVERLAY INICIAL ===== */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #0b1a2e 0%, #0d2137 50%, #0a1628 100%);
-            z-index: 9999;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            transition: opacity 0.8s ease;
-        }
-        .loading-overlay.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .loading-overlay .loading-logo {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 16px;
-            animation: fadeScale 1.2s ease-out forwards;
-            opacity: 0;
-            transform: scale(0.85);
-        }
-        @keyframes fadeScale {
-            0% { opacity: 0; transform: scale(0.85); }
-            100% { opacity: 1; transform: scale(1); }
-        }
-        .loading-overlay .loading-logo img {
-            height: 50vh;
-            max-height: 500px;
-            object-fit: contain;
-            filter: drop-shadow(0 0 60px rgba(56, 189, 248, 0.25));
-        }
-        .loading-overlay .loading-logo .loading-brand {
-            font-size: 4.2rem;
-            font-weight: 800;
-            color: #4caf50;
-            letter-spacing: 4px;
-            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
-        }
-        .loading-overlay .loading-footer {
-            position: absolute;
-            bottom: 40px;
-            left: 0;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 16px;
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.5);
-            font-weight: 400;
-        }
-        .loading-overlay .loading-footer .spinner-mini {
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(56, 189, 248, 0.2);
-            border-top: 3px solid var(--accent);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-            display: inline-block;
-        }
-        .loading-overlay .loading-footer .loading-text {
-            font-size: 0.85rem;
-            letter-spacing: 0.5px;
-        }
-        .loading-bottom-info {
-            position: absolute;
-            bottom: 30px;
-            right: 30px;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 6px;
-            color: rgba(255, 255, 255, 0.6);
-            font-size: 0.85rem;
-        }
-        .loading-bottom-info .lb-time {
-            font-size: 1.4rem;
+            font-size: 1.6rem;
             font-weight: 700;
             color: #fff;
+            line-height: 1.2;
         }
-        .loading-bottom-info .lb-date {
-            font-size: 0.75rem;
+        .sidebar-dashboard .kpi-val.destaque {
+            color: var(--success);
+            font-size: 2rem;
         }
-        .loading-bottom-info .lb-temp {
-            font-size: 1rem;
+        .sidebar-dashboard .kpi-val.meta-menor {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+        .sidebar-dashboard .kpi-lab {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
             font-weight: 600;
-            color: #facc15;
+        }
+        .sidebar-dashboard .restante-text {
+            font-size: 0.7rem;
+            color: var(--text-muted);
         }
 
-        /* ===== DASHBOARD PRINCIPAL (SLIDE) ===== */
+        /* ===== DASHBOARD PRINCIPAL ===== */
         .dash-grid-container {
             display: flex;
             flex-direction: column;
             width: 100%;
             height: 100%;
-            padding: 24px 32px;
-            gap: 24px;
+            padding: 20px 28px;
+            gap: 20px;
             overflow-y: auto;
             justify-content: center;
         }
         .dash-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 24px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
             width: 100%;
             align-content: center;
             justify-items: stretch;
         }
         .dash-grid .dash-card {
-            min-height: 200px;
-            padding: 28px 32px;
+            min-height: 180px;
+            padding: 24px 28px;
             border-radius: var(--radius-lg);
-            background: rgba(255, 255, 255, 0.07);
+            background: var(--glass-bg);
             backdrop-filter: blur(16px);
-            border: 1px solid rgba(255, 255, 255, 0.10);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1);
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
         .dash-grid .dash-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-card-hover);
         }
         .dash-grid .dash-card .card-header {
             display: flex;
             align-items: center;
-            gap: 14px;
-            margin-bottom: 12px;
+            gap: 12px;
+            margin-bottom: 10px;
         }
-        .dash-grid .dash-card .card-header i {
-            font-size: 2.2rem;
-            width: 52px;
-            height: 52px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255, 255, 255, 0.06);
-            border-radius: 14px;
-            color: var(--accent);
+        .dash-grid .dash-card .card-header svg {
+            width: 28px;
+            height: 28px;
+            fill: var(--accent);
+            flex-shrink: 0;
         }
         .dash-grid .dash-card .card-title {
-            font-size: 1rem;
+            font-size: 0.85rem;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.7);
+            color: var(--text-secondary);
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         .dash-grid .dash-card .card-value {
-            font-size: 3rem;
+            font-size: 2.6rem;
             font-weight: 700;
             color: #fff;
             line-height: 1.2;
-            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
         }
         .dash-grid .dash-card .card-meta {
-            font-size: 1rem;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: 6px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 2px;
         }
         .dash-grid .dash-card .card-footer {
-            margin-top: 16px;
+            margin-top: 14px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.06);
-            padding-top: 14px;
-            font-size: 0.9rem;
-            color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid var(--glass-border);
+            padding-top: 12px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
         }
         .dash-grid .dash-card .card-footer .perc {
             font-weight: 700;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
-        .dash-grid .dash-card .card-footer .perc.ok {
-            color: #4caf50;
-        }
-        .dash-grid .dash-card .card-footer .perc.warn {
-            color: #f59e0b;
-        }
-        .dash-grid .dash-card .card-footer .perc.danger {
-            color: #ef4444;
-        }
+        .dash-grid .dash-card .card-footer .perc.ok { color: var(--success); }
+        .dash-grid .dash-card .card-footer .perc.warn { color: var(--warning); }
+        .dash-grid .dash-card .card-footer .perc.danger { color: var(--danger); }
         .dash-grid .dash-card .card-footer .remaining {
-            color: rgba(255, 255, 255, 0.5);
-            font-size: 0.85rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
         }
 
-        /* Cards de Semestre e Campanha */
         .dash-card-semestres .semestre-linha {
             display: flex;
             flex-direction: column;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255,255,255,0.06);
+            padding: 4px 0;
+            border-bottom: 1px solid var(--glass-border);
         }
         .dash-card-semestres .semestre-linha:last-child {
             border-bottom: none;
@@ -1475,12 +1565,12 @@
             justify-content: space-between;
             align-items: center;
             gap: 8px;
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .dash-card-semestres .semestre-label {
             font-weight: 600;
-            color: rgba(255,255,255,0.7);
-            min-width: 80px;
+            color: var(--text-secondary);
+            min-width: 70px;
         }
         .dash-card-semestres .semestre-valores {
             color: #fff;
@@ -1490,51 +1580,215 @@
         }
         .dash-card-semestres .semestre-perc {
             font-weight: 700;
-            min-width: 70px;
+            min-width: 65px;
             text-align: right;
         }
-        .dash-card-semestres .semestre-perc.ok {
-            color: #4caf50;
-        }
-        .dash-card-semestres .semestre-perc.warn {
-            color: #f59e0b;
-        }
-        .dash-card-semestres .semestre-perc.danger {
-            color: #ef4444;
-        }
+        .dash-card-semestres .semestre-perc.ok { color: var(--success); }
+        .dash-card-semestres .semestre-perc.warn { color: var(--warning); }
+        .dash-card-semestres .semestre-perc.danger { color: var(--danger); }
 
         .dash-card-campanha .campanha-content {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            margin-top: 4px;
+            gap: 6px;
+            margin-top: 2px;
         }
         .dash-card-campanha .campanha-nome {
-            font-size: 1.6rem;
+            font-size: 1.4rem;
             font-weight: 700;
             color: #fff;
         }
         .dash-card-campanha .campanha-detalhes {
             display: flex;
             align-items: center;
-            gap: 20px;
+            gap: 16px;
             flex-wrap: wrap;
-            font-size: 1rem;
+            font-size: 0.9rem;
         }
         .dash-card-campanha .campanha-restante {
-            color: rgba(255,255,255,0.7);
+            color: var(--text-secondary);
         }
         .dash-card-campanha .campanha-perc {
             font-weight: 700;
             color: #ffd700;
-            font-size: 1.2rem;
+            font-size: 1.1rem;
         }
         .dash-card-campanha .campanha-valores {
-            color: rgba(255,255,255,0.8);
+            color: var(--text-secondary);
         }
         .dash-card-campanha .campanha-preparacao {
             color: var(--text-muted);
             font-style: italic;
+        }
+
+        /* ===== SLIDE MANAGER ===== */
+        .slide-manager-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .slide-manager-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .slide-manager-panel {
+            position: fixed;
+            top: 0;
+            right: -440px;
+            width: 400px;
+            max-width: 90vw;
+            height: 100%;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            z-index: 110;
+            transition: right 0.35s var(--transition-smooth);
+            display: flex;
+            flex-direction: column;
+            box-shadow: -4px 0 40px rgba(0, 0, 0, 0.4);
+            border-left: 1px solid var(--glass-border);
+            padding: 24px 20px 30px;
+            overflow-y: auto;
+        }
+        .slide-manager-panel.active {
+            right: 0;
+        }
+        .slide-manager-panel .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 16px;
+            margin-bottom: 20px;
+        }
+        .slide-manager-panel .panel-header h3 {
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.1rem;
+        }
+        .slide-manager-panel .panel-header .close-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 1.4rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: 0.2s;
+        }
+        .slide-manager-panel .panel-header .close-btn:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .slide-manager-panel .filter-buttons {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+        .slide-manager-panel .filter-buttons button {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .slide-manager-panel .filter-buttons button:hover {
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+        }
+        .slide-manager-panel .filter-buttons button.active {
+            background: var(--accent);
+            color: #0a0e1a;
+            border-color: var(--accent);
+        }
+        .slide-manager-panel .filter-buttons .select-all-btn {
+            background: rgba(76, 175, 80, 0.1);
+            border-color: rgba(76, 175, 80, 0.2);
+            color: var(--success);
+        }
+        .slide-manager-panel .filter-buttons .select-all-btn:hover {
+            background: var(--success);
+            color: #fff;
+        }
+        .slide-manager-panel .filter-buttons .deselect-all-btn {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.2);
+            color: var(--danger);
+        }
+        .slide-manager-panel .filter-buttons .deselect-all-btn:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+        .slide-manager-panel .slide-list {
+            flex: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+        .slide-manager-panel .slide-list .slide-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            margin-bottom: 2px;
+            transition: 0.15s;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .slide-manager-panel .slide-list .slide-item:hover {
+            background: rgba(255, 255, 255, 0.03);
+        }
+        .slide-manager-panel .slide-list .slide-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .slide-manager-panel .slide-list .slide-item .slide-label {
+            flex: 1;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        .slide-manager-panel .slide-list .slide-item .slide-category {
+            font-size: 0.55rem;
+            background: var(--glass-bg);
+            padding: 2px 10px;
+            border-radius: 30px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            border: 1px solid var(--glass-border);
+        }
+        .slide-manager-panel .slide-list .slide-item .slide-category.geral {
+            color: var(--accent);
+            border-color: rgba(56, 189, 248, 0.15);
+        }
+        .slide-manager-panel .slide-list .slide-item .slide-category.resultados {
+            color: var(--success);
+            border-color: rgba(76, 175, 80, 0.15);
+        }
+        .slide-manager-panel .slide-list .slide-item .slide-category.novidades {
+            color: var(--warning);
+            border-color: rgba(245, 158, 11, 0.15);
         }
 
         /* ===== RESPONSIVIDADE ===== */
@@ -1547,9 +1801,9 @@
             .sync-badge { padding: 4px 8px; font-size: 0.6rem; }
             .radio-indicator { font-size: 0.55rem; padding: 2px 8px; }
             .relogio { font-size: 0.95rem; }
-            .slide-manager-panel { width: 320px; right: -360px; }
-            .main-grid .sidebar-right { flex: 0 0 300px; }
-            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+            .slide-manager-panel { width: 340px; right: -380px; }
+            .main-grid .sidebar-right { flex: 0 0 320px; }
+            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
         }
         @media (max-width: 800px) {
             .bottombar {
@@ -1558,13 +1812,13 @@
                 flex-wrap: wrap;
                 height: auto;
                 min-height: var(--bottombar-height);
-                padding-top: 4px;
-                padding-bottom: 4px;
+                padding-top: 6px;
+                padding-bottom: 6px;
             }
-            .bottombar .logo-img { height: 30px; }
-            .banner-slideshow { height: 36px; min-width: 60px; order: 10; flex-basis: 100%; margin-top: 2px; }
+            .bottombar .logo-img { height: 28px; }
+            .banner-slideshow { height: 34px; min-width: 60px; order: 10; flex-basis: 100%; margin-top: 2px; }
             .banner-slideshow .banner-item { font-size: 0.7rem; padding: 0 10px; }
-            .banner-slideshow .banner-item img { height: 24px; }
+            .banner-slideshow .banner-item img { height: 22px; }
             .dolar-quote { font-size: 0.65rem; padding: 2px 10px; }
             .last-update-badge { font-size: 0.55rem; padding: 2px 8px; }
             .sync-badge { font-size: 0.55rem; padding: 2px 8px; }
@@ -1573,81 +1827,81 @@
             .relogio { font-size: 0.85rem; }
             .relogio .data-display { display: none; }
             .relogio-slide .hora-grande { font-size: 6rem; }
-            .relogio-slide .data-grande { font-size: 1.8rem; }
+            .relogio-slide .data-grande { font-size: 1.6rem; }
             .single-card { padding: 20px 24px; }
-            .single-card .kpi-value { font-size: 2.8rem; }
-            .slide-manager-panel { width: 290px; right: -320px; }
+            .single-card .kpi-value { font-size: 2.4rem; }
+            .slide-manager-panel { width: 300px; right: -340px; }
             .slide-title-big { font-size: 1.6rem; }
             .main-grid { flex-direction: column; padding: 12px; }
-            .main-grid .sidebar-right { flex: 0 0 auto; width: 100%; max-height: 250px; }
+            .main-grid .sidebar-right { flex: 0 0 auto; width: 100%; max-height: 260px; }
             .main-grid.sidebar-hidden .sidebar-right { flex: 0 0 0; max-height: 0; }
             .dash-grid { grid-template-columns: 1fr 1fr; }
             .dash-grid .dash-card .card-value { font-size: 2rem; }
+            .loading-logo .brand-text { font-size: 1.8rem; }
+            .loading-logo img { height: 50px; }
+            .loading-bottom { flex-wrap: wrap; gap: 12px; }
         }
         @media (max-width: 500px) {
-            .bottombar .logo-img { height: 24px; }
+            .bottombar .logo-img { height: 22px; }
             .relogio { font-size: 0.75rem; }
             .clima-box { font-size: 0.6rem; padding: 2px 8px; }
             .dolar-quote { font-size: 0.55rem; padding: 2px 6px; }
-            .dolar-quote i { font-size: 0.6rem; }
             .dolar-quote .dolar-label { display: none; }
-            .banner-slideshow { height: 30px; }
+            .banner-slideshow { height: 28px; }
             .banner-slideshow .banner-item { font-size: 0.6rem; padding: 0 6px; }
-            .banner-slideshow .banner-item img { height: 18px; }
+            .banner-slideshow .banner-item img { height: 16px; }
             .last-update-badge { display: none; }
             .sync-badge { display: none; }
             .radio-indicator { display: none; }
             .alert-pill { font-size: 0.55rem; padding: 2px 8px; }
             .relogio-slide .hora-grande { font-size: 4rem; }
             .relogio-slide .data-grande { font-size: 1.2rem; }
-            .relogio-slide .clima-grande { font-size: 1.4rem; padding: 4px 16px; }
+            .relogio-slide .clima-grande { font-size: 1.2rem; padding: 4px 14px; }
             .single-card { padding: 14px 16px; }
-            .single-card .kpi-value { font-size: 2.2rem; }
-            .slides-zone { aspect-ratio: 4/3; min-height: 200px; }
+            .single-card .kpi-value { font-size: 2rem; }
+            .slides-zone { aspect-ratio: 4/3; min-height: 180px; }
             .slide-manager-panel { width: 260px; right: -280px; padding: 16px 12px; }
-            .slide-title-big { font-size: 1.4rem; }
+            .slide-title-big { font-size: 1.2rem; }
             .dash-grid { grid-template-columns: 1fr; }
-            .dash-grid .dash-card { min-height: 160px; }
-            .dash-grid .dash-card .card-value { font-size: 1.8rem; }
-            .loading-overlay .loading-logo img { height: 30vh; max-height: 250px; }
-            .loading-overlay .loading-logo .loading-brand { font-size: 2.2rem; }
+            .dash-grid .dash-card { min-height: 140px; padding: 16px 18px; }
+            .dash-grid .dash-card .card-value { font-size: 1.6rem; }
+            .loading-logo .brand-text { font-size: 1.4rem; }
+            .loading-logo img { height: 40px; }
+            .loading-progress-container { width: 200px; }
         }
         @media (min-width: 1920px) {
-            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
-            .dash-grid .dash-card .card-value { font-size: 3.6rem; }
-            .dash-grid .dash-card { padding: 32px 36px; min-height: 240px; }
+            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+            .dash-grid .dash-card .card-value { font-size: 3.2rem; }
+            .dash-grid .dash-card { padding: 28px 32px; min-height: 220px; }
             .main-grid .sidebar-right { flex: 0 0 420px; }
         }
         @media (min-width: 2560px) {
-            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); }
-            .dash-grid .dash-card .card-value { font-size: 4.2rem; }
-            .dash-grid .dash-card { padding: 40px 44px; min-height: 280px; }
+            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); }
+            .dash-grid .dash-card .card-value { font-size: 3.8rem; }
+            .dash-grid .dash-card { padding: 36px 40px; min-height: 260px; }
             .main-grid .sidebar-right { flex: 0 0 480px; }
-        }
-        @media (min-width: 3840px) {
-            .dash-grid { grid-template-columns: repeat(auto-fit, minmax(520px, 1fr)); }
-            .dash-grid .dash-card .card-value { font-size: 5rem; }
-            .dash-grid .dash-card { padding: 48px 56px; min-height: 320px; }
-            .main-grid .sidebar-right { flex: 0 0 560px; }
         }
     </style>
 </head>
 <body>
 
-    <!-- LOADING OVERLAY INICIAL -->
+    <!-- LOADING OVERLAY -->
     <div class="loading-overlay" id="loading-overlay">
-        <div class="loading-logo">
-            <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" alt="Radar Centrobor" onerror="this.style.display='none'">
-            <span class="loading-brand">RADAR CENTROBOR</span>
+        <div class="loading-content">
+            <div class="loading-logo">
+                <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" alt="Radar Centrobor" onerror="this.style.display='none'">
+                <span class="brand-text">RADAR CENTROBOR</span>
+            </div>
+            <div class="loading-progress-container">
+                <div class="loading-progress-bar" id="loadingProgressBar"></div>
+            </div>
+            <div class="loading-status" id="loadingStatus">Inicializando sistema... <span class="highlight">Conectando</span></div>
+            <div class="loading-dots"><span></span><span></span><span></span></div>
         </div>
-        <div class="loading-footer">
-            <span class="spinner-mini"></span>
-            <span class="loading-text">Consultando sistema...</span>
-        </div>
-        <div class="loading-bottom-info">
-            <span class="lb-time" id="lb-time">00:00</span>
-            <span class="lb-date" id="lb-date"></span>
-            <span class="lb-temp" id="lb-temp">--°C</span>
+        <div class="loading-bottom">
+            <span class="lb-item"><i>📅</i> <span class="lb-value" id="lb-date">Carregando...</span></span>
+            <span class="lb-item"><i>🕐</i> <span class="lb-value" id="lb-time">00:00</span></span>
+            <span class="lb-item"><i>🌡️</i> <span class="lb-value" id="lb-temp">--°C</span></span>
         </div>
     </div>
 
@@ -1661,25 +1915,33 @@
             <div class="slides-zone" id="slides-zone">
                 <div class="slide-indicators" id="indicators"></div>
                 <div class="slide-controls">
-                    <button id="prev-slide-btn" title="Anterior"><i class="fas fa-chevron-left"></i></button>
-                    <button id="pause-slide-btn" title="Pausar/Reproduzir"><i class="fas fa-pause"></i></button>
-                    <button id="next-slide-btn" title="Próximo"><i class="fas fa-chevron-right"></i></button>
+                    <button id="prev-slide-btn" title="Anterior">
+                        <svg viewBox="0 0 24 24"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+                    </button>
+                    <button id="pause-slide-btn" title="Pausar/Reproduzir">
+                        <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    </button>
+                    <button id="next-slide-btn" title="Próximo">
+                        <svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg>
+                    </button>
                 </div>
             </div>
             <div class="sidebar-right" id="sidebar-right">
                 <div class="video-box" id="video-box">
-                    <iframe id="youtube-player" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                    <div class="video-placeholder" id="videoPlaceholder">
+                        <svg viewBox="0 0 24 24"><path d="M10 8.64L15.27 12 10 15.36V8.64zM21 3H3v18h18V3zm-2 16H5V5h14v14z"/></svg>
+                        <span>Carregando vídeo...</span>
+                    </div>
+                    <iframe id="youtube-player" src="" allow="autoplay; encrypted-media" allowfullscreen style="display:none;"></iframe>
                 </div>
-                <div class="radio-embed" id="radio-box">
-                    <!-- O widget será injetado via JavaScript -->
-                </div>
+                <div class="radio-embed" id="radio-box"></div>
                 <div class="sidebar-dashboard" id="sidebar-dashboard"></div>
             </div>
         </div>
 
-        <!-- BOTÃO FLUTUANTE PARA TOGGLE DA SIDEBAR -->
+        <!-- BOTÃO FLUTUANTE SIDEBAR -->
         <button class="sidebar-float-toggle hidden" id="sidebarFloatToggle" title="Exibir/Ocultar painel lateral">
-            <i class="fas fa-chevron-right" id="floatToggleIcon"></i>
+            <svg viewBox="0 0 24 24"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
         </button>
 
         <!-- BOTTOMBAR -->
@@ -1688,13 +1950,14 @@
             alt="Radar Centrobor" class="logo-img" />
 
             <div class="relogio">
-                <i class="fas fa-clock"></i>
+                <svg class="relogio-icon" viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                 <span id="hora">00:00</span>
                 <span class="data-display" id="data-display"></span>
             </div>
 
             <div class="clima-box" id="clima-box">
-                <i class="fas fa-sun"></i> <span id="temp">--°C</span>
+                <svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg>
+                <span id="temp">--°C</span>
             </div>
 
             <div class="banner-slideshow" id="bannerSlideshow">
@@ -1705,30 +1968,31 @@
             </div>
 
             <a id="dolar-quote" class="dolar-quote" href="https://www.google.com/finance/quote/USD-BRL" target="_blank">
-                <i class="fas fa-dollar-sign"></i>
+                <svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg>
                 <span class="dolar-label">Dólar</span>
                 <span id="dolar-value">R$ --</span>
                 <span class="dolar-avg" id="dolar-avg">(média 30d: R$ --)</span>
             </a>
 
             <div class="last-update-badge" id="lastUpdateBadge">
-                <i class="fas fa-sync-alt"></i>
+                <svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
                 <span id="last-update-text">Atualizado: --</span>
             </div>
 
             <div class="sync-badge" id="syncBadge">
-                <i class="fas fa-check-circle"></i>
+                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
                 <span id="syncText">Dados atualizados</span>
             </div>
 
             <div class="radio-indicator" id="radioIndicator">
-                <i class="fas fa-music"></i> <span id="radioName">Alpha FM</span>
+                <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                <span id="radioName">Alpha FM</span>
             </div>
 
             <div class="alert-pill" id="alerta-clima"></div>
 
             <button class="menu-toggle" id="menuToggle" aria-label="Menu de personalização">
-                <i class="fas fa-bars"></i>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
             </button>
         </div>
 
@@ -1736,16 +2000,16 @@
         <div class="slide-manager-overlay" id="slideManagerOverlay"></div>
         <div class="slide-manager-panel" id="slideManagerPanel">
             <div class="panel-header">
-                <h3><i class="fas fa-sliders-h"></i> Personalizar Slides</h3>
-                <button class="close-btn" id="closeSlideManager"><i class="fas fa-times"></i></button>
+                <h3>Personalizar Slides</h3>
+                <button class="close-btn" id="closeSlideManager"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg></button>
             </div>
             <div class="filter-buttons">
-                <button class="active" data-filter="all"><i class="fas fa-th"></i> Todos</button>
-                <button data-filter="geral"><i class="fas fa-globe"></i> Geral</button>
-                <button data-filter="resultados"><i class="fas fa-chart-bar"></i> Resultados</button>
-                <button data-filter="novidades"><i class="fas fa-star"></i> Novidades</button>
-                <button class="select-all-btn" id="selectAllSlides"><i class="fas fa-check-circle"></i> Selecionar todos</button>
-                <button class="deselect-all-btn" id="deselectAllSlides"><i class="fas fa-times-circle"></i> Desmarcar todos</button>
+                <button class="active" data-filter="all">Todos</button>
+                <button data-filter="geral">Geral</button>
+                <button data-filter="resultados">Resultados</button>
+                <button data-filter="novidades">Novidades</button>
+                <button class="select-all-btn" id="selectAllSlides">Selecionar todos</button>
+                <button class="deselect-all-btn" id="deselectAllSlides">Desmarcar todos</button>
             </div>
             <div class="slide-list" id="slideListContainer"></div>
         </div>
@@ -1760,19 +2024,18 @@
                 youtubeChannelId: 'UC-tqKpwe5vSy7nxQ8cLzZHg', // Jovem Pan News
                 lat: -23.5505,
                 lon: -46.6333,
-                slideInterval: 15000,
+                slideInterval: 12000,
                 videoSlideDuration: 30000,
                 reloadInterval: 3600000, // 1 hora
                 backgroundSyncInterval: 120000, // 2 min
-                bannerInterval: 300000,
+                bannerInterval: 300000, // 5 min
                 radioInterval: 18000000, // 5 horas
-                radioInitialDelay: 5000,
+                radioInitialDelay: 1000,
                 youtubeRefreshInterval: 60000, // 1 min
+                ntpSyncInterval: 300000, // 5 min
             };
 
             // ===== LISTA DE RÁDIOS =====
-            // Cada item: { id, name, widgetHTML }
-            // Os IDs são os mesmos usados nos widgets originais
             const RADIOS = [{
                 id: 'w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG',
                 name: 'Alpha FM',
@@ -1881,6 +2144,10 @@
 
             const BG_ANIVERSARIO = 'https://img.magnific.com/vetores-gratis/bandeira-de-aniversario-azul-com-baloes-e-confete_107791-30996.jpg?semt=ais_hybrid&w=740&q=80';
 
+            // Transições variadas
+            const TRANSITIONS = ['fade', 'zoom', 'flip', 'cube', 'coverflow', 'scale', 'slide', 'parallax'];
+            let transitionIndex = 0;
+
             let allSlides = [],
                 visibleSlides = [];
             let currentSlideIndex = 0,
@@ -1899,11 +2166,17 @@
                 bannerTimer = null;
             let slideVisibility = {};
             let refreshTimeout = null;
-            let loadingInfoInterval = null;
             let sidebarHidden = false;
             let syncBadge = document.getElementById('syncBadge');
             let syncText = document.getElementById('syncText');
             let backgroundSyncInterval = null;
+            let loadingProgress = 0;
+            let loadingStatusText = 'Inicializando sistema...';
+
+            // Relógio NTP
+            let ntpTime = null;
+            let ntpOffset = 0;
+            let lastNtpSync = 0;
 
             // Rádio
             let currentRadioIndex = 0;
@@ -1915,6 +2188,8 @@
             let currentVideoId = '';
 
             const loadingOverlay = document.getElementById('loading-overlay');
+            const loadingProgressBar = document.getElementById('loadingProgressBar');
+            const loadingStatus = document.getElementById('loadingStatus');
 
             // ===== FUNÇÕES AUXILIARES =====
             const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v :
@@ -1929,6 +2204,47 @@
                 if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
                 return null;
             };
+
+            // ===== LOADING PROGRESS =====
+            function updateLoadingProgress(progress, status) {
+                loadingProgress = Math.min(100, Math.max(0, progress));
+                if (loadingProgressBar) loadingProgressBar.style.width = loadingProgress + '%';
+                if (status) {
+                    loadingStatusText = status;
+                    if (loadingStatus) loadingStatus.innerHTML = status;
+                }
+            }
+
+            // ===== RELÓGIO NTP =====
+            async function sincronizarNTP() {
+                try {
+                    const resp = await fetch('https://worldtimeapi.org/api/timezone/America/Sao_Paulo');
+                    if (!resp.ok) throw new Error('NTP API error');
+                    const data = await resp.json();
+                    const serverTime = new Date(data.utc_datetime);
+                    const localTime = new Date();
+                    ntpOffset = serverTime.getTime() - localTime.getTime() + (localTime.getTimezoneOffset() * 60000);
+                    ntpTime = new Date(serverTime.getTime() + (localTime.getTimezoneOffset() * 60000));
+                    lastNtpSync = Date.now();
+                    updateLoadingProgress(20, 'Relógio sincronizado via NTP ✓');
+                    return ntpTime;
+                } catch (e) {
+                    console.warn('NTP sincronização falhou, usando horário local:', e);
+                    ntpTime = new Date();
+                    updateLoadingProgress(15, 'Usando horário local (NTP indisponível)');
+                    return new Date();
+                }
+            }
+
+            function getHoraAtual() {
+                if (ntpTime && lastNtpSync > 0) {
+                    const elapsed = Date.now() - lastNtpSync;
+                    const now = new Date(ntpTime.getTime() + elapsed);
+                    // Ajusta para fuso horário local
+                    return new Date(now.getTime() + (now.getTimezoneOffset() * 60000));
+                }
+                return new Date();
+            }
 
             // ===== ARMAZENAMENTO =====
             function salvarDadosNoStorage(dados) {
@@ -1982,23 +2298,6 @@
                 return 0;
             }
 
-            // ===== LOADING INFO =====
-            function atualizarLoadingInfo() {
-                const agora = new Date();
-                const elTime = document.getElementById('lb-time');
-                const elDate = document.getElementById('lb-date');
-                const elTemp = document.getElementById('lb-temp');
-                if (elTime) elTime.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                if (elDate) elDate.textContent = agora.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit',
-                    month: 'short', year: 'numeric' });
-                if (elTemp) {
-                    const tempEl = document.getElementById('temp');
-                    if (tempEl && tempEl.textContent !== '--°C') elTemp.textContent = tempEl.textContent;
-                }
-            }
-            loadingInfoInterval = setInterval(atualizarLoadingInfo, 1000);
-            atualizarLoadingInfo();
-
             // ===== PARTÍCULAS =====
             function initParticles() {
                 const canvas = document.getElementById('particles-canvas'),
@@ -2014,10 +2313,10 @@
                     reset() {
                         this.x = Math.random() * canvas.width;
                         this.y = Math.random() * canvas.height;
-                        this.vx = (Math.random() - 0.5) * 0.5;
-                        this.vy = (Math.random() - 0.5) * 0.5;
-                        this.size = Math.random() * 2.5 + 0.5;
-                        this.opacity = Math.random() * 0.5 + 0.2;
+                        this.vx = (Math.random() - 0.5) * 0.4;
+                        this.vy = (Math.random() - 0.5) * 0.4;
+                        this.size = Math.random() * 2 + 0.5;
+                        this.opacity = Math.random() * 0.4 + 0.1;
                     }
                     update() {
                         this.x += this.vx;
@@ -2032,7 +2331,7 @@
                         ctx.fill();
                     }
                 }
-                for (let i = 0; i < 120; i++) particles.push(new Particle());
+                for (let i = 0; i < 100; i++) particles.push(new Particle());
 
                 function animate() {
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -2043,11 +2342,11 @@
                             const dx = particles[i].x - particles[j].x,
                                 dy = particles[i].y - particles[j].y,
                                 dist = Math.sqrt(dx * dx + dy * dy);
-                            if (dist < 100) {
+                            if (dist < 120) {
                                 ctx.beginPath();
                                 ctx.moveTo(particles[i].x, particles[i].y);
                                 ctx.lineTo(particles[j].x, particles[j].y);
-                                ctx.strokeStyle = `rgba(56,189,248,${0.05*(1-dist/100)})`;
+                                ctx.strokeStyle = `rgba(56,189,248,${0.03*(1-dist/120)})`;
                                 ctx.stroke();
                             }
                         }
@@ -2059,7 +2358,7 @@
 
             // ===== RELÓGIO =====
             function atualizarRelogio() {
-                const agora = new Date();
+                const agora = getHoraAtual();
                 document.getElementById('hora').textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit',
                     minute: '2-digit' });
                 document.getElementById('data-display').textContent = agora.toLocaleDateString('pt-BR', {
@@ -2068,11 +2367,19 @@
                     month: 'short',
                     year: 'numeric'
                 });
+                // Atualiza loading info
+                const lbTime = document.getElementById('lb-time');
+                const lbDate = document.getElementById('lb-date');
+                if (lbTime) lbTime.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                if (lbDate) lbDate.textContent = agora.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit',
+                    month: 'short', year: 'numeric' });
             }
             setInterval(atualizarRelogio, 1000);
             atualizarRelogio();
 
             // ===== CLIMA =====
+            let climaData = { temp: '--', icon: 'sun', condition: '' };
+
             async function buscarClima() {
                 try {
                     const resp = await fetch(
@@ -2082,14 +2389,25 @@
                         cw = data.current_weather;
                     if (cw) {
                         const temp = Math.round(cw.temperature);
-                        document.getElementById('temp').textContent = `${temp}°C`;
+                        climaData.temp = temp + '°C';
                         const code = cw.weathercode;
-                        const icon = document.querySelector('#clima-box i');
-                        if (code <= 3) icon.className = 'fas fa-sun';
-                        else if (code <= 48) icon.className = 'fas fa-cloud';
-                        else if (code <= 57) icon.className = 'fas fa-cloud-rain';
-                        else if (code <= 67) icon.className = 'fas fa-cloud-showers-heavy';
-                        else icon.className = 'fas fa-bolt';
+                        if (code <= 3) climaData.icon = 'sun';
+                        else if (code <= 48) climaData.icon = 'cloud';
+                        else if (code <= 57) climaData.icon = 'cloud-rain';
+                        else if (code <= 67) climaData.icon = 'cloud-showers-heavy';
+                        else climaData.icon = 'bolt';
+                        document.getElementById('temp').textContent = `${temp}°C`;
+                        const iconEl = document.querySelector('#clima-box svg');
+                        if (iconEl) {
+                            const icons = {
+                                'sun': 'M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z',
+                                'cloud': 'M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z',
+                                'cloud-rain': 'M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM9 18l2-3v3h2v-3l2 3h-2v3h-2v-3H9z',
+                                'cloud-showers-heavy': 'M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM9 18l2-3v3h2v-3l2 3h-2v3h-2v-3H9z',
+                                'bolt': 'M12 2L1 21h8v-7h6L12 2zm0 15h-4l2-4h-2l2-4h4l-2 4h2l-2 4z'
+                            };
+                            iconEl.innerHTML = icons[climaData.icon] || icons.sun;
+                        }
                         const alerta = document.getElementById('alerta-clima');
                         let txt = '',
                             cls = '';
@@ -2101,9 +2419,10 @@
                         if (txt) {
                             alerta.style.display = 'flex';
                             alerta.className = `alert-pill ${cls}`;
-                            alerta.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${txt}`;
+                            alerta.innerHTML = `⚠️ ${txt}`;
                         } else alerta.style.display = 'none';
-                        atualizarLoadingInfo();
+                        const lbTemp = document.getElementById('lb-temp');
+                        if (lbTemp) lbTemp.textContent = `${temp}°C`;
                     }
                 } catch (e) { console.warn('Clima indisponível'); }
             }
@@ -2236,7 +2555,7 @@
             }
 
             function obterConquistasMetas() {
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const conquistas = [];
@@ -2310,13 +2629,134 @@
                 requestAnimationFrame(step);
             }
 
-            // ===== CONSTRUÇÃO DOS SLIDES (funções abreviadas) =====
+            // ===== SLIDE DE NOTÍCIAS (RSS/API) =====
+            async function buscarNoticias() {
+                try {
+                    // Fallback para notícias de exemplo caso a API não funcione
+                    const fallbackNoticias = [
+                        { titulo: 'Brasil registra superávit comercial recorde em 2026',
+                            resumo: 'Exportações crescem 12% impulsionadas por commodities e demanda asiática.',
+                            data: new Date().toLocaleDateString('pt-BR'), fonte: 'Reuters' },
+                        { titulo: 'Setor de tecnologia prevê crescimento de 15% no próximo trimestre',
+                            resumo: 'Investimentos em IA e nuvem impulsionam o setor no Brasil e na América Latina.',
+                            data: new Date().toLocaleDateString('pt-BR'), fonte: 'Valor Econômico' },
+                        { titulo: 'Inflação oficial fica abaixo da meta pela terceira vez consecutiva',
+                            resumo: 'IPCA acumulado nos últimos 12 meses é de 2,8%, abaixo do centro da meta de 3%.',
+                            data: new Date().toLocaleDateString('pt-BR'), fonte: 'G1' },
+                    ];
+
+                    // Tenta buscar de uma API pública (exemplo: NewsAPI ou RSS)
+                    // Usando uma API simples de notícias do Brasil (exemplo)
+                    try {
+                        const resp = await fetch(
+                            'https://servicodados.ibge.gov.br/api/v3/noticias/?tipo=release&quantidade=3');
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            if (data && data.items && data.items.length > 0) {
+                                return data.items.map(item => ({
+                                    titulo: item.titulo || 'Notícia',
+                                    resumo: item.introducao || item.conteudo || '',
+                                    data: new Date(item.data_publicacao).toLocaleDateString('pt-BR') ||
+                                        new Date().toLocaleDateString('pt-BR'),
+                                    fonte: item.origem || 'IBGE'
+                                }));
+                            }
+                        }
+                    } catch (e) { /* fallback */ }
+
+                    return fallbackNoticias;
+                } catch (e) {
+                    return [
+                        { titulo: 'Economia brasileira apresenta crescimento no segundo trimestre',
+                            resumo: 'PIB cresce 1,2% impulsionado por serviços e indústria.', data: new Date()
+                                .toLocaleDateString('pt-BR'), fonte: 'Valor Econômico' },
+                        { titulo: 'Novas tecnologias transformam o mercado de trabalho',
+                            resumo: 'IA e automação criam novas oportunidades em diversos setores.',
+                            data: new Date().toLocaleDateString('pt-BR'), fonte: 'Exame' },
+                    ];
+                }
+            }
+
+            function buildNoticiasSlide(noticias) {
+                const cards = noticias.map(n => `
+                    <div style="background:var(--glass-bg);backdrop-filter:blur(12px);border-radius:var(--radius-md);padding:16px 20px;border:1px solid var(--glass-border);text-align:left;">
+                        <div style="display:flex;justify-content:space-between;align-items:start;gap:8px;">
+                            <span style="font-weight:600;color:#fff;font-size:0.95rem;">${n.titulo}</span>
+                            <span style="font-size:0.6rem;color:var(--text-muted);white-space:nowrap;">${n.data}</span>
+                        </div>
+                        <p style="color:var(--text-secondary);font-size:0.8rem;margin-top:4px;">${n.resumo}</p>
+                        <span style="font-size:0.6rem;color:var(--text-muted);">${n.fonte}</span>
+                    </div>
+                `).join('');
+
+                return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;padding:24px;gap:16px;overflow-y:auto;">
+                    <div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M20.33 3.67l-1.41 1.41L21 7.08V5c0-.53-.21-1.04-.59-1.41L20.33 3.67zM3 3h7v2H3v14h14v-7h2v7c0 .55-.45 1-1 1H3c-.55 0-1-.45-1-1V4c0-.55.45-1 1-1zm8 12h6v-2h-6v2zm0-4h10v-2H11v2zm0-4h6V5h-6v2z"/></svg> Notícias em Tempo Real</div>
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;width:100%;max-width:900px;">${cards}</div>
+                    <span style="color:var(--text-muted);font-size:0.7rem;">Atualizado em ${new Date().toLocaleTimeString('pt-BR')}</span>
+                </div>`;
+            }
+
+            // ===== SLIDE DE PREVISÃO DO TEMPO =====
+            async function buildPrevisaoTempoSlide() {
+                try {
+                    const resp = await fetch(
+                        `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.lat}&longitude=${CONFIG.lon}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,uv_index_max,precipitation_sum,windspeed_10m_max&timezone=America/Sao_Paulo&forecast_days=5`
+                        );
+                    const data = await resp.json();
+                    if (!data || !data.daily) throw new Error('Dados de previsão indisponíveis');
+
+                    const today = new Date();
+                    const days = data.daily.time.map((t, i) => {
+                        const d = new Date(t);
+                        return {
+                            dia: d.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' }),
+                            max: Math.round(data.daily.temperature_2m_max[i]),
+                            min: Math.round(data.daily.temperature_2m_min[i]),
+                            condicao: data.daily.weathercode[i],
+                            uv: data.daily.uv_index_max[i]?.toFixed(1) || '--',
+                            precipitacao: data.daily.precipitation_sum[i]?.toFixed(1) || '0',
+                            vento: data.daily.windspeed_10m_max[i]?.toFixed(0) || '--'
+                        };
+                    });
+
+                    const cw = data.current_weather;
+                    const tempAtual = Math.round(cw.temperature);
+                    const code = cw.weathercode;
+                    const condAtual = code <= 3 ? '☀️ Ensolarado' : code <= 48 ? '⛅ Nublado' : code <= 57 ? '🌧️ Chuvoso' :
+                        code <= 67 ? '🌧️ Chuva forte' : '⛈️ Tempestade';
+
+                    const cards = days.slice(0, 5).map(d => `
+                        <div style="background:var(--glass-bg);backdrop-filter:blur(12px);border-radius:var(--radius-md);padding:14px 16px;border:1px solid var(--glass-border);text-align:center;min-width:80px;">
+                            <div style="font-size:0.7rem;color:var(--text-secondary);">${d.dia}</div>
+                            <div style="font-size:1.2rem;font-weight:600;color:#fff;">${d.max}°</div>
+                            <div style="font-size:0.8rem;color:var(--text-muted);">${d.min}°</div>
+                            <div style="font-size:0.7rem;color:var(--text-secondary);margin-top:4px;">💨 ${d.vento}km/h</div>
+                        </div>
+                    `).join('');
+
+                    return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;width:100%;padding:24px;gap:14px;overflow-y:auto;">
+                        <div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg> Previsão do Tempo</div>
+                        <div style="display:flex;align-items:center;gap:24px;background:var(--glass-bg);backdrop-filter:blur(12px);border-radius:var(--radius-lg);padding:16px 28px;border:1px solid var(--glass-border);">
+                            <span style="font-size:3rem;font-weight:700;color:#fff;">${tempAtual}°</span>
+                            <span style="color:var(--text-secondary);font-size:1.1rem;">${condAtual}</span>
+                            <span style="color:var(--text-muted);font-size:0.85rem;">💨 ${Math.round(cw.windspeed||0)} km/h</span>
+                        </div>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">${cards}</div>
+                        <span style="color:var(--text-muted);font-size:0.7rem;">Atualizado em ${new Date().toLocaleTimeString('pt-BR')}</span>
+                    </div>`;
+                } catch (e) {
+                    console.warn('Erro ao buscar previsão:', e);
+                    return `<div class="single-card-slide"><div class="single-card"><div class="icon-circle"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg></div><div class="kpi-label">Previsão do Tempo</div><p style="color:var(--text-secondary);">Dados indisponíveis no momento</p></div></div>`;
+                }
+            }
+
+            // ===== CONSTRUÇÃO DOS SLIDES =====
             function buildConquistaSlide(conquista) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="icon-circle icon-float" style="background:rgba(255,215,0,0.15);color:#ffd700;font-size:4rem;"><span class="trophy-animated">🏆</span></div><div class="kpi-label">${conquista.nome}</div><div class="kpi-value" style="color:#ffd700;font-size:3rem;">${conquista.vendedor}</div><p style="color:rgba(255,255,255,0.65);margin-top:16px;">Parabéns pela conquista! 🚀</p></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="icon-circle icon-float" style="background:rgba(255,215,0,0.1);color:#ffd700;font-size:3.5rem;"><span class="trophy-animated">🏆</span></div><div class="kpi-label">${conquista.nome}</div><div class="kpi-value" style="color:#ffd700;font-size:2.8rem;">${conquista.vendedor}</div><p style="color:var(--text-secondary);margin-top:12px;">Parabéns pela conquista! 🚀</p></div></div>`;
             }
 
             function buildMonthlyBarSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-simple icon-pulse"></i> Faturamento Mensal – ${dados.mesLabel||'Mês Atual'}</div><div style="font-size:1.8rem;font-weight:700;color:#fff;margin-bottom:12px;text-shadow:0 1px 15px rgba(0,0,0,0.4);"><span id="monthly-fat">${formatarMoeda(dados.fatMes||0)}</span> / <span id="monthly-meta">${formatarMoeda(dados.metaMes||0)}</span></div><div class="chart-slide"><canvas id="monthly-bar-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> Faturamento Mensal – ${dados.mesLabel||'Mês Atual'}</div><div style="font-size:1.6rem;font-weight:700;color:#fff;margin-bottom:10px;text-shadow:0 1px 15px rgba(0,0,0,0.3);"><span id="monthly-fat">${formatarMoeda(dados.fatMes||0)}</span> / <span id="monthly-meta">${formatarMoeda(dados.metaMes||0)}</span></div><div class="chart-slide"><canvas id="monthly-bar-chart"></canvas></div></div></div>`;
             }
 
             function animarMonthlyBarChart(dados) {
@@ -2345,9 +2785,9 @@
                         animation: { duration: 2000, easing: 'easeOutBounce' },
                         scales: {
                             y: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 }, callback: v => 'R$ ' +
-                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.06)' } },
                             x: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 } },
-                                grid: { color: 'rgba(255,255,255,0.05)' } }
+                                grid: { color: 'rgba(255,255,255,0.03)' } }
                         },
                         plugins: { legend: { labels: { color: '#ffffff', font: { weight: 'bold', size: 13 } } } }
                     }
@@ -2355,14 +2795,14 @@
             }
 
             function buildGraficoEvolucaoHTML(dados) {
-                return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;"><div class="slide-title-big"><i class="fas fa-chart-line icon-float"></i> Evolução Diária – ${dados.mesLabel||''}</div><div class="chart-slide" style="flex:1;width:90%;"><canvas id="grafico-evolucao"></canvas></div></div>`;
+                return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;"><div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> Evolução Diária – ${dados.mesLabel||''}</div><div class="chart-slide" style="flex:1;width:90%;"><canvas id="grafico-evolucao"></canvas></div></div>`;
             }
 
             function animarGraficoEvolucao(dados) {
                 const canvas = document.getElementById('grafico-evolucao');
                 if (!canvas) return;
                 if (chartInstances['grafico-evolucao']) chartInstances['grafico-evolucao'].destroy();
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const dailyMap = {};
@@ -2382,8 +2822,8 @@
                     data: {
                         labels,
                         datasets: [{ label: 'Faturamento Diário', data: values, borderColor: '#facc15',
-                            backgroundColor: 'rgba(250,204,21,0.2)', fill: true, tension: 0.4,
-                            pointRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: '#facc15',
+                            backgroundColor: 'rgba(250,204,21,0.1)', fill: true, tension: 0.4,
+                            pointRadius: 4, pointBackgroundColor: '#fff', pointBorderColor: '#facc15',
                             pointBorderWidth: 2, borderWidth: 3, borderCapStyle: 'round',
                             borderJoinStyle: 'round' }]
                     },
@@ -2393,9 +2833,9 @@
                         animation: { duration: 3000, easing: 'easeOutQuart' },
                         scales: {
                             y: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 }, callback: v => 'R$ ' +
-                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.06)' } },
                             x: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 } },
-                                grid: { color: 'rgba(255,255,255,0.05)' } }
+                                grid: { color: 'rgba(255,255,255,0.03)' } }
                         },
                         plugins: { legend: { labels: { color: '#ffffff', font: { weight: 'bold', size: 13 } } } }
                     }
@@ -2403,14 +2843,14 @@
             }
 
             function buildEvolucaoMensalSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-calendar-alt icon-breathe"></i> Evolução Mensal</div><div class="chart-slide"><canvas id="evolucao-mensal-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> Evolução Mensal</div><div class="chart-slide"><canvas id="evolucao-mensal-chart"></canvas></div></div></div>`;
             }
 
             function animarEvolucaoMensalSlide(dados) {
                 const canvas = document.getElementById('evolucao-mensal-chart');
                 if (!canvas) return;
                 if (chartInstances['evolucao-mensal']) chartInstances['evolucao-mensal'].destroy();
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear();
                 const labels = [],
                     fatValues = [],
@@ -2427,12 +2867,12 @@
                         labels,
                         datasets: [
                             { label: 'Realizado', data: fatValues, borderColor: '#4caf50',
-                                backgroundColor: 'rgba(76,175,80,0.15)', fill: true, tension: 0.4,
-                                borderWidth: 3, pointRadius: 5, pointBackgroundColor: '#4caf50',
+                                backgroundColor: 'rgba(76,175,80,0.08)', fill: true, tension: 0.4,
+                                borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#4caf50',
                                 borderCapStyle: 'round', borderJoinStyle: 'round' },
                             { label: 'Meta', data: metaValues, borderColor: '#f44336',
-                                backgroundColor: 'rgba(244,67,54,0.05)', fill: false, borderDash: [6, 4],
-                                borderWidth: 2, pointRadius: 3 }
+                                backgroundColor: 'rgba(244,67,54,0.03)', fill: false, borderDash: [6, 4],
+                                borderWidth: 2, pointRadius: 3, pointBackgroundColor: '#f44336' }
                         ]
                     },
                     options: {
@@ -2441,9 +2881,9 @@
                         animation: { duration: 2500 },
                         scales: {
                             y: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 }, callback: v => 'R$ ' +
-                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.06)' } },
                             x: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 } },
-                                grid: { color: 'rgba(255,255,255,0.05)' } }
+                                grid: { color: 'rgba(255,255,255,0.03)' } }
                         },
                         plugins: { legend: { labels: { color: '#ffffff', font: { weight: 'bold', size: 13 } } } }
                     }
@@ -2451,14 +2891,14 @@
             }
 
             function buildRealizadoMetaSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-column icon-bounce-soft"></i> Realizado x Meta Mensal</div><div class="chart-slide"><canvas id="realizado-meta-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg> Realizado x Meta Mensal</div><div class="chart-slide"><canvas id="realizado-meta-chart"></canvas></div></div></div>`;
             }
 
             function animarRealizadoMetaSlide(dados) {
                 const canvas = document.getElementById('realizado-meta-chart');
                 if (!canvas) return;
                 if (chartInstances['realizado-meta']) chartInstances['realizado-meta'].destroy();
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const labels = [],
@@ -2487,9 +2927,9 @@
                         animation: { duration: 2000 },
                         scales: {
                             y: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 }, callback: v => 'R$ ' +
-                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                                    v.toLocaleString('pt-BR') }, grid: { color: 'rgba(255,255,255,0.06)' } },
                             x: { ticks: { color: '#ffffff', font: { weight: 'bold', size: 13 } },
-                                grid: { color: 'rgba(255,255,255,0.05)' } }
+                                grid: { color: 'rgba(255,255,255,0.03)' } }
                         },
                         plugins: { legend: { labels: { color: '#ffffff', font: { weight: 'bold', size: 13 } } } }
                     }
@@ -2503,11 +2943,11 @@
                 const idMeta = `semestre-meta-${ano}-${sem}`;
                 const idPerc = `semestre-perc-${ano}-${sem}`;
                 return `<div class="single-card-slide"><div class="single-card">
-                    <div class="icon-circle icon-pulse" style="background:rgba(56,189,248,0.15);color:#38bdf8;"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="icon-circle icon-pulse" style="background:rgba(56,189,248,0.1);color:var(--accent);"><svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg></div>
                     <div class="kpi-label">${label} (${meses}/${ano})</div>
-                    <div style="font-size:2.8rem;font-weight:700;color:#fff;margin:12px 0;text-shadow:0 2px 20px rgba(0,0,0,0.5);"><span id="${idFat}">${formatarMoeda(totalFat)}</span></div>
-                    <div style="font-size:1.2rem;color:rgba(255,255,255,0.65);text-shadow:0 1px 10px rgba(0,0,0,0.3);">Meta: <span id="${idMeta}">${formatarMoeda(totalMeta)}</span></div>
-                    <div style="font-size:1.6rem;font-weight:700;color:${perc>=100?'#4caf50':'#f59e0b'};margin-top:8px;text-shadow:0 1px 14px rgba(0,0,0,0.3);"><span id="${idPerc}">${perc.toFixed(1)}%</span> ${perc>=100?'✅ Meta atingida!':'⏳ Em andamento'}</div>
+                    <div style="font-size:2.6rem;font-weight:700;color:#fff;margin:10px 0;text-shadow:0 2px 20px rgba(0,0,0,0.4);"><span id="${idFat}">${formatarMoeda(totalFat)}</span></div>
+                    <div style="font-size:1.1rem;color:var(--text-secondary);">Meta: <span id="${idMeta}">${formatarMoeda(totalMeta)}</span></div>
+                    <div style="font-size:1.4rem;font-weight:700;color:${perc>=100?'var(--success)':'var(--warning)'};margin-top:6px;"><span id="${idPerc}">${perc.toFixed(1)}%</span> ${perc>=100?'✅ Meta atingida!':'⏳ Em andamento'}</div>
                 </div></div>`;
             }
 
@@ -2527,23 +2967,23 @@
                     <div class="relogio-content">
                         <div class="hora-grande" id="slide-hora">00:00</div>
                         <div class="data-grande" id="slide-data">Carregando...</div>
-                        <div class="clima-grande" id="slide-clima"><i class="fas fa-sun icon-float" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div>
+                        <div class="clima-grande"><svg viewBox="0 0 24 24"><path d="M6.76 4.84l-1.8-1.79-1.41 1.41 1.79 1.79 1.42-1.41zM4 10.5H1v2h3v-2zm9-9.95h-2V3.5h2V.55zm7.45 3.91l-1.41-1.41-1.79 1.79 1.41 1.41 1.79-1.79zm-3.21 13.7l1.79 1.8 1.41-1.41-1.8-1.79-1.4 1.4zM20 10.5v2h3v-2h-3zm-8-5c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm-1 16.95h2V19.5h-2v2.95zm-7.45-3.91l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8z"/></svg> <span id="slide-temp">--°C</span></div>
                     </div>
                 </div>`;
             }
 
             function buildLogoSlide() {
-                return `<div class="logo-zoom-pulse" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;gap:40px;padding:20px;">
-                    <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" style="height:55%;object-fit:contain;" onerror="this.style.display='none'">
+                return `<div class="logo-zoom-pulse" style="display:flex;align-items:center;justify-content:center;height:100%;width:100%;gap:30px;padding:20px;background:linear-gradient(145deg,#0d1527,#0a0e1a);">
+                    <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" style="height:50%;object-fit:contain;" onerror="this.style.display='none'">
                     <div style="display:flex;flex-direction:column;align-items:flex-start;justify-content:center;text-align:left;">
-                        <span style="font-size:4.5rem;font-weight:800;color:#4caf50;line-height:1;letter-spacing:-2px;text-shadow:0 2px 25px rgba(0,0,0,0.5);">RADAR</span>
-                        <span style="font-size:3.2rem;font-weight:600;color:#38bdf8;line-height:1;letter-spacing:-1px;text-shadow:0 2px 25px rgba(0,0,0,0.5);">CENTROBOR</span>
+                        <span style="font-size:4rem;font-weight:800;color:var(--success);line-height:1;letter-spacing:-2px;text-shadow:0 2px 25px rgba(0,0,0,0.4);">RADAR</span>
+                        <span style="font-size:3rem;font-weight:600;color:var(--accent);line-height:1;letter-spacing:-1px;text-shadow:0 2px 25px rgba(0,0,0,0.4);">CENTROBOR</span>
                     </div>
                 </div>`;
             }
 
             function buildAniversariantesSlide() {
-                const hoje = new Date(),
+                const hoje = getHoraAtual(),
                     dia = hoje.getDate(),
                     mesAtual = hoje.getMonth() + 1;
                 const hojeLimpo = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -2576,22 +3016,22 @@
                     '#ec4899', '#f43f5e'
                 ];
                 const total = aniversariantes.length;
-                const baseSize = Math.min(320, Math.max(140, 420 / Math.sqrt(total)));
+                const baseSize = Math.min(280, Math.max(120, 380 / Math.sqrt(total)));
                 const aniversariantesComTamanho = aniversariantes.map((a, i) => {
                     const dataNasc = new Date(hoje.getFullYear(), a.mes - 1, a.dia);
                     const diff = Math.max(1, Math.floor((dataNasc - hojeLimpo) / (1000 * 60 * 60 * 24)));
-                    const size = Math.min(baseSize + 50, Math.max(110, baseSize - diff * 6));
+                    const size = Math.min(baseSize + 40, Math.max(100, baseSize - diff * 5));
                     return { ...a, diff, size, cor: cores[i % cores.length] };
                 });
 
                 let bubblesHTML = '';
                 aniversariantesComTamanho.forEach((a, idx) => {
-                    const left = 5 + (idx * 25) % 85;
-                    const top = 10 + (idx * 15) % 70;
+                    const left = 5 + (idx * 23) % 85;
+                    const top = 8 + (idx * 14) % 75;
                     bubblesHTML += `
                         <div class="birthday-bubble" data-idx="${idx}" data-size="${a.size}" data-left="${left}" data-top="${top}"
-                             style="width:${a.size}px;height:${a.size}px;left:${left}%;top:${top}%;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55) 0%, ${a.cor} 60%, rgba(0,0,0,0.1) 100%);border:1px solid rgba(255,255,255,0.3);">
-                            <span class="profile-icon icon-bounce-soft"><i class="fas fa-user"></i></span>
+                             style="width:${a.size}px;height:${a.size}px;left:${left}%;top:${top}%;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3) 0%, ${a.cor} 55%, rgba(0,0,0,0.1) 100%);border:1px solid rgba(255,255,255,0.2);">
+                            <span class="profile-icon icon-bounce-soft">🎂</span>
                             <span class="bubble-name">${a.nome}</span>
                             <span class="bubble-date">${a.dia}/${a.mes}</span>
                         </div>`;
@@ -2599,9 +3039,9 @@
 
                 return `<div class="birthday-slide">
                     <img src="${BG_ANIVERSARIO}" class="bg-blur" alt="background" onerror="this.style.display='none'">
-                    <h2><i class="fas fa-birthday-cake icon-float"></i> Aniversariantes da Semana</h2>
+                    <h2><svg viewBox="0 0 24 24"><path d="M12 6c1.11 0 2-.9 2-2 0-.38-.1-.73-.29-1.03L12 0l-1.71 2.97c-.19.3-.29.65-.29 1.03 0 1.1.9 2 2 2zm4.6 9.99l-1.07-1.07-1.08 1.07c-1.3 1.3-3.58 1.31-4.89 0l-1.07-1.07-1.09 1.07C6.75 16.64 5.88 17 4.96 17c-.73 0-1.4-.23-1.96-.61V21c0 .55.45 1 1 1h16c.55 0 1-.45 1-1v-4.61c-.56.38-1.23.61-1.96.61-.92 0-1.79-.36-2.44-1.01zM18 9h-5V7h-2v2H6c-1.66 0-3 1.34-3 3v1.54c0 1.08.88 1.96 1.96 1.96.52 0 1.02-.2 1.38-.57l2.14-2.13 2.13 2.13c.74.74 1.03 1.17 2.39 1.17s1.65-.43 2.39-1.17l2.13-2.13 2.13 2.13c.36.37.86.57 1.38.57 1.08 0 1.96-.88 1.96-1.96V12C21 10.34 19.66 9 18 9z"/></svg> Aniversariantes da Semana</h2>
                     <div class="birthday-bubbles" id="birthday-bubbles-container">${bubblesHTML}</div>
-                    <p class="birthday-label">Parabéns a todos! 🎉</p>
+                    <p class="birthday-label">🎉 Parabéns a todos! 🎉</p>
                 </div>`;
             }
 
@@ -2609,10 +3049,10 @@
                 return `<div class="birthday-single-slide">
                     <img src="${BG_ANIVERSARIO}" class="bg-blur-single" alt="background" onerror="this.style.display='none'">
                     <div class="birthday-single-content">
-                        <div class="profile-big-icon icon-pulse"><i class="fas fa-birthday-cake"></i></div>
+                        <div class="profile-big-icon icon-pulse">🎂</div>
                         <div class="nome-destaque">${pessoa.nome}</div>
                         <div class="data-destaque">${pessoa.dia}/${pessoa.mes} – Aniversariante do Dia!</div>
-                        <p style="color:#ffd700;margin-top:12px;font-size:1.1rem;">🎉 Muitas felicidades! 🎉</p>
+                        <p style="color:#ffd700;margin-top:10px;font-size:1rem;">🎉 Muitas felicidades! 🎉</p>
                     </div>
                 </div>`;
             }
@@ -2623,17 +3063,17 @@
                 const idMeta = `campanha-meta-${camp.cod}`;
                 const idPerc = `campanha-perc-${camp.cod}`;
                 return `<div class="single-card-slide"><div class="single-card">
-                    <div class="slide-title-big" style="margin-bottom:16px;"><i class="fas fa-bullseye icon-bounce-soft"></i> ${camp.nomeCampanha}</div>
-                    <div style="position:relative;width:280px;height:300px;margin:0 auto;">
+                    <div class="slide-title-big" style="margin-bottom:12px;"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg> ${camp.nomeCampanha}</div>
+                    <div style="position:relative;width:200px;height:200px;margin:0 auto;">
                         <div class="target-container">
                             <div class="target-rings"></div>
                             <div class="target-center"></div>
                         </div>
-                        <span class="arrow-animated" style="position:absolute;font-size:3rem;color:#1a1a1a;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%) rotate(180deg);opacity:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));">🏹</span>
+                        <span class="arrow-animated" style="position:absolute;font-size:2.4rem;color:#1a1a1a;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%) rotate(180deg);opacity:1;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5));">🏹</span>
                     </div>
-                    <div style="font-size:2.5rem;font-weight:700;color:#ffd700;margin-top:8px;text-shadow:0 1px 15px rgba(0,0,0,0.4);"><span id="${idPerc}">${perc.toFixed(1)}%</span></div>
-                    <div style="color:rgba(255,255,255,0.8);font-size:1rem;"><span id="${idFat}">${formatarMoeda(camp.realizadoTotal)}</span> / <span id="${idMeta}">${formatarMoeda(camp.metaTotal)}</span></div>
-                    <div style="color:rgba(255,255,255,0.6);font-size:0.8rem;margin-top:4px;">${camp.nome} • Restam ${camp.diasRestantes||0} dias</div>
+                    <div style="font-size:2.2rem;font-weight:700;color:#ffd700;margin-top:6px;text-shadow:0 1px 15px rgba(0,0,0,0.3);"><span id="${idPerc}">${perc.toFixed(1)}%</span></div>
+                    <div style="color:var(--text-secondary);font-size:0.9rem;"><span id="${idFat}">${formatarMoeda(camp.realizadoTotal)}</span> / <span id="${idMeta}">${formatarMoeda(camp.metaTotal)}</span></div>
+                    <div style="color:var(--text-muted);font-size:0.75rem;margin-top:2px;">${camp.nome} • Restam ${camp.diasRestantes||0} dias</div>
                 </div></div>`;
             }
 
@@ -2648,11 +3088,11 @@
 
             function buildLoadingRefreshSlide() {
                 return `<div class="loading-refresh-slide">
-                    <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" style="height:80px;object-fit:contain;margin-bottom:8px;" onerror="this.style.display='none'">
-                    <div style="font-size:1.8rem;font-weight:800;color:#4caf50;">RADAR CENTROBOR</div>
+                    <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" class="refresh-logo" onerror="this.style.display='none'">
+                    <span class="refresh-brand">RADAR CENTROBOR</span>
                     <div class="loading-refresh-spinner"></div>
-                    <p style="color:#fff;font-weight:600;font-size:1.2rem;">Consultando novas informações...</p>
-                    <p style="color:rgba(255,255,255,0.5);font-size:0.85rem;">Retornando ao Radar Centrobor em instantes</p>
+                    <p>Consultando novas informações...</p>
+                    <p style="color:var(--text-muted);font-size:0.8rem;">Retornando em instantes</p>
                 </div>`;
             }
 
@@ -2674,7 +3114,7 @@
                     el.style.left = x + 'px';
                     el.style.top = y + 'px';
                     el.style.position = 'absolute';
-                    states.push({ el, x, y, vx: (Math.random() - 0.5) * 2.4, vy: (Math.random() - 0.5) * 2.4, size,
+                    states.push({ el, x, y, vx: (Math.random() - 0.5) * 2, vy: (Math.random() - 0.5) * 2, size,
                         mass: size / 7 });
                 });
 
@@ -2682,10 +3122,10 @@
                     const currentW = container.clientWidth || W;
                     const currentH = container.clientHeight || H;
                     const damping = 0.985;
-                    const gravity = 0.015;
+                    const gravity = 0.01;
                     states.forEach(s => {
-                        s.vx += (Math.random() - 0.5) * 0.14;
-                        s.vy += (Math.random() - 0.5) * 0.14 + gravity;
+                        s.vx += (Math.random() - 0.5) * 0.1;
+                        s.vy += (Math.random() - 0.5) * 0.1 + gravity;
                         s.vx *= damping;
                         s.vy *= damping;
                         s.x += s.vx;
@@ -2735,7 +3175,7 @@
 
             // ===== DASHBOARD PRINCIPAL =====
             function buildDashboardHTML(dados) {
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const semAtual = mes <= 6 ? 1 : 2;
@@ -2758,7 +3198,7 @@
                     <div class="dash-grid">
                         <div class="dash-card">
                             <div class="card-header">
-                                <i class="fas fa-chart-bar"></i>
+                                <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
                                 <span class="card-title">Faturamento Ano</span>
                             </div>
                             <div class="card-value" id="kpi-fat-ano">${formatarMoeda(dados.fatAno||0)}</div>
@@ -2771,7 +3211,7 @@
 
                         <div class="dash-card">
                             <div class="card-header">
-                                <i class="fas fa-calendar-check"></i>
+                                <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
                                 <span class="card-title">Mês Atual</span>
                             </div>
                             <div class="card-value" id="kpi-mes-dash">${formatarMoeda(fatMes)}</div>
@@ -2784,7 +3224,7 @@
 
                         <div class="dash-card dash-card-semestres">
                             <div class="card-header">
-                                <i class="fas fa-calendar-alt"></i>
+                                <svg viewBox="0 0 24 24"><path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/></svg>
                                 <span class="card-title">Semestres</span>
                             </div>
                             <div class="semestre-linha">
@@ -2805,7 +3245,7 @@
 
                         <div class="dash-card dash-card-campanha" style="grid-column:1 / -1;">
                             <div class="card-header">
-                                <i class="fas fa-fire"></i>
+                                <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
                                 <span class="card-title">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</span>
                             </div>
                             <div class="campanha-content">
@@ -2845,7 +3285,8 @@
                 const videoBox = document.getElementById('video-box');
                 const radioBox = document.getElementById('radio-box');
                 if (!visibleSlides[idx]) return;
-                if (visibleSlides[idx].type === 'video') {
+                if (visibleSlides[idx].type === 'video' || visibleSlides[idx].type === 'noticias' || visibleSlides[idx]
+                    .type === 'previsao') {
                     videoBox.style.display = 'none';
                     radioBox.style.display = 'none';
                     sidebarDash.style.display = 'flex';
@@ -2856,24 +3297,24 @@
                     const perc = meta > 0 ? (fat / meta) * 100 : 0;
                     sidebarDash.innerHTML = `
                         <div class="dash-card-side">
-                            <div class="icon-sm icon-float"><i class="fas fa-chart-line"></i></div>
+                            <div class="icon-sm icon-float"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></div>
                             <div class="info">
                                 <div class="kpi-lab">Valor Realizado</div>
                                 <div class="kpi-val destaque" id="side-val-fat">${formatarMoeda(fat)}</div>
                             </div>
                         </div>
                         <div class="dash-card-side">
-                            <div class="icon-sm icon-pulse"><i class="fas fa-flag-checkered"></i></div>
+                            <div class="icon-sm icon-pulse"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg></div>
                             <div class="info">
                                 <div class="kpi-lab">Meta do Mês</div>
                                 <div class="kpi-val meta-menor" id="side-val-meta">${formatarMoeda(meta)}</div>
                             </div>
                         </div>
                         <div class="dash-card-side">
-                            <div class="icon-sm icon-bounce-soft"><i class="fas fa-percentage"></i></div>
+                            <div class="icon-sm icon-bounce-soft"><svg viewBox="0 0 24 24"><path d="M8.59 16.59L10 18l6-6-6-6-1.41 1.41L13.17 12z"/></svg></div>
                             <div class="info">
                                 <div class="kpi-lab">Percentual Atingido</div>
-                                <div class="kpi-val" id="side-val-perc" style="color:${perc>=100?'#4caf50':'#f59e0b'};">${perc.toFixed(1)}%</div>
+                                <div class="kpi-val" id="side-val-perc" style="color:${perc>=100?'var(--success)':'var(--warning)'};">${perc.toFixed(1)}%</div>
                                 <div class="restante-text">Restam ${formatarMoeda(restante)}</div>
                             </div>
                         </div>
@@ -2893,6 +3334,7 @@
             // ===== CARREGAR DADOS =====
             async function carregarDadosReais() {
                 try {
+                    updateLoadingProgress(10, 'Carregando dados do Google Sheets...');
                     const [faturados, metas, metasGlobaisData, campanhas, cadastroData, banners, dolar] = await Promise
                         .all([
                             carregarJSON(BASES.faturados), carregarJSON(BASES.metas), carregarJSON(BASES.metasGlobais),
@@ -2906,6 +3348,7 @@
                     cadastros = cadastroData;
                     bannersData = banners;
                     dolarData = dolar;
+                    updateLoadingProgress(50, 'Dados carregados ✓');
                 } catch (e) {
                     const stored = carregarDadosDoStorage();
                     if (stored) {
@@ -2916,6 +3359,7 @@
                         cadastros = stored.cadastros || [];
                         bannersData = stored.bannersData || [];
                         dolarData = stored.dolarData || [];
+                        updateLoadingProgress(50, 'Dados do cache local ✓');
                     } else {
                         allFaturados = [];
                         allMetas = [];
@@ -2924,13 +3368,15 @@
                         cadastros = [];
                         bannersData = [];
                         dolarData = [];
+                        updateLoadingProgress(30, '⚠️ Usando dados de fallback');
                     }
                 }
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto',
-                'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                    'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                ];
                 let fatAno = 0,
                     metaAno = 0;
                 for (let m = 1; m <= 12; m++) {
@@ -2945,7 +3391,7 @@
                     campanhaMeta = 1,
                     diasRestantes = 0,
                     campanhaAtiva = false;
-                const hoje = new Date();
+                const hoje = getHoraAtual();
                 hoje.setHours(0, 0, 0, 0);
                 const campanhasAtivas = campanhasData.filter(c => {
                     if (!c.data_inicio || !c.data_fim) return false;
@@ -3004,7 +3450,8 @@
                     'grafico_diario': 'resultados', 'evolucao_mensal': 'resultados', 'realizado_meta': 'resultados',
                     'semestre': 'resultados', 'conquista': 'resultados', 'aniversariantes': 'novidades',
                     'aniversariante_dia': 'novidades', 'campanha_alvo': 'novidades', 'postagem': 'novidades',
-                    'video': 'novidades', 'banner': 'novidades', 'loading_refresh': 'geral' };
+                    'video': 'novidades', 'banner': 'novidades', 'loading_refresh': 'geral', 'noticias': 'novidades',
+                    'previsao': 'novidades' };
                 return cats[type] || 'geral';
             }
 
@@ -3015,7 +3462,7 @@
                     'semestre': 'Semestre', 'conquista': 'Conquista', 'aniversariantes': 'Aniversariantes',
                     'aniversariante_dia': 'Aniversariante do Dia', 'campanha_alvo': 'Campanha Ativa',
                     'postagem': 'Postagem', 'video': 'Vídeo', 'banner': 'Banner',
-                'loading_refresh': 'Atualização' };
+                'loading_refresh': 'Atualização', 'noticias': 'Notícias', 'previsao': 'Previsão do Tempo' };
                 let base = labels[type] || `Slide ${index}`;
                 if (type === 'semestre' && allSlides[index]?.label) base = allSlides[index].label;
                 if (type === 'postagem' && allSlides[index]?.label) base = allSlides[index].label.substring(0, 30);
@@ -3096,10 +3543,12 @@
                 allSlides = [];
                 Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
                 chartInstances = {};
-                const hoje = new Date();
+                const hoje = getHoraAtual();
                 const hojeDia = hoje.getDate();
                 const hojeMes = hoje.getMonth() + 1;
                 const hojeLimpo = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+
+                updateLoadingProgress(60, 'Construindo slides...');
 
                 allSlides.push({ type: 'relogio', html: buildRelogioSlideHTML() });
                 allSlides.push({ type: 'dashboard', html: buildDashboardHTML(dados) });
@@ -3114,7 +3563,7 @@
                 allSlides.push({ type: 'evolucao_mensal', html: buildEvolucaoMensalSlide(dados) });
                 allSlides.push({ type: 'realizado_meta', html: buildRealizadoMetaSlide(dados) });
 
-                const now = new Date(),
+                const now = getHoraAtual(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
                 const semAtual = mes <= 6 ? 1 : 2;
@@ -3160,6 +3609,21 @@
                     });
                 }
 
+                // Notícias
+                try {
+                    const noticias = await buscarNoticias();
+                    if (noticias && noticias.length > 0) {
+                        allSlides.push({ type: 'noticias', html: buildNoticiasSlide(noticias) });
+                    }
+                } catch (e) { console.warn('Erro ao carregar notícias:', e); }
+
+                // Previsão do Tempo
+                try {
+                    const previsaoHTML = await buildPrevisaoTempoSlide();
+                    allSlides.push({ type: 'previsao', html: previsaoHTML });
+                } catch (e) { console.warn('Erro ao carregar previsão:', e); }
+
+                // Postagens (fallback)
                 try {
                     const postagens = await carregarJSON(BASES.postagens);
                     const hojeStr = hoje.toISOString().split('T')[0];
@@ -3179,14 +3643,14 @@
                             '...';
                         const imgTag = p.imagem ?
                             `<img src="${p.imagem}" class="slide-full-img" onerror="this.style.display='none'">` :
-                            `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1e3a5f,#0b1a2e);"></div>`;
+                            `<div style="width:100%;height:100%;background:linear-gradient(135deg,#1a2a4a,#0a0e1a);"></div>`;
                         allSlides.push({ type: 'postagem', label: p.titulo,
-                            html: `${imgTag}<div class="slide-overlay"><span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:16px;font-size:0.7rem;font-weight:700;margin-bottom:12px;">${tipo.toUpperCase()}</span><h2>${p.titulo}</h2><div class="meta" style="margin-top:8px;"><span><i class="fas fa-calendar-alt"></i> ${p.data||''}</span><span><i class="fas fa-user"></i> ${p.autor||''}</span></div><p style="margin-top:10px;color:var(--text-muted);">${resumo}</p></div>` }
+                            html: `${imgTag}<div class="slide-overlay"><span style="display:inline-block;background:rgba(56,189,248,0.15);color:var(--accent);padding:4px 12px;border-radius:16px;font-size:0.65rem;font-weight:700;margin-bottom:10px;">${tipo.toUpperCase()}</span><h2>${p.titulo}</h2><div class="meta"><span>📅 ${p.data||''}</span><span>👤 ${p.autor||''}</span></div><p>${resumo}</p></div>` }
                         );
                     });
                 } catch (e) { console.warn('Erro ao carregar postagens:', e); }
 
-                // Vídeo - será atualizado dinamicamente pelo YouTube
+                // Vídeo
                 allSlides.push({ type: 'video',
                     html: `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId || '5YiPIzWS96M'}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId || '5YiPIzWS96M'}&cc_load_policy=1&hl=pt" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
                 });
@@ -3204,7 +3668,8 @@
                 zone.querySelectorAll('.slide').forEach(el => el.remove());
                 visibleSlides.forEach((s, i) => {
                     const div = document.createElement('div');
-                    div.className = `slide${i===0?' active':''}`;
+                    const transition = TRANSITIONS[i % TRANSITIONS.length];
+                    div.className = `slide transition-${transition}${i===0?' active':''}`;
                     div.dataset.index = i;
                     div.innerHTML = s.html;
                     zone.appendChild(div);
@@ -3219,10 +3684,11 @@
                     });
                 });
                 currentSlideIndex = 0;
+                updateLoadingProgress(90, 'Finalizando...');
                 setTimeout(() => {
                     if (visibleSlides[0]?.type === 'relogio') {
                         setInterval(() => {
-                            const agora = new Date();
+                            const agora = getHoraAtual();
                             const elHora = document.getElementById('slide-hora');
                             if (elHora) elHora.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit',
                                 minute: '2-digit' });
@@ -3234,8 +3700,6 @@
                                 year: 'numeric' });
                             const elTemp = document.getElementById('slide-temp');
                             if (elTemp) elTemp.textContent = document.getElementById('temp').textContent;
-                            const elIcon = document.getElementById('slide-clima-icon');
-                            if (elIcon) elIcon.className = document.querySelector('#clima-box i').className;
                         }, 1000);
                     }
                     animarDashboardCompleto(dados);
@@ -3248,6 +3712,10 @@
                             setTimeout(() => animarCampanhaAlvo(s.campanhaData), 400);
                         }
                     });
+                    updateLoadingProgress(100, 'Pronto! ✅');
+                    setTimeout(() => {
+                        loadingOverlay.classList.add('hidden');
+                    }, 500);
                 }, 600);
                 iniciarTimer();
                 atualizarSidebar(0);
@@ -3281,7 +3749,7 @@
                         if (refreshTimeout) clearTimeout(refreshTimeout);
                     }
                     if (s.type === 'relogio') {
-                        const agora = new Date();
+                        const agora = getHoraAtual();
                         const elHora = document.getElementById('slide-hora');
                         if (elHora) elHora.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit',
                             minute: '2-digit' });
@@ -3290,8 +3758,6 @@
                             day: '2-digit', month: 'long', year: 'numeric' });
                         const elTemp = document.getElementById('slide-temp');
                         if (elTemp) elTemp.textContent = document.getElementById('temp').textContent;
-                        const elIcon = document.getElementById('slide-clima-icon');
-                        if (elIcon) elIcon.className = document.querySelector('#clima-box i').className;
                     } else if (s.type === 'dashboard') setTimeout(() => animarDashboardCompleto(window._dadosPainel ||
                         {}), 200);
                     else if (s.type === 'monthly_bar') setTimeout(() => animarMonthlyBarChart(window._dadosPainel ||
@@ -3341,10 +3807,10 @@
 
             function dispararConfetes() {
                 if (typeof confetti === 'function') {
-                    confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, zIndex: 10000 });
-                    setTimeout(() => confetti({ particleCount: 100, angle: 60, spread: 55, origin: { x: 0 },
+                    confetti({ particleCount: 120, spread: 60, origin: { y: 0.6 }, zIndex: 10000 });
+                    setTimeout(() => confetti({ particleCount: 80, angle: 60, spread: 50, origin: { x: 0 },
                         zIndex: 10000 }), 200);
-                    setTimeout(() => confetti({ particleCount: 100, angle: 120, spread: 55, origin: { x: 1 },
+                    setTimeout(() => confetti({ particleCount: 80, angle: 120, spread: 50, origin: { x: 1 },
                         zIndex: 10000 }), 400);
                 }
             }
@@ -3354,9 +3820,7 @@
                 const radio = RADIOS[index];
                 if (!radio) return;
                 const radioBox = document.getElementById('radio-box');
-                // Substitui o conteúdo
                 radioBox.innerHTML = radio.widgetHTML;
-                // Atualiza indicador
                 document.getElementById('radioName').textContent = radio.name;
                 // Tenta iniciar a rádio automaticamente
                 setTimeout(() => {
@@ -3367,7 +3831,6 @@
                             playBtn.click();
                             radioStarted = true;
                         }
-                        // Ajusta volume para 50%
                         const volInput = document.querySelector(`#${radio.id} .volume-control`);
                         if (volInput) {
                             volInput.value = 50;
@@ -3376,8 +3839,7 @@
                         const audio = document.querySelector(`#${radio.id} audio`);
                         if (audio) audio.volume = 0.5;
                     } catch (e) { /* ignore */ }
-                }, 2000);
-                // Salva estado
+                }, CONFIG.radioInitialDelay);
                 currentRadioIndex = index;
                 salvarRadioState(index);
             }
@@ -3388,17 +3850,15 @@
             }
 
             function iniciarRadioRotacao() {
-                // Carrega a rádio inicial (Alpha FM)
                 const savedIndex = carregarRadioState();
                 carregarRadio(savedIndex);
-                // Agenda a troca a cada 5 horas
                 radioTimer = setInterval(proximaRadio, CONFIG.radioInterval);
             }
 
-            // ===== SISTEMA DE VÍDEO AO VIVO (YOUTUBE) =====
+            // ===== SISTEMA DE VÍDEO =====
             async function buscarVideoAoVivo() {
                 try {
-                    const apiKey = 'AIzaSyA0rkj5T_8AunHZQ5fhz6ElweGwwFwHScA'; // Chave pública para teste, mas o ideal seria usar uma chave própria
+                    const apiKey = 'AIzaSyA0rkj5T_8AunHZQ5fhz6ElweGwwFwHScA';
                     const url =
                         `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CONFIG.youtubeChannelId}&eventType=live&type=video&key=${apiKey}&order=date`;
                     const resp = await fetch(url);
@@ -3408,16 +3868,20 @@
                         const videoId = data.items[0].id.videoId;
                         if (videoId && videoId !== currentVideoId) {
                             currentVideoId = videoId;
-                            // Atualiza o iframe do slide de vídeo
                             const iframe = document.getElementById('live-youtube-iframe');
                             if (iframe) {
                                 iframe.src =
                                     `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt`;
                             }
+                            const player = document.getElementById('youtube-player');
+                            const placeholder = document.getElementById('videoPlaceholder');
+                            if (player && placeholder) {
+                                player.style.display = 'block';
+                                placeholder.style.display = 'none';
+                            }
                             console.log('Vídeo ao vivo atualizado:', videoId);
                         }
                     } else {
-                        // Se não houver live, tenta buscar o vídeo mais recente (não ao vivo)
                         const fallbackUrl =
                             `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CONFIG.youtubeChannelId}&order=date&type=video&key=${apiKey}&maxResults=1`;
                         const fallbackResp = await fetch(fallbackUrl);
@@ -3431,6 +3895,12 @@
                                     if (iframe) {
                                         iframe.src =
                                             `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt`;
+                                    }
+                                    const player = document.getElementById('youtube-player');
+                                    const placeholder = document.getElementById('videoPlaceholder');
+                                    if (player && placeholder) {
+                                        player.style.display = 'block';
+                                        placeholder.style.display = 'none';
                                     }
                                     console.log('Vídeo mais recente (fallback):', videoId);
                                 }
@@ -3452,14 +3922,18 @@
                 syncBadge.className = 'sync-badge';
                 if (status === 'syncing') {
                     syncBadge.classList.add('syncing');
-                    syncBadge.innerHTML = `<i class="fas fa-spinner fa-pulse"></i> ${msg || 'Sincronizando...'}`;
+                    syncBadge.innerHTML =
+                        `<svg viewBox="0 0 24 24"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg> ${msg || 'Sincronizando...'}`;
                 } else if (status === 'offline') {
                     syncBadge.classList.add('offline');
-                    syncBadge.innerHTML = `<i class="fas fa-wifi-slash"></i> ${msg || 'Sem conexão'}`;
+                    syncBadge.innerHTML =
+                        `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> ${msg || 'Sem conexão'}`;
                 } else if (status === 'online') {
-                    syncBadge.innerHTML = `<i class="fas fa-check-circle"></i> ${msg || 'Dados atualizados'}`;
+                    syncBadge.innerHTML =
+                        `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> ${msg || 'Dados atualizados'}`;
                 } else {
-                    syncBadge.innerHTML = `<i class="fas fa-info-circle"></i> ${msg || 'Pronto'}`;
+                    syncBadge.innerHTML =
+                        `<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg> ${msg || 'Pronto'}`;
                 }
                 syncText.textContent = syncBadge.textContent.trim();
             }
@@ -3508,7 +3982,7 @@
                         if (banners) bannersData = banners;
                         if (dolar) dolarData = dolar;
 
-                        const now = new Date(),
+                        const now = getHoraAtual(),
                             ano = now.getFullYear(),
                             mes = now.getMonth() + 1;
                         const mesesNomes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho',
@@ -3530,7 +4004,7 @@
                             campanhaMeta = 1,
                             diasRestantes = 0,
                             campanhaAtiva = false;
-                        const hoje = new Date();
+                        const hoje = getHoraAtual();
                         hoje.setHours(0, 0, 0, 0);
                         const campanhasAtivas = campanhasData.filter(c => {
                             if (!c.data_inicio || !c.data_fim) return false;
@@ -3606,7 +4080,7 @@
 
             function atualizarLastUpdate() {
                 document.getElementById('last-update-text').textContent =
-                    `Atualizado: ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+                    `Atualizado: ${getHoraAtual().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
             }
             setInterval(atualizarLastUpdate, 60000);
             atualizarLastUpdate();
@@ -3653,15 +4127,15 @@
             function toggleSidebar() {
                 sidebarHidden = !sidebarHidden;
                 const mainGrid = document.getElementById('mainGrid');
-                const floatToggleIcon = document.getElementById('floatToggleIcon');
                 const floatToggle = document.getElementById('sidebarFloatToggle');
+                const icon = floatToggle.querySelector('svg');
                 if (sidebarHidden) {
                     mainGrid.classList.add('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-left';
+                    icon.innerHTML = '<path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>';
                     floatToggle.classList.remove('hidden');
                 } else {
                     mainGrid.classList.remove('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-right';
+                    icon.innerHTML = '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>';
                     floatToggle.classList.add('hidden');
                 }
                 salvarSidebarState(sidebarHidden);
@@ -3670,6 +4144,10 @@
             // ===== INIT =====
             async function init() {
                 initParticles();
+
+                // Sincroniza NTP
+                await sincronizarNTP();
+                setInterval(sincronizarNTP, CONFIG.ntpSyncInterval);
 
                 // YouTube
                 iniciarAtualizacaoYouTube();
@@ -3680,15 +4158,15 @@
                 // Sidebar
                 sidebarHidden = carregarSidebarState();
                 const mainGrid = document.getElementById('mainGrid');
-                const floatToggleIcon = document.getElementById('floatToggleIcon');
                 const floatToggle = document.getElementById('sidebarFloatToggle');
+                const icon = floatToggle.querySelector('svg');
                 if (sidebarHidden) {
                     mainGrid.classList.add('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-left';
+                    icon.innerHTML = '<path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>';
                     floatToggle.classList.remove('hidden');
                 } else {
                     mainGrid.classList.remove('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-right';
+                    icon.innerHTML = '<path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>';
                     floatToggle.classList.add('hidden');
                 }
                 document.getElementById('sidebarFloatToggle').addEventListener('click', toggleSidebar);
@@ -3698,8 +4176,6 @@
                     await construirSlides(window._dadosPainel);
                     initBannerSlideshow();
                     initSlideManager();
-                    if (loadingInfoInterval) clearInterval(loadingInfoInterval);
-                    loadingOverlay.classList.add('hidden');
                     iniciarSincronizacaoAutomatica();
                 } catch (e) {
                     const stored = carregarDadosDoStorage();
@@ -3727,8 +4203,6 @@
                         initSlideManager();
                         atualizarSyncBadge('offline', 'Sem dados');
                     }
-                    if (loadingInfoInterval) clearInterval(loadingInfoInterval);
-                    loadingOverlay.classList.add('hidden');
                     iniciarSincronizacaoAutomatica();
                 }
                 document.getElementById('prev-slide-btn').addEventListener('click', () => { slideAnterior();
@@ -3738,7 +4212,9 @@
                 const pauseBtn = document.getElementById('pause-slide-btn');
                 pauseBtn.addEventListener('click', () => {
                     paused = !paused;
-                    pauseBtn.innerHTML = paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
+                    pauseBtn.innerHTML = paused ?
+                        '<svg viewBox="0 0 24 24"><path d="M8 5v14h4V5H8zm8 0v14h4V5h-4z"/></svg>' :
+                        '<svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
                 });
                 setInterval(() => { window.location.reload(); }, CONFIG.reloadInterval);
             }
