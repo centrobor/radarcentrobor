@@ -1465,21 +1465,23 @@
 
         /* ===== DASHBOARD SLIDE (NOVO LAYOUT) ===== */
         .dash-grid-container {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 100%;
-            padding: 24px 32px;
-            gap: 24px;
-            overflow-y: auto;
-        }
-        .dash-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 24px;
-            flex: 1;
-            align-content: start;
-        }
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 100%;
+    padding: 24px 32px;
+    gap: 24px;
+    overflow-y: auto;
+    justify-content: center; /* centraliza verticalmente */
+}
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    width: 100%;
+    align-content: center; /* centraliza o grid verticalmente */
+    justify-items: stretch;
+}
         .dash-grid .dash-card {
             min-height: 200px;
             padding: 24px 28px;
@@ -3496,21 +3498,86 @@
             }
 
             function configurarRadio() {
-                // O widget já está com data-autoplay="true"
-                // Definir volume para 10% após carregamento
-                setTimeout(() => {
-                    try {
-                        const volumeInput = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG .volume-control');
-                        if (volumeInput) {
-                            volumeInput.value = 10;
-                            volumeInput.dispatchEvent(new Event('input'));
-                        }
-                        // Tentar também o áudio diretamente
-                        const audio = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG audio');
-                        if (audio) audio.volume = 0.1;
-                    } catch (e) {}
-                }, 2000);
+    // O widget já está com data-autoplay="true"
+    // Definir volume para 50% após carregamento
+    let radioStarted = false;
+    let userInteracted = false;
+
+    function attemptAutoplay() {
+        if (radioStarted) return;
+        try {
+            // Tenta encontrar o player e iniciar
+            const playBtn = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG .main-play-button');
+            if (playBtn && !playBtn.classList.contains('playing') && !playBtn.classList.contains('disabled')) {
+                playBtn.click();
+                radioStarted = true;
+                console.log('Rádio iniciada automaticamente');
             }
+            // Também tenta via áudio interno
+            const audio = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG audio');
+            if (audio && audio.paused) {
+                audio.volume = 0.5;
+                audio.play().catch(() => {});
+                radioStarted = true;
+            }
+        } catch (e) {}
+    }
+
+    // Tentar iniciar imediatamente
+    setTimeout(attemptAutoplay, 3000);
+    setTimeout(attemptAutoplay, 6000);
+
+    // Se o navegador bloquear, iniciar na primeira interação do usuário
+    const startOnInteraction = function() {
+        if (!radioStarted) {
+            attemptAutoplay();
+            // Salvar preferência de volume
+            try {
+                const volInput = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG .volume-control');
+                if (volInput) {
+                    volInput.value = 50;
+                    volInput.dispatchEvent(new Event('input'));
+                }
+            } catch (e) {}
+            // Salvar preferência de pausa (se houver)
+            try {
+                localStorage.setItem('radio_paused', 'false');
+            } catch (e) {}
+        }
+        // Remover listeners após primeira interação
+        document.removeEventListener('click', startOnInteraction);
+        document.removeEventListener('touchstart', startOnInteraction);
+        document.removeEventListener('keydown', startOnInteraction);
+        document.removeEventListener('mousemove', startOnInteraction);
+    };
+
+    // Adicionar listeners para interação do usuário
+    document.addEventListener('click', startOnInteraction);
+    document.addEventListener('touchstart', startOnInteraction);
+    document.addEventListener('keydown', startOnInteraction);
+    document.addEventListener('mousemove', startOnInteraction);
+
+    // Salvar preferência de pausa quando o usuário pausar manualmente
+    try {
+        const playBtn = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG .main-play-button');
+        if (playBtn) {
+            playBtn.addEventListener('click', function() {
+                const isPlaying = this.classList.contains('playing');
+                localStorage.setItem('radio_paused', isPlaying ? 'false' : 'true');
+            });
+        }
+    } catch (e) {}
+
+    // Restaurar estado de pausa ao recarregar
+    try {
+        const paused = localStorage.getItem('radio_paused');
+        if (paused === 'true') {
+            // Se estava pausado, não iniciar automaticamente
+            radioStarted = true; // Evita iniciar
+            console.log('Rádio mantida pausada conforme preferência do usuário');
+        }
+    } catch (e) {}
+}
 
             function iniciarRecargaAutomatica() { setInterval(() => { window.location.reload(); }, CONFIG
             .reloadInterval); }
