@@ -480,34 +480,72 @@
         /* ===== MAIN GRID ===== */
         .main-grid {
             flex: 1;
-            display: grid;
-            grid-template-columns: 1fr 370px;
-            grid-template-rows: 1fr;
+            display: flex;
+            flex-direction: row;
             gap: 16px;
             padding: 16px;
             min-height: 0;
             z-index: 1;
             order: 1;
-            transition: grid-template-columns 0.4s ease;
+            transition: gap 0.4s ease;
             position: relative;
+            overflow: hidden;
         }
-        .main-grid.sidebar-hidden {
-            grid-template-columns: 1fr 0px;
+        .main-grid .slides-zone {
+            flex: 1;
+            min-width: 0;
+            position: relative;
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            background: linear-gradient(135deg, var(--slide-bg-start), var(--slide-bg-end));
+            box-shadow: var(--shadow-card), inset 0 0 60px rgba(30, 90, 122, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            aspect-ratio: 16/9;
+            max-height: 100%;
+            min-height: 300px;
+            width: 100%;
+            transition: background 2s ease, flex 0.4s ease;
+        }
+        .main-grid .sidebar-right {
+            flex: 0 0 370px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            min-height: 0;
+            transition: flex 0.4s ease, opacity 0.4s ease, transform 0.4s ease;
+            overflow: hidden;
+            transform: scaleX(1);
+            transform-origin: right center;
+            opacity: 1;
         }
         .main-grid.sidebar-hidden .sidebar-right {
-            display: none;
+            flex: 0 0 0;
+            opacity: 0;
+            transform: scaleX(0);
+            margin: 0;
+            padding: 0;
+            gap: 0;
+            overflow: hidden;
         }
         @media (max-width: 900px) {
             .main-grid {
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr auto;
+                flex-direction: column;
             }
-            .main-grid.sidebar-hidden {
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr;
+            .main-grid .sidebar-right {
+                flex: 0 0 auto;
+                width: 100%;
+                height: auto;
+                max-height: 300px;
             }
             .main-grid.sidebar-hidden .sidebar-right {
-                display: none;
+                flex: 0 0 0;
+                max-height: 0;
+                opacity: 0;
+                transform: scaleY(0);
+                margin: 0;
+                padding: 0;
+                gap: 0;
+                overflow: hidden;
             }
         }
 
@@ -557,19 +595,6 @@
         }
 
         /* ===== SLIDES ZONE ===== */
-        .slides-zone {
-            position: relative;
-            border-radius: var(--radius-xl);
-            overflow: hidden;
-            background: linear-gradient(135deg, var(--slide-bg-start), var(--slide-bg-end));
-            box-shadow: var(--shadow-card), inset 0 0 60px rgba(30, 90, 122, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.06);
-            aspect-ratio: 16/9;
-            max-height: 100%;
-            min-height: 300px;
-            width: 100%;
-            transition: background 2s ease;
-        }
         .slide {
             position: absolute;
             top: 0;
@@ -1070,14 +1095,6 @@
         }
 
         /* ===== SIDEBAR ===== */
-        .sidebar-right {
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            min-height: 0;
-            transition: all 0.4s;
-            position: relative;
-        }
         .video-box {
             flex: 1;
             border-radius: var(--radius-lg);
@@ -1085,6 +1102,7 @@
             background: #000;
             min-height: 200px;
             box-shadow: var(--shadow-card);
+            transition: all 0.3s ease;
         }
         .video-box iframe {
             width: 100%;
@@ -1096,12 +1114,17 @@
             border-radius: var(--radius-md);
             overflow: hidden;
             flex-shrink: 0;
-            height: 70px;
+            height: 75px;
+            transition: all 0.3s ease;
         }
-        .radio-embed iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
+        .radio-embed .mytuner-widget {
+            height: 100% !important;
+            max-height: 100% !important;
+            border: none !important;
+        }
+        .radio-embed .mytuner-widget #w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGtop-bar {
+            height: 100% !important;
+            line-height: 75px !important;
         }
         .sidebar-dashboard {
             display: none;
@@ -1240,7 +1263,7 @@
             align-items: center;
             justify-content: center;
             gap: 20px;
-            transition: opacity 0.5s;
+            transition: opacity 0.8s ease;
         }
         .loading-overlay.hidden {
             opacity: 0;
@@ -1250,35 +1273,59 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
-            animation: subtleZoom 3s ease-in-out infinite;
+            gap: 12px;
+            animation: fadeScale 1.2s ease-out forwards;
+            opacity: 0;
+            transform: scale(0.85);
+        }
+        @keyframes fadeScale {
+            0% {
+                opacity: 0;
+                transform: scale(0.85);
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
         .loading-overlay .loading-logo img {
-            height: 200px;
+            height: 45vh;
+            max-height: 400px;
             object-fit: contain;
-            filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.15));
+            filter: drop-shadow(0 0 60px rgba(56, 189, 248, 0.2));
         }
         .loading-overlay .loading-logo .loading-brand {
-            font-size: 3.2rem;
+            font-size: 3.8rem;
             font-weight: 800;
             color: #4caf50;
-            letter-spacing: 2px;
-            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+            letter-spacing: 4px;
+            text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
         }
-        .loading-spinner {
-            width: 60px;
-            height: 60px;
-            border: 6px solid rgba(56, 189, 248, 0.2);
-            border-top: 6px solid var(--accent);
+        .loading-overlay .loading-footer {
+            position: absolute;
+            bottom: 40px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 16px;
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.5);
+            font-weight: 400;
+        }
+        .loading-overlay .loading-footer .spinner-mini {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(56, 189, 248, 0.2);
+            border-top: 3px solid var(--accent);
             border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin-top: 20px;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
         }
-        .loading-text {
-            color: var(--text-light);
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-top: 10px;
+        .loading-overlay .loading-footer .loading-text {
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
         }
         .loading-bottom-info {
             position: absolute;
@@ -1416,6 +1463,104 @@
             }
         }
 
+        /* ===== DASHBOARD SLIDE (NOVO LAYOUT) ===== */
+        .dash-grid-container {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 24px 32px;
+            gap: 24px;
+            overflow-y: auto;
+        }
+        .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            flex: 1;
+            align-content: start;
+        }
+        .dash-grid .dash-card {
+            min-height: 200px;
+            padding: 24px 28px;
+            border-radius: var(--radius-lg);
+            background: rgba(255, 255, 255, 0.07);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .dash-grid .dash-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+        }
+        .dash-grid .dash-card .card-header {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 12px;
+        }
+        .dash-grid .dash-card .card-header i {
+            font-size: 2rem;
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            color: var(--accent);
+        }
+        .dash-grid .dash-card .card-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .dash-grid .dash-card .card-value {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: #fff;
+            line-height: 1.2;
+            text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+        }
+        .dash-grid .dash-card .card-meta {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-top: 6px;
+        }
+        .dash-grid .dash-card .card-footer {
+            margin-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.06);
+            padding-top: 14px;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.7);
+        }
+        .dash-grid .dash-card .card-footer .perc {
+            font-weight: 700;
+            font-size: 1.2rem;
+        }
+        .dash-grid .dash-card .card-footer .perc.ok {
+            color: #4caf50;
+        }
+        .dash-grid .dash-card .card-footer .perc.warn {
+            color: #f59e0b;
+        }
+        .dash-grid .dash-card .card-footer .perc.danger {
+            color: #ef4444;
+        }
+        .dash-grid .dash-card .card-footer .remaining {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+        }
+
         /* ===== RESPONSIVE ===== */
         @media (max-width: 1100px) {
             .bottombar .banner-slideshow .banner-item .banner-date {
@@ -1441,6 +1586,12 @@
             .slide-manager-panel {
                 width: 320px;
                 right: -360px;
+            }
+            .main-grid .sidebar-right {
+                flex: 0 0 300px;
+            }
+            .dash-grid {
+                grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
             }
         }
         @media (max-width: 800px) {
@@ -1506,6 +1657,25 @@
             }
             .slide-title-big {
                 font-size: 1.6rem;
+            }
+            .main-grid {
+                flex-direction: column;
+                padding: 12px;
+            }
+            .main-grid .sidebar-right {
+                flex: 0 0 auto;
+                width: 100%;
+                max-height: 250px;
+            }
+            .main-grid.sidebar-hidden .sidebar-right {
+                flex: 0 0 0;
+                max-height: 0;
+            }
+            .dash-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .dash-grid .dash-card .card-value {
+                font-size: 2rem;
             }
         }
         @media (max-width: 500px) {
@@ -1574,6 +1744,69 @@
             .slide-title-big {
                 font-size: 1.4rem;
             }
+            .dash-grid {
+                grid-template-columns: 1fr;
+            }
+            .dash-grid .dash-card {
+                min-height: 160px;
+            }
+            .dash-grid .dash-card .card-value {
+                font-size: 1.8rem;
+            }
+            .loading-overlay .loading-logo img {
+                height: 30vh;
+                max-height: 250px;
+            }
+            .loading-overlay .loading-logo .loading-brand {
+                font-size: 2.2rem;
+            }
+        }
+
+        /* ===== RESPONSIVIDADE PARA GRANDES RESOLUÇÕES ===== */
+        @media (min-width: 1920px) {
+            .dash-grid {
+                grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+            }
+            .dash-grid .dash-card .card-value {
+                font-size: 3.6rem;
+            }
+            .dash-grid .dash-card {
+                padding: 32px 36px;
+                min-height: 240px;
+            }
+            .main-grid .sidebar-right {
+                flex: 0 0 420px;
+            }
+        }
+        @media (min-width: 2560px) {
+            .dash-grid {
+                grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+            }
+            .dash-grid .dash-card .card-value {
+                font-size: 4.2rem;
+            }
+            .dash-grid .dash-card {
+                padding: 40px 44px;
+                min-height: 280px;
+            }
+            .main-grid .sidebar-right {
+                flex: 0 0 480px;
+            }
+        }
+        @media (min-width: 3840px) {
+            .dash-grid {
+                grid-template-columns: repeat(auto-fit, minmax(520px, 1fr));
+            }
+            .dash-grid .dash-card .card-value {
+                font-size: 5rem;
+            }
+            .dash-grid .dash-card {
+                padding: 48px 56px;
+                min-height: 320px;
+            }
+            .main-grid .sidebar-right {
+                flex: 0 0 560px;
+            }
         }
     </style>
 </head>
@@ -1585,8 +1818,10 @@
             <img src="https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/img/radar-centrobor-logo_fundo_transparente.png" alt="Radar Centrobor" onerror="this.style.display='none'">
             <span class="loading-brand">RADAR CENTROBOR</span>
         </div>
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Consultando Sistema...</div>
+        <div class="loading-footer">
+            <span class="spinner-mini"></span>
+            <span class="loading-text">Consultando sistema...</span>
+        </div>
         <div class="loading-bottom-info">
             <span class="lb-time" id="lb-time">00:00</span>
             <span class="lb-date" id="lb-date"></span>
@@ -1614,10 +1849,78 @@
                     <iframe id="youtube-player" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
                 </div>
                 <div class="radio-embed" id="radio-box">
-                    <iframe id="radio-iframe" src="//radiocut.fm/audiocut/embed/mini/sequencia-de-classe-alpha-fm-301118/" allow="autoplay"></iframe>
-                    <audio id="radio-fallback" style="display:none;" controls>
-                        <source src="https://stream.alpha.fm/alpha1017" type="audio/mpeg">
-                    </audio>
+                    <!-- Widget MyTuner com autoplay ativado -->
+                    <div id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG" class="mytuner-widget" data-target="412548" data-requires_initialization="true" data-autoplay="true" data-hidehistory="false" style="width: 100%; max-width: 100%; overflow: hidden; max-height: 500px; border: 1px solid rgb(129, 127, 128); border-radius: 6px;">
+                        <style type="text/css"> .mytuner-widget { all: initial; display: block; color: #3D3D3D; } .mytuner-widget, .mytuner-widget * { box-sizing: border-box; font-family: sans-serif; } .main-play-button { padding: 5px; border-radius: 20px; width: 40px; height: 40px; float: left; margin-left: 10px; margin-right: 15px; margin-top: 12.5px; cursor: pointer; background-color: #FFF; box-shadow: 1px 2px 6px -3px black; display: inline-block; } .main-play-button:hover { background-color: #EEE; } .main-play-button.disabled { filter: grayscale(1); cursor: not-allowed; } .main-play-button div { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Play/BT_Play@2x.png") no-repeat center; background-size: 16px; width: 28px; height: 28px; margin-left: 3px; } .main-play-button.loading div { background: url("https://static2.mytuner.mobi/static/images/sprite-loading.gif") no-repeat center; filter: grayscale(1); background-size: 28px; margin-left: 2px; } .main-play-button.playing div { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Pause/BT_Pause@2x.png") no-repeat center; background-size: 16px; margin-left: 2px; } .main-play-button.error div { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Error/erro@2x.png") no-repeat center; background-size: 16px; margin-left: 0; } .play-button { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Play/BT_Play.png") no-repeat center; width: 40px; height: 40px; cursor: pointer; display: inline-flex; align-items: center; margin: auto 4px auto 19px; /* align with radio logo */ } .play-button.loading { background: url("https://static2.mytuner.mobi/static/images/sprite-loading.gif") no-repeat center; filter: grayscale(1); background-size: 28px; } .play-button.playing { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Pause/BT_Pause.png") no-repeat center; } .play-button.error { background: url("https://mytuner-radio.com/static/icons/widgets/BT_Error/erro.png") no-repeat center; background-size: 15px; } .play-button.disabled { opacity: 0.3; } .play-button.disabled:hover { cursor: not-allowed; } input[type=range][orient=vertical] { writing-mode: bt-lr; /* IE */ -webkit-appearance: slider-vertical; /* WebKit */ width: 8px; padding: 0 5px; } .volume-controls { width: 35px; height: 35px; display: inline-block; position: absolute; margin-left: 5px; margin-top: 14px; padding-top: 0; border-radius: 20px; box-sizing: content-box !important; z-index: 10; /* animation */ border: 1px solid transparent; transition: background 0.5s, padding 0.5s, margin 0.5s, border 0.5s; overflow: hidden; } .volume-controls:hover { padding-top: 140px; /* add original margin */ margin-top: -126px; background-color: #F2F2F2; border: 1px solid grey; transition: background 0.5s, padding 0.5s, margin 0.5s; } .volume-controls:hover > .volume-control { display: block; } .volume-controls .volume-control { opacity: 0; margin-top: -126px; margin-left: 13px; position: absolute; transition: 0.5s all; } .volume-controls:hover .volume-control { opacity: 1; } .volume-controls .volume-indicator { cursor: pointer; display: block; } .player-radio-link { width: calc(100% - 65px - 84px - 37px - 12px); } .player-radio-name { width: calc(100% - 74px - 10px); } .player-mytuner-logo { margin-left: 47px; } @media (max-width: 480px) { .player-radio-link { width: calc(100% - 65px - 84px - 12px); } .player-mytuner-logo { margin-left: 10px; } .volume-controls { display: none; } } </style>
+                        <div id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGtop-bar" style="background: rgb(249, 240, 240); height: 75px; width: 100%; display: block; padding: 5px; line-height: 65px;">
+                            <div id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGplay-button" class="main-play-button disabled" data-id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG"><div class="play-image"></div></div>
+                            <a class="player-radio-link" href="http://mytuner-radio.com/pt/radio/alpha-fm-sp-412548/?utm_source=widget&amp;utm_medium=player" rel="noopener" target="_blank" style="height: 100%; display: inline-block; line-height: 65px; cursor: pointer;">
+                                <img src="https://static2.mytuner.mobi/media/tvos_radios/548/alpha-fm-sp.4172fa06.jpg" alt="Alpha FM 101.7" style="float: left; height: 74px; margin-top: -5px; box-shadow: black 0px 0px 3px -1px;">
+                                <span class="player-radio-name" style="margin-left: 10px; color: rgb(61, 61, 61); font-weight: bold; font-size: 20px; float: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Alpha FM 101.7</span>
+                            </a>
+                            <div class="volume-controls">
+                                <input id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGvolume-control" class="volume-control slider" max="100" min="1" orient="vertical" type="range" value="100">
+                                <svg id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGvolume-indicator" class="volume-indicator" height="30" width="30" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" style="fill: grey; margin: 2px;"><path d="M3 10v4c0 .55.45 1 1 1h3l3.29 3.29c.63.63 1.71.18 1.71-.71V6.41c0-.89-1.08-1.34-1.71-.71L7 9H4c-.55 0-1 .45-1 1zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 4.45v.2c0 .38.25.71.6.85C17.18 6.53 19 9.06 19 12s-1.82 5.47-4.4 6.5c-.36.14-.6.47-.6.85v.2c0 .63.63 1.07 1.21.85C18.6 19.11 21 15.84 21 12s-2.4-7.11-5.79-8.4c-.58-.23-1.21.22-1.21.85z"></path></svg>
+                            </div>
+                            <a class="player-mytuner-logo" href="https://mytuner-radio.com?utm_source=widget&amp;utm_medium=player" rel="noopener" target="_blank" style="display: inline-block; vertical-align: top;"><img src="https://mytuner-radio.com/static/icons/widgets/MyTuner_Logo/MyTunerLogo_Normal.png" alt="Listen on myTuner radio!" style="height: 36px; width: 84px; vertical-align: middle;"></a>
+                        </div>
+                        <ul id="w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dGsong-history" data-border="1" data-bordercolor="#817f80" style="width: 100%; background-color: rgb(238, 238, 238); max-height: calc(415px); padding: 0px; margin: 0px; overflow-y: scroll;"></ul>
+                        <script>
+                            // var widget_id = widget_id || "w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG";
+                            var mytuner_scripts = mytuner_scripts || {};
+                            mytuner_scripts["player-v1.js_queue"] = mytuner_scripts["player-v1.js_queue"] || [];
+                            if (mytuner_scripts["player-v1.js-imported"] == undefined) {
+                                mytuner_scripts["player-v1.js-imported"] = false;
+                                mytuner_scripts["player-v1.js"] = function(){};
+                                var s = document.createElement("script");
+                                s.type = "text/javascript";
+                                s.src = "https://mytuner-radio.com/static/js/widgets/player-v1.js";
+                                s.defer = true;
+                                if (s.readyState){  //IE
+                                    s.onreadystatechange = function(){
+                                        if (s.readyState == "loaded" || s.readyState == "complete"){
+                                            s.onreadystatechange = null;
+                                            runQueue();
+                                        }
+                                    };
+                                } else {  //Others
+                                    s.onload = function(){ runQueue(); };
+                                }
+                                document.getElementsByTagName('head')[0].appendChild(s);
+
+                                function runQueue() {
+                                    mytuner_scripts["player-v1.js_queue"].forEach(function(func) {
+                                        func();
+                                    });
+                                }
+                                mytuner_scripts["player-v1.js_queue"].push(function(){mytuner_scripts["player-v1.js"]("w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG")});
+                            } else {
+                                let widget = document.getElementById("w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG");
+                                if (widget && widget.dataset.requires_initialization === "true") {
+                                    if (mytuner_scripts["player-v1.js-imported"]) {
+                                        mytuner_scripts["player-v1.js"]("w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG");
+                                        widget.dataset.requires_initialization = "false";
+                                    } else {
+                                        mytuner_scripts["player-v1.js_queue"].push(function(){
+                                            mytuner_scripts["player-v1.js"]("w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG");
+                                            widget.dataset.requires_initialization = "false";
+                                        });
+                                    }
+                                }
+                            }
+                        </script>
+                        <script>
+                            var mytuner_scripts = mytuner_scripts || {};
+                            if (mytuner_scripts["widget-player-v1.js-imported"] == undefined) {
+                                mytuner_scripts["widget-player-v1.js-imported"] = false;
+                                var s = document.createElement("script");
+                                s.type = "text/javascript";
+                                s.src = "https://mytuner-radio.com/static/js/widgets/widget-player-v1.js";
+                                s.defer = true;
+                                document.getElementsByTagName('head')[0].appendChild(s);
+                            }
+                        </script>
+                    </div>
                 </div>
                 <div class="sidebar-dashboard" id="sidebar-dashboard"></div>
             </div>
@@ -1693,12 +1996,12 @@
             'use strict';
 
             const CONFIG = {
-                youtubeVideoId: '5YiPIzWS96M', // NOVO VÍDEO
+                youtubeVideoId: '5YiPIzWS96M',
                 lat: -23.5505,
                 lon: -46.6333,
                 slideInterval: 15000,
                 videoSlideDuration: 30000,
-                reloadInterval: 300000,
+                reloadInterval: 3600000, // 1 hora
                 bannerInterval: 300000,
             };
 
@@ -2316,7 +2619,7 @@
 
             function buildRelogioSlideHTML() {
                 return `<div class="relogio-slide">
-                    <img src="https://img.magnific.com/vetores-gratis/fundo-de-ceu-pastel-em-aquarela-pintado-a-mao_23-2148902768.jpg?semt=ais_hybrid&w=740&q=80" class="bg-image" alt="background" onerror="this.style.display='none'">
+                    <img src="https://img.magnific.com/vetores-gratis/fundo-de-ceu-pastel-em-aquarela-pintado-a-mano_23-2148902768.jpg?semt=ais_hybrid&w=740&q=80" class="bg-image" alt="background" onerror="this.style.display='none'">
                     <div class="relogio-content">
                         <div class="hora-grande" id="slide-hora">00:00</div>
                         <div class="data-grande" id="slide-data">Carregando...</div>
@@ -2541,99 +2844,84 @@
                 const percPrev = prev.meta > 0 ? (prev.fat / prev.meta) * 100 : 0;
                 const percCurr = curr.meta > 0 ? (curr.fat / curr.meta) * 100 : 0;
 
-                return `<div style="display:flex;flex-direction:column;height:100%;width:100%;padding:20px;gap:16px;">
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:16px;flex:1;align-content:start;">
-                        <div class="dash-card" style="min-height:180px;">
-                            <div class="icon-circle-sm icon-float"><i class="fas fa-chart-bar"></i></div>
-                            <div class="kpi-label-sm">Faturamento Ano</div>
-                            <div class="kpi-value-sm" id="kpi-fat-ano">R$ 0</div>
-                            <div style="display:flex;align-items:center;gap:10px;margin-top:auto;">
-                                <canvas id="ring-fat-ano-dash" width="50" height="50"></canvas>
-                                <span style="font-size:0.8rem;color:var(--text-muted);">
-                                    <span id="perc-fat-ano-dash">0%</span> da meta<br>
-                                    <strong>${formatarMoeda(dados.metaAno||0)}</strong>
-                                </span>
+                // Dados para o card do mês
+                const metaMes = dados.metaMes || 0;
+                const fatMes = dados.fatMes || 0;
+                const restante = Math.max(0, metaMes - fatMes);
+                const percMes = metaMes > 0 ? (fatMes / metaMes) * 100 : 0;
+
+                return `
+                <div class="dash-grid-container">
+                    <div class="dash-grid">
+                        <!-- Card Faturamento Ano -->
+                        <div class="dash-card">
+                            <div class="card-header">
+                                <i class="fas fa-chart-bar"></i>
+                                <span class="card-title">Faturamento Ano</span>
+                            </div>
+                            <div class="card-value" id="kpi-fat-ano">${formatarMoeda(dados.fatAno||0)}</div>
+                            <div class="card-meta">Meta: ${formatarMoeda(dados.metaAno||0)}</div>
+                            <div class="card-footer">
+                                <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-fat-ano-dash">${(dados.metaAno>0?((dados.fatAno||0)/dados.metaAno*100):0).toFixed(1)}%</span></span>
+                                <span class="remaining">${formatarMoeda(Math.max(0,(dados.metaAno||0)-(dados.fatAno||0)))} restante</span>
                             </div>
                         </div>
-                        <div class="dash-card" style="min-height:180px;">
-                            <div class="icon-circle-sm icon-pulse"><i class="fas fa-calendar-check"></i></div>
-                            <div class="kpi-label-sm">Mês Atual</div>
-                            <div class="kpi-value-sm" id="kpi-mes-dash">R$ 0</div>
-                            <div style="display:flex;align-items:center;gap:10px;margin-top:auto;">
-                                <canvas id="ring-mes-dash" width="50" height="50"></canvas>
-                                <span style="font-size:0.8rem;color:var(--text-muted);">
-                                    <span id="perc-mes-dash">0%</span> da meta<br>
-                                    <strong>${formatarMoeda(dados.metaMes||0)}</strong>
-                                </span>
+
+                        <!-- Card Mês Atual (sem donut) -->
+                        <div class="dash-card">
+                            <div class="card-header">
+                                <i class="fas fa-calendar-check"></i>
+                                <span class="card-title">Mês Atual</span>
+                            </div>
+                            <div class="card-value" id="kpi-mes-dash">${formatarMoeda(fatMes)}</div>
+                            <div class="card-meta">Meta: ${formatarMoeda(metaMes)}</div>
+                            <div class="card-footer">
+                                <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-mes-dash">${percMes.toFixed(1)}%</span></span>
+                                <span class="remaining">${formatarMoeda(restante)} restante</span>
                             </div>
                         </div>
-                        <div class="dash-card" style="min-height:180px;">
-                            <div class="icon-circle-sm icon-breathe"><i class="fas fa-calendar-alt"></i></div>
-                            <div class="kpi-label-sm">Semestres</div>
+
+                        <!-- Card Semestres -->
+                        <div class="dash-card">
+                            <div class="card-header">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span class="card-title">Semestres</span>
+                            </div>
                             <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;flex:1;">
-                                <div style="display:flex;justify-content:space-between;font-size:0.8rem;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:4px;">
-                                    <span style="color:rgba(255,255,255,0.55);">${semAnterior===1?'1º Sem':'2º Sem'} ${anoAnterior}</span>
+                                <div style="display:flex;justify-content:space-between;font-size:0.9rem;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">
+                                    <span style="color:rgba(255,255,255,0.6);">${semAnterior===1?'1º Sem':'2º Sem'} ${anoAnterior}</span>
                                     <span style="color:#fff;">${formatarMoeda(prev.fat)} / ${formatarMoeda(prev.meta)}</span>
                                     <span style="color:${percPrev>=100?'#4caf50':'#f44336'};">${percPrev.toFixed(1)}% ${percPrev>=100?'✅':'❌'}</span>
                                 </div>
-                                <div style="display:flex;justify-content:space-between;font-size:0.8rem;">
-                                    <span style="color:rgba(255,255,255,0.55);">${semAtual===1?'1º Sem':'2º Sem'} ${ano}</span>
+                                <div style="display:flex;justify-content:space-between;font-size:0.9rem;">
+                                    <span style="color:rgba(255,255,255,0.6);">${semAtual===1?'1º Sem':'2º Sem'} ${ano}</span>
                                     <span style="color:#fff;">${formatarMoeda(curr.fat)} / ${formatarMoeda(curr.meta)}</span>
                                     <span style="color:${percCurr>=100?'#4caf50':'#f59e0b'};">${percCurr.toFixed(1)}% ${percCurr>=100?'✅':'⏳'}</span>
                                 </div>
                             </div>
                         </div>
-                        <div class="dash-card" style="grid-column:1 / -1; min-height:160px;">
-                            <div class="icon-circle-sm icon-bounce-soft"><i class="fas fa-fire"></i></div>
-                            <div style="display:flex;align-items:center;gap:20px;flex-wrap:wrap;flex:1;">
+
+                        <!-- Card Campanha -->
+                        <div class="dash-card" style="grid-column:1 / -1;">
+                            <div class="card-header">
+                                <i class="fas fa-fire"></i>
+                                <span class="card-title">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;flex:1;">
                                 <div style="flex:1;">
-                                    <div class="kpi-label-sm">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</div>
-                                    <div style="font-size:1.6rem;font-weight:700;color:#fff;" id="campanha-nome-dash">${dados.campanhaNome||'Nova campanha em preparação'}</div>
-                                    <div style="color:var(--text-muted);font-size:0.8rem;">${dados.campanhaAtiva!==false?`Restam ${dados.diasRestantes||0} dias`:'Em breve será exibida'}</div>
+                                    <div style="font-size:1.8rem;font-weight:700;color:#fff;" id="campanha-nome-dash">${dados.campanhaNome||'Nova campanha em preparação'}</div>
+                                    <div style="color:var(--text-muted);font-size:0.9rem;">${dados.campanhaAtiva!==false?`Restam ${dados.diasRestantes||0} dias`:'Em breve será exibida'}</div>
                                 </div>
                                 ${dados.campanhaAtiva!==false?`
-                                <canvas id="ring-campanha-dash" width="50" height="50"></canvas>
-                                <span style="font-size:0.8rem;color:var(--text-muted);">
-                                    <span id="perc-campanha-dash">${dados.campanhaPerc||0}%</span><br>
-                                    <strong>${formatarMoeda(dados.campanhaRealizado||0)} / ${formatarMoeda(dados.campanhaMeta||0)}</strong>
-                                </span>
+                                <div style="display:flex;align-items:center;gap:16px;">
+                                    <span style="font-size:1.2rem;font-weight:700;color:#fff;"><span id="perc-campanha-dash">${(dados.campanhaPerc||0).toFixed(1)}%</span></span>
+                                    <span style="color:rgba(255,255,255,0.6);font-size:0.9rem;">${formatarMoeda(dados.campanhaRealizado||0)} / ${formatarMoeda(dados.campanhaMeta||0)}</span>
+                                </div>
                                 `:'<span style="color:var(--text-muted);">Em preparação</span>'}
                             </div>
                         </div>
                     </div>
                 </div>`;
-            }
-
-            function desenharAnelAnimado(canvasId, percent, color, size = 50) {
-                const canvas = document.getElementById(canvasId);
-                if (!canvas) return;
-                const ctx = canvas.getContext('2d');
-                const centerX = canvas.width / 2,
-                    centerY = canvas.height / 2,
-                    radius = (size / 2) - 6;
-                let currentPercent = 0;
-                const targetPercent = Math.min(percent, 100);
-                const duration = 2000;
-                const startTime = performance.now();
-
-                function animate(now) {
-                    const elapsed = now - startTime;
-                    currentPercent = Math.min((elapsed / duration) * targetPercent, targetPercent);
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-                    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
-                    ctx.lineWidth = 6;
-                    ctx.stroke();
-                    ctx.beginPath();
-                    ctx.arc(centerX, centerY, radius, -Math.PI / 2, -Math.PI / 2 + (currentPercent / 100) * Math.PI * 2);
-                    ctx.strokeStyle = color;
-                    ctx.lineWidth = 6;
-                    ctx.lineCap = 'round';
-                    ctx.stroke();
-                    if (currentPercent < targetPercent) requestAnimationFrame(animate);
-                }
-                requestAnimationFrame(animate);
             }
 
             function animarDashboardCompleto(dados) {
@@ -2649,13 +2937,7 @@
                 animatePercentValue('perc-mes-dash', 0, percMes, 1500);
                 if (dados.campanhaAtiva !== false) {
                     animatePercentValue('perc-campanha-dash', 0, dados.campanhaPerc || 0, 1500);
-                    setTimeout(() => desenharAnelAnimado('ring-campanha-dash', dados.campanhaPerc || 0, '#ef5350', 50),
-                    200);
                 }
-                setTimeout(() => {
-                    desenharAnelAnimado('ring-fat-ano-dash', percAno, '#4caf50', 50);
-                    desenharAnelAnimado('ring-mes-dash', percMes, '#38bdf8', 50);
-                }, 200);
             }
 
             // ===== CARREGAR DADOS =====
@@ -3209,23 +3491,25 @@
             }
 
             function configurarVideo() {
-                // URL com cc_load_policy=1 e hl=pt para legendas sempre ativas
                 document.getElementById('youtube-player').src =
                     `https://www.youtube.com/embed/${CONFIG.youtubeVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${CONFIG.youtubeVideoId}&cc_load_policy=1&hl=pt`;
             }
 
             function configurarRadio() {
-                const iframe = document.getElementById('radio-iframe');
-                const fallback = document.getElementById('radio-fallback');
-                iframe.onerror = function() { iframe.style.display = 'none';
-                    fallback.style.display = 'block';
-                    fallback.play().catch(() => {}); };
+                // O widget já está com data-autoplay="true"
+                // Definir volume para 10% após carregamento
                 setTimeout(() => {
-                    try { if (iframe.contentDocument && iframe.contentDocument.body.innerHTML === '') { iframe
-                                .style.display = 'none';
-                            fallback.style.display = 'block'; } } catch (e) { iframe.style.display = 'none';
-                        fallback.style.display = 'block'; }
-                }, 4000);
+                    try {
+                        const volumeInput = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG .volume-control');
+                        if (volumeInput) {
+                            volumeInput.value = 10;
+                            volumeInput.dispatchEvent(new Event('input'));
+                        }
+                        // Tentar também o áudio diretamente
+                        const audio = document.querySelector('#w7HDpinDjWrDkkPDpkzCrl94d1jDiMOZw6NZb2dG audio');
+                        if (audio) audio.volume = 0.1;
+                    } catch (e) {}
+                }, 2000);
             }
 
             function iniciarRecargaAutomatica() { setInterval(() => { window.location.reload(); }, CONFIG
@@ -3297,8 +3581,9 @@
                 configurarVideo();
                 configurarRadio();
 
+                // Mostrar botão toggle
+                document.getElementById('sidebarFloatToggle').classList.remove('hidden');
                 document.getElementById('sidebarFloatToggle').addEventListener('click', toggleSidebar);
-                document.getElementById('sidebarFloatToggle').classList.add('hidden');
 
                 try {
                     window._dadosPainel = await carregarDadosReais();
