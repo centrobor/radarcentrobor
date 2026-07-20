@@ -1810,6 +1810,111 @@
                 flex: 0 0 560px;
             }
         }
+        
+        
+        /* ---- Cards do Dashboard (organização melhorada) ---- */
+.dash-card-semestres .semestre-linha {
+    display: flex;
+    flex-direction: column;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.dash-card-semestres .semestre-linha:last-child {
+    border-bottom: none;
+}
+.dash-card-semestres .semestre-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+}
+.dash-card-semestres .semestre-label {
+    font-weight: 600;
+    color: rgba(255,255,255,0.7);
+    min-width: 80px;
+}
+.dash-card-semestres .semestre-valores {
+    color: #fff;
+    font-weight: 500;
+    flex: 1;
+    text-align: center;
+}
+.dash-card-semestres .semestre-perc {
+    font-weight: 700;
+    min-width: 70px;
+    text-align: right;
+}
+.dash-card-semestres .semestre-perc.ok {
+    color: #4caf50;
+}
+.dash-card-semestres .semestre-perc.warn {
+    color: #f59e0b;
+}
+.dash-card-semestres .semestre-perc.danger {
+    color: #ef4444;
+}
+
+.dash-card-campanha .campanha-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+}
+.dash-card-campanha .campanha-nome {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #fff;
+}
+.dash-card-campanha .campanha-detalhes {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 1rem;
+}
+.dash-card-campanha .campanha-restante {
+    color: rgba(255,255,255,0.7);
+}
+.dash-card-campanha .campanha-perc {
+    font-weight: 700;
+    color: #ffd700;
+    font-size: 1.2rem;
+}
+.dash-card-campanha .campanha-valores {
+    color: rgba(255,255,255,0.8);
+}
+.dash-card-campanha .campanha-preparacao {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Ajuste no grid para os cards ocuparem bem */
+.dash-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    width: 100%;
+    align-content: center;
+    justify-items: stretch;
+}
+.dash-grid .dash-card {
+    min-height: 180px;
+    padding: 24px 28px;
+    border-radius: var(--radius-lg);
+    background: rgba(255, 255, 255, 0.07);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.dash-grid .dash-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
+}
     </style>
 </head>
 <body>
@@ -2833,98 +2938,97 @@
 
             // ===== DASHBOARD - NOVO LAYOUT EXPANDIDO =====
             function buildDashboardHTML(dados) {
-                const now = new Date(),
-                    ano = now.getFullYear(),
-                    mes = now.getMonth() + 1;
-                const semAtual = mes <= 6 ? 1 : 2;
-                const semAnterior = semAtual === 1 ? 2 : 1;
-                const anoAnterior = semAtual === 1 ? ano - 1 : ano;
-                let prev = getFatEMetaSemestre(anoAnterior, semAnterior);
-                let curr = getFatEMetaSemestre(ano, semAtual);
-                if (semAnterior === 1 && anoAnterior === 2026) { prev.meta = 8176219;
-                    prev.fat = 8190987; }
-                const percPrev = prev.meta > 0 ? (prev.fat / prev.meta) * 100 : 0;
-                const percCurr = curr.meta > 0 ? (curr.fat / curr.meta) * 100 : 0;
+    const now = new Date(),
+        ano = now.getFullYear(),
+        mes = now.getMonth() + 1;
+    const semAtual = mes <= 6 ? 1 : 2;
+    const semAnterior = semAtual === 1 ? 2 : 1;
+    const anoAnterior = semAtual === 1 ? ano - 1 : ano;
+    let prev = getFatEMetaSemestre(anoAnterior, semAnterior);
+    let curr = getFatEMetaSemestre(ano, semAtual);
+    if (semAnterior === 1 && anoAnterior === 2026) { prev.meta = 8176219;
+        prev.fat = 8190987; }
+    const percPrev = prev.meta > 0 ? (prev.fat / prev.meta) * 100 : 0;
+    const percCurr = curr.meta > 0 ? (curr.fat / curr.meta) * 100 : 0;
 
-                // Dados para o card do mês
-                const metaMes = dados.metaMes || 0;
-                const fatMes = dados.fatMes || 0;
-                const restante = Math.max(0, metaMes - fatMes);
-                const percMes = metaMes > 0 ? (fatMes / metaMes) * 100 : 0;
+    const metaMes = dados.metaMes || 0;
+    const fatMes = dados.fatMes || 0;
+    const restante = Math.max(0, metaMes - fatMes);
+    const percMes = metaMes > 0 ? (fatMes / metaMes) * 100 : 0;
 
-                return `
-                <div class="dash-grid-container">
-                    <div class="dash-grid">
-                        <!-- Card Faturamento Ano -->
-                        <div class="dash-card">
-                            <div class="card-header">
-                                <i class="fas fa-chart-bar"></i>
-                                <span class="card-title">Faturamento Ano</span>
-                            </div>
-                            <div class="card-value" id="kpi-fat-ano">${formatarMoeda(dados.fatAno||0)}</div>
-                            <div class="card-meta">Meta: ${formatarMoeda(dados.metaAno||0)}</div>
-                            <div class="card-footer">
-                                <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-fat-ano-dash">${(dados.metaAno>0?((dados.fatAno||0)/dados.metaAno*100):0).toFixed(1)}%</span></span>
-                                <span class="remaining">${formatarMoeda(Math.max(0,(dados.metaAno||0)-(dados.fatAno||0)))} restante</span>
-                            </div>
-                        </div>
+    return `
+    <div class="dash-grid-container">
+        <div class="dash-grid">
+            <!-- Card Faturamento Ano -->
+            <div class="dash-card">
+                <div class="card-header">
+                    <i class="fas fa-chart-bar"></i>
+                    <span class="card-title">Faturamento Ano</span>
+                </div>
+                <div class="card-value" id="kpi-fat-ano">${formatarMoeda(dados.fatAno||0)}</div>
+                <div class="card-meta">Meta: ${formatarMoeda(dados.metaAno||0)}</div>
+                <div class="card-footer">
+                    <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-fat-ano-dash">${(dados.metaAno>0?((dados.fatAno||0)/dados.metaAno*100):0).toFixed(1)}%</span></span>
+                    <span class="remaining">${formatarMoeda(Math.max(0,(dados.metaAno||0)-(dados.fatAno||0)))} restante</span>
+                </div>
+            </div>
 
-                        <!-- Card Mês Atual (sem donut) -->
-                        <div class="dash-card">
-                            <div class="card-header">
-                                <i class="fas fa-calendar-check"></i>
-                                <span class="card-title">Mês Atual</span>
-                            </div>
-                            <div class="card-value" id="kpi-mes-dash">${formatarMoeda(fatMes)}</div>
-                            <div class="card-meta">Meta: ${formatarMoeda(metaMes)}</div>
-                            <div class="card-footer">
-                                <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-mes-dash">${percMes.toFixed(1)}%</span></span>
-                                <span class="remaining">${formatarMoeda(restante)} restante</span>
-                            </div>
-                        </div>
+            <!-- Card Mês Atual -->
+            <div class="dash-card">
+                <div class="card-header">
+                    <i class="fas fa-calendar-check"></i>
+                    <span class="card-title">Mês Atual</span>
+                </div>
+                <div class="card-value" id="kpi-mes-dash">${formatarMoeda(fatMes)}</div>
+                <div class="card-meta">Meta: ${formatarMoeda(metaMes)}</div>
+                <div class="card-footer">
+                    <span class="perc ${percMes>=100?'ok':'warn'}"><span id="perc-mes-dash">${percMes.toFixed(1)}%</span></span>
+                    <span class="remaining">${formatarMoeda(restante)} restante</span>
+                </div>
+            </div>
 
-                        <!-- Card Semestres -->
-                        <div class="dash-card">
-                            <div class="card-header">
-                                <i class="fas fa-calendar-alt"></i>
-                                <span class="card-title">Semestres</span>
-                            </div>
-                            <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px;flex:1;">
-                                <div style="display:flex;justify-content:space-between;font-size:0.9rem;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:6px;">
-                                    <span style="color:rgba(255,255,255,0.6);">${semAnterior===1?'1º Sem':'2º Sem'} ${anoAnterior}</span>
-                                    <span style="color:#fff;">${formatarMoeda(prev.fat)} / ${formatarMoeda(prev.meta)}</span>
-                                    <span style="color:${percPrev>=100?'#4caf50':'#f44336'};">${percPrev.toFixed(1)}% ${percPrev>=100?'✅':'❌'}</span>
-                                </div>
-                                <div style="display:flex;justify-content:space-between;font-size:0.9rem;">
-                                    <span style="color:rgba(255,255,255,0.6);">${semAtual===1?'1º Sem':'2º Sem'} ${ano}</span>
-                                    <span style="color:#fff;">${formatarMoeda(curr.fat)} / ${formatarMoeda(curr.meta)}</span>
-                                    <span style="color:${percCurr>=100?'#4caf50':'#f59e0b'};">${percCurr.toFixed(1)}% ${percCurr>=100?'✅':'⏳'}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Card Campanha -->
-                        <div class="dash-card" style="grid-column:1 / -1;">
-                            <div class="card-header">
-                                <i class="fas fa-fire"></i>
-                                <span class="card-title">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</span>
-                            </div>
-                            <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap;flex:1;">
-                                <div style="flex:1;">
-                                    <div style="font-size:1.8rem;font-weight:700;color:#fff;" id="campanha-nome-dash">${dados.campanhaNome||'Nova campanha em preparação'}</div>
-                                    <div style="color:var(--text-muted);font-size:0.9rem;">${dados.campanhaAtiva!==false?`Restam ${dados.diasRestantes||0} dias`:'Em breve será exibida'}</div>
-                                </div>
-                                ${dados.campanhaAtiva!==false?`
-                                <div style="display:flex;align-items:center;gap:16px;">
-                                    <span style="font-size:1.2rem;font-weight:700;color:#fff;"><span id="perc-campanha-dash">${(dados.campanhaPerc||0).toFixed(1)}%</span></span>
-                                    <span style="color:rgba(255,255,255,0.6);font-size:0.9rem;">${formatarMoeda(dados.campanhaRealizado||0)} / ${formatarMoeda(dados.campanhaMeta||0)}</span>
-                                </div>
-                                `:'<span style="color:var(--text-muted);">Em preparação</span>'}
-                            </div>
-                        </div>
+            <!-- Card Semestres (organizado em duas linhas) -->
+            <div class="dash-card dash-card-semestres">
+                <div class="card-header">
+                    <i class="fas fa-calendar-alt"></i>
+                    <span class="card-title">Semestres</span>
+                </div>
+                <div class="semestre-linha">
+                    <div class="semestre-info">
+                        <span class="semestre-label">${semAnterior===1?'1º Sem':'2º Sem'} ${anoAnterior}</span>
+                        <span class="semestre-valores">${formatarMoeda(prev.fat)} / ${formatarMoeda(prev.meta)}</span>
+                        <span class="semestre-perc ${percPrev>=100?'ok':'danger'}">${percPrev.toFixed(1)}% ${percPrev>=100?'✅':'❌'}</span>
                     </div>
-                </div>`;
-            }
+                </div>
+                <div class="semestre-linha">
+                    <div class="semestre-info">
+                        <span class="semestre-label">${semAtual===1?'1º Sem':'2º Sem'} ${ano}</span>
+                        <span class="semestre-valores">${formatarMoeda(curr.fat)} / ${formatarMoeda(curr.meta)}</span>
+                        <span class="semestre-perc ${percCurr>=100?'ok':'warn'}">${percCurr.toFixed(1)}% ${percCurr>=100?'✅':'⏳'}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card Campanha (organizado) -->
+            <div class="dash-card dash-card-campanha" style="grid-column:1 / -1;">
+                <div class="card-header">
+                    <i class="fas fa-fire"></i>
+                    <span class="card-title">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</span>
+                </div>
+                <div class="campanha-content">
+                    <div class="campanha-nome" id="campanha-nome-dash">${dados.campanhaNome||'Nova campanha em preparação'}</div>
+                    ${dados.campanhaAtiva!==false?`
+                    <div class="campanha-detalhes">
+                        <span class="campanha-restante">Restam ${dados.diasRestantes||0} dias</span>
+                        <span class="campanha-perc"><span id="perc-campanha-dash">${(dados.campanhaPerc||0).toFixed(1)}%</span></span>
+                        <span class="campanha-valores">${formatarMoeda(dados.campanhaRealizado||0)} / ${formatarMoeda(dados.campanhaMeta||0)}</span>
+                    </div>
+                    `:'<span class="campanha-preparacao">Em breve será exibida</span>'}
+                </div>
+            </div>
+        </div>
+    </div>`;
+}
 
             function animarDashboardCompleto(dados) {
                 const fatAno = dados.fatAno || 0,
