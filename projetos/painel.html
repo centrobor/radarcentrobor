@@ -561,7 +561,7 @@
             text-align: left;
         }
 
-        /* ===== GLASSMORPHISM CARDS (modernizados) ===== */
+        /* ===== GLASSMORPHISM CARDS ===== */
         .single-card-slide {
             display: flex;
             align-items: center;
@@ -648,7 +648,7 @@
             font-size: 2rem;
         }
 
-        /* ===== RELÓGIO SLIDE (sem caixa escura) ===== */
+        /* ===== RELÓGIO SLIDE ===== */
         .relogio-slide {
             position: relative;
             width: 100%;
@@ -677,7 +677,6 @@
             align-items: center;
             justify-content: center;
             padding: 40px 60px;
-            /* fundo removido – apenas texto com sombra */
             text-shadow: 0 2px 20px rgba(0, 0, 0, 0.7);
         }
         .relogio-slide .hora-grande {
@@ -1664,7 +1663,7 @@
             'use strict';
 
             const CONFIG = {
-                youtubeVideoId: '8VoJkaX6DAY', // Vídeo atualizado
+                youtubeVideoId: '8VoJkaX6DAY',
                 lat: -23.5505,
                 lon: -46.6333,
                 slideInterval: 15000,
@@ -1676,7 +1675,8 @@
             const SHEET_ID = '1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI';
             const BASES = {
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
-                postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
+                // NOVO ENDPOINT PARA POSTAGENS (painel)
+                postagens: `https://opensheet.elk.sh/${SHEET_ID}/painel`,
                 campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
                 metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
@@ -2042,13 +2042,45 @@
                 return conquistas;
             }
 
-            // ===== BUILD SLIDES =====
+            // ===== FUNÇÕES DE ANIMAÇÃO DE NÚMEROS =====
+            function animateValue(id, start, end, duration, prefix = 'R$ ', decimals = 2) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = start + (end - start) * eased;
+                    el.textContent = prefix + (decimals === 0 ? Math.round(current).toLocaleString('pt-BR') : current
+                        .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
+                    if (progress < 1) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            }
+
+            function animatePercentValue(id, start, end, duration) {
+                const el = document.getElementById(id);
+                if (!el) return;
+                let startTimestamp = null;
+                const step = (timestamp) => {
+                    if (!startTimestamp) startTimestamp = timestamp;
+                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+                    const eased = 1 - Math.pow(1 - progress, 3);
+                    const current = start + (end - start) * eased;
+                    el.textContent = current.toFixed(1) + '%';
+                    if (progress < 1) requestAnimationFrame(step);
+                };
+                requestAnimationFrame(step);
+            }
+
+            // ===== BUILD SLIDES (com animações e ícones) =====
             function buildConquistaSlide(conquista) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="icon-circle" style="background:rgba(255,215,0,0.15);color:#ffd700;font-size:4rem;"><span class="trophy-animated">🏆</span></div><div class="kpi-label">${conquista.nome}</div><div class="kpi-value" style="color:#ffd700;font-size:3rem;">${conquista.vendedor}</div><p style="color:rgba(255,255,255,0.65);margin-top:16px;">Parabéns pela conquista! 🚀</p></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="icon-circle icon-float" style="background:rgba(255,215,0,0.15);color:#ffd700;font-size:4rem;"><span class="trophy-animated">🏆</span></div><div class="kpi-label">${conquista.nome}</div><div class="kpi-value" style="color:#ffd700;font-size:3rem;">${conquista.vendedor}</div><p style="color:rgba(255,255,255,0.65);margin-top:16px;">Parabéns pela conquista! 🚀</p></div></div>`;
             }
 
             function buildMonthlyBarSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-simple"></i> Faturamento Mensal – ${dados.mesLabel||'Mês Atual'}</div><div style="font-size:1.8rem;font-weight:700;color:#fff;margin-bottom:12px;text-shadow:0 1px 15px rgba(0,0,0,0.4);">${formatarMoeda(dados.fatMes||0)} / ${formatarMoeda(dados.metaMes||0)}</div><div class="chart-slide"><canvas id="monthly-bar-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-simple icon-pulse"></i> Faturamento Mensal – ${dados.mesLabel||'Mês Atual'}</div><div style="font-size:1.8rem;font-weight:700;color:#fff;margin-bottom:12px;text-shadow:0 1px 15px rgba(0,0,0,0.4);"><span id="monthly-fat">${formatarMoeda(dados.fatMes||0)}</span> / <span id="monthly-meta">${formatarMoeda(dados.metaMes||0)}</span></div><div class="chart-slide"><canvas id="monthly-bar-chart"></canvas></div></div></div>`;
             }
 
             function animarMonthlyBarChart(dados) {
@@ -2058,6 +2090,9 @@
                 const labels = [dados.mesLabel || 'Mês Atual'];
                 const fatValue = dados.fatMes || 0;
                 const metaValue = dados.metaMes || 0;
+                // Animar os números
+                animateValue('monthly-fat', 0, fatValue, 1500);
+                animateValue('monthly-meta', 0, metaValue, 1500);
                 chartInstances['monthly-bar'] = new Chart(canvas, {
                     type: 'bar',
                     data: {
@@ -2085,7 +2120,7 @@
             }
 
             function buildGraficoEvolucaoHTML(dados) {
-                return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;"><div class="slide-title-big"><i class="fas fa-chart-line"></i> Evolução Diária – ${dados.mesLabel||''}</div><div class="chart-slide" style="flex:1;width:90%;"><canvas id="grafico-evolucao"></canvas></div></div>`;
+                return `<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;"><div class="slide-title-big"><i class="fas fa-chart-line icon-float"></i> Evolução Diária – ${dados.mesLabel||''}</div><div class="chart-slide" style="flex:1;width:90%;"><canvas id="grafico-evolucao"></canvas></div></div>`;
             }
 
             function animarGraficoEvolucao(dados) {
@@ -2133,7 +2168,7 @@
             }
 
             function buildEvolucaoMensalSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-calendar-alt"></i> Evolução Mensal</div><div class="chart-slide"><canvas id="evolucao-mensal-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-calendar-alt icon-breathe"></i> Evolução Mensal</div><div class="chart-slide"><canvas id="evolucao-mensal-chart"></canvas></div></div></div>`;
             }
 
             function animarEvolucaoMensalSlide(dados) {
@@ -2181,7 +2216,7 @@
             }
 
             function buildRealizadoMetaSlide(dados) {
-                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-column"></i> Realizado x Meta Mensal</div><div class="chart-slide"><canvas id="realizado-meta-chart"></canvas></div></div></div>`;
+                return `<div class="single-card-slide"><div class="single-card"><div class="slide-title-big"><i class="fas fa-chart-column icon-bounce-soft"></i> Realizado x Meta Mensal</div><div class="chart-slide"><canvas id="realizado-meta-chart"></canvas></div></div></div>`;
             }
 
             function animarRealizadoMetaSlide(dados) {
@@ -2229,13 +2264,26 @@
             function buildSemestreSlide(ano, sem, label, totalMeta, totalFat) {
                 const meses = sem === 1 ? 'Jan-Jun' : 'Jul-Dez';
                 const perc = totalMeta > 0 ? (totalFat / totalMeta) * 100 : 0;
+                const idFat = `semestre-fat-${ano}-${sem}`;
+                const idMeta = `semestre-meta-${ano}-${sem}`;
+                const idPerc = `semestre-perc-${ano}-${sem}`;
                 return `<div class="single-card-slide"><div class="single-card">
-                    <div class="icon-circle" style="background:rgba(56,189,248,0.15);color:#38bdf8;"><i class="fas fa-calendar-alt"></i></div>
+                    <div class="icon-circle icon-pulse" style="background:rgba(56,189,248,0.15);color:#38bdf8;"><i class="fas fa-calendar-alt"></i></div>
                     <div class="kpi-label">${label} (${meses}/${ano})</div>
-                    <div style="font-size:2.8rem;font-weight:700;color:#fff;margin:12px 0;text-shadow:0 2px 20px rgba(0,0,0,0.5);">${formatarMoeda(totalFat)}</div>
-                    <div style="font-size:1.2rem;color:rgba(255,255,255,0.65);text-shadow:0 1px 10px rgba(0,0,0,0.3);">Meta: ${formatarMoeda(totalMeta)}</div>
-                    <div style="font-size:1.6rem;font-weight:700;color:${perc>=100?'#4caf50':'#f59e0b'};margin-top:8px;text-shadow:0 1px 14px rgba(0,0,0,0.3);">${perc.toFixed(1)}% ${perc>=100?'✅ Meta atingida!':'⏳ Em andamento'}</div>
+                    <div style="font-size:2.8rem;font-weight:700;color:#fff;margin:12px 0;text-shadow:0 2px 20px rgba(0,0,0,0.5);"><span id="${idFat}">${formatarMoeda(totalFat)}</span></div>
+                    <div style="font-size:1.2rem;color:rgba(255,255,255,0.65);text-shadow:0 1px 10px rgba(0,0,0,0.3);">Meta: <span id="${idMeta}">${formatarMoeda(totalMeta)}</span></div>
+                    <div style="font-size:1.6rem;font-weight:700;color:${perc>=100?'#4caf50':'#f59e0b'};margin-top:8px;text-shadow:0 1px 14px rgba(0,0,0,0.3);"><span id="${idPerc}">${perc.toFixed(1)}%</span> ${perc>=100?'✅ Meta atingida!':'⏳ Em andamento'}</div>
                 </div></div>`;
+            }
+
+            function animarSemestreSlide(ano, sem, totalMeta, totalFat) {
+                const idFat = `semestre-fat-${ano}-${sem}`;
+                const idMeta = `semestre-meta-${ano}-${sem}`;
+                const idPerc = `semestre-perc-${ano}-${sem}`;
+                const perc = totalMeta > 0 ? (totalFat / totalMeta) * 100 : 0;
+                animateValue(idFat, 0, totalFat, 1500);
+                animateValue(idMeta, 0, totalMeta, 1500);
+                animatePercentValue(idPerc, 0, perc, 1500);
             }
 
             function buildRelogioSlideHTML() {
@@ -2244,7 +2292,7 @@
                     <div class="relogio-content">
                         <div class="hora-grande" id="slide-hora">00:00</div>
                         <div class="data-grande" id="slide-data">Carregando...</div>
-                        <div class="clima-grande" id="slide-clima"><i class="fas fa-sun" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div>
+                        <div class="clima-grande" id="slide-clima"><i class="fas fa-sun icon-float" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div>
                     </div>
                 </div>`;
             }
@@ -2259,7 +2307,6 @@
                 </div>`;
             }
 
-            // ===== ANIVERSARIANTES – agora retorna null se não houver =====
             function buildAniversariantesSlide() {
                 const hoje = new Date(),
                     dia = hoje.getDate(),
@@ -2288,7 +2335,6 @@
                     return dA - dB;
                 });
 
-                // Se não houver aniversariantes, retorna null (slide será pulado)
                 if (aniversariantes.length === 0) return null;
 
                 const cores = ['#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4', '#3b82f6', '#8b5cf6',
@@ -2310,7 +2356,7 @@
                     bubblesHTML += `
                         <div class="birthday-bubble" data-idx="${idx}" data-size="${a.size}" data-left="${left}" data-top="${top}"
                              style="width:${a.size}px;height:${a.size}px;left:${left}%;top:${top}%;background:radial-gradient(circle at 30% 30%, rgba(255,255,255,0.55) 0%, ${a.cor} 60%, rgba(0,0,0,0.1) 100%);border:1px solid rgba(255,255,255,0.3);">
-                            <span class="profile-icon"><i class="fas fa-user"></i></span>
+                            <span class="profile-icon icon-bounce-soft"><i class="fas fa-user"></i></span>
                             <span class="bubble-name">${a.nome}</span>
                             <span class="bubble-date">${a.dia}/${a.mes}</span>
                         </div>`;
@@ -2318,7 +2364,7 @@
 
                 return `<div class="birthday-slide">
                     <img src="${BG_ANIVERSARIO}" class="bg-blur" alt="background" onerror="this.style.display='none'">
-                    <h2><i class="fas fa-birthday-cake"></i> Aniversariantes da Semana</h2>
+                    <h2><i class="fas fa-birthday-cake icon-float"></i> Aniversariantes da Semana</h2>
                     <div class="birthday-bubbles" id="birthday-bubbles-container">${bubblesHTML}</div>
                     <p class="birthday-label">Parabéns a todos! 🎉</p>
                 </div>`;
@@ -2328,7 +2374,7 @@
                 return `<div class="birthday-single-slide">
                     <img src="${BG_ANIVERSARIO}" class="bg-blur-single" alt="background" onerror="this.style.display='none'">
                     <div class="birthday-single-content">
-                        <div class="profile-big-icon"><i class="fas fa-birthday-cake"></i></div>
+                        <div class="profile-big-icon icon-pulse"><i class="fas fa-birthday-cake"></i></div>
                         <div class="nome-destaque">${pessoa.nome}</div>
                         <div class="data-destaque">${pessoa.dia}/${pessoa.mes} – Aniversariante do Dia!</div>
                         <p style="color:#ffd700;margin-top:12px;font-size:1.1rem;">🎉 Muitas felicidades! 🎉</p>
@@ -2338,8 +2384,11 @@
 
             function buildCampanhaAlvoSlide(camp) {
                 const perc = camp.perc || 0;
+                const idFat = `campanha-fat-${camp.cod}`;
+                const idMeta = `campanha-meta-${camp.cod}`;
+                const idPerc = `campanha-perc-${camp.cod}`;
                 return `<div class="single-card-slide"><div class="single-card">
-                    <div class="slide-title-big" style="margin-bottom:16px;"><i class="fas fa-bullseye"></i> ${camp.nomeCampanha}</div>
+                    <div class="slide-title-big" style="margin-bottom:16px;"><i class="fas fa-bullseye icon-bounce-soft"></i> ${camp.nomeCampanha}</div>
                     <div style="position:relative;width:280px;height:300px;margin:0 auto;">
                         <div class="target-container">
                             <div class="target-rings"></div>
@@ -2347,10 +2396,19 @@
                         </div>
                         <span class="arrow-animated" style="position:absolute;font-size:3rem;color:#1a1a1a;z-index:5;top:50%;left:50%;transform:translate(-50%,-50%) rotate(180deg);opacity:1;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.5));">🏹</span>
                     </div>
-                    <div style="font-size:2.5rem;font-weight:700;color:#ffd700;margin-top:8px;text-shadow:0 1px 15px rgba(0,0,0,0.4);">${perc.toFixed(1)}%</div>
-                    <div style="color:rgba(255,255,255,0.8);font-size:1rem;">${formatarMoeda(camp.realizadoTotal)} / ${formatarMoeda(camp.metaTotal)}</div>
+                    <div style="font-size:2.5rem;font-weight:700;color:#ffd700;margin-top:8px;text-shadow:0 1px 15px rgba(0,0,0,0.4);"><span id="${idPerc}">${perc.toFixed(1)}%</span></div>
+                    <div style="color:rgba(255,255,255,0.8);font-size:1rem;"><span id="${idFat}">${formatarMoeda(camp.realizadoTotal)}</span> / <span id="${idMeta}">${formatarMoeda(camp.metaTotal)}</span></div>
                     <div style="color:rgba(255,255,255,0.6);font-size:0.8rem;margin-top:4px;">${camp.nome} • Restam ${camp.diasRestantes||0} dias</div>
                 </div></div>`;
+            }
+
+            function animarCampanhaAlvo(camp) {
+                const idFat = `campanha-fat-${camp.cod}`;
+                const idMeta = `campanha-meta-${camp.cod}`;
+                const idPerc = `campanha-perc-${camp.cod}`;
+                animateValue(idFat, 0, camp.realizadoTotal, 1500);
+                animateValue(idMeta, 0, camp.metaTotal, 1500);
+                animatePercentValue(idPerc, 0, camp.perc, 1500);
             }
 
             function buildLoadingRefreshSlide() {
@@ -2437,38 +2495,6 @@
                         s.el.style.top = s.y + 'px'; });
                     requestAnimationFrame(step);
                 }
-                requestAnimationFrame(step);
-            }
-
-            // ===== ANIMAÇÃO DE VALOR (CONTADOR) =====
-            function animateValue(id, start, end, duration, prefix = 'R$ ', decimals = 2) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                let startTimestamp = null;
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const eased = 1 - Math.pow(1 - progress, 3);
-                    const current = start + (end - start) * eased;
-                    el.textContent = prefix + (decimals === 0 ? Math.round(current).toLocaleString('pt-BR') : current
-                        .toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-                    if (progress < 1) requestAnimationFrame(step);
-                };
-                requestAnimationFrame(step);
-            }
-
-            function animatePercentValue(id, start, end, duration) {
-                const el = document.getElementById(id);
-                if (!el) return;
-                let startTimestamp = null;
-                const step = (timestamp) => {
-                    if (!startTimestamp) startTimestamp = timestamp;
-                    const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-                    const eased = 1 - Math.pow(1 - progress, 3);
-                    const current = start + (end - start) * eased;
-                    el.textContent = current.toFixed(1) + '%';
-                    if (progress < 1) requestAnimationFrame(step);
-                };
                 requestAnimationFrame(step);
             }
 
@@ -2622,8 +2648,8 @@
                     campanhaAtiva = true;
                 }
                 window._campanhaDetalhes = campanhasAtivas.map(c => ({
-                    cod: c.vendedor_cod,
-                    nome: c.vendedor_nome || c.vendedor_cod,
+                    cod: c.vendedor_cod || 'all',
+                    nome: c.vendedor_nome || c.vendedor_cod || 'Time',
                     nomeCampanha: c.campanha,
                     metaTotal: cleanNumber(c.meta_valor),
                     realizadoTotal: cleanNumber(c.realizado_valor),
@@ -2759,19 +2785,23 @@
                 const hojeMes = hoje.getMonth() + 1;
                 const hojeLimpo = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
 
+                // Slides fixos
                 allSlides.push({ type: 'relogio', html: buildRelogioSlideHTML() });
                 allSlides.push({ type: 'dashboard', html: buildDashboardHTML(dados) });
                 allSlides.push({ type: 'logo', html: buildLogoSlide() });
 
+                // Conquistas
                 const conquistas = obterConquistasMetas();
                 conquistas.forEach(c => allSlides.push({ type: 'conquista', html: buildConquistaSlide(c),
                     conquistaLabel: `${c.nome} – ${c.vendedor}` }));
 
+                // Gráficos
                 allSlides.push({ type: 'monthly_bar', html: buildMonthlyBarSlide(dados) });
                 allSlides.push({ type: 'grafico_diario', html: buildGraficoEvolucaoHTML(dados) });
                 allSlides.push({ type: 'evolucao_mensal', html: buildEvolucaoMensalSlide(dados) });
                 allSlides.push({ type: 'realizado_meta', html: buildRealizadoMetaSlide(dados) });
 
+                // Semestres
                 const now = new Date(),
                     ano = now.getFullYear(),
                     mes = now.getMonth() + 1;
@@ -2782,15 +2812,22 @@
                 let curr = getFatEMetaSemestre(ano, semAtual);
                 if (semAnterior === 1 && anoAnterior === 2026) { prev.meta = 8176219;
                     prev.fat = 8190987; }
-                if (prev.meta > 0) allSlides.push({ type: 'semestre',
-                    label: `Semestre Anterior (${semAnterior===1?'1º':'2º'})`,
-                    html: buildSemestreSlide(anoAnterior, semAnterior,
-                        `Semestre Anterior (${semAnterior===1?'1º':'2º'})`, prev.meta, prev.fat) });
-                if (curr.meta > 0) allSlides.push({ type: 'semestre',
-                    label: `Semestre Atual (${semAtual===1?'1º':'2º'})`,
-                    html: buildSemestreSlide(ano, semAtual, `Semestre Atual (${semAtual===1?'1º':'2º'})`, curr.meta,
-                        curr.fat) });
+                if (prev.meta > 0) {
+                    const slideObj = { type: 'semestre', label: `Semestre Anterior (${semAnterior===1?'1º':'2º'})`,
+                        html: buildSemestreSlide(anoAnterior, semAnterior,
+                            `Semestre Anterior (${semAnterior===1?'1º':'2º'})`, prev.meta, prev.fat),
+                        ano: anoAnterior, sem: semAnterior, meta: prev.meta, fat: prev.fat };
+                    allSlides.push(slideObj);
+                }
+                if (curr.meta > 0) {
+                    const slideObj = { type: 'semestre', label: `Semestre Atual (${semAtual===1?'1º':'2º'})`,
+                        html: buildSemestreSlide(ano, semAtual, `Semestre Atual (${semAtual===1?'1º':'2º'})`, curr
+                            .meta, curr.fat),
+                        ano: ano, sem: semAtual, meta: curr.meta, fat: curr.fat };
+                    allSlides.push(slideObj);
+                }
 
+                // Aniversariantes
                 const aniversariantesHoje = cadastros.filter(c => {
                     if (!c.data_nascimento) return false;
                     const partes = c.data_nascimento.split(/[/-]/);
@@ -2800,24 +2837,40 @@
                 aniversariantesHoje.forEach(p => allSlides.push({ type: 'aniversariante_dia',
                     html: buildAniversarianteDoDiaSlide(p), pessoaNome: p.nome }));
 
-                // Aniversariantes da semana – só adiciona se houver
                 const anivSlide = buildAniversariantesSlide();
-                if (anivSlide) {
-                    allSlides.push({ type: 'aniversariantes', html: anivSlide });
-                }
+                if (anivSlide) allSlides.push({ type: 'aniversariantes', html: anivSlide });
 
-                // Campanhas – apenas se alguém bateu a meta (perc >= 100)
+                // Campanhas (apenas quem bateu a meta)
                 if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
                     const campanhasBatidas = window._campanhaDetalhes.filter(c => c.perc >= 100);
-                    campanhasBatidas.forEach(camp => allSlides.push({ type: 'campanha_alvo',
-                        html: buildCampanhaAlvoSlide(camp) }));
+                    campanhasBatidas.forEach(camp => {
+                        const slideObj = { type: 'campanha_alvo', html: buildCampanhaAlvoSlide(camp),
+                            campanhaData: camp };
+                        allSlides.push(slideObj);
+                    });
                 }
 
+                // Postagens (novo endpoint "painel") com filtro de data_final
                 try {
-                    const postagens = await fetch(BASES.postagens).then(r => r.json());
-                    postagens.slice(0, 6).forEach(p => {
-                        const tipo = p.tipo || 'informativo',
-                            resumo = (p.texto_html || '').replace(/<[^>]*>/g, '').trim().substring(0, 280) +
+                    const postagens = await carregarJSON(BASES.postagens);
+                    const hojeStr = hoje.toISOString().split('T')[0]; // formato YYYY-MM-DD
+                    // Filtrar: data_final >= hoje e data <= hoje (se houver data)
+                    const ativas = postagens.filter(p => {
+                        // Se não tiver data_final, considera sempre ativa
+                        if (!p.data_final) return true;
+                        // Comparar como string (formato dd/mm/yyyy) – converter para Date
+                        const dataFinal = parseDataBR(p.data_final);
+                        if (!dataFinal) return true;
+                        // Se tiver data de início, verifica
+                        if (p.data) {
+                            const dataInicio = parseDataBR(p.data);
+                            if (dataInicio && dataInicio > hoje) return false;
+                        }
+                        return dataFinal >= hoje;
+                    });
+                    ativas.slice(0, 6).forEach(p => {
+                        const tipo = p.Tipos || p.tipo || 'informativo';
+                        const resumo = (p.texto_html || '').replace(/<[^>]*>/g, '').trim().substring(0, 280) +
                             '...';
                         const imgTag = p.imagem ?
                             `<img src="${p.imagem}" class="slide-full-img" onerror="this.style.display='none'">` :
@@ -2826,17 +2879,20 @@
                             html: `${imgTag}<div class="slide-overlay"><span style="display:inline-block;background:#e0f2fe;color:#0369a1;padding:4px 12px;border-radius:16px;font-size:0.7rem;font-weight:700;margin-bottom:12px;">${tipo.toUpperCase()}</span><h2>${p.titulo}</h2><div class="meta" style="margin-top:8px;"><span><i class="fas fa-calendar-alt"></i> ${p.data||''}</span><span><i class="fas fa-user"></i> ${p.autor||''}</span></div><p style="margin-top:10px;color:var(--text-muted);">${resumo}</p></div>` }
                         );
                     });
-                } catch (e) {}
+                } catch (e) { console.warn('Erro ao carregar postagens:', e); }
 
+                // Vídeo
                 allSlides.push({ type: 'video',
                     html: `<iframe src="https://www.youtube.com/embed/${CONFIG.youtubeVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${CONFIG.youtubeVideoId}" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
                 });
 
+                // Inicializa visibilidade
                 allSlides.forEach(s => { if (slideVisibility[s.type] === undefined) slideVisibility[s.type] = true; });
                 salvarVisibilidade();
                 construirListaSlides();
                 aplicarFiltro('all');
 
+                // Monta slides visíveis
                 visibleSlides = allSlides.filter(s => slideVisibility[s.type] !== false);
                 if (visibleSlides.length === 0) visibleSlides = allSlides.filter(s => s.type !== 'loading_refresh');
                 visibleSlides.push({ type: 'loading_refresh', html: buildLoadingRefreshSlide() });
@@ -2881,6 +2937,15 @@
                     }
                     animarDashboardCompleto(dados);
                     initBirthdayPhysics();
+                    // Animar semestres e campanhas
+                    allSlides.forEach(s => {
+                        if (s.type === 'semestre' && s.ano && s.sem) {
+                            setTimeout(() => animarSemestreSlide(s.ano, s.sem, s.meta, s.fat), 300);
+                        }
+                        if (s.type === 'campanha_alvo' && s.campanhaData) {
+                            setTimeout(() => animarCampanhaAlvo(s.campanhaData), 400);
+                        }
+                    });
                 }, 600);
                 iniciarTimer();
                 atualizarSidebar(0);
@@ -3020,7 +3085,11 @@
                     else if (s.type === 'conquista') dispararConfetes();
                     else if (s.type === 'aniversariantes') setTimeout(initBirthdayPhysics, 100);
                     else if (s.type === 'aniversariante_dia') dispararConfetes();
-                    else if (s.type === 'campanha_alvo') { /* alvo animado via CSS */ }
+                    else if (s.type === 'campanha_alvo' && s.campanhaData) {
+                        setTimeout(() => animarCampanhaAlvo(s.campanhaData), 300);
+                    } else if (s.type === 'semestre' && s.ano && s.sem) {
+                        setTimeout(() => animarSemestreSlide(s.ano, s.sem, s.meta, s.fat), 300);
+                    }
                 }
                 atualizarSidebar(idx);
             }
@@ -3145,7 +3214,6 @@
                 configurarVideo();
                 configurarRadio();
 
-                // Sidebar toggle
                 document.getElementById('sidebarToggle').addEventListener('click', toggleSidebar);
 
                 try {
