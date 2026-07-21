@@ -61,6 +61,39 @@
             width: 100%;
         }
 
+        /* ===== BOTÃO TOGGLE SIDEBAR (FIXO NO TOPO) ===== */
+        .sidebar-top-toggle {
+            position: fixed;
+            top: 12px;
+            right: 20px;
+            z-index: 60;
+            background: rgba(11, 26, 46, 0.85);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            width: 44px;
+            height: 44px;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        .sidebar-top-toggle:hover {
+            background: rgba(56, 189, 248, 0.25);
+            border-color: var(--accent);
+            transform: scale(1.05);
+        }
+        .sidebar-top-toggle i {
+            transition: transform 0.3s ease;
+        }
+        .sidebar-top-toggle.hidden-sidebar i {
+            transform: rotate(180deg);
+        }
+
         /* ===== BOTTOMBAR ===== */
         .bottombar {
             height: var(--bottombar-height);
@@ -573,49 +606,9 @@
             }
         }
 
-        /* ===== BOTÃO FLUTUANTE PARA TOGGLE DA SIDEBAR ===== */
+        /* ===== BOTÃO FLUTUANTE ANTIGO (REMOVER) ===== */
         .sidebar-float-toggle {
-            position: fixed;
-            top: 80px;
-            right: 20px;
-            z-index: 50;
-            background: rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 50%;
-            width: 44px;
-            height: 44px;
-            color: #fff;
-            font-size: 1.2rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            background: rgba(11, 26, 46, 0.75);
-        }
-        .sidebar-float-toggle:hover {
-            background: rgba(56, 189, 248, 0.3);
-            border-color: var(--accent);
-            transform: scale(1.05);
-        }
-        .sidebar-float-toggle i {
-            transition: transform 0.3s ease;
-        }
-        .sidebar-float-toggle.hidden {
-            transform: translateX(60px);
-            opacity: 0;
-            pointer-events: none;
-        }
-        @media (max-width: 900px) {
-            .sidebar-float-toggle {
-                top: 70px;
-                right: 10px;
-                width: 38px;
-                height: 38px;
-                font-size: 1rem;
-            }
+            display: none; /* substituído pelo botão no topo */
         }
 
         /* ===== SLIDES ZONE - TRANSIÇÕES VARIADAS ===== */
@@ -1238,23 +1231,27 @@
             animation: subtleZoom 3s ease-in-out infinite;
         }
         .loading-overlay .loading-logo img {
-            height: 120px;
+            height: 200px;
             object-fit: contain;
         }
         .loading-overlay .loading-logo .loading-brand {
-            font-size: 3rem;
+            font-size: 3.5rem;
             font-weight: 800;
             color: #4caf50;
             letter-spacing: 2px;
             text-shadow: 0 2px 30px rgba(0, 0, 0, 0.5);
         }
         .loading-overlay .loading-status {
+            position: absolute;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
             display: flex;
             align-items: center;
             gap: 12px;
             font-size: 0.9rem;
             color: rgba(255,255,255,0.7);
-            margin-top: 8px;
+            margin-top: 0;
         }
         .loading-overlay .loading-status .donut-spinner {
             width: 24px;
@@ -1415,7 +1412,7 @@
 
         /* ===== RADIO SELECTOR (ESCONDIDO) ===== */
         .radio-selector {
-            display: none; /* oculto conforme solicitado */
+            display: none;
         }
 
         /* ===== DASHBOARD PRINCIPAL (SLIDE) ===== */
@@ -1794,8 +1791,8 @@
             .dash-grid { grid-template-columns: 1fr; }
             .dash-grid .dash-card { min-height: 160px; }
             .dash-grid .dash-card .card-value { font-size: 1.8rem; }
-            .loading-overlay .loading-logo img { height: 80px; }
-            .loading-overlay .loading-logo .loading-brand { font-size: 2rem; }
+            .loading-overlay .loading-logo img { height: 140px; }
+            .loading-overlay .loading-logo .loading-brand { font-size: 2.2rem; }
             .birthday-list { grid-template-columns: 1fr; }
         }
         @media (min-width: 1920px) {
@@ -1843,6 +1840,11 @@
 
     <!-- APP -->
     <div class="app-layer">
+        <!-- BOTÃO TOGGLE SIDEBAR (FIXO NO TOPO) -->
+        <button class="sidebar-top-toggle" id="sidebarTopToggle" title="Ocultar/Exibir painel lateral">
+            <i class="fas fa-chevron-right" id="topToggleIcon"></i>
+        </button>
+
         <!-- MAIN GRID -->
         <div class="main-grid" id="mainGrid">
             <div class="slides-zone" id="slides-zone">
@@ -1870,11 +1872,6 @@
                 <div class="sidebar-dashboard" id="sidebar-dashboard"></div>
             </div>
         </div>
-
-        <!-- BOTÃO FLUTUANTE PARA TOGGLE DA SIDEBAR -->
-        <button class="sidebar-float-toggle hidden" id="sidebarFloatToggle" title="Exibir/Ocultar painel lateral">
-            <i class="fas fa-chevron-right" id="floatToggleIcon"></i>
-        </button>
 
         <!-- BOTTOMBAR -->
         <div class="bottombar">
@@ -2106,24 +2103,41 @@
                 return null;
             };
 
-            // ===== DATA/HORA VIA API =====
+            // ===== DATA/HORA VIA API (com fallback e retry) =====
             let timeOffset = 0;
             let lastTimeSync = 0;
+            let timeSyncAttempts = 0;
+            const MAX_TIME_SYNC_ATTEMPTS = 3;
 
             async function sincronizarHora() {
                 try {
-                    const resp = await fetch(CONFIG.timeApi);
-                    if (!resp.ok) throw new Error('Time API error');
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 5000); // timeout de 5s
+                    const resp = await fetch(CONFIG.timeApi, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    if (!resp.ok) throw new Error('Time API error: ' + resp.status);
                     const data = await resp.json();
-                    const apiTime = new Date(data.datetime);
-                    const localTime = new Date();
-                    timeOffset = apiTime.getTime() - localTime.getTime();
-                    lastTimeSync = Date.now();
-                    console.log('Hora sincronizada com offset:', timeOffset);
+                    if (data && data.datetime) {
+                        const apiTime = new Date(data.datetime);
+                        const localTime = new Date();
+                        timeOffset = apiTime.getTime() - localTime.getTime();
+                        lastTimeSync = Date.now();
+                        timeSyncAttempts = 0;
+                        console.log('Hora sincronizada com offset:', timeOffset);
+                        return true;
+                    } else {
+                        throw new Error('Resposta inválida da API de hora');
+                    }
                 } catch (e) {
                     console.warn('Falha ao sincronizar hora, usando relógio local.', e);
                     timeOffset = 0;
                     lastTimeSync = Date.now();
+                    timeSyncAttempts++;
+                    if (timeSyncAttempts < MAX_TIME_SYNC_ATTEMPTS) {
+                        // Tenta novamente após 10 segundos
+                        setTimeout(sincronizarHora, 10000);
+                    }
+                    return false;
                 }
             }
 
@@ -2482,7 +2496,7 @@
                 return conquistas;
             }
 
-            // ===== SLIDES DE NOTÍCIAS =====
+            // ===== SLIDES DE NOTÍCIAS (com fallback RSS) =====
             async function buscarNoticias() {
                 try {
                     let articles = [];
@@ -2491,11 +2505,12 @@
                     const resp = await fetch(url);
                     if (resp.ok) {
                         const data = await resp.json();
-                        if (data.articles) articles = data.articles.slice(0, 6);
+                        if (data.articles && data.articles.length) articles = data.articles.slice(0, 6);
                     } else {
-                        throw new Error('NewsAPI fallback');
+                        throw new Error('NewsAPI status ' + resp.status);
                     }
                     if (!articles.length) {
+                        // Fallback para RSS do UOL
                         const rssUrl = 'https://rss.uol.com.br/feed/noticias.xml';
                         const rssResp = await fetch(rssUrl);
                         const text = await rssResp.text();
@@ -3291,7 +3306,9 @@
             }
 
             // ===== CONSTRUIR SLIDES (principal) =====
-            async function construirSlides(dados) {
+            async function construirSlides(dados, preserveIndex = true) {
+                const savedIndex = currentSlideIndex;
+
                 allSlides = [];
                 Object.values(chartInstances).forEach(c => { if (c) c.destroy(); });
                 chartInstances = {};
@@ -3338,11 +3355,9 @@
                     allSlides.push(slideObj);
                 }
 
-                // Aniversariantes Glass
                 const bdaySlide = buildBirthdayGlassSlide();
                 if (bdaySlide) allSlides.push({ type: 'aniversariantes', html: bdaySlide });
 
-                // Aniversariante do dia com mensagem dedicada
                 const aniversariantesHoje = cadastros.filter(c => {
                     if (!c.data_nascimento) return false;
                     const partes = c.data_nascimento.split(/[/-]/);
@@ -3352,7 +3367,6 @@
                 aniversariantesHoje.forEach(p => allSlides.push({ type: 'aniversariante_dia',
                     html: buildAniversarianteDoDiaSlide(p), pessoaNome: p.nome }));
 
-                // Campanhas
                 if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
                     const campanhasBatidas = window._campanhaDetalhes.filter(c => c.perc >= 100);
                     campanhasBatidas.forEach(camp => {
@@ -3362,7 +3376,6 @@
                     });
                 }
 
-                // Postagens
                 try {
                     const postagens = await carregarJSON(BASES.postagens);
                     const hojeStr = hoje.toISOString().split('T')[0];
@@ -3389,19 +3402,16 @@
                     });
                 } catch (e) { console.warn('Erro ao carregar postagens:', e); }
 
-                // Vídeo
                 allSlides.push({ type: 'video',
                     html: `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId || '5YiPIzWS96M'}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId || '5YiPIzWS96M'}&cc_load_policy=1&hl=pt" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>`
                 });
 
-                // Notícias
                 try {
                     const articles = await buscarNoticias();
                     const newsSlide = buildNewsSlide(articles);
                     if (newsSlide) allSlides.push({ type: 'noticias', html: newsSlide });
                 } catch (e) { console.warn('Erro ao carregar notícias:', e); }
 
-                // Previsão do tempo
                 if (window._weatherData) {
                     const weatherSlide = buildWeatherSlide(window._weatherData);
                     if (weatherSlide) allSlides.push({ type: 'previsao_tempo', html: weatherSlide });
@@ -3434,38 +3444,14 @@
                         resetarTimer();
                     });
                 });
-                currentSlideIndex = 0;
-                setTimeout(() => {
-                    if (visibleSlides[0]?.type === 'relogio') {
-                        setInterval(() => {
-                            const agora = getHoraSincronizada();
-                            const elHora = document.getElementById('slide-hora');
-                            if (elHora) elHora.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit',
-                                minute: '2-digit' });
-                            const elData = document.getElementById('slide-data');
-                            if (elData) elData.textContent = agora.toLocaleDateString('pt-BR', {
-                                weekday: 'long',
-                                day: '2-digit',
-                                month: 'long',
-                                year: 'numeric' });
-                            const elTemp = document.getElementById('slide-temp');
-                            if (elTemp) elTemp.textContent = document.getElementById('temp').textContent;
-                            const elIcon = document.getElementById('slide-clima-icon');
-                            if (elIcon) elIcon.className = document.querySelector('#clima-box i').className;
-                        }, 1000);
-                    }
-                    animarDashboardCompleto(dados);
-                    allSlides.forEach(s => {
-                        if (s.type === 'semestre' && s.ano && s.sem) {
-                            setTimeout(() => animarSemestreSlide(s.ano, s.sem, s.meta, s.fat), 300);
-                        }
-                        if (s.type === 'campanha_alvo' && s.campanhaData) {
-                            setTimeout(() => animarCampanhaAlvo(s.campanhaData), 400);
-                        }
-                    });
-                }, 600);
-                iniciarTimer();
-                atualizarSidebar(0);
+
+                if (preserveIndex && savedIndex < visibleSlides.length) {
+                    currentSlideIndex = savedIndex;
+                } else {
+                    currentSlideIndex = 0;
+                }
+                irParaSlide(currentSlideIndex);
+                resetarTimer();
             }
 
             // ===== NAVEGAÇÃO =====
@@ -3569,35 +3555,51 @@
                 }
             }
 
-            // ===== SISTEMA DE RÁDIO COM ROTAÇÃO E SELETOR (ESCONDIDO) =====
+            // ===== SISTEMA DE RÁDIO COM ROTAÇÃO E AUTOPLAY FORÇADO (corrigido) =====
             function carregarRadio(index) {
                 const radio = RADIOS[index];
                 if (!radio) return;
                 const radioBox = document.getElementById('radio-box');
                 radioBox.innerHTML = radio.widgetHTML;
-                // Atualiza o nome da rádio (elemento existe na bottombar)
-                const radioNameEl = document.getElementById('radioName');
-                if (radioNameEl) radioNameEl.textContent = radio.name;
                 currentRadioIndex = index;
                 salvarRadioState(index);
-                // Não mostra o seletor, mas mantém a lógica de rotação
-                setTimeout(() => {
-                    try {
-                        const playBtn = document.querySelector(`#${radio.id} .main-play-button`);
-                        if (playBtn && !playBtn.classList.contains('playing') && !playBtn.classList.contains(
-                                'disabled')) {
-                            playBtn.click();
-                            radioStarted = true;
+
+                // Força o autoplay com múltiplas tentativas
+                let attempts = 0;
+                const maxAttempts = 15;
+                const tryPlay = () => {
+                    // Usa getElementById pois o ID tem caracteres especiais
+                    const playBtn = document.getElementById(radio.id + 'play-button');
+                    if (playBtn) {
+                        // Se estiver disabled, tenta remover a classe e clicar
+                        if (playBtn.classList.contains('disabled')) {
+                            playBtn.classList.remove('disabled');
                         }
-                        const volInput = document.querySelector(`#${radio.id} .volume-control`);
+                        if (!playBtn.classList.contains('playing')) {
+                            playBtn.click();
+                            console.log('Tentando iniciar rádio:', radio.name);
+                        }
+                        // Ajusta volume
+                        const volInput = document.getElementById(radio.id + 'volume-control');
                         if (volInput) {
                             volInput.value = 50;
                             volInput.dispatchEvent(new Event('input'));
                         }
-                        const audio = document.querySelector(`#${radio.id} audio`);
-                        if (audio) audio.volume = 0.5;
-                    } catch (e) { /* ignore */ }
-                }, 2000);
+                        // Verifica se realmente tocou
+                        setTimeout(() => {
+                            if (!playBtn.classList.contains('playing') && attempts < maxAttempts) {
+                                attempts++;
+                                setTimeout(tryPlay, 1000);
+                            }
+                        }, 1500);
+                    } else {
+                        if (attempts < maxAttempts) {
+                            attempts++;
+                            setTimeout(tryPlay, 800);
+                        }
+                    }
+                };
+                setTimeout(tryPlay, 1200);
             }
 
             function proximaRadio() {
@@ -3609,7 +3611,6 @@
                 const savedIndex = carregarRadioState();
                 carregarRadio(savedIndex);
                 radioTimer = setInterval(proximaRadio, CONFIG.radioInterval);
-                // Seletor de rádio permanece oculto (display:none), mas mantém os listeners
                 document.querySelectorAll('#radioSelector button').forEach(btn => {
                     btn.addEventListener('click', function() {
                         const idx = parseInt(this.dataset.radio);
@@ -3620,39 +3621,66 @@
                 });
             }
 
-            // ===== SISTEMA DE VÍDEO AO VIVO =====
+            // ===== SISTEMA DE VÍDEO AO VIVO (com fallback) =====
             async function buscarVideoAoVivo() {
                 try {
                     const apiKey = 'AIzaSyA0rkj5T_8AunHZQ5fhz6ElweGwwFwHScA';
                     let url =
                         `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CONFIG.youtubeChannelId}&eventType=live&type=video&key=${apiKey}&order=date`;
                     let resp = await fetch(url);
-                    if (!resp.ok) throw new Error('YouTube API error');
-                    let data = await resp.json();
+                    if (!resp.ok) {
+                        // Se a chave falhar (400), tenta sem eventType para pegar qualquer vídeo recente
+                        if (resp.status === 400) {
+                            url =
+                                `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CONFIG.youtubeChannelId}&order=date&type=video&key=${apiKey}&maxResults=1`;
+                            resp = await fetch(url);
+                            if (!resp.ok) throw new Error('YouTube API error: ' + resp.status);
+                        } else {
+                            throw new Error('YouTube API error: ' + resp.status);
+                        }
+                    }
+                    const data = await resp.json();
                     let videoId = null;
                     if (data.items && data.items.length > 0) {
                         videoId = data.items[0].id.videoId;
-                    } else {
-                        url =
-                            `https://www.googleapis.com/youtube/v3/search?part=snippet&channelId=${CONFIG.youtubeChannelId}&order=date&type=video&key=${apiKey}&maxResults=1`;
-                        resp = await fetch(url);
-                        if (!resp.ok) throw new Error('YouTube API error (fallback)');
-                        data = await resp.json();
-                        if (data.items && data.items.length > 0) {
-                            videoId = data.items[0].id.videoId;
-                        }
+                    }
+                    // Fallback: se não encontrou, usa um vídeo fixo (ex: Jovem Pan ao vivo)
+                    if (!videoId) {
+                        videoId = '5YiPIzWS96M'; // vídeo padrão (pode ser alterado)
+                        console.warn('Usando vídeo fallback');
                     }
                     if (videoId && videoId !== currentVideoId) {
                         currentVideoId = videoId;
-                        const iframe = document.getElementById('live-youtube-iframe');
-                        if (iframe) {
-                            iframe.src =
+                        // Atualiza iframe do slide
+                        const iframeSlide = document.getElementById('live-youtube-iframe');
+                        if (iframeSlide) {
+                            iframeSlide.src =
+                                `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt`;
+                        }
+                        // Atualiza iframe da sidebar
+                        const iframeSidebar = document.getElementById('youtube-player');
+                        if (iframeSidebar) {
+                            iframeSidebar.src =
                                 `https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt`;
                         }
                         console.log('Vídeo atualizado:', videoId);
                     }
                 } catch (e) {
                     console.warn('Erro ao buscar vídeo:', e);
+                    // Em caso de erro, mantém o vídeo atual ou usa fallback
+                    if (!currentVideoId) {
+                        currentVideoId = '5YiPIzWS96M';
+                        const iframeSlide = document.getElementById('live-youtube-iframe');
+                        if (iframeSlide) {
+                            iframeSlide.src =
+                                `https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt`;
+                        }
+                        const iframeSidebar = document.getElementById('youtube-player');
+                        if (iframeSidebar) {
+                            iframeSidebar.src =
+                                `https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt`;
+                        }
+                    }
                 }
             }
 
@@ -3796,7 +3824,7 @@
                         };
                         window._dadosPainel = novosDados;
                         salvarDadosNoStorage(novosDados);
-                        await construirSlides(novosDados);
+                        await construirSlides(novosDados, true);
                         atualizarSyncBadge('online', 'Dados atualizados!');
                         atualizarLastUpdate();
                     } else {
@@ -3863,20 +3891,20 @@
                 });
             }
 
-            // ===== TOGGLE SIDEBAR =====
+            // ===== TOGGLE SIDEBAR (BOTÃO TOPO) =====
             function toggleSidebar() {
                 sidebarHidden = !sidebarHidden;
                 const mainGrid = document.getElementById('mainGrid');
-                const floatToggleIcon = document.getElementById('floatToggleIcon');
-                const floatToggle = document.getElementById('sidebarFloatToggle');
+                const topToggleIcon = document.getElementById('topToggleIcon');
+                const topToggle = document.getElementById('sidebarTopToggle');
                 if (sidebarHidden) {
                     mainGrid.classList.add('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-left';
-                    floatToggle.classList.remove('hidden');
+                    topToggleIcon.className = 'fas fa-chevron-left';
+                    topToggle.classList.add('hidden-sidebar');
                 } else {
                     mainGrid.classList.remove('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-right';
-                    floatToggle.classList.add('hidden');
+                    topToggleIcon.className = 'fas fa-chevron-right';
+                    topToggle.classList.remove('hidden-sidebar');
                 }
                 salvarSidebarState(sidebarHidden);
             }
@@ -3891,22 +3919,22 @@
 
                 sidebarHidden = carregarSidebarState();
                 const mainGrid = document.getElementById('mainGrid');
-                const floatToggleIcon = document.getElementById('floatToggleIcon');
-                const floatToggle = document.getElementById('sidebarFloatToggle');
+                const topToggleIcon = document.getElementById('topToggleIcon');
+                const topToggle = document.getElementById('sidebarTopToggle');
                 if (sidebarHidden) {
                     mainGrid.classList.add('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-left';
-                    floatToggle.classList.remove('hidden');
+                    topToggleIcon.className = 'fas fa-chevron-left';
+                    topToggle.classList.add('hidden-sidebar');
                 } else {
                     mainGrid.classList.remove('sidebar-hidden');
-                    floatToggleIcon.className = 'fas fa-chevron-right';
-                    floatToggle.classList.add('hidden');
+                    topToggleIcon.className = 'fas fa-chevron-right';
+                    topToggle.classList.remove('hidden-sidebar');
                 }
-                document.getElementById('sidebarFloatToggle').addEventListener('click', toggleSidebar);
+                document.getElementById('sidebarTopToggle').addEventListener('click', toggleSidebar);
 
                 try {
                     window._dadosPainel = await carregarDadosReais();
-                    await construirSlides(window._dadosPainel);
+                    await construirSlides(window._dadosPainel, false);
                     initBannerSlideshow();
                     initSlideManager();
                     loadingOverlay.classList.add('hidden');
@@ -3922,7 +3950,7 @@
                         cadastros = stored.cadastros || [];
                         bannersData = stored.bannersData || [];
                         dolarData = stored.dolarData || [];
-                        await construirSlides(window._dadosPainel);
+                        await construirSlides(window._dadosPainel, false);
                         initBannerSlideshow();
                         initSlideManager();
                         atualizarSyncBadge('offline', 'Utilizando dados locais');
@@ -3932,7 +3960,7 @@
                             campanhaPerc: 68, campanhaRealizado: 54400, campanhaMeta: 80000, diasRestantes: 12,
                             campanhaAtiva: true, allFaturados: [], allMetas: [], metasGlobais: [],
                             campanhasData: [], cadastros: [], bannersData: [], dolarData: [] };
-                        await construirSlides(window._dadosPainel);
+                        await construirSlides(window._dadosPainel, false);
                         initBannerSlideshow();
                         initSlideManager();
                         atualizarSyncBadge('offline', 'Sem dados');
