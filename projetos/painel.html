@@ -1765,63 +1765,26 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 30px;
-            background: linear-gradient(135deg, #1a2a3a, #0b1a2e);
+            padding: 20px;
+            background: #0b1a2e;
         }
-        .news-slide .news-list {
-            position: relative;
-            z-index: 1;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
+        .news-slide iframe {
             width: 100%;
-            max-width: 1000px;
-            max-height: 80%;
-            overflow-y: auto;
-            padding: 10px 4px;
-        }
-        .news-slide .news-card {
-            background: rgba(255,255,255,0.06);
-            backdrop-filter: blur(14px);
+            height: 100%;
+            border: 0;
             border-radius: var(--radius-md);
-            padding: 16px;
-            border: 1px solid rgba(255,255,255,0.08);
-            text-align: left;
-            transition: transform 0.3s ease;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
         }
-        .news-slide .news-card:hover {
-            transform: scale(1.02);
-        }
-        .news-slide .news-card img {
+        .news-iframe-container {
+            position: relative;
             width: 100%;
-            height: 140px;
-            object-fit: cover;
-            border-radius: 10px;
-            background: rgba(255,255,255,0.05);
+            height: 90%;
+            max-height: 90%;
         }
-        .news-slide .news-card h3 {
-            font-size: 1.1rem;
-            color: #fff;
-            font-weight: 600;
-            line-height: 1.3;
-        }
-        .news-slide .news-card p {
-            font-size: 0.85rem;
-            color: rgba(255,255,255,0.7);
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .news-slide .news-card .news-footer {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.7rem;
-            color: rgba(255,255,255,0.5);
+        .news-iframe-container iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            border-radius: var(--radius-md);
         }
 
         /* ===== WEATHER SLIDE ===== */
@@ -1934,6 +1897,42 @@
             font-size: 1.1rem;
             font-weight: 600;
             color: #fff;
+        }
+
+        /* ===== CAMPANHA DASHBOARD ===== */
+        .campanha-countdown {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #ffd700;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 1px;
+        }
+        .campanha-meta-atingida {
+            color: #4caf50;
+            font-weight: 600;
+        }
+        .campanha-meta-nao-atingida {
+            color: #f59e0b;
+            font-weight: 600;
+        }
+        .campanha-vendedores-lista {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 4px;
+        }
+        .campanha-vendedor-tag {
+            background: rgba(255,255,255,0.06);
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .campanha-vendedor-tag.atingiu {
+            border-color: #4caf50;
+            color: #4caf50;
+            background: rgba(76, 175, 80, 0.1);
         }
     </style>
 </head>
@@ -3171,12 +3170,11 @@
                     allSlides.push(slideObj);
                 }
 
-                // Notícias e previsão do tempo
-                try {
-                    const articles = await buscarNoticias();
-                    const newsSlide = buildNewsSlide(articles);
-                    if (newsSlide) allSlides.push({ type: 'noticias', html: newsSlide });
-                } catch (e) { console.warn('Erro ao carregar notícias:', e); }
+                // Notícias - agora usando iframe RSS
+                allSlides.push({ 
+                    type: 'noticias', 
+                    html: buildNewsSlide() 
+                });
 
                 if (window._weatherData) {
                     const weatherSlide = buildWeatherSlide(window._weatherData);
@@ -3761,6 +3759,46 @@
                 const fatMes = dados.fatMes || 0;
                 const restante = Math.max(0, metaMes - fatMes);
                 const percMes = metaMes > 0 ? (fatMes / metaMes) * 100 : 0;
+
+                // ===== CAMPANHA ATIVA - DADOS =====
+                let campanhaNome = 'Nenhuma campanha ativa';
+                let diasRestantes = 0;
+                let vendedoresAtingiram = 0;
+                let totalVendedores = 0;
+                let dataFim = null;
+                let campanhaAtiva = false;
+
+                if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+                    const camp = window._campanhaDetalhes[0]; // Pega a primeira campanha ativa
+                    campanhaNome = camp.nomeCampanha || 'Campanha';
+                    diasRestantes = camp.diasRestantes || 0;
+                    dataFim = new Date();
+                    dataFim.setDate(dataFim.getDate() + diasRestantes); // Aproximação
+                    campanhaAtiva = true;
+
+                    // Contar vendedores que atingiram a meta
+                    const campanhasVendedores = campanhasData.filter(c => c.campanha === camp.nomeCampanha);
+                    totalVendedores = campanhasVendedores.length;
+                    vendedoresAtingiram = campanhasVendedores.filter(c => {
+                        const meta = cleanNumber(c.meta_valor);
+                        const realizado = cleanNumber(c.realizado_valor);
+                        return meta > 0 && realizado >= meta;
+                    }).length;
+                }
+
+                // Gerar lista de vendedores que atingiram
+                let vendedoresTagHtml = '';
+                if (campanhaAtiva && totalVendedores > 0) {
+                    const campanhasVendedores = campanhasData.filter(c => c.campanha === campanhaNome);
+                    campanhasVendedores.forEach(c => {
+                        const meta = cleanNumber(c.meta_valor);
+                        const realizado = cleanNumber(c.realizado_valor);
+                        const atingiu = meta > 0 && realizado >= meta;
+                        const nome = c.vendedor_nome || c.vendedor_cod || 'Vendedor';
+                        vendedoresTagHtml += `<span class="campanha-vendedor-tag ${atingiu ? 'atingiu' : ''}">${nome} ${atingiu ? '✅' : '⏳'}</span>`;
+                    });
+                }
+
                 return `
                     <div class="dash-grid-container">
                         <div class="dash-grid">
@@ -3782,21 +3820,75 @@
                                 <div class="semestre-linha"><div class="semestre-info"><span class="semestre-label">${semAtual===1?'1º Sem':'2º Sem'} ${ano}</span><span class="semestre-valores">${formatarMoeda(curr.fat)} / ${formatarMoeda(curr.meta)}</span><span class="semestre-perc ${percCurr>=100?'ok':'warn'}">${percCurr.toFixed(1)}% ${percCurr>=100?'✅':'⏳'}</span></div></div>
                             </div>
                             <div class="dash-card dash-card-campanha" style="grid-column:1 / -1;">
-                                <div class="card-header"><i class="fas fa-fire"></i><span class="card-title">${dados.campanhaAtiva!==false?'Campanha Ativa':'Campanha'}</span></div>
+                                <div class="card-header"><i class="fas fa-fire"></i><span class="card-title">${campanhaAtiva ? 'Campanha Ativa' : 'Campanha'}</span></div>
                                 <div class="campanha-content">
-                                    <div class="campanha-nome" id="campanha-nome-dash">${dados.campanhaNome||'Nova campanha em preparação'}</div>
-                                    ${dados.campanhaAtiva!==false?`
+                                    ${campanhaAtiva ? `
+                                        <div class="campanha-nome" id="campanha-nome-dash">${campanhaNome}</div>
                                         <div class="campanha-detalhes">
-                                            <span class="campanha-restante">Restam ${dados.diasRestantes||0} dias</span>
-                                            <span class="campanha-perc"><span id="perc-campanha-dash">${(dados.campanhaPerc||0).toFixed(1)}%</span></span>
-                                            <span class="campanha-valores">${formatarMoeda(dados.campanhaRealizado||0)} / ${formatarMoeda(dados.campanhaMeta||0)}</span>
+                                            <span class="campanha-restante">Dias restantes: <strong>${diasRestantes}</strong></span>
+                                            <span class="campanha-perc">Vendedores que atingiram: <strong>${vendedoresAtingiram} / ${totalVendedores}</strong></span>
                                         </div>
-                                    `:'<span class="campanha-preparacao">Em breve será exibida</span>'}
+                                        <div class="campanha-vendedores-lista">${vendedoresTagHtml}</div>
+                                        <div style="margin-top: 8px;">
+                                            <span style="color: rgba(255,255,255,0.6); font-size: 0.85rem;">⏳ Tempo restante: </span>
+                                            <span class="campanha-countdown" id="campanha-countdown">--</span>
+                                        </div>
+                                    ` : `
+                                        <span class="campanha-preparacao">Nenhuma campanha ativa no momento</span>
+                                    `}
                                 </div>
                             </div>
                         </div>
                     </div>
                 `;
+            }
+
+            // ===== FUNÇÃO PARA ATUALIZAR O CRONÔMETRO DA CAMPANHA =====
+            function iniciarCountdownCampanha() {
+                const el = document.getElementById('campanha-countdown');
+                if (!el) return;
+
+                // Buscar a data de fim da campanha ativa
+                let dataFim = null;
+                if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
+                    const camp = window._campanhaDetalhes[0];
+                    // Tentar obter a data fim da planilha
+                    const campanhaRaw = campanhasData.find(c => c.campanha === camp.nomeCampanha);
+                    if (campanhaRaw && campanhaRaw.data_fim) {
+                        const fim = parseDataBR(campanhaRaw.data_fim);
+                        if (fim) dataFim = fim;
+                    }
+                    // Se não encontrou, usa dias restantes
+                    if (!dataFim && camp.diasRestantes) {
+                        dataFim = new Date();
+                        dataFim.setDate(dataFim.getDate() + camp.diasRestantes);
+                    }
+                }
+
+                if (!dataFim) {
+                    el.textContent = '--';
+                    return;
+                }
+
+                function atualizar() {
+                    const agora = getHoraSincronizada();
+                    const diff = dataFim.getTime() - agora.getTime();
+
+                    if (diff <= 0) {
+                        el.textContent = '🎉 Campanha encerrada!';
+                        return;
+                    }
+
+                    const dias = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const horas = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutos = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const segundos = Math.floor((diff % (1000 * 60)) / 1000);
+
+                    el.textContent = `${dias}d ${String(horas).padStart(2,'0')}h ${String(minutos).padStart(2,'0')}m ${String(segundos).padStart(2,'0')}s`;
+                }
+
+                atualizar();
+                setInterval(atualizar, 1000);
             }
 
             function buildLogoSlide() {
@@ -3853,72 +3945,19 @@
                 return [];
             }
 
-            // ===== NOTÍCIAS E WEATHER =====
-            async function buscarNoticias() {
-                try {
-                    let articles = [];
-                    const url = CONFIG.newsFeed || 'https://newsapi.org/v2/top-headlines?country=br&apiKey=' + CONFIG
-                        .newsApiKey;
-                    const resp = await fetch(url);
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        if (data.articles && data.articles.length) articles = data.articles.slice(0, 6);
-                    } else {
-                        throw new Error('NewsAPI status ' + resp.status);
-                    }
-                    if (!articles.length) {
-                        // Fallback RSS UOL
-                        const rssUrl = 'https://rss.uol.com.br/feed/noticias.xml';
-                        const rssResp = await fetch(rssUrl);
-                        if (rssResp.ok) {
-                            const text = await rssResp.text();
-                            const parser = new DOMParser();
-                            const xml = parser.parseFromString(text, 'text/xml');
-                            const items = xml.querySelectorAll('item');
-                            items.forEach(item => {
-                                const title = item.querySelector('title')?.textContent || '';
-                                const desc = item.querySelector('description')?.textContent || '';
-                                const link = item.querySelector('link')?.textContent || '';
-                                const pubDate = item.querySelector('pubDate')?.textContent || '';
-                                let img = '';
-                                const imgMatch = desc.match(/<img[^>]+src="([^">]+)"/);
-                                if (imgMatch) img = imgMatch[1];
-                                articles.push({ title, description: desc.replace(/<[^>]*>/g, '').substring(0, 150),
-                                    url: link, publishedAt: pubDate, urlToImage: img });
-                            });
-                            articles = articles.slice(0, 6);
-                        } else {
-                            // Fallback de notícias simuladas
-                            articles = [
-                                { title: 'Brasil registra crescimento de 2,5% no PIB', description: 'Dados do IBGE mostram expansão econômica no segundo trimestre.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' },
-                                { title: 'Novas regras para MEI entram em vigor', description: 'Microempreendedores individuais devem ficar atentos às mudanças.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' },
-                                { title: 'Tecnologia 5G chega a mais 50 cidades', description: 'Anatel autoriza nova fase de expansão da rede.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' },
-                                { title: 'Inflação oficial fica em 0,5% em julho', description: 'IPCA-15 desacelera em relação ao mês anterior.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' },
-                                { title: 'Campeonato Brasileiro: líder vence fora de casa', description: 'Palmeiras mantém vantagem na tabela.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' },
-                                { title: 'Novo ônibus elétrico circula em São Paulo', description: 'Modelo nacional promete redução de ruídos e poluição.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' }
-                            ];
-                        }
-                    }
-                    return articles;
-                } catch (e) {
-                    console.warn('Erro ao buscar notícias:', e);
-                    return [
-                        { title: 'Notícias indisponíveis no momento', description: 'Tente novamente mais tarde.', url: '#', publishedAt: new Date().toISOString(), urlToImage: '' }
-                    ];
-                }
-            }
-
-            function buildNewsSlide(articles) {
-                if (!articles || !articles.length) return null;
-                const cards = articles.map(a => `
-                    <div class="news-card">
-                        ${a.urlToImage ? `<img src="${a.urlToImage}" alt="${a.title}" onerror="this.style.display='none'">` : '<div style="height:140px;background:rgba(255,255,255,0.05);border-radius:10px;"></div>'}
-                        <h3>${a.title || 'Sem título'}</h3>
-                        <p>${a.description || ''}</p>
-                        <div class="news-footer"><span>${a.source?.name || a.author || 'Fonte'}</span><span>${a.publishedAt ? new Date(a.publishedAt).toLocaleDateString('pt-BR') : ''}</span></div>
+            // ===== NOTÍCIAS - IFRAME RSS =====
+            function buildNewsSlide() {
+                return `
+                    <div class="news-slide">
+                        <div class="news-iframe-container">
+                            <iframe 
+                                src="https://rss.app/embed/v1/feed/0DwcNu1CinD2o5k6" 
+                                frameborder="0" 
+                                allowfullscreen>
+                            </iframe>
+                        </div>
                     </div>
-                `).join('');
-                return `<div class="news-slide"><h2 class="slide-title-big" style="margin-bottom:16px;"><i class="fas fa-newspaper icon-float"></i> Últimas Notícias</h2><div class="news-list">${cards}</div></div>`;
+                `;
             }
 
             function buildWeatherSlide(weatherData) {
@@ -4159,6 +4198,8 @@
                 if (dados.campanhaAtiva !== false) {
                     animatePercentValue('perc-campanha-dash', 0, dados.campanhaPerc || 0, 1500);
                 }
+                // Iniciar countdown da campanha
+                setTimeout(iniciarCountdownCampanha, 500);
             }
 
             function animateValue(id, start, end, duration, prefix = 'R$ ', decimals = 2) {
