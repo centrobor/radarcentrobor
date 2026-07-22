@@ -2052,7 +2052,6 @@
 
             // ===== CONFIGURAÇÕES =====
             const CONFIG = {
-                youtubeChannelId: 'UC-tqKpwe5vSy7nxQ8cLzZHg',
                 lat: -23.5505,
                 lon: -46.6333,
                 slideInterval: 15000,
@@ -2062,7 +2061,6 @@
                 bannerInterval: 300000,
                 radioInterval: 14400000,
                 youtubeRefreshInterval: 60000,
-                timeApi: 'https://worldtimeapi.org/api/timezone/America/Sao_Paulo',
             };
 
             const RADIOS = [
@@ -2147,46 +2145,9 @@
                 return data;
             }
 
-            // ===== DATA/HORA =====
-            let timeOffset = 0;
-            let lastTimeSync = 0;
-            let timeSyncAttempts = 0;
-            const MAX_TIME_SYNC_ATTEMPTS = 3;
-
-            async function sincronizarHora() {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 5000);
-                    const resp = await fetch(CONFIG.timeApi, { signal: controller.signal });
-                    clearTimeout(timeoutId);
-                    if (!resp.ok) throw new Error('Time API error: ' + resp.status);
-                    const data = await resp.json();
-                    if (data && data.datetime) {
-                        const apiTime = new Date(data.datetime);
-                        const localTime = new Date();
-                        timeOffset = apiTime.getTime() - localTime.getTime();
-                        lastTimeSync = Date.now();
-                        timeSyncAttempts = 0;
-                        log('Hora sincronizada com offset:', timeOffset);
-                        return true;
-                    } else {
-                        throw new Error('Resposta inválida');
-                    }
-                } catch (e) {
-                    console.warn('Falha ao sincronizar hora, usando relógio local.', e);
-                    timeOffset = 0;
-                    lastTimeSync = Date.now();
-                    timeSyncAttempts++;
-                    if (timeSyncAttempts < MAX_TIME_SYNC_ATTEMPTS) {
-                        setTimeout(sincronizarHora, 30000);
-                    }
-                    return false;
-                }
-            }
-
+            // ===== RELÓGIO LOCAL (sem API externa) =====
             function getHoraSincronizada() {
-                if (lastTimeSync === 0) return new Date();
-                return new Date(Date.now() + timeOffset);
+                return new Date(); // sempre usa o relógio local
             }
 
             // ===== STORAGE =====
@@ -2392,11 +2353,14 @@
                             alerta.className = `alert-pill ${cls}`;
                             alerta.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${txt}`;
                         } else alerta.style.display = 'none';
-                        atualizarLoadingInfo();
-                        const elTemp = document.getElementById('slide-temp');
+                        // Atualiza loading também
+                        const elTemp = document.getElementById('lb-temp');
                         if (elTemp) elTemp.textContent = `${temp}°C`;
-                        const elIcon = document.getElementById('slide-clima-icon');
-                        if (elIcon) elIcon.className = document.querySelector('#clima-box i').className;
+                        // Atualiza slide de clima
+                        const elSlideTemp = document.getElementById('slide-temp');
+                        if (elSlideTemp) elSlideTemp.textContent = `${temp}°C`;
+                        const elSlideIcon = document.getElementById('slide-clima-icon');
+                        if (elSlideIcon) elSlideIcon.className = document.querySelector('#clima-box i').className;
                         window._weatherData = data;
                     }
                 } catch (e) { console.warn('Clima indisponível'); }
@@ -2532,7 +2496,7 @@
                 const iframeSlide = document.getElementById('live-youtube-iframe');
                 if (iframeSlide) {
                     iframeSlide.src =
-                        `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt`;
+                        `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt&playsinline=1`;
                     iframeSlide.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
                     log('Iframe do slide atualizado');
                 } else {
@@ -2542,7 +2506,7 @@
                 const iframeSidebar = document.getElementById('youtube-player');
                 if (iframeSidebar) {
                     iframeSidebar.src =
-                        `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt`;
+                        `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt&playsinline=1`;
                     iframeSidebar.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
                     log('Iframe da sidebar atualizado');
                 } else {
@@ -2561,14 +2525,12 @@
                             currentVideoId = id;
                             log(`Novo ID de vídeo obtido: ${currentVideoId}`);
                             atualizarIframesVideo(currentVideoId);
-                            // Se o slide de vídeo já existir, forçar recriação do slide para pegar o novo ID
-                            // (já que o slide é recriado no rebuild, vamos apenas atualizar o iframe existente)
-                            // Mas se o slide ainda não foi criado, o src será definido quando for criado.
-                            // Para garantir, após atualizar, se o slide estiver ativo, recarregamos.
-                            const slideIdx = visibleSlides.findIndex(s => s.type === 'video');
-                            if (slideIdx !== -1 && currentSlideIndex === slideIdx) {
-                                // Se o slide de vídeo está ativo, recarregamos o iframe novamente
-                                setTimeout(() => atualizarIframesVideo(currentVideoId), 100);
+                            // Forçar recriação do slide se ele existir na lista
+                            const slideIdx = allSlides.findIndex(s => s.type === 'video');
+                            if (slideIdx !== -1) {
+                                allSlides[slideIdx].html =
+                                    `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+                                rebuildSlides();
                             }
                         } else {
                             log('ID do vídeo não mudou ou está vazio.');
@@ -3141,11 +3103,10 @@
                     const div = document.createElement('div');
                     div.className = `slide ${i===0?'active':''}`;
                     div.dataset.index = i;
-                    // Se for slide de vídeo, usa currentVideoId
                     let htmlContent = s.html;
                     if (s.type === 'video') {
                         htmlContent =
-                            `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+                            `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
                         log(`Recriando slide de vídeo com ID: ${currentVideoId}`);
                     }
                     div.innerHTML = htmlContent;
@@ -3306,7 +3267,7 @@
                 const videoId = currentVideoId || 'dQw4w9WgXcQ';
                 log(`Criando slide de vídeo com ID: ${videoId}`);
                 allSlides.push({ type: 'video',
-                    html: `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
+                    html: `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${videoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`
                 });
 
                 // Inicializar visibilidade
@@ -3328,7 +3289,7 @@
                     let htmlContent = s.html;
                     if (s.type === 'video') {
                         htmlContent =
-                            `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
+                            `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>`;
                     }
                     div.innerHTML = htmlContent;
                     zone.appendChild(div);
@@ -4340,8 +4301,34 @@
             // ===== INICIALIZAÇÃO =====
             const loadingOverlay = document.getElementById('loading-overlay');
 
+            // Atualiza loading com hora e clima local (fallback)
+            function atualizarLoadingInfo() {
+                const agora = getHoraSincronizada();
+                const elTime = document.getElementById('lb-time');
+                const elDate = document.getElementById('lb-date');
+                const elTemp = document.getElementById('lb-temp');
+                if (elTime) {
+                    elTime.textContent = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                }
+                if (elDate) {
+                    elDate.textContent = agora.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit',
+                        month: 'short', year: 'numeric' });
+                }
+                if (elTemp) {
+                    const tempEl = document.getElementById('temp');
+                    if (tempEl && tempEl.textContent !== '--°C') {
+                        elTemp.textContent = tempEl.textContent;
+                    } else {
+                        elTemp.textContent = '--°C';
+                    }
+                }
+            }
+            // Atualiza imediatamente e depois a cada segundo
+            atualizarLoadingInfo();
+            setInterval(atualizarLoadingInfo, 1000);
+
             async function init() {
-                await sincronizarHora();
+                // Não sincroniza hora com API, usa relógio local
 
                 initParticles();
                 iniciarAtualizacaoVideo();
