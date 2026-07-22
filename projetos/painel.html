@@ -4249,54 +4249,56 @@
             }
 
             function atualizarSidebar(idx) {
-                const sidebarDash = document.getElementById('sidebar-dashboard');
-                const videoBox = document.getElementById('video-box');
-                const radioBox = document.getElementById('radio-box');
-                if (!visibleSlides[idx]) return;
-                if (visibleSlides[idx].type === 'video') {
-                    videoBox.style.display = '';
-                    radioBox.style.display = '';
-                    sidebarDash.style.display = 'flex';
-                    const d = window._dadosPainel || {};
-                    const fat = d.fatMes || 0;
-                    const meta = d.metaMes || 0;
-                    const restante = Math.max(0, meta - fat);
-                    const perc = meta > 0 ? (fat / meta) * 100 : 0;
-                    sidebarDash.innerHTML = `
-                        <div class="dash-card-side">
-                            <div class="icon-sm icon-float"><i class="fas fa-chart-line"></i></div>
-                            <div class="info">
-                                <div class="kpi-lab">Valor Realizado</div>
-                                <div class="kpi-val destaque" id="side-val-fat">${formatarMoeda(fat)}</div>
-                            </div>
-                        </div>
-                        <div class="dash-card-side">
-                            <div class="icon-sm icon-pulse"><i class="fas fa-flag-checkered"></i></div>
-                            <div class="info">
-                                <div class="kpi-lab">Meta do Mês</div>
-                                <div class="kpi-val meta-menor" id="side-val-meta">${formatarMoeda(meta)}</div>
-                            </div>
-                        </div>
-                        <div class="dash-card-side">
-                            <div class="icon-sm icon-bounce-soft"><i class="fas fa-percentage"></i></div>
-                            <div class="info">
-                                <div class="kpi-lab">Percentual Atingido</div>
-                                <div class="kpi-val" id="side-val-perc" style="color:${perc>=100?'#4caf50':'#f59e0b'};">${perc.toFixed(1)}%</div>
-                                <div class="restante-text">Restam ${formatarMoeda(restante)}</div>
-                            </div>
-                        </div>
-                    `;
-                    setTimeout(() => {
-                        animateValue('side-val-fat', 0, fat, 1500);
-                        animateValue('side-val-meta', 0, meta, 1500);
-                        animatePercentValue('side-val-perc', 0, perc, 1500);
-                    }, 200);
-                } else {
-                    videoBox.style.display = '';
-                    radioBox.style.display = '';
-                    sidebarDash.style.display = 'none';
-                }
-            }
+    const sidebarDash = document.getElementById('sidebar-dashboard');
+    const videoBox = document.getElementById('video-box');
+    const radioBox = document.getElementById('radio-box');
+    if (!visibleSlides[idx]) return;
+    if (visibleSlides[idx].type === 'video') {
+        // Oculta o vídeo e o rádio na sidebar, pois o vídeo já está em tela cheia
+        videoBox.style.display = 'none';
+        radioBox.style.display = 'none';
+        sidebarDash.style.display = 'flex';
+        const d = window._dadosPainel || {};
+        const fat = d.fatMes || 0;
+        const meta = d.metaMes || 0;
+        const restante = Math.max(0, meta - fat);
+        const perc = meta > 0 ? (fat / meta) * 100 : 0;
+        sidebarDash.innerHTML = `
+            <div class="dash-card-side">
+                <div class="icon-sm icon-float"><i class="fas fa-chart-line"></i></div>
+                <div class="info">
+                    <div class="kpi-lab">Valor Realizado</div>
+                    <div class="kpi-val destaque" id="side-val-fat">${formatarMoeda(fat)}</div>
+                </div>
+            </div>
+            <div class="dash-card-side">
+                <div class="icon-sm icon-pulse"><i class="fas fa-flag-checkered"></i></div>
+                <div class="info">
+                    <div class="kpi-lab">Meta do Mês</div>
+                    <div class="kpi-val meta-menor" id="side-val-meta">${formatarMoeda(meta)}</div>
+                </div>
+            </div>
+            <div class="dash-card-side">
+                <div class="icon-sm icon-bounce-soft"><i class="fas fa-percentage"></i></div>
+                <div class="info">
+                    <div class="kpi-lab">Percentual Atingido</div>
+                    <div class="kpi-val" id="side-val-perc" style="color:${perc>=100?'#4caf50':'#f59e0b'};">${perc.toFixed(1)}%</div>
+                    <div class="restante-text">Restam ${formatarMoeda(restante)}</div>
+                </div>
+            </div>
+        `;
+        setTimeout(() => {
+            animateValue('side-val-fat', 0, fat, 1500);
+            animateValue('side-val-meta', 0, meta, 1500);
+            animatePercentValue('side-val-perc', 0, perc, 1500);
+        }, 200);
+    } else {
+        // Para outros slides, mostra vídeo e rádio, e oculta o dashboard
+        videoBox.style.display = '';
+        radioBox.style.display = '';
+        sidebarDash.style.display = 'none';
+    }
+}
 
             // ===== INICIALIZAÇÃO =====
             const loadingOverlay = document.getElementById('loading-overlay');
