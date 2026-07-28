@@ -7,8 +7,10 @@
     <title>Dashboard • Centrobor • Administrador</title>
     <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js">
+    </script>
     <style>
         :root {
             --primary: #1e3a5f;
@@ -422,6 +424,7 @@
             transition: 0.25s;
             color: var(--text-dark);
             box-shadow: var(--shadow-sm);
+            cursor: pointer;
         }
         .quick-card:hover {
             transform: translateY(-2px);
@@ -436,6 +439,22 @@
         .quick-card span {
             font-weight: 600;
             font-size: 0.8rem;
+        }
+        .quick-card .card-date {
+            font-size: 0.65rem;
+            color: var(--text-light);
+            margin-top: 4px;
+            font-weight: 500;
+        }
+        .quick-card .card-badge {
+            background: #f39c12;
+            color: white;
+            font-size: 0.6rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            margin-top: 6px;
+            font-weight: 700;
+            letter-spacing: 0.3px;
         }
         .kpi-grid {
             display: grid;
@@ -2157,7 +2176,8 @@
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`,
-                campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`
+                campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
+                apresentacao: `https://opensheet.elk.sh/${SHEET_ID}/apresentacao`
             };
             const VENDEDORES_MAP = {
                 "33": "Fábio Prado",
@@ -2172,7 +2192,7 @@
 
             let allFaturados = [], allAprovados = [], allMetas = [], allPedidos = [],
                 BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [],
-                campanhasData = [];
+                campanhasData = [], apresentacoes = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = [
                 { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
@@ -2203,97 +2223,83 @@
                 }
             }
             function mostrarCelebracao(conquistas) {
-    if (!conquistas || conquistas.length === 0) return;
+                if (!conquistas || conquistas.length === 0) return;
+                const celebradas = getMetasCelebradas();
+                const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
+                if (novasConquistas.length === 0) return;
 
-    const celebradas = getMetasCelebradas();
-    const novasConquistas = conquistas.filter(c => !celebradas.includes(c.chave));
-    if (novasConquistas.length === 0) return;
+                function getGroupKey(item) {
+                    const nome = item.nome;
+                    if (nome.includes('(Time)')) return '🏢 Time / Geral';
+                    if (nome.includes('Fabiano')) return '🏭 Fabiano (Especiais)';
+                    if (nome.includes(': ')) {
+                        const partes = nome.split(': ');
+                        const vendedor = partes[partes.length - 1];
+                        return `👤 ${vendedor}`;
+                    }
+                    if (nome.includes('Campanha')) {
+                        const partes = nome.split(': ');
+                        const vendedor = partes[partes.length - 1] || 'Campanha';
+                        return `🏆 ${vendedor}`;
+                    }
+                    return '📌 Outras Metas';
+                }
 
-    // ===== FUNÇÃO PARA EXTRAIR O GRUPO (VENDEDOR) DE CADA CONQUISTA =====
-    function getGroupKey(item) {
-        const nome = item.nome;
-        // 1. Metas do Time (Dimas/Eduardo)
-        if (nome.includes('(Time)')) return '🏢 Time / Geral';
-        // 2. Metas do Fabiano
-        if (nome.includes('Fabiano')) return '🏭 Fabiano (Especiais)';
-        // 3. Metas Individuais (extrai o nome do vendedor após os dois pontos)
-        if (nome.includes(': ')) {
-            const partes = nome.split(': ');
-            const vendedor = partes[partes.length - 1];
-            return `👤 ${vendedor}`;
-        }
-        // 4. Campanhas (já vem com o nome do vendedor no final)
-        if (nome.includes('Campanha')) {
-            const partes = nome.split(': ');
-            const vendedor = partes[partes.length - 1] || 'Campanha';
-            return `🏆 ${vendedor}`;
-        }
-        return '📌 Outras Metas';
-    }
+                const grupos = {};
+                novasConquistas.forEach(item => {
+                    const key = getGroupKey(item);
+                    if (!grupos[key]) grupos[key] = [];
+                    grupos[key].push(item);
+                });
 
-    // ===== AGRUPAR AS CONQUISTAS =====
-    const grupos = {};
-    novasConquistas.forEach(item => {
-        const key = getGroupKey(item);
-        if (!grupos[key]) grupos[key] = [];
-        grupos[key].push(item);
-    });
+                const ordemPrioridade = ['🏢 Time / Geral', '🏭 Fabiano (Especiais)'];
+                const keysOrdenadas = Object.keys(grupos).sort((a, b) => {
+                    const posA = ordemPrioridade.indexOf(a);
+                    const posB = ordemPrioridade.indexOf(b);
+                    if (posA !== -1 && posB !== -1) return posA - posB;
+                    if (posA !== -1) return -1;
+                    if (posB !== -1) return 1;
+                    return a.localeCompare(b);
+                });
 
-    // Ordenar os grupos: Time primeiro, depois Fabiano, depois os demais (ordem alfabética)
-    const ordemPrioridade = ['🏢 Time / Geral', '🏭 Fabiano (Especiais)'];
-    const keysOrdenadas = Object.keys(grupos).sort((a, b) => {
-        const posA = ordemPrioridade.indexOf(a);
-        const posB = ordemPrioridade.indexOf(b);
-        if (posA !== -1 && posB !== -1) return posA - posB;
-        if (posA !== -1) return -1;
-        if (posB !== -1) return 1;
-        return a.localeCompare(b);
-    });
+                const body = document.getElementById('celebracao-body');
+                let listaHtml = '';
+                keysOrdenadas.forEach(groupKey => {
+                    const items = grupos[groupKey];
+                    listaHtml += `<div class="celebracao-group">
+                        <div class="celebracao-group-title">${groupKey}</div>
+                        <div class="celebracao-group-items">`;
+                    items.forEach(c => {
+                        listaHtml += `<div class="celebracao-item">
+                            <span class="item-nome"><strong>${c.nome}</strong></span>
+                            <span class="item-valores">${formatCurrency(c.realizado)} / ${formatCurrency(c.meta)} (${c.perc.toFixed(1)}%)</span>
+                        </div>`;
+                    });
+                    listaHtml += `</div></div>`;
+                });
 
-    // ===== MONTAR O HTML =====
-    const body = document.getElementById('celebracao-body');
-    let listaHtml = '';
+                body.innerHTML = `
+                    <div class="trofeu">🏆</div>
+                    <h2>Isso aí!</h2>
+                    <p>As seguintes metas foram atingidas:</p>
+                    <div class="lista-conquistas">${listaHtml}</div>
+                    <p style="font-size:1.1rem;margin-top:10px;">Logo teremos mais! 🚀</p>
+                    <button id="fechar-celebracao-btn">Fechar</button>
+                `;
 
-    keysOrdenadas.forEach(groupKey => {
-        const items = grupos[groupKey];
-        listaHtml += `<div class="celebracao-group">
-            <div class="celebracao-group-title">${groupKey}</div>
-            <div class="celebracao-group-items">`;
+                const modal = document.getElementById('celebracao-modal');
+                modal.classList.add('active');
+                dispararConfetes();
 
-        items.forEach(c => {
-            listaHtml += `<div class="celebracao-item">
-                <span class="item-nome"><strong>${c.nome}</strong></span>
-                <span class="item-valores">${formatCurrency(c.realizado)} / ${formatCurrency(c.meta)} (${c.perc.toFixed(1)}%)</span>
-            </div>`;
-        });
+                document.getElementById('fechar-celebracao-btn').addEventListener('click', () => {
+                    modal.classList.remove('active');
+                });
+                modal.addEventListener('click', function(e) {
+                    if (e.target === modal) modal.classList.remove('active');
+                });
 
-        listaHtml += `</div></div>`;
-    });
-
-    // Monta o modal completo
-    body.innerHTML = `
-        <div class="trofeu">🏆</div>
-        <h2>Isso aí!</h2>
-        <p>As seguintes metas foram atingidas:</p>
-        <div class="lista-conquistas">${listaHtml}</div>
-        <p style="font-size:1.1rem;margin-top:10px;">Logo teremos mais! 🚀</p>
-        <button id="fechar-celebracao-btn">Fechar</button>
-    `;
-
-    const modal = document.getElementById('celebracao-modal');
-    modal.classList.add('active');
-    dispararConfetes();
-
-    document.getElementById('fechar-celebracao-btn').addEventListener('click', () => {
-        modal.classList.remove('active');
-    });
-    modal.addEventListener('click', function(e) {
-        if (e.target === modal) modal.classList.remove('active');
-    });
-
-    // Marcar as conquistas como celebradas
-    novasConquistas.forEach(c => adicionarMetaCelebrada(c.chave));
-}
+                novasConquistas.forEach(c => adicionarMetaCelebrada(c.chave));
+            }
 
             // ---------- FUNÇÕES DA CAMPANHA ----------
             function isCampaignActive(camp) {
@@ -2438,15 +2444,15 @@
                 document.getElementById('last-update').innerText = 'Carregando...';
                 document.getElementById('loading-overlay').classList.remove('hidden');
                 try {
-                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData, campanhas] = await Promise.all([
+                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData, campanhas, apresentacaoData] = await Promise.all([
                         carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
                         carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
                         carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.cadastro),
-                        carregarJSON(BASES.campanhas_especiais)
+                        carregarJSON(BASES.campanhas_especiais), carregarJSON(BASES.apresentacao)
                     ]);
                     allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
                     BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
-                    campanhasData = campanhas;
+                    campanhasData = campanhas; apresentacoes = apresentacaoData;
 
                     const resultadoCampanha = processarCampanhasAtivas(campanhasData);
                     if (resultadoCampanha) {
@@ -2503,7 +2509,6 @@
                 return map;
             }
 
-            // ===== FUNÇÃO REFINADA DE CELEBRAÇÃO DE METAS =====
             function verificarCelebracaoMetas() {
                 const now = new Date();
                 const ano = now.getFullYear();
@@ -2513,7 +2518,6 @@
                 const anoMes = `${ano}-${String(mes).padStart(2,'0')}`;
                 const semestre = mes <= 6 ? 1 : 2;
 
-                // 1) Meta Mensal do Time (Dimas/Eduardo)
                 const fatMesTime = Object.values(getFaturamentoPorVendedorMes(ano, mes, null)).reduce((a, b) => a + b, 0);
                 const metaMesTime = getMetaGlobal(ano, mes);
                 if (metaMesTime > 0 && fatMesTime >= metaMesTime) {
@@ -2525,7 +2529,6 @@
                         chave: `meta_mensal_time_${anoMes}`
                     });
                 }
-                // Meta Plus do Time
                 const metaPlusTime = metaMesTime * 1.1;
                 if (metaPlusTime > 0 && fatMesTime >= metaPlusTime) {
                     conquistas.push({
@@ -2537,7 +2540,6 @@
                     });
                 }
 
-                // 2) Meta Semestral do Time
                 let fatSemestreTime = 0, metaSemestreTime = 0;
                 const inicioSem = mes <= 6 ? 1 : 7;
                 for (let m = inicioSem; m <= mes; m++) {
@@ -2554,7 +2556,6 @@
                     });
                 }
 
-                // 3) Meta Anual do Time
                 let fatAnoTime = 0, metaAnoTime = 0;
                 for (let m = 1; m <= 12; m++) {
                     fatAnoTime += Object.values(getFaturamentoPorVendedorMes(ano, m, null)).reduce((s, v) => s + v, 0);
@@ -2570,7 +2571,6 @@
                     });
                 }
 
-                // 4) Metas Individuais (cada vendedor)
                 const metasIndividuais = allMetas.filter(m => {
                     const id = String(m.id_vendedor || '').trim();
                     if (id == '80' || id == '1') return false;
@@ -2584,7 +2584,6 @@
                     const id = String(m.id_vendedor || '').trim();
                     const nome = m.vendedor || '';
                     const metaM = cleanNumber(m.meta_mensal);
-                    // Faturamento individual no mês
                     let fatVend = 0;
                     allFaturados.forEach(f => {
                         const d = parseDataBR(f['Data']);
@@ -2593,7 +2592,6 @@
                         }
                     });
 
-                    // Meta Mensal Individual
                     if (metaM > 0 && fatVend >= metaM) {
                         conquistas.push({
                             nome: `Meta Mensal: ${VENDEDORES_MAP[id] || nome}`,
@@ -2603,7 +2601,6 @@
                             chave: `meta_vend_mensal_${id}_${anoMes}`
                         });
                     }
-                    // Meta Plus Individual (+10%)
                     const metaPlus = metaM * 1.1;
                     if (metaPlus > 0 && fatVend >= metaPlus) {
                         conquistas.push({
@@ -2615,7 +2612,6 @@
                         });
                     }
 
-                    // Meta Semestral Individual
                     const metaSem = cleanNumber(m.meta_semestral);
                     if (metaSem > 0) {
                         let fatSem = 0;
@@ -2634,7 +2630,6 @@
                         }
                     }
 
-                    // Meta Anual Individual
                     const metaAnoInd = cleanNumber(m.meta_anual);
                     if (metaAnoInd > 0) {
                         let fatAnoInd = 0;
@@ -2654,7 +2649,6 @@
                     }
                 });
 
-                // 5) Campanhas Especiais (já capturadas)
                 if (window._campanhaDetalhes && window._campanhaDetalhes.length > 0) {
                     window._campanhaDetalhes.forEach(d => {
                         if (d.perc >= 99.99) {
@@ -2669,7 +2663,6 @@
                     });
                 }
 
-                // Se houver conquistas, mostrar celebração
                 if (conquistas.length > 0) setTimeout(() => mostrarCelebracao(conquistas), 500);
             }
 
@@ -2755,181 +2748,170 @@
             function getProgressColor(p) { if (p >= 100) return '#2e7d32'; if (p >= 60) return '#ed6c02'; return '#d32f2f'; }
 
             function renderVendorGoals(monthKey) {
-    const [ano, mes] = monthKey.split('-').map(Number);
-    const vendorEntries = [];
-    const processedNonFabiano = new Set();
+                const [ano, mes] = monthKey.split('-').map(Number);
+                const vendorEntries = [];
+                const processedNonFabiano = new Set();
 
-    // 1. Coleta todas as metas dos vendedores (exceto Dimas/Eduardo)
-    allMetas.forEach(m => {
-        const nome = (m.vendedor || '').trim();
-        if (!nome) return;
-        const id = String(m.id_vendedor || '').trim();
-        if (id == '80' || id == '1') return;
-        if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
-        const metaM = cleanNumber(m.meta_mensal);
-        if (selectedVendor !== 'all' && id !== selectedVendor) return;
+                allMetas.forEach(m => {
+                    const nome = (m.vendedor || '').trim();
+                    if (!nome) return;
+                    const id = String(m.id_vendedor || '').trim();
+                    if (id == '80' || id == '1') return;
+                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
+                    const metaM = cleanNumber(m.meta_mensal);
+                    if (selectedVendor !== 'all' && id !== selectedVendor) return;
 
-        if (nome.startsWith('Fabiano')) {
-            vendorEntries.push({
-                vendedor: 'Fabiano',
-                categoria: nome.replace('Fabiano - ', ''),
-                metaMensal: metaM,
-                idVendedor: id,
-                isFabiano: true,
-                fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
-            });
-        } else if (!processedNonFabiano.has(id)) {
-            processedNonFabiano.add(id);
-            vendorEntries.push({
-                vendedor: VENDEDORES_MAP[id] || nome,
-                categoria: '',
-                metaMensal: metaM,
-                idVendedor: id,
-                isFabiano: false
-            });
-        }
-    });
+                    if (nome.startsWith('Fabiano')) {
+                        vendorEntries.push({
+                            vendedor: 'Fabiano',
+                            categoria: nome.replace('Fabiano - ', ''),
+                            metaMensal: metaM,
+                            idVendedor: id,
+                            isFabiano: true,
+                            fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
+                        });
+                    } else if (!processedNonFabiano.has(id)) {
+                        processedNonFabiano.add(id);
+                        vendorEntries.push({
+                            vendedor: VENDEDORES_MAP[id] || nome,
+                            categoria: '',
+                            metaMensal: metaM,
+                            idVendedor: id,
+                            isFabiano: false
+                        });
+                    }
+                });
 
-    // 2. Calcula o faturado de cada entrada
-    vendorEntries.forEach(e => {
-        if (e.isFabiano) {
-            e.faturado = e.fabianoTipo === 'sincpolias'
-                ? getFabianoSincPoliasFat(ano, mes)
-                : getFabianoLavanderiaFat(ano, mes);
-        } else {
-            let fat = 0;
-            allFaturados.forEach(f => {
-                const d = parseDataBR(f['Data']);
-                if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes &&
-                    String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
-                    fat += cleanNumber(f['Valor Mercadoria']);
+                vendorEntries.forEach(e => {
+                    if (e.isFabiano) {
+                        e.faturado = e.fabianoTipo === 'sincpolias'
+                            ? getFabianoSincPoliasFat(ano, mes)
+                            : getFabianoLavanderiaFat(ano, mes);
+                    } else {
+                        let fat = 0;
+                        allFaturados.forEach(f => {
+                            const d = parseDataBR(f['Data']);
+                            if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes &&
+                                String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
+                                fat += cleanNumber(f['Valor Mercadoria']);
+                            }
+                        });
+                        e.faturado = fat;
+                    }
+                });
+
+                let fatGeral = 0;
+                const chavesUsadas = new Set();
+                allFaturados.forEach(f => {
+                    const d = parseDataBR(f['Data']);
+                    if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
+                        const cod = f['Cod. Vendedor']?.trim();
+                        if (cod == '80' || cod == '1') return;
+                        if (selectedVendor == 'all' || cod === selectedVendor) {
+                            const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
+                            if (!chavesUsadas.has(chave)) {
+                                chavesUsadas.add(chave);
+                                fatGeral += cleanNumber(f['Valor Mercadoria']);
+                            }
+                        }
+                    }
+                });
+
+                let metaDimas = 0;
+                allMetas.forEach(m => {
+                    const nome = (m.vendedor || '').trim();
+                    if (nome.includes('Dimas')) metaDimas = cleanNumber(m.meta_mensal);
+                });
+                if (metaDimas === 0) metaDimas = getMetaGlobal(ano, mes);
+
+                vendorEntries.push({
+                    vendedor: 'Dimas',
+                    categoria: 'Geral',
+                    metaMensal: metaDimas,
+                    faturado: fatGeral,
+                    isDimas: true
+                });
+                vendorEntries.push({
+                    vendedor: 'Eduardo',
+                    categoria: 'Geral',
+                    metaMensal: metaDimas,
+                    faturado: fatGeral,
+                    isEduardo: true
+                });
+
+                vendorEntries.forEach(e => {
+                    e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
+                    e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
+                    e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
+                });
+
+                const fabianoCards = vendorEntries.filter(e => e.isFabiano);
+                const individuais = vendorEntries.filter(e => !e.isFabiano && !e.isDimas && !e.isEduardo);
+                const gerais = vendorEntries.filter(e => e.isDimas || e.isEduardo);
+
+                individuais.sort((a, b) => b.percentual - a.percentual);
+                gerais.sort((a, b) => (a.isDimas ? -1 : 1));
+
+                const container = document.getElementById('vendor-goals-container');
+                let html = '';
+
+                function renderGroup(title, entries) {
+                    if (entries.length === 0) return '';
+                    let groupHtml = `<div class="vendor-group"><div class="vendor-group-title">${title}</div><div class="vendor-group-cards">`;
+                    entries.forEach((entry, index) => {
+                        const st = getStatusInfo(entry.percentual);
+                        const cor = getProgressColor(entry.percentual);
+                        const falta = Math.max(0, entry.metaMensal - entry.faturado);
+                        const cardHtml = `<div class="vendor-mini-card" data-entry-index="${index}">
+                            <div class="vendor-mini-header">
+                                <span class="vendor-name">${entry.vendedor}</span>
+                                ${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}
+                            </div>
+                            <div class="target-row">
+                                <div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div>
+                                <div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div>
+                            </div>
+                            <div class="progress-wrapper">
+                                <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div>
+                                <span class="percent-text">${entry.percentual.toFixed(1)}%</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;">
+                                <span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span>
+                                <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span>
+                            </div>
+                            ${entry.metaPlus ? `<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;">
+                                <div class="target-row">
+                                    <div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div>
+                                    <div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div>
+                                </div>
+                                <div class="progress-wrapper">
+                                    <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div>
+                                    <span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span>
+                                </div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;">
+                                    <span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span>
+                                    <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0, entry.metaPlus - entry.faturado))}</span>
+                                </div>
+                            </div>` : ''}
+                        </div>`;
+                        groupHtml += cardHtml;
+                    });
+                    groupHtml += '</div></div>';
+                    return groupHtml;
                 }
-            });
-            e.faturado = fat;
-        }
-    });
 
-    // 3. Calcula o faturamento geral (para Dimas/Eduardo)
-    let fatGeral = 0;
-    const chavesUsadas = new Set();
-    allFaturados.forEach(f => {
-        const d = parseDataBR(f['Data']);
-        if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
-            const cod = f['Cod. Vendedor']?.trim();
-            if (cod == '80' || cod == '1') return;
-            if (selectedVendor == 'all' || cod === selectedVendor) {
-                const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
-                if (!chavesUsadas.has(chave)) {
-                    chavesUsadas.add(chave);
-                    fatGeral += cleanNumber(f['Valor Mercadoria']);
-                }
+                html += renderGroup('🏭 Fabiano (Metas Especiais)', fabianoCards);
+                html += renderGroup('👤 Vendedores Individuais', individuais);
+                html += renderGroup('🏢 Gerais (Dimas / Eduardo)', gerais);
+
+                container.innerHTML = html;
+                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
+
+                const allEntries = [...fabianoCards, ...individuais, ...gerais];
+                document.querySelectorAll('.vendor-mini-card').forEach((card, i) => {
+                    card.addEventListener('click', () => abrirDetalhesMeta(allEntries[i]));
+                });
             }
-        }
-    });
-
-    // 4. Busca a meta de Dimas (ou usa a meta global)
-    let metaDimas = 0;
-    allMetas.forEach(m => {
-        const nome = (m.vendedor || '').trim();
-        if (nome.includes('Dimas')) metaDimas = cleanNumber(m.meta_mensal);
-    });
-    if (metaDimas === 0) metaDimas = getMetaGlobal(ano, mes);
-
-    // 5. Adiciona as entradas de Dimas e Eduardo
-    vendorEntries.push({
-        vendedor: 'Dimas',
-        categoria: 'Geral',
-        metaMensal: metaDimas,
-        faturado: fatGeral,
-        isDimas: true
-    });
-    vendorEntries.push({
-        vendedor: 'Eduardo',
-        categoria: 'Geral',
-        metaMensal: metaDimas,
-        faturado: fatGeral,
-        isEduardo: true
-    });
-
-    // 6. Calcula percentuais e Meta Plus para todos
-    vendorEntries.forEach(e => {
-        e.percentual = e.metaMensal > 0 ? (e.faturado / e.metaMensal) * 100 : 0;
-        e.metaPlus = (e.isDimas || e.isEduardo) ? null : e.metaMensal * 1.1;
-        e.percentualPlus = e.metaPlus ? (e.faturado / e.metaPlus) * 100 : 0;
-    });
-
-    // 7. Separa os grupos
-    const fabianoCards = vendorEntries.filter(e => e.isFabiano);
-    const individuais = vendorEntries.filter(e => !e.isFabiano && !e.isDimas && !e.isEduardo);
-    const gerais = vendorEntries.filter(e => e.isDimas || e.isEduardo);
-
-    // Ordena individuais por percentual (decrescente) e gerais (Dimas primeiro)
-    individuais.sort((a, b) => b.percentual - a.percentual);
-    gerais.sort((a, b) => (a.isDimas ? -1 : 1));
-
-    const container = document.getElementById('vendor-goals-container');
-    let html = '';
-
-    // 8. Função auxiliar para renderizar um grupo
-    function renderGroup(title, entries) {
-        if (entries.length === 0) return '';
-        let groupHtml = `<div class="vendor-group"><div class="vendor-group-title">${title}</div><div class="vendor-group-cards">`;
-        entries.forEach((entry, index) => {
-            const st = getStatusInfo(entry.percentual);
-            const cor = getProgressColor(entry.percentual);
-            const falta = Math.max(0, entry.metaMensal - entry.faturado);
-            const cardHtml = `<div class="vendor-mini-card" data-entry-index="${index}">
-                <div class="vendor-mini-header">
-                    <span class="vendor-name">${entry.vendedor}</span>
-                    ${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}
-                </div>
-                <div class="target-row">
-                    <div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div>
-                    <div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div>
-                </div>
-                <div class="progress-wrapper">
-                    <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div>
-                    <span class="percent-text">${entry.percentual.toFixed(1)}%</span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span>
-                    <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span>
-                </div>
-                ${entry.metaPlus ? `<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;">
-                    <div class="target-row">
-                        <div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div>
-                        <div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div>
-                    </div>
-                    <div class="progress-wrapper">
-                        <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div>
-                        <span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span>
-                    </div>
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span>
-                        <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0, entry.metaPlus - entry.faturado))}</span>
-                    </div>
-                </div>` : ''}
-            </div>`;
-            groupHtml += cardHtml;
-        });
-        groupHtml += '</div></div>';
-        return groupHtml;
-    }
-
-    // 9. Monta o HTML final com os três grupos
-    html += renderGroup('🏭 Fabiano (Metas Especiais)', fabianoCards);
-    html += renderGroup('👤 Vendedores Individuais', individuais);
-    html += renderGroup('🏢 Gerais (Dimas / Eduardo)', gerais);
-
-    container.innerHTML = html;
-    document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
-
-    // 10. Adiciona eventos de clique para abrir o modal de detalhes
-    const allEntries = [...fabianoCards, ...individuais, ...gerais];
-    document.querySelectorAll('.vendor-mini-card').forEach((card, i) => {
-        card.addEventListener('click', () => abrirDetalhesMeta(allEntries[i]));
-    });
-}
 
             function renderMonthGoalAndDaily(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
@@ -3087,7 +3069,29 @@
                 });
             }
 
-            function renderQuickGrid() { document.getElementById('quick-access-grid').innerHTML = quickItems.filter(i => i.visivel).map(i => `<a href="${i.link}" class="quick-card" style="color:${i.cor}"><i class="fas ${i.icone}" style="color:${i.cor}"></i><span>${i.titulo}</span></a>`).join(''); }
+            // ========== RENDER QUICK GRID (ATUALIZADA COM APRESENTAÇÕES) ==========
+            function renderQuickGrid() {
+                let html = quickItems.filter(i => i.visivel).map(i => `<a href="${i.link}" class="quick-card" style="color:${i.cor}"><i class="fas ${i.icone}" style="color:${i.cor}"></i><span>${i.titulo}</span></a>`).join('');
+                
+                // Adiciona cards dinâmicos de apresentações
+                if (apresentacoes && apresentacoes.length > 0) {
+                    apresentacoes.forEach(ap => {
+                        const titulo = ap.titulo || 'Apresentação';
+                        const link = ap.link || '#';
+                        const data = ap.data || '';
+                        // Ícone para apresentação (pode ser fa-chalkboard-teacher, fa-file-powerpoint, fa-file-alt)
+                        html += `<a href="${link}" target="_blank" rel="noopener" class="quick-card" style="color:#1e3a5f;">
+                            <i class="fas fa-chalkboard-teacher" style="color:#f39c12;"></i>
+                            <span>${titulo}</span>
+                            ${data ? `<span class="card-date">${data}</span>` : ''}
+                            <span class="card-badge">NOVA</span>
+                        </a>`;
+                    });
+                }
+
+                document.getElementById('quick-access-grid').innerHTML = html;
+            }
+            // ========== FIM RENDER QUICK GRID ==========
 
             function openHamburger() { document.getElementById('hamburger-menu').classList.add('active'); document.getElementById('hamburger-overlay').classList.add('active'); document.body.style.overflow = 'hidden'; }
             function closeHamburger() { document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow = ''; }
