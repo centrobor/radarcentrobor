@@ -7,8 +7,10 @@
     <title>Radar Centrobor – Gestão à Vista</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        /* ===== ESTILOS COMPLETOS (mantidos do código anterior) ===== */
+        /* ===== ESTILOS COMPLETOS ===== */
         :root {
             --bg-deep: #0b1a2e;
             --primary: #1e5a7a;
@@ -41,13 +43,11 @@
             animation: gradienteAnimado 18s ease-in-out infinite alternate;
             transition: background 0.9s ease, filter 0.9s ease, opacity 0.9s ease;
         }
-        /* Modo Dark global – todos os slides */
         body.dark-mode .animated-bg {
             background: linear-gradient(135deg, #050a0f, #0a1018, #061018, #0a0e16, #050c10);
             background-size: 400% 400%;
             filter: brightness(0.55) saturate(0.7);
         }
-        /* Slide de notícias – SEMPRE preto (independente do toggle) */
         body.news-dark .animated-bg {
             background: #050505 !important;
             background-image: none !important;
@@ -144,6 +144,12 @@
             right: 50%; transform: translateX(50%); background: rgba(76,175,80,0.15);
             font-size: 1.6rem; padding: 10px 24px; border-color: #4caf50;
         }
+        /* Esconde cotação da barra no slide de Dólar (evita duplicidade) */
+        body.dolar-slide-active .dolar-cotacao {
+            opacity: 0 !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+        }
 
         .slide-manager-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.6); z-index:100; opacity:0; pointer-events:none; transition:0.3s; }
         .slide-manager-overlay.active { opacity:1; pointer-events:all; }
@@ -217,7 +223,7 @@
         .radio-embed { background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); border-radius:var(--radius-md); overflow:hidden; flex-shrink:0; height:75px; border:1px solid rgba(255,255,255,0.06); transition: background 0.9s ease, border-color 0.9s ease; }
         .radio-embed iframe { width:100%; height:100%; border:none; }
 
-        /* ===== MODO DARK GLOBAL (todos os slides) ===== */
+        /* ===== MODO DARK GLOBAL ===== */
         body.dark-mode .slides-zone {
             border-color: rgba(255,255,255,0.04);
             box-shadow: 0 2px 20px rgba(0,0,0,0.55);
@@ -248,20 +254,116 @@
             background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.4) 100%);
         }
 
-        .slide {
-            position:absolute; top:0; left:0; width:100%; height:100%;
-            opacity:0; transition: opacity 0.8s, transform 0.8s; transform:scale(0.98);
-            display:flex; align-items:center; justify-content:center; text-align:center;
-            will-change: transform, opacity; pointer-events:none; border-radius:var(--radius-xl);
-            overflow:hidden;
+        /* ===== SLIDE DÓLAR – fundo preto + cabeçalho igual notícias ===== */
+        .slide[data-type="dolar"]::before,
+        .slide[data-type="noticias_rss"]::before {
+            display: none !important;
         }
-        .slide::before {
-            content:''; position:absolute; inset:0; z-index:0;
-            background: linear-gradient(135deg, rgba(10,60,40,0.25) 0%, rgba(11,45,70,0.25) 50%, rgba(10,70,50,0.25) 100%);
-            background-size: 300% 300%;
-            animation: slideGradientShift 12s ease-in-out infinite alternate;
-            pointer-events:none; border-radius:var(--radius-xl);
+        .dolar-slide {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 18px 28px;
+            background: #050505;
+            position: relative;
+            overflow: hidden;
         }
+        .dolar-slide .dolar-header {
+            position: absolute;
+            top: 28px;
+            left: 32px;
+            z-index: 3;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: rgba(0,0,0,0.45);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.12);
+            padding: 10px 20px 10px 16px;
+            border-radius: 40px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.35);
+        }
+        .dolar-slide .dolar-header i {
+            font-size: 1.35rem;
+            color: #fff;
+        }
+        .dolar-slide .dolar-header span {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #fff;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+        .dolar-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            gap: 24px;
+            max-width: 1500px;
+            padding-top: 36px;
+        }
+        .dolar-grafico-wrapper {
+            flex: 2.6;
+            height: 88%;
+            min-width: 0;
+            position: relative;
+        }
+        .dolar-grafico-wrapper canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+        .dolar-valor-wrapper {
+            flex: 0 0 280px;
+            min-width: 500px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            gap: 8px;
+        }
+        .dolar-rotulo {
+            font-size: 2.1rem;
+            font-weight: 600;
+            color: rgba(255,255,255,0.55);
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+        .dolar-valor-grande {
+            font-size: 8.5rem;
+            font-weight: 800;
+            color: #fff;
+            text-shadow: none;
+            line-height: 0.95;
+            letter-spacing: -4px;
+            font-variant-numeric: tabular-nums;
+        }
+        .dolar-variacao {
+            font-size: 1.85rem;
+            font-weight: 700;
+            margin-top: 6px;
+            padding: 6px 22px;
+            border-radius: 40px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+        }
+        .dolar-variacao.positiva { color: #a5d6a7; }
+        .dolar-variacao.negativa { color: #ef9a9a; }
+        .dolar-atualizacao {
+            font-size: 1rem;
+            color: rgba(255,255,255,0.35);
+            margin-top: 12px;
+        }
+
+        .slide { position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; transition: opacity 0.8s, transform 0.8s; transform:scale(0.98); display:flex; align-items:center; justify-content:center; text-align:center; will-change: transform, opacity; pointer-events:none; border-radius:var(--radius-xl); overflow:hidden; }
+        .slide::before { content:''; position:absolute; inset:0; z-index:0; background: linear-gradient(135deg, rgba(10,60,40,0.25) 0%, rgba(11,45,70,0.25) 50%, rgba(10,70,50,0.25) 100%); background-size: 300% 300%; animation: slideGradientShift 12s ease-in-out infinite alternate; pointer-events:none; border-radius:var(--radius-xl); }
         @keyframes slideGradientShift { 0%{background-position:0% 50%;} 100%{background-position:100% 50%;} }
         .slide>* { position:relative; z-index:1; }
         .slide.active { opacity:1; transform:scale(1); z-index:2; pointer-events:auto; }
@@ -282,10 +384,7 @@
 
         /* ===== OUTROS SLIDES ===== */
         .relogio-slide { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
-        .relogio-content {
-            padding: 50px 70px; display: flex; flex-direction: column;
-            align-items: center; justify-content: center; min-width: 40%;
-        }
+        .relogio-content { padding: 50px 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 40%; }
         .relogio-slide .hora-grande { font-size:17rem; font-weight:700; color:#fff; letter-spacing:4px; line-height:1; }
         .relogio-slide .data-grande { font-size:2.6rem; color:rgba(255,255,255,0.95); margin-top:12px; font-weight:300; letter-spacing:2px; }
         .relogio-slide .clima-grande { font-size:2rem; color:rgba(255,255,255,0.95); margin-top:16px; display:flex; align-items:center; gap:16px; background:rgba(0,0,0,0.3); padding:8px 24px; border-radius:40px; backdrop-filter:blur(4px); border:1px solid rgba(255,255,255,0.08); }
@@ -313,504 +412,83 @@
         .b-days { font-size:0.7rem; color:rgba(255,255,255,0.5); }
 
         /* ===== WEATHER SLIDE ===== */
-        .weather-slide {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 18px 28px;
-            overflow: hidden;
-        }
-        .weather-bg {
-            position: absolute;
-            inset: 0;
-            background: url('https://images.pexels.com/photos/38602262/pexels-photo-38602262.jpeg?cs=srgb&dl=pexels-ian-panelo-38602262.jpg&fm=jpg') center/cover no-repeat;
-            z-index: 0;
-        }
-        .weather-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(160deg, rgba(11,26,46,0.75) 0%, rgba(11,26,46,0.48) 40%, rgba(11,26,46,0.78) 100%);
-            z-index: 1;
-        }
-        .weather-content {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 1180px;
-            display: flex;
-            flex-direction: column;
-            gap: 28px;
-        }
-        .weather-top {
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            gap: 40px;
-        }
-        .weather-current {
-            display: flex;
-            align-items: center;
-            gap: 36px;
-        }
-        .temp-big {
-            font-size: 9rem;
-            font-weight: 800;
-            color: #fff;
-            line-height: 1;
-            letter-spacing: -4px;
-            text-shadow: 0 6px 40px rgba(0,0,0,0.35);
-        }
-        .current-info {
-            text-align: left;
-        }
-        .current-condition {
-            font-size: 2.5rem;
-            font-weight: 600;
-            color: #fff;
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-bottom: 12px;
-        }
-        .current-condition i {
-            font-size: 3.2rem;
-            color: #facc15;
-        }
-        .current-details {
-            display: flex;
-            gap: 24px;
-            font-size: 1.25rem;
-            color: rgba(255,255,255,0.75);
-        }
-        .current-details span {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .hourly-row {
-            display: flex;
-            gap: 16px;
-            overflow-x: auto;
-            padding-bottom: 4px;
-            scrollbar-width: none;
-        }
+        .weather-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; overflow: hidden; }
+        .weather-bg { position: absolute; inset: 0; background: url('https://images.pexels.com/photos/38602262/pexels-photo-38602262.jpeg?cs=srgb&dl=pexels-ian-panelo-38602262.jpg&fm=jpg') center/cover no-repeat; z-index: 0; }
+        .weather-overlay { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(11,26,46,0.75) 0%, rgba(11,26,46,0.48) 40%, rgba(11,26,46,0.78) 100%); z-index: 1; }
+        .weather-content { position: relative; z-index: 2; width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
+        .weather-top { display: flex; align-items: center; justify-content: flex-start; gap: 40px; }
+        .weather-current { display: flex; align-items: center; gap: 36px; }
+        .temp-big { font-size: 9rem; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -4px; text-shadow: 0 6px 40px rgba(0,0,0,0.35); }
+        .current-info { text-align: left; }
+        .current-condition { font-size: 2.5rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+        .current-condition i { font-size: 3.2rem; color: #facc15; }
+        .current-details { display: flex; gap: 24px; font-size: 1.25rem; color: rgba(255,255,255,0.75); }
+        .current-details span { display: flex; align-items: center; gap: 8px; }
+        .hourly-row { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
         .hourly-row::-webkit-scrollbar { display: none; }
-        .hour-card {
-            background: rgba(255,255,255,0.10);
-            border: 1px solid rgba(255,255,255,0.15);
-            border-radius: 20px;
-            padding: 20px 22px;
-            min-width: 120px;
-            text-align: center;
-            flex-shrink: 0;
-        }
-        .hour-time {
-            font-size: 1.1rem;
-            color: rgba(255,255,255,0.65);
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-        .hour-icon {
-            font-size: 2.3rem;
-            color: #fff;
-            margin: 8px 0;
-        }
-        .hour-temp {
-            font-size: 1.7rem;
-            font-weight: 700;
-            color: #fff;
-        }
-        .daily-row {
-            display: grid;
-            grid-template-columns: repeat(5, 1fr);
-            gap: 16px;
-        }
-        .day-card {
-            background: rgba(255,255,255,0.09);
-            border: 1px solid rgba(255,255,255,0.13);
-            border-radius: 20px;
-            padding: 22px 14px;
-            text-align: center;
-        }
-        .day-name {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 8px;
-        }
-        .day-icon {
-            font-size: 2.5rem;
-            color: #fff;
-            margin: 10px 0;
-        }
-        .day-temps {
-            font-size: 1.45rem;
-            font-weight: 700;
-            color: #fff;
-        }
-        .day-temps span {
-            color: rgba(255,255,255,0.5);
-            font-weight: 500;
-            font-size: 1.2rem;
-        }
+        .hour-card { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px 22px; min-width: 120px; text-align: center; flex-shrink: 0; }
+        .hour-time { font-size: 1.1rem; color: rgba(255,255,255,0.65); font-weight: 600; margin-bottom: 8px; }
+        .hour-icon { font-size: 2.3rem; color: #fff; margin: 8px 0; }
+        .hour-temp { font-size: 1.7rem; font-weight: 700; color: #fff; }
+        .daily-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+        .day-card { background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.13); border-radius: 20px; padding: 22px 14px; text-align: center; }
+        .day-name { font-size: 1.15rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px; }
+        .day-icon { font-size: 2.5rem; color: #fff; margin: 10px 0; }
+        .day-temps { font-size: 1.45rem; font-weight: 700; color: #fff; }
+        .day-temps span { color: rgba(255,255,255,0.5); font-weight: 500; font-size: 1.2rem; }
 
-        /* ===== SLIDE NOTÍCIAS RSS (atualizado) ===== */
-        .noticias-rss-slide {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            overflow: hidden;
-        }
-        .noticias-rss-slide .rss-bg {
-            position: absolute;
-            inset: -8%;
-            width: 116%;
-            height: 116%;
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            z-index: 0;
-            transition: background-image 0.9s ease, opacity 0.6s ease;
-            transform-origin: center center;
-            animation: rssSlowZoom 22s ease-in-out infinite alternate;
-        }
-        @keyframes rssSlowZoom {
-            0%   { transform: scale(1); }
-            100% { transform: scale(1.14); }
-        }
-        .noticias-rss-slide .rss-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.78) 85%);
-            z-index: 1;
-        }
-        .noticias-rss-slide .rss-header {
-            position: absolute;
-            top: 28px;
-            left: 32px;
-            z-index: 3;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(0,0,0,0.45);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255,255,255,0.12);
-            padding: 10px 20px 10px 16px;
-            border-radius: 40px;
-            box-shadow: 0 4px 24px rgba(0,0,0,0.35);
-        }
-        .noticias-rss-slide .rss-header i {
-            font-size: 1.35rem;
-            color: #fff;
-        }
-        .noticias-rss-slide .rss-header span {
-            font-size: 1.15rem;
-            font-weight: 700;
-            color: #fff;
-            letter-spacing: 0.8px;
-            text-transform: uppercase;
-        }
-        .noticias-rss-slide .rss-content {
-            position: relative;
-            z-index: 2;
-            width: 90%;
-            max-width: 1000px;
-            padding: 20px 30px;
-            text-align: left;
-            align-self: flex-end;
-            margin-bottom: 48px;
-        }
-        .noticias-rss-slide .rss-title {
-            font-size: 3.2rem;
-            font-weight: 800;
-            color: #fff;
-            text-shadow: 0 4px 30px rgba(0,0,0,0.9);
-            line-height: 1.2;
-            margin-bottom: 12px;
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .noticias-rss-slide .rss-meta {
-            display: flex;
-            align-items: center;
-            gap: 20px;
-            font-size: 1.1rem;
-            color: rgba(255,255,255,0.9);
-            text-shadow: 0 2px 12px rgba(0,0,0,0.6);
-        }
-        .noticias-rss-slide .rss-meta .rss-fonte {
-            background: rgba(255,255,255,0.15);
-            padding: 4px 16px;
-            border-radius: 30px;
-            backdrop-filter: blur(6px);
-            font-weight: 600;
-            font-size: 0.9rem;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-        .noticias-rss-slide .rss-meta .rss-tempo {
-            font-weight: 300;
-        }
-        .noticias-rss-slide .rss-loading {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 4;
-            color: rgba(255,255,255,0.6);
-            font-size: 1.2rem;
-            background: rgba(11,26,46,0.7);
-        }
+        /* ===== SLIDE NOTÍCIAS RSS ===== */
+        .noticias-rss-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        .noticias-rss-slide .rss-bg { position: absolute; inset: -8%; width: 116%; height: 116%; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; transition: background-image 0.9s ease, opacity 0.6s ease; transform-origin: center center; animation: rssSlowZoom 22s ease-in-out infinite alternate; }
+        @keyframes rssSlowZoom { 0%   { transform: scale(1); } 100% { transform: scale(1.14); } }
+        .noticias-rss-slide .rss-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.78) 85%); z-index: 1; }
+        .noticias-rss-slide .rss-header { position: absolute; top: 28px; left: 32px; z-index: 3; display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.45); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); padding: 10px 20px 10px 16px; border-radius: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
+        .noticias-rss-slide .rss-header i { font-size: 1.35rem; color: #fff; }
+        .noticias-rss-slide .rss-header span { font-size: 1.15rem; font-weight: 700; color: #fff; letter-spacing: 0.8px; text-transform: uppercase; }
+        .noticias-rss-slide .rss-content { position: relative; z-index: 2; width: 90%; max-width: 1000px; padding: 20px 30px; text-align: left; align-self: flex-end; margin-bottom: 48px; }
+        .noticias-rss-slide .rss-title { font-size: 3.2rem; font-weight: 800; color: #fff; text-shadow: 0 4px 30px rgba(0,0,0,0.9); line-height: 1.2; margin-bottom: 12px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .noticias-rss-slide .rss-meta { display: flex; align-items: center; gap: 20px; font-size: 1.1rem; color: rgba(255,255,255,0.9); text-shadow: 0 2px 12px rgba(0,0,0,0.6); }
+        .noticias-rss-slide .rss-meta .rss-fonte { background: rgba(255,255,255,0.15); padding: 4px 16px; border-radius: 30px; backdrop-filter: blur(6px); font-weight: 600; font-size: 0.9rem; border: 1px solid rgba(255,255,255,0.1); }
+        .noticias-rss-slide .rss-meta .rss-tempo { font-weight: 300; }
+        .noticias-rss-slide .rss-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 4; color: rgba(255,255,255,0.6); font-size: 1.2rem; background: rgba(11,26,46,0.7); }
 
         /* ===== SLIDE CAMPANHA ===== */
-        .campanha-slide {
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 18px 28px;
-            position: relative;
-            overflow: hidden;
-        }
-        .campanha-slide .campanha-bg {
-            position: absolute;
-            inset: 0;
-            background-image: url('https://chatgpt.com/backend-api/estuary/public_content/enc/eyJpZCI6Im1fNmE3Y2MzMDhjMzJjODE5MWE4YmI1MjNiZTU1YzkwMTA6ZmlsZV8wMDAwMDAwMDVlNTg4MjBlOGFkOTZjMWJkMDg2Yzc2YSIsImdpem1vX2lkIjpudWxsLCJ3aWQiOm51bGwsIm9pZCI6bnVsbCwic2lkIjpudWxsLCJjcyI6bnVsbCwiZm4iOm51bGwsImNkIjpudWxsLCJ0cyI6IjIwNjc3IiwicCI6InB5aSIsImNpZCI6IjEiLCJzaWciOiJmNDMxZDNiNjRmY2VlNmFhMzI4Njg5MzFkYjQ3NTFmNDQ5Yjc4ODk1ZGQ4OTVmMzAxMmExNzE1MjUzM2YxMjc3IiwidiI6IjAiLCJjZG4iOm51bGwsImNwIjpudWxsLCJtYSI6bnVsbH0=');
-            background-position: center center;
-            background-size: cover;
-            background-repeat: no-repeat;
-            z-index: 0;
-        }
-        .campanha-slide .campanha-overlay {
-            position: absolute;
-            inset: 0;
-            background: linear-gradient(165deg, rgba(11,26,46,0.72) 0%, rgba(11,26,46,0.48) 45%, rgba(11,26,46,0.75) 100%);
-            z-index: 1;
-        }
-        .campanha-content {
-            position: relative;
-            z-index: 2;
-            width: 100%;
-            max-width: 1120px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 16px;
-        }
+        .campanha-slide { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; position: relative; overflow: hidden; }
+        .campanha-slide .campanha-bg { position: absolute; inset: 0; background-image: url('https://chatgpt.com/backend-api/estuary/public_content/enc/eyJpZCI6Im1fNmE3Y2MzMDhjMzJjODE5MWE4YmI1MjNiZTU1YzkwMTA6ZmlsZV8wMDAwMDAwMDVlNTg4MjBlOGFkOTZjMWJkMDg2Yzc2YSIsImdpem1vX2lkIjpudWxsLCJ3aWQiOm51bGwsIm9pZCI6bnVsbCwic2lkIjpudWxsLCJjcyI6bnVsbCwiZm4iOm51bGwsImNkIjpudWxsLCJ0cyI6IjIwNjc3IiwicCI6InB5aSIsImNpZCI6IjEiLCJzaWciOiJmNDMxZDNiNjRmY2VlNmFhMzI4Njg5MzFkYjQ3NTFmNDQ5Yjc4ODk1ZGQ4OTVmMzAxMmExNzE1MjUzM2YxMjc3IiwidiI6IjAiLCJjZG4iOm51bGwsImNwIjpudWxsLCJtYSI6bnVsbH0='); background-position: center center; background-size: cover; background-repeat: no-repeat; z-index: 0; }
+        .campanha-slide .campanha-overlay { position: absolute; inset: 0; background: linear-gradient(165deg, rgba(11,26,46,0.72) 0%, rgba(11,26,46,0.48) 45%, rgba(11,26,46,0.75) 100%); z-index: 1; }
+        .campanha-content { position: relative; z-index: 2; width: 100%; max-width: 1120px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
+        .campanha-header { text-align: center; opacity: 0; transform: translateY(-12px); animation: fadeUp 0.7s ease 0.15s forwards; }
+        .campanha-titulo { font-size: 1.1rem; font-weight: 600; color: rgba(255,255,255,0.55); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 4px; }
+        .campanha-nome { font-size: 3.4rem; font-weight: 800; color: #fff; letter-spacing: 0.5px; text-shadow: 0 4px 30px rgba(0,0,0,0.4); }
+        .campanha-main { display: flex; align-items: center; justify-content: center; gap: 60px; width: 100%; opacity: 0; transform: translateY(16px); animation: fadeUp 0.8s ease 0.35s forwards; }
+        .ring-wrapper { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        .progress-ring { position: relative; width: 300px; height: 300px; }
+        .progress-ring svg { transform: rotate(-90deg); width: 300px; height: 300px; }
+        .progress-ring .bg-circle { fill: none; stroke: rgba(255,255,255,0.12); stroke-width: 18; }
+        .progress-ring .progress-circle { fill: none; stroke: url(#gradRing); stroke-width: 18; stroke-linecap: round; stroke-dasharray: 817; stroke-dashoffset: 817; transition: stroke-dashoffset 0.35s linear; }
+        .ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+        .ring-number { font-size: 7.2rem; font-weight: 900; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: -3px; text-shadow: 0 4px 40px rgba(0,0,0,0.35); }
+        .ring-label { font-size: 1.15rem; font-weight: 600; color: rgba(255,255,255,0.6); text-transform: uppercase; letter-spacing: 2px; margin-top: 2px; }
+        .ring-percent { font-size: 1.35rem; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px; margin-top: 2px; }
+        .ring-percent span { color: rgba(255,255,255,0.55); font-weight: 500; font-size: 1.05rem; }
+        .time-counter { display: flex; gap: 16px; }
+        .time-unit { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.13); border-radius: 20px; padding: 24px 28px 18px; min-width: 115px; display: flex; flex-direction: column; align-items: center; gap: 6px; backdrop-filter: blur(8px); }
+        .time-value { font-size: 3.4rem; font-weight: 800; color: #fff; line-height: 1; font-variant-numeric: tabular-nums; transition: color 0.3s ease; }
+        .time-value.updating { color: #38bdf8; }
+        .time-label { font-size: 0.82rem; font-weight: 600; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1.5px; }
+        .meta-section { opacity: 0; transform: translateY(14px); width: 100%; max-width: 560px; }
+        .meta-section.active { animation: fadeUp 0.7s ease forwards; }
+        .meta-box { background: rgba(255,255,255,0.08); border: 1px solid rgba(56,189,248,0.25); border-radius: 22px; padding: 20px 40px; display: flex; align-items: center; justify-content: center; gap: 20px; backdrop-filter: blur(10px); }
+        .meta-icone { font-size: 2.6rem; color: #facc15; }
+        .meta-numero { font-size: 3.2rem; font-weight: 900; color: #fff; line-height: 1; }
+        .meta-texto { font-size: 1.25rem; font-weight: 600; color: rgba(255,255,255,0.9); text-align: left; }
+        .meta-motivacional { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); border-radius: 20px; padding: 18px 32px; font-size: 1.3rem; font-weight: 600; color: #fff; text-align: center; line-height: 1.45; backdrop-filter: blur(8px); }
+        .meta-motivacional strong { color: #facc15; }
 
-        .campanha-header {
-            text-align: center;
-            opacity: 0;
-            transform: translateY(-12px);
-            animation: fadeUp 0.7s ease 0.15s forwards;
-        }
-        .campanha-titulo {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.55);
-            letter-spacing: 4px;
-            text-transform: uppercase;
-            margin-bottom: 4px;
-        }
-        .campanha-nome {
-            font-size: 3.4rem;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: 0.5px;
-            text-shadow: 0 4px 30px rgba(0,0,0,0.4);
-        }
-
-        .campanha-main {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 60px;
-            width: 100%;
-            opacity: 0;
-            transform: translateY(16px);
-            animation: fadeUp 0.8s ease 0.35s forwards;
-        }
-
-        .ring-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-        .progress-ring {
-            position: relative;
-            width: 300px;
-            height: 300px;
-        }
-        .progress-ring svg {
-            transform: rotate(-90deg);
-            width: 300px;
-            height: 300px;
-        }
-        .progress-ring .bg-circle {
-            fill: none;
-            stroke: rgba(255,255,255,0.12);
-            stroke-width: 18;
-        }
-        .progress-ring .progress-circle {
-            fill: none;
-            stroke: url(#gradRing);
-            stroke-width: 18;
-            stroke-linecap: round;
-            stroke-dasharray: 817;
-            stroke-dashoffset: 817;
-            transition: stroke-dashoffset 0.35s linear;
-        }
-        .ring-center {
-            position: absolute;
-            inset: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            pointer-events: none;
-        }
-        .ring-number {
-            font-size: 7.2rem;
-            font-weight: 900;
-            color: #fff;
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            letter-spacing: -3px;
-            text-shadow: 0 4px 40px rgba(0,0,0,0.35);
-        }
-        .ring-label {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.6);
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-top: 2px;
-        }
-        .ring-percent {
-            font-size: 1.35rem;
-            font-weight: 700;
-            color: #38bdf8;
-            letter-spacing: 0.5px;
-            margin-top: 2px;
-        }
-        .ring-percent span {
-            color: rgba(255,255,255,0.55);
-            font-weight: 500;
-            font-size: 1.05rem;
-        }
-
-        .time-counter {
-            display: flex;
-            gap: 16px;
-        }
-        .time-unit {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(255,255,255,0.13);
-            border-radius: 20px;
-            padding: 24px 28px 18px;
-            min-width: 115px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 6px;
-            backdrop-filter: blur(8px);
-        }
-        .time-value {
-            font-size: 3.4rem;
-            font-weight: 800;
-            color: #fff;
-            line-height: 1;
-            font-variant-numeric: tabular-nums;
-            transition: color 0.3s ease;
-        }
-        .time-value.updating {
-            color: #38bdf8;
-        }
-        .time-label {
-            font-size: 0.82rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.5);
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        .meta-section {
-            opacity: 0;
-            transform: translateY(14px);
-            width: 100%;
-            max-width: 560px;
-        }
-        .meta-section.active {
-            animation: fadeUp 0.7s ease forwards;
-        }
-        .meta-box {
-            background: rgba(255,255,255,0.08);
-            border: 1px solid rgba(56,189,248,0.25);
-            border-radius: 22px;
-            padding: 20px 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-            backdrop-filter: blur(10px);
-        }
-        .meta-icone {
-            font-size: 2.6rem;
-            color: #facc15;
-        }
-        .meta-numero {
-            font-size: 3.2rem;
-            font-weight: 900;
-            color: #fff;
-            line-height: 1;
-        }
-        .meta-texto {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: rgba(255,255,255,0.9);
-            text-align: left;
-        }
-        .meta-motivacional {
-            background: rgba(56,189,248,0.1);
-            border: 1px solid rgba(56,189,248,0.25);
-            border-radius: 20px;
-            padding: 18px 32px;
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: #fff;
-            text-align: center;
-            line-height: 1.45;
-            backdrop-filter: blur(8px);
-        }
-        .meta-motivacional strong {
-            color: #facc15;
-        }
-
-        @keyframes fadeUp {
-            to { opacity: 1; transform: translateY(0); }
-        }
+        @keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
 
         .slide-controls { position:absolute; bottom:16px; right:16px; z-index:15; display:flex; gap:8px; }
-        .slide-controls button {
-            background:rgba(0,0,0,0.5); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1);
-            color:white; width:36px; height:36px; border-radius:50%; font-size:1rem; cursor:pointer;
-            display:flex; align-items:center; justify-content:center; transition:0.2s;
-        }
+        .slide-controls button { background:rgba(0,0,0,0.5); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1); color:white; width:36px; height:36px; border-radius:50%; font-size:1rem; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:0.2s; }
         .slide-controls button:hover { background:rgba(56,189,248,0.45); }
         .slide-indicators { position:absolute; bottom:18px; left:50%; transform:translateX(-50%); display:flex; gap:8px; z-index:5; }
         .dot-indicator { width:8px; height:8px; border-radius:50%; background:rgba(255,255,255,0.4); transition:all 0.3s; cursor:pointer; }
@@ -818,75 +496,35 @@
 
         body.canva-fullscreen .slide-controls { top: 16px; bottom: auto; right: 16px; }
         body.canva-fullscreen .slide-indicators { opacity: 0; pointer-events: none; }
-        body.canva-fullscreen #radioFloatingBtn,
-        body.canva-fullscreen .sidebar-top-toggle { display: none; }
+        body.canva-fullscreen #radioFloatingBtn, body.canva-fullscreen .sidebar-top-toggle { display: none; }
         body.canva-fullscreen #canvaMenuBtn { display: flex; }
 
-        .loading-overlay {
-            position:fixed; top:0;left:0;width:100%;height:100%;
-            background:linear-gradient(135deg,#0b1a2e,#0d2137,#0a1628); z-index:9999;
-            display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px;
-            transition:opacity 0.5s;
-        }
+        .loading-overlay { position:fixed; top:0;left:0;width:100%;height:100%; background:linear-gradient(135deg,#0b1a2e,#0d2137,#0a1628); z-index:9999; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:20px; transition:opacity 0.5s; }
         .loading-overlay.hidden { opacity:0; pointer-events:none; }
         .loading-logo img { height:200px; object-fit:contain; }
         .loading-status { position:absolute; bottom:80px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:12px; font-size:0.9rem; color:rgba(255,255,255,0.7); }
         .donut-spinner { width:24px; height:24px; border:3px solid rgba(56,189,248,0.15); border-top:3px solid var(--accent); border-radius:50%; animation:spin 0.8s linear infinite; }
         @keyframes spin { 0%{transform:rotate(0deg);}100%{transform:rotate(360deg);} }
 
-        #radioFloatingBtn {
-            position:fixed; bottom:120px; right:20px; z-index:999;
-            background:rgba(11,26,46,0.6); backdrop-filter:blur(8px);
-            border:1px solid rgba(255,255,255,0.12); border-radius:50%;
-            width:44px; height:44px; display:flex; align-items:center; justify-content:center;
-            color:#fff; font-size:1.2rem; cursor:pointer; transition:0.3s;
-            box-shadow:0 2px 12px rgba(0,0,0,0.3);
-        }
+        #radioFloatingBtn { position:fixed; bottom:120px; right:20px; z-index:999; background:rgba(11,26,46,0.6); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.12); border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.2rem; cursor:pointer; transition:0.3s; box-shadow:0 2px 12px rgba(0,0,0,0.3); }
         #radioFloatingBtn:hover { background:rgba(56,189,248,0.25); border-color:var(--accent); transform:scale(1.1); }
-        #radioSelector {
-            display:none; position:fixed; bottom:180px; right:20px;
-            background:rgba(15,31,46,0.95); backdrop-filter:blur(16px);
-            border-radius:var(--radius-md); padding:16px 20px;
-            border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 32px rgba(0,0,0,0.5);
-            z-index:1000; flex-direction:column; gap:8px; min-width:160px;
-        }
+        #radioSelector { display:none; position:fixed; bottom:180px; right:20px; background:rgba(15,31,46,0.95); backdrop-filter:blur(16px); border-radius:var(--radius-md); padding:16px 20px; border:1px solid rgba(255,255,255,0.1); box-shadow:0 8px 32px rgba(0,0,0,0.5); z-index:1000; flex-direction:column; gap:8px; min-width:160px; }
         #radioSelector.active { display:flex; }
-        #radioSelector button {
-            background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08);
-            color:var(--text-light); padding:8px 16px; border-radius:30px;
-            font-size:0.85rem; font-weight:600; cursor:pointer; transition:0.2s; text-align:left;
-        }
+        #radioSelector button { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.08); color:var(--text-light); padding:8px 16px; border-radius:30px; font-size:0.85rem; font-weight:600; cursor:pointer; transition:0.2s; text-align:left; }
         #radioSelector button:hover { background:var(--accent); color:#0b1a2e; border-color:var(--accent); }
         #radioSelector button.active-radio { background:rgba(56,189,248,0.2); border-color:var(--accent); color:#fff; }
 
-        .ponto-overlay {
-            position:fixed; top:0;left:0;width:100%;height:100%; z-index:10000;
-            background:rgba(0,0,0,0.75); backdrop-filter:blur(8px);
-            display:none; align-items:center; justify-content:center; flex-direction:column;
-            color:#fff; text-align:center; padding:20px;
-        }
+        .ponto-overlay { position:fixed; top:0;left:0;width:100%;height:100%; z-index:10000; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; flex-direction:column; color:#fff; text-align:center; padding:20px; }
         .ponto-overlay.active { display:flex; }
-        .ponto-card {
-            background:rgba(15,31,46,0.9); border-radius:var(--radius-xl);
-            padding:40px 60px; max-width:700px; width:100%;
-            border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.6);
-            backdrop-filter:blur(16px);
-        }
+        .ponto-card { background:rgba(15,31,46,0.9); border-radius:var(--radius-xl); padding:40px 60px; max-width:700px; width:100%; border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.6); backdrop-filter:blur(16px); }
         .ponto-card i { font-size:4rem; color:#facc15; margin-bottom:16px; }
         .ponto-card h2 { font-size:2.8rem; font-weight:800; margin-bottom:8px; }
         .ponto-card .sub { font-size:1.4rem; opacity:0.8; margin-bottom:8px; }
         .ponto-card .msg-final { font-size:2.2rem; font-weight:700; color:#4caf50; margin:8px 0 16px; display:none; }
         .ponto-card .tempo-restante { font-size:1.2rem; color:rgba(255,255,255,0.6); margin-bottom:12px; }
-        .btn-ponto {
-            margin-top:12px; background:#4caf50; border:none; color:#fff;
-            font-weight:700; font-size:1.2rem; padding:12px 40px; border-radius:40px;
-            cursor:pointer; transition:0.2s; box-shadow:0 4px 20px rgba(76,175,80,0.3);
-        }
+        .btn-ponto { margin-top:12px; background:#4caf50; border:none; color:#fff; font-weight:700; font-size:1.2rem; padding:12px 40px; border-radius:40px; cursor:pointer; transition:0.2s; box-shadow:0 4px 20px rgba(76,175,80,0.3); }
         .btn-ponto:hover { transform:scale(1.05); background:#43a047; }
-        .btn-fechar-ponto {
-            margin-top:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15);
-            color:#fff; font-size:0.9rem; padding:8px 24px; border-radius:30px; cursor:pointer;
-        }
+        .btn-fechar-ponto { margin-top:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:0.9rem; padding:8px 24px; border-radius:30px; cursor:pointer; }
         .btn-fechar-ponto:hover { background:rgba(255,255,255,0.2); }
 
         @media (max-width:900px) {
@@ -909,6 +547,11 @@
             .time-unit { min-width: 85px; padding: 16px 18px 14px; }
             .campanha-nome { font-size: 2.3rem; }
             .noticias-rss-slide .rss-title { font-size: 2rem; }
+            .dolar-container { flex-direction: column; gap: 12px; padding-top: 48px; }
+            .dolar-valor-grande { font-size: 8.5rem; letter-spacing: -2px; }
+            .dolar-rotulo { font-size: 1.5rem; }
+            .dolar-valor-wrapper { flex: 0 0 auto; width: 100%; min-width: 0; }
+            .dolar-grafico-wrapper { flex: 1; min-height: 220px; height: 55%; }
         }
     </style>
 </head>
@@ -1028,169 +671,58 @@
 
     <script>
         (function() {
-            // ===== CONFIGURAÇÃO ATUALIZADA COM MAIS FEEDS =====
+            // ===== CONFIGURAÇÃO =====
             const CONFIG = {
                 lat: -23.5505,
                 lon: -46.6333,
                 slideInterval: 15000,
                 videoSlideDuration: 30000,
-                noticiasRssSlideDuration: 120000, // 2 minutos
-                noticiasCarrosselInterval: 15000,  // 15 segundos por notícia
+                noticiasRssSlideDuration: 120000,
+                noticiasCarrosselInterval: 15000,
                 campanhaSlideDuration: 16000,
                 reloadInterval: 600000,
                 radioInterval: 14400000,
                 youtubeRefreshInterval: 60000,
                 dolarRefreshInterval: 300000,
+                dolarSlideRefresh: 120000,
 
-                // ===== NOVA LISTA DE FEEDS RSS (corporativos + variados) =====
                 noticiasRssUrls: [
-                    // G1 – principais editorias
                     'https://g1.globo.com/rss/g1/economia',
                     'https://g1.globo.com/rss/g1/politica',
                     'https://g1.globo.com/rss/g1/tecnologia',
                     'https://g1.globo.com/rss/g1/mundo',
                     'https://g1.globo.com/rss/g1/ciencia',
-
-                    // UOL Economia e Mercado
                     'https://rss.uol.com.br/feed/economia.xml',
                     'https://rss.uol.com.br/feed/mercado.xml',
-
-                    // Valor Econômico (RSS oficial)
                     'https://valor.globo.com/rss/valor-economico',
-
-                    // Exame
                     'https://exame.com/feed/',
-
-                    // Infomoney (finanças, investimentos)
                     'https://www.infomoney.com.br/feed/',
-
-                    // TecMundo (tecnologia e inovação)
                     'https://rss.tecmundo.com.br/feed',
-
-                    // BBC Brasil (internacional e política)
                     'http://feeds.bbci.co.uk/portuguese/rss.xml',
-
-                    // Reuters Brasil (economia e negócios)
                     'https://www.reuters.com/rssfeed/brazil',
-
-                    // Estadão (economia + política)
                     'https://economia.estadao.com.br/feed',
                     'https://politica.estadao.com.br/feed',
-
-                    // Folha de S.Paulo – Mercado
                     'https://www1.folha.uol.com.br/mercado/rss.xml',
-
-                    // CNN Brasil – Economia
                     'https://www.cnnbrasil.com.br/economia/feed/',
-
-                    // Jovem Pan – Economia
                     'https://jovempan.com.br/feed/economia',
-
-                    // Money Times (finanças)
                     'https://www.moneytimes.com.br/feed/',
-
-                    // Suno Notícias (investimentos)
                     'https://www.sunoresearch.com.br/feed/',
-
-                    // Canaltech (tecnologia)
                     'https://canaltech.com.br/feed/',
-
-                    // Olhar Digital (tecnologia)
                     'https://olhardigital.com.br/feed/'
                 ],
-
-                // Filtro ESTRITO: só entra notícia com pelo menos 3 pontos de relevância
                 noticiasMinScore: 3,
                 noticiasMaxItems: 40
             };
 
-            // ===== TEMAS PERMITIDOS (só entra se bater em alguma palavra) =====
             const NEWS_CATEGORIES = {
-                espaco: {
-                    weight: 5,
-                    words: [
-                        'nasa', 'espaço', 'espaco', 'astronomia', 'universo', 'cosmos', 'galáxia', 'galaxia',
-                        'via láctea', 'via lactea', 'estrelas', 'planetas', 'exoplaneta', 'exoplanetas',
-                        'lua', 'marte', 'júpiter', 'jupiter', 'saturno', 'sistema solar',
-                        'eclipse', 'asteroide', 'cometa', 'meteoro', 'meteorito', 'buraco negro', 'supernova',
-                        'telescópio', 'telescopio', 'james webb', 'hubble', 'spacex', 'foguete', 'satélite', 'satelite',
-                        'missão espacial', 'missao espacial', 'exploração espacial', 'exploracao espacial',
-                        'estação espacial', 'estacao espacial', 'iss', 'astronauta', 'lançamento espacial',
-                        'lancamento espacial', 'artemis', 'colonização de marte', 'colonizacao de marte',
-                        'vida extraterrestre', 'alienígena', 'alienigena', 'sinais do espaço', 'sinais do espaco'
-                    ]
-                },
-                ciencia: {
-                    weight: 4,
-                    words: [
-                        'ciência', 'ciencia', 'científico', 'cientifico', 'pesquisadores', 'pesquisador',
-                        'descoberta científica', 'descoberta cientifica', 'inovação científica', 'inovacao cientifica',
-                        'laboratório', 'laboratorio', 'experimento', 'física', 'fisica', 'química', 'quimica',
-                        'biologia', 'genética', 'genetica', 'dna', 'arqueologia', 'paleontologia', 'evolução', 'evolucao',
-                        'fósseis', 'fosseis', 'dinossauros', 'aquecimento global', 'mudanças climáticas', 'mudancas climaticas',
-                        'descoberta inédita', 'avanço científico', 'avanco cientifico',
-                        'tecnologia médica', 'tecnologia medica', 'neurociência', 'neurociencia'
-                    ]
-                },
-                tecnologia: {
-                    weight: 5,
-                    words: [
-                        'tecnologia', 'inovação', 'inovacao', 'inteligência artificial', 'inteligencia artificial',
-                        'ia generativa', 'inteligência generativa', 'inteligencia generativa',
-                        'chatgpt', 'openai', 'google ai', 'gemini', 'microsoft', 'copilot', 'anthropic', 'claude',
-                        'apple intelligence', 'automação', 'automacao', 'robótica', 'robotica', 'robôs', 'robos',
-                        'computação', 'computacao', 'software', 'hardware', 'internet', 'redes sociais',
-                        'aplicativos', 'aplicativo', 'startups', 'startup', 'programação', 'programacao',
-                        'desenvolvimento', 'cibersegurança', 'ciberseguranca', 'segurança digital', 'seguranca digital',
-                        'privacidade', 'vazamento de dados', 'hackers', 'hacker', 'computação quântica', 'computacao quantica',
-                        'chips', 'processadores', 'processador', 'semicondutores', 'semicondutor',
-                        'data center', 'cloud computing', 'realidade virtual', 'realidade aumentada', 'metaverso',
-                        'smartphones', 'smartphone', 'celulares', 'celular', 'iphone', 'android', 'samsung', 'apple',
-                        'google', 'tesla', 'veículos elétricos', 'veiculos eletricos', 'carros autônomos', 'carros autonomos',
-                        'nvidia', 'intel', 'amd', 'qualcomm'
-                    ]
-                },
-                politica: {
-                    weight: 4,
-                    words: [
-                        'política', 'politica', 'governo', 'presidência', 'presidencia', 'presidente',
-                        'eleições', 'eleicoes', 'congresso', 'senado', 'câmara', 'camara', 'stf',
-                        'supremo tribunal federal', 'judiciário', 'judiciario', 'ministros',
-                        'estados unidos', 'eua', 'casa branca', 'donald trump', 'trump', 'joe biden', 'biden',
-                        'governo americano', 'política internacional', 'politica internacional',
-                        'diplomacia', 'geopolítica', 'geopolitica', 'relações internacionais', 'relacoes internacionais',
-                        'união europeia', 'uniao europeia', 'china', 'rússia', 'russia', 'ucrânia', 'ucrania',
-                        'otan', 'guerra', 'conflito', 'sanções', 'sancoes', 'tarifas',
-                        'comércio internacional', 'comercio internacional', 'imigração', 'imigracao',
-                        'acordos internacionais', 'líderes mundiais', 'lideres mundiais'
-                    ]
-                },
-                economia: {
-                    weight: 5,
-                    words: [
-                        'economia', 'econômico', 'economico', 'mercado financeiro', 'finanças', 'financas',
-                        'investimentos', 'investimento', 'bolsa de valores', 'ações', 'acoes',
-                        'wall street', 'ibovespa', 'b3', 'dólar', 'dolar', 'real', 'câmbio', 'cambio',
-                        'cotação', 'cotacao', 'juros', 'taxa de juros', 'selic', 'inflação', 'inflacao',
-                        'ipca', 'pib', 'crescimento econômico', 'crescimento economico', 'recessão', 'recessao',
-                        'crise econômica', 'crise economica', 'banco central', 'federal reserve', 'fed',
-                        'bancos', 'crédito', 'credito', 'dívida pública', 'divida publica',
-                        'fusões', 'fusoes', 'aquisições', 'aquisicoes',
-                        'resultados financeiros', 'lucro', 'prejuízo', 'prejuizo', 'mercado global',
-                        'commodities', 'petróleo', 'petroleo', 'ouro', 'bitcoin', 'criptomoedas', 'criptomoeda',
-                        'blockchain', 'tarifas comerciais', 'guerra comercial', 'nasdaq', 'dow jones'
-                    ]
-                }
+                espaco: { weight: 5, words: ['nasa','espaço','espaco','astronomia','universo','cosmos','galáxia','galaxia','via láctea','via lactea','estrelas','planetas','exoplaneta','exoplanetas','lua','marte','júpiter','jupiter','saturno','sistema solar','eclipse','asteroide','cometa','meteoro','meteorito','buraco negro','supernova','telescópio','telescopio','james webb','hubble','spacex','foguete','satélite','satelite','missão espacial','missao espacial','exploração espacial','exploracao espacial','estação espacial','estacao espacial','iss','astronauta','lançamento espacial','lancamento espacial','artemis','colonização de marte','colonizacao de marte','vida extraterrestre','alienígena','alienigena','sinais do espaço','sinais do espaco'] },
+                ciencia: { weight: 4, words: ['ciência','ciencia','científico','cientifico','pesquisadores','pesquisador','descoberta científica','descoberta cientifica','inovação científica','inovacao cientifica','laboratório','laboratorio','experimento','física','fisica','química','quimica','biologia','genética','genetica','dna','arqueologia','paleontologia','evolução','evolucao','fósseis','fosseis','dinossauros','aquecimento global','mudanças climáticas','mudancas climaticas','descoberta inédita','avanço científico','avanco cientifico','tecnologia médica','tecnologia medica','neurociência','neurociencia'] },
+                tecnologia: { weight: 5, words: ['tecnologia','inovação','inovacao','inteligência artificial','inteligencia artificial','ia generativa','inteligência generativa','inteligencia generativa','chatgpt','openai','google ai','gemini','microsoft','copilot','anthropic','claude','apple intelligence','automação','automacao','robótica','robotica','robôs','robos','computação','computacao','software','hardware','internet','redes sociais','aplicativos','aplicativo','startups','startup','programação','programacao','desenvolvimento','cibersegurança','ciberseguranca','segurança digital','seguranca digital','privacidade','vazamento de dados','hackers','hacker','computação quântica','computacao quantica','chips','processadores','processador','semicondutores','semicondutor','data center','cloud computing','realidade virtual','realidade aumentada','metaverso','smartphones','smartphone','celulares','celular','iphone','android','samsung','apple','google','tesla','veículos elétricos','veiculos eletricos','carros autônomos','carros autonomos','nvidia','intel','amd','qualcomm'] },
+                politica: { weight: 4, words: ['política','politica','governo','presidência','presidencia','presidente','eleições','eleicoes','congresso','senado','câmara','camara','stf','supremo tribunal federal','judiciário','judiciario','ministros','estados unidos','eua','casa branca','donald trump','trump','joe biden','biden','governo americano','política internacional','politica internacional','diplomacia','geopolítica','geopolitica','relações internacionais','relacoes internacionais','união europeia','uniao europeia','china','rússia','russia','ucrânia','ucrania','otan','guerra','conflito','sanções','sancoes','tarifas','comércio internacional','comercio internacional','imigração','imigracao','acordos internacionais','líderes mundiais','lideres mundiais'] },
+                economia: { weight: 5, words: ['economia','econômico','economico','mercado financeiro','finanças','financas','investimentos','investimento','bolsa de valores','ações','acoes','wall street','ibovespa','b3','dólar','dolar','real','câmbio','cambio','cotação','cotacao','juros','taxa de juros','selic','inflação','inflacao','ipca','pib','crescimento econômico','crescimento economico','recessão','recessao','crise econômica','crise economica','banco central','federal reserve','fed','bancos','crédito','credito','dívida pública','divida publica','fusões','fusoes','aquisições','aquisicoes','resultados financeiros','lucro','prejuízo','prejuizo','mercado global','commodities','petróleo','petroleo','ouro','bitcoin','criptomoedas','criptomoeda','blockchain','tarifas comerciais','guerra comercial','nasdaq','dow jones'] }
             };
 
-            // Bloquear entretenimento / irrelevante
-            const NEWS_BLACKLIST = [
-                'bbb', 'big brother', 'a fazenda', 'reality show', 'famosos', 'celebridade',
-                'fofoca', 'affair', 'namoro de', 'casamento de', 'divorcio',
-                'influencer', 'tiktoker', 'polêmica nas redes',
-                'assalto em', 'homicídio em', 'acidente de trânsito',
-                'horóscopo', 'signos', 'astrologia', 'novela', 'funk', 'sertanejo'
-            ];
+            const NEWS_BLACKLIST = ['bbb','big brother','a fazenda','reality show','famosos','celebridade','fofoca','affair','namoro de','casamento de','divorcio','influencer','tiktoker','polêmica nas redes','assalto em','homicídio em','acidente de trânsito','horóscopo','signos','astrologia','novela','funk','sertanejo'];
 
             const RADIOS = [
                 { id: 'tunein1', name: 'Jovem Pan News', iframe: '<iframe src="https://tunein.com/embed/player/s8129/" style="width:100%; height:75px;" scrolling="no" frameborder="no" allow="autoplay"></iframe>' },
@@ -1224,7 +756,27 @@
             let noticiasIndex = 0;
             let noticiasCarrosselTimer = null;
             let noticiasSlideAtivo = false;
-            let darkModeEnabled = false; // padrão: desativado (notícias sempre ficam dark)
+            let darkModeEnabled = false;
+            let lastNewsFetch = 0;
+
+            // Variáveis para o slide Dólar
+            let chartDolar = null;
+            let dolarAtual = 0;
+            let dolarVariacao = 0;
+            let dolarAtualizacaoTimer = null;
+            let dolarSlideActive = false;
+            let dolarDrawTimer = null;
+            let dolarCountRaf = null;
+
+            // ===== FUNÇÕES AUXILIARES =====
+            function shuffleArray(arr) {
+                const a = Array.isArray(arr) ? [...arr] : [];
+                for (let i = a.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [a[i], a[j]] = [a[j], a[i]];
+                }
+                return a;
+            }
 
             function getHoraSincronizada() {
                 if (horaExataDefinida) {
@@ -1266,6 +818,7 @@
             }
             setInterval(atualizarTodosRelogios, 1000);
 
+            // ===== CLIMA =====
             async function buscarClima() {
                 try {
                     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.lat}&longitude=${CONFIG.lon}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo&forecast_days=5`;
@@ -1285,8 +838,30 @@
             buscarClima();
             setInterval(buscarClima, 900000);
 
+            // ===== DÓLAR (cotação na barra) =====
+            function atualizarBarraDolar(num) {
+                if (num == null || isNaN(num) || num <= 0) return;
+                const el = document.getElementById('dolarValor');
+                if (el) el.textContent = `R$ ${num.toFixed(2).replace('.', ',')}`;
+                localStorage.setItem('dolarCache', JSON.stringify({
+                    valor: num.toFixed(2).replace('.', ','),
+                    timestamp: Date.now()
+                }));
+            }
+
             async function buscarCotacaoDolar() {
                 try {
+                    // Preferência: usa o mesmo pipeline do slide (API + fallback planilha)
+                    if (typeof obterDadosDolarCompletos === 'function') {
+                        const dados = await obterDadosDolarCompletos();
+                        if (dados && dados.cotacao > 0) {
+                            dolarAtual = dados.cotacao;
+                            dolarVariacao = dados.variacao || 0;
+                            atualizarBarraDolar(dados.cotacao);
+                            return;
+                        }
+                    }
+                    // Fallback direto na planilha
                     const response = await fetch(BASES.dolar);
                     const dados = await response.json();
                     if (dados && dados.length > 0) {
@@ -1300,19 +875,28 @@
                             let str = String(valor).replace(/[R$\s]/g, '').trim();
                             let num = str.includes(',') ? parseFloat(str.replace(/\./g,'').replace(',','.')) : parseFloat(str);
                             if (!isNaN(num) && num > 0) {
-                                document.getElementById('dolarValor').textContent = `R$ ${num.toFixed(2).replace('.',',')}`;
-                                localStorage.setItem('dolarCache', JSON.stringify({ valor: num.toFixed(2).replace('.',','), timestamp: Date.now() }));
+                                atualizarBarraDolar(num);
                             }
                         }
                     }
                 } catch (e) {
                     const cache = localStorage.getItem('dolarCache');
-                    if (cache) try { const p = JSON.parse(cache); if (p.valor) document.getElementById('dolarValor').textContent = `R$ ${p.valor}`; } catch(_){}
+                    if (cache) try {
+                        const p = JSON.parse(cache);
+                        if (p.valor) {
+                            const el = document.getElementById('dolarValor');
+                            if (el) el.textContent = `R$ ${p.valor}`;
+                        }
+                    } catch(_){}
                 }
             }
-            buscarCotacaoDolar();
-            setInterval(buscarCotacaoDolar, CONFIG.dolarRefreshInterval);
+            // Aguarda funções do slide existirem (declaradas mais abaixo) e então inicia
+            setTimeout(() => {
+                buscarCotacaoDolar();
+                setInterval(buscarCotacaoDolar, CONFIG.dolarRefreshInterval);
+            }, 500);
 
+            // ===== VÍDEO =====
             function atualizarIframesVideo(id) {
                 const iframeSlide = document.getElementById('live-youtube-iframe');
                 if (iframeSlide) iframeSlide.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt&playsinline=1`;
@@ -1340,6 +924,7 @@
             buscarVideoDaPlanilha();
             setInterval(buscarVideoDaPlanilha, CONFIG.youtubeRefreshInterval);
 
+            // ===== ANIVERSÁRIOS =====
             const BG_ANIVERSARIO = 'https://img.magnific.com/vetores-gratis/bandeira-de-aniversario-azul-com-baloes-e-confete_107791-30996.jpg?semt=ais_hybrid&w=740&q=80';
             function obterAniversariantesDaSemana() {
                 const hoje = getHoraSincronizada();
@@ -1379,6 +964,7 @@
                 return `<div class="birthday-week-slide"><div class="week-bg" style="background:url('${BG_ANIVERSARIO}') center/cover;"></div><h2><i class="fas fa-birthday-cake"></i> Aniversariantes da Semana</h2><div class="birthday-week-grid">${cards}</div></div>`;
             }
 
+            // ===== CLIMA (weather) =====
             function getWeatherIcon(code) {
                 if (code <= 1) return 'fa-sun';
                 if (code <= 3) return 'fa-cloud-sun';
@@ -1473,7 +1059,7 @@
                 </div>`;
             }
 
-            // ================== NOTÍCIAS RSS – CURADORIA INTELIGENTE ==================
+            // ================== NOTÍCIAS RSS ==================
             function limparTextoHtml(html) {
                 if (!html) return '';
                 return String(html)
@@ -1496,7 +1082,6 @@
                 const cats = Array.isArray(item.categories)
                     ? item.categories.join(' ').toLowerCase()
                     : String(item.categories || '').toLowerCase();
-                // título pesa mais (aparece 2x)
                 const textoFull = `${titulo} ${titulo} ${desc} ${cats}`;
 
                 if (isBlacklisted(textoFull)) {
@@ -1528,26 +1113,32 @@
                     }
                 }
 
-                // SEM matches de palavra-chave → reprova (não deixa passar matéria aleatória)
                 if (matches.length === 0) {
-                    return { score: 0, categoria: 'geral', matches: [] };
+                    return { score: 0, categoria: 'geral', matches: [], ageHours: 9999 };
                 }
 
-                // TecMundo: só bônus extra se já tiver match real
                 if (isTecMundo) {
                     score += 2;
                     if (bestCat === 'geral') bestCat = 'tecnologia_ia';
                 }
 
-                // Bônus leve por atualidade (não basta sozinho para passar o filtro)
+                let ageHours = 9999;
                 if (item.pubDate) {
-                    const ageH = (Date.now() - new Date(item.pubDate).getTime()) / 3600000;
-                    if (ageH < 6) score += 1;
-                    else if (ageH < 24) score += 0.5;
-                    else if (ageH > 72) score -= 1;
+                    const ts = new Date(item.pubDate).getTime();
+                    if (!isNaN(ts)) {
+                        ageHours = (Date.now() - ts) / 3600000;
+                        if (ageHours < 0) ageHours = 0;
+                        if (ageHours < 1) score += 8;
+                        else if (ageHours < 3) score += 6;
+                        else if (ageHours < 6) score += 4;
+                        else if (ageHours < 12) score += 3;
+                        else if (ageHours < 24) score += 2;
+                        else if (ageHours < 48) score += 0.5;
+                        else if (ageHours > 72) score -= 3;
+                        else if (ageHours > 48) score -= 1;
+                    }
                 }
 
-                // Bônus multi-tema
                 const uniqueCats = new Set();
                 for (const [catName, cat] of Object.entries(NEWS_CATEGORIES)) {
                     if (cat.words.some(w => textoFull.includes(w.toLowerCase().trim()))) {
@@ -1557,7 +1148,7 @@
                 if (uniqueCats.size >= 2) score += 2;
                 if (uniqueCats.size >= 3) score += 2;
 
-                return { score, categoria: bestCat, matches: [...new Set(matches)].slice(0, 8) };
+                return { score, categoria: bestCat, matches: [...new Set(matches)].slice(0, 8), ageHours };
             }
 
             function isImagemInvalida(src) {
@@ -1607,7 +1198,6 @@
                 return 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80';
             }
 
-            /** Intercala categorias para não repetir o mesmo tema em sequência */
             function diversificarNoticias(lista) {
                 if (lista.length <= 3) return lista;
                 const porCat = {};
@@ -1623,7 +1213,6 @@
                     houve = false;
                     for (const c of cats) {
                         if (porCat[c] && porCat[c].length) {
-                            // evita 2 da mesma categoria seguidas, se possível
                             if (resultado.length && resultado[resultado.length - 1].categoria === c && cats.length > 1) {
                                 continue;
                             }
@@ -1631,7 +1220,6 @@
                             houve = true;
                         }
                     }
-                    // se travou por regra de alternância, libera uma
                     if (!houve) {
                         for (const c of cats) {
                             if (porCat[c] && porCat[c].length) {
@@ -1645,41 +1233,54 @@
                 return resultado;
             }
 
+            function nomeFonteDoFeed(url) {
+                const u = (url || '').toLowerCase();
+                if (u.includes('g1.globo')) return 'G1';
+                if (u.includes('uol.com')) return 'UOL';
+                if (u.includes('valor.globo')) return 'Valor';
+                if (u.includes('exame.com')) return 'Exame';
+                if (u.includes('infomoney')) return 'InfoMoney';
+                if (u.includes('tecmundo')) return 'TecMundo';
+                if (u.includes('bbc')) return 'BBC';
+                if (u.includes('reuters')) return 'Reuters';
+                if (u.includes('estadao')) return 'Estadão';
+                if (u.includes('folha')) return 'Folha';
+                if (u.includes('cnnbrasil')) return 'CNN Brasil';
+                if (u.includes('jovempan')) return 'Jovem Pan';
+                if (u.includes('moneytimes')) return 'Money Times';
+                if (u.includes('sunoresearch') || u.includes('suno')) return 'Suno';
+                if (u.includes('canaltech')) return 'Canaltech';
+                if (u.includes('olhardigital')) return 'Olhar Digital';
+                return 'Notícias';
+            }
+
             async function buscarNoticiasRss() {
                 let todas = [];
-                for (const url of CONFIG.noticiasRssUrls) {
+                const urlsEmbaralhadas = shuffleArray(CONFIG.noticiasRssUrls);
+                const qtdFeeds = Math.min(urlsEmbaralhadas.length, Math.max(8, Math.floor(8 + Math.random() * 6)));
+                const urlsParaBuscar = urlsEmbaralhadas.slice(0, qtdFeeds);
+
+                for (const url of urlsParaBuscar) {
                     try {
                         const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
                         const resposta = await fetch(proxyUrl);
                         const json = await resposta.json();
                         if (json.status === 'ok' && json.items && json.items.length) {
                             const isTec = url.includes('tecmundo');
+                            const fonteFeed = nomeFonteDoFeed(url);
                             const items = json.items.map(item => {
                                 const title = item.title || 'Sem título';
-                                const fonte = isTec ? 'TecMundo' : (item.categories && item.categories[0] ? item.categories[0] : 'G1');
+                                const fonte = fonteFeed;
                                 const pubDate = item.pubDate || item.published || '';
                                 const imagem = extrairImagemRss(item);
-                                const { score, categoria, matches } = pontuarNoticia(item, isTec);
-                                return {
-                                    title,
-                                    link: item.link || '#',
-                                    pubDate,
-                                    fonte,
-                                    imagem,
-                                    score,
-                                    categoria,
-                                    matches,
-                                    description: item.description || ''
-                                };
+                                const { score, categoria, matches, ageHours } = pontuarNoticia(item, isTec);
+                                return { title, link: item.link || '#', pubDate, fonte, imagem, score, categoria, matches, ageHours: ageHours ?? 9999, description: item.description || '' };
                             });
                             todas = todas.concat(items);
                         }
-                    } catch (e) {
-                        console.warn('Erro ao buscar RSS de', url, e);
-                    }
+                    } catch (e) { console.warn('Erro ao buscar RSS de', url, e); }
                 }
 
-                // Remove duplicatas
                 const vistos = new Set();
                 let unicas = todas.filter(item => {
                     const chave = item.title.toLowerCase().trim();
@@ -1688,60 +1289,61 @@
                     return true;
                 });
 
-                // Só entra quem TEM palavra-chave relevante E score mínimo
-                // ESTRITO: precisa ter palavra-chave E score mínimo
                 const minScore = CONFIG.noticiasMinScore || 3;
                 unicas = unicas.filter(n =>
                     n.score >= minScore &&
                     Array.isArray(n.matches) &&
                     n.matches.length > 0 &&
                     n.categoria !== 'bloqueada' &&
-                    n.categoria !== 'geral'
+                    n.categoria !== 'geral' &&
+                    (n.ageHours <= 72 || n.score >= 12)
                 );
 
-                // Ordena por relevância
-                unicas.sort((a, b) => b.score - a.score);
+                unicas.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    return (a.ageHours || 9999) - (b.ageHours || 9999);
+                });
 
-                // Diversifica ordem e limita quantidade
                 const maxItems = CONFIG.noticiasMaxItems || 35;
-                noticiasRss = diversificarNoticias(unicas).slice(0, maxItems);
+                let lista = diversificarNoticias(unicas).slice(0, maxItems);
 
-                // Fallback controlado: só itens que já passaram por match (score > 0)
-                if (noticiasRss.length < 4) {
-                    console.warn('Poucas notícias após curadoria. Usando fallback com matches.');
+                if (lista.length < 4) {
                     const fallback = todas
-                        .filter(n => n.score > 0 && n.matches && n.matches.length > 0)
-                        .sort((a, b) => b.score - a.score)
+                        .filter(n => n.score > 0 && n.matches && n.matches.length > 0 && (n.ageHours <= 72 || n.score >= 10))
+                        .sort((a, b) => {
+                            if (b.score !== a.score) return b.score - a.score;
+                            return (a.ageHours || 9999) - (b.ageHours || 9999);
+                        })
                         .slice(0, 15);
-                    const vistos2 = new Set(noticiasRss.map(n => n.title.toLowerCase()));
+                    const vistos2 = new Set(lista.map(n => n.title.toLowerCase()));
                     fallback.forEach(n => {
                         const k = n.title.toLowerCase();
                         if (!vistos2.has(k)) {
                             vistos2.add(k);
-                            noticiasRss.push(n);
+                            lista.push(n);
                         }
                     });
-                    noticiasRss = diversificarNoticias(noticiasRss).slice(0, maxItems);
+                    lista = diversificarNoticias(lista).slice(0, maxItems);
                 }
 
-                console.log(`[Notícias] ${noticiasRss.length} itens curados. Top:`,
-                    noticiasRss.slice(0, 5).map(n => `[${n.score}] ${n.categoria} – ${n.title.slice(0, 50)}`));
+                const corte = Math.max(4, Math.ceil(lista.length * 0.6));
+                const topo = shuffleArray(lista.slice(0, corte));
+                const resto = lista.slice(corte);
+                noticiasRss = topo.concat(resto);
+                lastNewsFetch = Date.now();
 
                 const slideAtivo = document.querySelector('.slide.active[data-type="noticias_rss"]');
                 if (slideAtivo && noticiasRss.length) {
-                    atualizarNoticiaCarrossel(0);
+                    const start = Math.floor(Math.random() * Math.min(4, noticiasRss.length));
+                    atualizarNoticiaCarrossel(start);
                 }
             }
 
             function buildNoticiasRssSlide() {
-                return `
-                <div class="noticias-rss-slide">
+                return `<div class="noticias-rss-slide">
                     <div class="rss-bg" id="rssBg" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80');"></div>
                     <div class="rss-overlay"></div>
-                    <div class="rss-header">
-                        <i class="fas fa-newspaper"></i>
-                        <span>Notícias</span>
-                    </div>
+                    <div class="rss-header"><i class="fas fa-newspaper"></i><span>Notícias</span></div>
                     <div class="rss-content">
                         <div class="rss-title" id="rssTitle">Carregando notícias...</div>
                         <div class="rss-meta">
@@ -1880,8 +1482,7 @@
 
             function buildCampanhaSlide(info) {
                 if (!info) return null;
-                return `
-                <div class="campanha-slide">
+                return `<div class="campanha-slide">
                     <div class="campanha-bg"></div>
                     <div class="campanha-overlay"></div>
                     <div class="campanha-content">
@@ -1889,18 +1490,11 @@
                             <div class="campanha-titulo">Campanha Comercial</div>
                             <div class="campanha-nome">${info.nome}</div>
                         </div>
-
                         <div class="campanha-main">
                             <div class="ring-wrapper">
                                 <div class="progress-ring">
                                     <svg viewBox="0 0 300 300">
-                                        <defs>
-                                            <linearGradient id="gradRing" x1="0%" y1="0%" x2="100%" y2="0%">
-                                                <stop offset="0%" stop-color="#1e5a7a"/>
-                                                <stop offset="50%" stop-color="#38bdf8"/>
-                                                <stop offset="100%" stop-color="#2e7d32"/>
-                                            </linearGradient>
-                                        </defs>
+                                        <defs><linearGradient id="gradRing" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#1e5a7a"/><stop offset="50%" stop-color="#38bdf8"/><stop offset="100%" stop-color="#2e7d32"/></linearGradient></defs>
                                         <circle class="bg-circle" cx="150" cy="150" r="130"/>
                                         <circle class="progress-circle" id="ringCircle" cx="150" cy="150" r="130"/>
                                     </svg>
@@ -1911,23 +1505,12 @@
                                 </div>
                                 <div class="ring-percent" id="ringPercent">0% <span>do período concluído</span></div>
                             </div>
-
                             <div class="time-counter">
-                                <div class="time-unit">
-                                    <div class="time-value" id="tc-dias">--</div>
-                                    <div class="time-label">Dias</div>
-                                </div>
-                                <div class="time-unit">
-                                    <div class="time-value" id="tc-horas">--</div>
-                                    <div class="time-label">Horas</div>
-                                </div>
-                                <div class="time-unit">
-                                    <div class="time-value" id="tc-minutos">--</div>
-                                    <div class="time-label">Minutos</div>
-                                </div>
+                                <div class="time-unit"><div class="time-value" id="tc-dias">--</div><div class="time-label">Dias</div></div>
+                                <div class="time-unit"><div class="time-value" id="tc-horas">--</div><div class="time-label">Horas</div></div>
+                                <div class="time-unit"><div class="time-value" id="tc-minutos">--</div><div class="time-label">Minutos</div></div>
                             </div>
                         </div>
-
                         <div class="meta-section" id="metaSection"></div>
                     </div>
                 </div>`;
@@ -1955,22 +1538,17 @@
                     if (atual < valorFinal) {
                         clearInterval(timer);
                         el.textContent = valorFinal;
-
                         const percFinal = Math.min(100, Math.round(((totalDias - valorFinal) / totalDias) * 100));
                         const offsetFinal = circumference - (percFinal / 100) * circumference;
                         circle.style.strokeDashoffset = offsetFinal;
                         if (percentEl) percentEl.innerHTML = `${percFinal}% <span>do período concluído</span>`;
-
                         ringAnimRunning = false;
                         return;
                     }
-
                     el.textContent = atual;
-
                     const percAtual = Math.min(100, Math.round(((totalDias - atual) / totalDias) * 100));
                     const offsetAtual = circumference - (percAtual / 100) * circumference;
                     circle.style.strokeDashoffset = offsetAtual;
-
                     if (percentEl) percentEl.innerHTML = `${percAtual}% <span>do período concluído</span>`;
                 }, stepTime);
             }
@@ -2007,7 +1585,6 @@
 
             function iniciarSequenciaCampanha(info) {
                 if (!info) return;
-
                 if (campanhaCountdownInterval) clearInterval(campanhaCountdownInterval);
                 if (campanhaAnimTimeout) clearTimeout(campanhaAnimTimeout);
                 ringAnimRunning = false;
@@ -2052,6 +1629,349 @@
                 }, 4200);
             }
 
+            // ========== DÓLAR – SLIDE ==========
+            function formatarLabelDataBR(dataStr) {
+                if (!dataStr) return '';
+                const p = String(dataStr).split(/[/-]/);
+                if (p.length < 2) return dataStr;
+                const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+                const dia = p[0].padStart(2, '0');
+                const mesIdx = parseInt(p[1], 10) - 1;
+                const mes = meses[mesIdx] || p[1];
+                return `${dia} ${mes}`;
+            }
+
+            async function buscarDolarDoSheet() {
+                try {
+                    const resp = await fetch(BASES.dolar);
+                    const data = await resp.json();
+                    if (!Array.isArray(data) || !data.length) return null;
+
+                    const pontos = data.map(row => {
+                        const dataRaw = row.Data || row.data || row.DATA || '';
+                        const valorRaw = row.valor || row.Valor || row.VALOR || row.cotacao || row.Cotacao;
+                        const valor = parseValorBR(valorRaw);
+                        return { dataRaw, label: formatarLabelDataBR(dataRaw), valor };
+                    }).filter(p => p.valor > 0);
+
+                    if (!pontos.length) return null;
+
+                    const crono = [...pontos].reverse();
+                    const slice = crono.slice(-35);
+                    const labels = slice.map(p => p.label);
+                    const valores = slice.map(p => p.valor);
+
+                    const ultimo = pontos[0];
+                    const penultimo = pontos[1];
+                    let variacao = 0;
+                    if (penultimo && penultimo.valor > 0) {
+                        variacao = ((ultimo.valor - penultimo.valor) / penultimo.valor) * 100;
+                    }
+
+                    return {
+                        labels,
+                        valores,
+                        cotacao: ultimo.valor,
+                        variacao,
+                        fonte: 'planilha'
+                    };
+                } catch (e) {
+                    console.warn('Erro ao buscar dólar no OpenSheet:', e);
+                    return null;
+                }
+            }
+
+            async function buscarDolarAtual() {
+                try {
+                    const resp = await fetch('https://economia.awesomeapi.com.br/json/last/USD-BRL');
+                    const data = await resp.json();
+                    if (data && data.USDBRL) {
+                        const cotacao = parseFloat(data.USDBRL.bid);
+                        const variacao = parseFloat(data.USDBRL.pctChange);
+                        if (!isNaN(cotacao) && cotacao > 0) {
+                            dolarAtual = cotacao;
+                            dolarVariacao = isNaN(variacao) ? 0 : variacao;
+                            return { cotacao, variacao: dolarVariacao };
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar cotação do dólar (API):', e);
+                }
+                return null;
+            }
+
+            async function buscarDolarHistorico(dias = 30) {
+                try {
+                    const resp = await fetch(`https://economia.awesomeapi.com.br/json/daily/USD-BRL/${dias}`);
+                    const data = await resp.json();
+                    if (Array.isArray(data) && data.length) {
+                        const valores = data.map(item => parseFloat(item.bid)).reverse();
+                        const labels = data.map(item => {
+                            const d = new Date(parseInt(item.timestamp) * 1000);
+                            return d.toLocaleDateString('pt-BR', { day:'2-digit', month:'short' });
+                        }).reverse();
+                        return { labels, valores, fonte: 'api' };
+                    }
+                } catch (e) {
+                    console.warn('Erro ao buscar histórico do dólar (API):', e);
+                }
+                return null;
+            }
+
+            async function obterDadosDolarCompletos() {
+                const [atualApi, histApi] = await Promise.all([
+                    buscarDolarAtual(),
+                    buscarDolarHistorico(30)
+                ]);
+
+                if (histApi && histApi.labels && histApi.labels.length >= 2) {
+                    let cotacao = atualApi ? atualApi.cotacao : histApi.valores[histApi.valores.length - 1];
+                    let variacao = atualApi ? atualApi.variacao : 0;
+                    if (!atualApi && histApi.valores.length >= 2) {
+                        const u = histApi.valores[histApi.valores.length - 1];
+                        const p = histApi.valores[histApi.valores.length - 2];
+                        if (p > 0) variacao = ((u - p) / p) * 100;
+                    }
+                    if (!cotacao) cotacao = histApi.valores[histApi.valores.length - 1];
+                    return {
+                        labels: histApi.labels,
+                        valores: histApi.valores,
+                        cotacao,
+                        variacao,
+                        fonte: 'api'
+                    };
+                }
+
+                const sheet = await buscarDolarDoSheet();
+                if (sheet) return sheet;
+
+                const cache = localStorage.getItem('dolarCache');
+                if (cache) {
+                    try {
+                        const p = JSON.parse(cache);
+                        const num = parseValorBR(p.valor);
+                        if (num > 0) {
+                            return {
+                                labels: ['Hoje'],
+                                valores: [num],
+                                cotacao: num,
+                                variacao: 0,
+                                fonte: 'cache'
+                            };
+                        }
+                    } catch (_) {}
+                }
+                return null;
+            }
+
+            function pararAnimacaoDolar() {
+                if (dolarDrawTimer) {
+                    clearInterval(dolarDrawTimer);
+                    dolarDrawTimer = null;
+                }
+                if (dolarCountRaf) {
+                    cancelAnimationFrame(dolarCountRaf);
+                    dolarCountRaf = null;
+                }
+            }
+
+            function atualizarMetaDolarUI(valorAtual, variacao) {
+                const elVar = document.getElementById('dolarSlideVariacao');
+                if (elVar) {
+                    if (variacao !== undefined && !isNaN(variacao)) {
+                        elVar.textContent = `${variacao > 0 ? '+' : ''}${variacao.toFixed(2)}%`;
+                        elVar.className = `dolar-variacao ${variacao >= 0 ? 'positiva' : 'negativa'}`;
+                    } else {
+                        elVar.textContent = '--';
+                        elVar.className = 'dolar-variacao';
+                    }
+                }
+                const elAtualizacao = document.getElementById('dolarSlideAtualizacao');
+                if (elAtualizacao) {
+                    const agora = new Date();
+                    elAtualizacao.textContent = `Atualizado: ${agora.toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' })}`;
+                }
+            }
+
+            function setTextoDolar(valor, syncBarra = false) {
+                const el = document.getElementById('dolarSlideValor');
+                if (!el) return;
+                if (valor == null || isNaN(valor)) {
+                    el.textContent = '--';
+                    return;
+                }
+                el.textContent = `R$ ${valor.toFixed(2).replace('.', ',')}`;
+                if (syncBarra) atualizarBarraDolar(valor);
+            }
+
+            function renderizarGraficoDolar(dados, valorAtual, variacao) {
+                const canvas = document.getElementById('chartDolarCanvas');
+                if (!canvas) return;
+                const ctx = canvas.getContext('2d');
+
+                pararAnimacaoDolar();
+
+                if (chartDolar) {
+                    chartDolar.destroy();
+                    chartDolar = null;
+                }
+
+                atualizarMetaDolarUI(valorAtual, variacao);
+
+                const temDados = dados && Array.isArray(dados.labels) && Array.isArray(dados.valores) && dados.valores.length >= 2;
+                const labelsFull = temDados ? dados.labels : ['--'];
+                const valoresFull = temDados ? dados.valores : [valorAtual || 0];
+                const valorFinal = (valorAtual != null && !isNaN(valorAtual)) ? valorAtual : (valoresFull[valoresFull.length - 1] || 0);
+                const valorInicial = valoresFull[0] || valorFinal * 0.95;
+
+                setTextoDolar(valorInicial);
+
+                const h = canvas.clientHeight || 280;
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, 'rgba(255,255,255,0.22)');
+                grad.addColorStop(1, 'rgba(255,255,255,0.01)');
+
+                chartDolar = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'USD/BRL',
+                            data: [],
+                            borderColor: '#ffffff',
+                            backgroundColor: grad,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 2.2,
+                            pointBackgroundColor: '#ffffff',
+                            pointBorderColor: '#ffffff',
+                            borderWidth: 3.5,
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: {
+                            duration: 280,
+                            easing: 'easeOutQuad'
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `R$ ${context.parsed.y.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false },
+                                ticks: { color: 'rgba(255,255,255,0.45)', maxTicksLimit: 8, maxRotation: 0 }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255,255,255,0.08)', drawBorder: false },
+                                ticks: {
+                                    color: 'rgba(255,255,255,0.45)',
+                                    callback: function(value) { return 'R$ ' + Number(value).toFixed(2); }
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const n = valoresFull.length;
+                const stepMs = Math.max(45, Math.min(120, Math.floor(2200 / Math.max(1, n))));
+                let i = 0;
+
+                dolarDrawTimer = setInterval(() => {
+                    if (!dolarSlideActive || !chartDolar) {
+                        pararAnimacaoDolar();
+                        return;
+                    }
+                    if (i >= n) {
+                        clearInterval(dolarDrawTimer);
+                        dolarDrawTimer = null;
+                        setTextoDolar(valorFinal, true);
+                        return;
+                    }
+
+                    chartDolar.data.labels.push(labelsFull[i]);
+                    chartDolar.data.datasets[0].data.push(valoresFull[i]);
+                    chartDolar.update();
+
+                    const progresso = (i + 1) / n;
+                    const valorPonto = valoresFull[i];
+                    const valorMostrado = valorPonto + (valorFinal - valorPonto) * Math.pow(progresso, 1.5) * 0.15;
+                    setTextoDolar(i === n - 1 ? valorFinal : valorMostrado);
+
+                    i++;
+                }, stepMs);
+            }
+
+            async function carregarSlideDolar() {
+                dolarSlideActive = true;
+                const elValor = document.getElementById('dolarSlideValor');
+                if (elValor) elValor.textContent = '--';
+                const elAtualizacao = document.getElementById('dolarSlideAtualizacao');
+                if (elAtualizacao) elAtualizacao.textContent = 'Carregando...';
+
+                const dados = await obterDadosDolarCompletos();
+                if (dados) {
+                    dolarAtual = dados.cotacao;
+                    dolarVariacao = dados.variacao;
+                    atualizarBarraDolar(dados.cotacao);
+                    renderizarGraficoDolar(
+                        { labels: dados.labels, valores: dados.valores },
+                        dados.cotacao,
+                        dados.variacao
+                    );
+                } else {
+                    setTextoDolar(null);
+                    atualizarMetaDolarUI(null, null);
+                    const el = document.getElementById('dolarSlideAtualizacao');
+                    if (el) el.textContent = 'Sem dados no momento';
+                }
+
+                if (dolarAtualizacaoTimer) clearInterval(dolarAtualizacaoTimer);
+                dolarAtualizacaoTimer = setInterval(async () => {
+                    if (!dolarSlideActive) {
+                        clearInterval(dolarAtualizacaoTimer);
+                        dolarAtualizacaoTimer = null;
+                        return;
+                    }
+                    const dados = await obterDadosDolarCompletos();
+                    if (dados && chartDolar) {
+                        dolarAtual = dados.cotacao;
+                        dolarVariacao = dados.variacao;
+                        setTextoDolar(dados.cotacao, true);
+                        atualizarMetaDolarUI(dados.cotacao, dados.variacao);
+                    }
+                }, CONFIG.dolarSlideRefresh);
+            }
+
+            function buildDolarSlide() {
+                return `<div class="dolar-slide">
+                    <div class="dolar-header">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Economia</span>
+                    </div>
+                    <div class="dolar-container">
+                        <div class="dolar-grafico-wrapper">
+                            <canvas id="chartDolarCanvas"></canvas>
+                        </div>
+                        <div class="dolar-valor-wrapper">
+                            <div class="dolar-rotulo">Dólar</div>
+                            <div class="dolar-valor-grande" id="dolarSlideValor">--</div>
+                            <div class="dolar-variacao" id="dolarSlideVariacao">--</div>
+                            <div class="dolar-atualizacao" id="dolarSlideAtualizacao">Carregando...</div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // ===== FUNÇÕES DE GERENCIAMENTO DE SLIDES =====
             function salvarVisibilidade() { localStorage.setItem('slideVisibility', JSON.stringify(slideVisibility)); }
             function carregarVisibilidade() { const saved = localStorage.getItem('slideVisibility'); if (saved) slideVisibility = JSON.parse(saved); }
             carregarVisibilidade();
@@ -2065,18 +1985,20 @@
                     const ws = buildWeatherSlide(currentWeatherData);
                     if (ws) allSlides.push({ type: 'previsao_tempo', html: ws, customLabel: 'Clima / Previsão' });
                 } else {
-                    allSlides.push({ 
-                        type: 'previsao_tempo', 
-                        html: `<div class="weather-slide"><div class="weather-bg"></div><div class="weather-overlay"></div><div class="weather-content"><div class="temp-big">--°</div></div></div>`,
-                        customLabel: 'Clima / Previsão'
-                    });
+                    allSlides.push({ type: 'previsao_tempo', html: `<div class="weather-slide"><div class="weather-bg"></div><div class="weather-overlay"></div><div class="weather-content"><div class="temp-big">--°</div></div></div>`, customLabel: 'Clima / Previsão' });
                 }
 
-                // Slide de notícias RSS
                 allSlides.push({
                     type: 'noticias_rss',
                     html: buildNoticiasRssSlide(),
                     customLabel: 'Notícias (G1 + TecMundo)'
+                });
+
+                // SLIDE DÓLAR
+                allSlides.push({
+                    type: 'dolar',
+                    html: buildDolarSlide(),
+                    customLabel: 'Dólar (Economia)'
                 });
 
                 const aniv = obterAniversariantesDaSemana();
@@ -2162,29 +2084,81 @@
                 if (s?.type === 'aniversariante_dia') dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
+                // NOTÍCIAS RSS
                 if (s?.type === 'noticias_rss') {
-                    if (!noticiasRss.length) {
+                    const staleMs = 4 * 60 * 1000;
+                    const precisaAtualizar = !noticiasRss.length || (Date.now() - lastNewsFetch > staleMs);
+
+                    if (precisaAtualizar) {
                         buscarNoticiasRss().then(() => {
                             setTimeout(() => {
-                                atualizarNoticiaCarrossel(0);
+                                if (noticiasRss.length) {
+                                    const start = Math.floor(Math.random() * noticiasRss.length);
+                                    atualizarNoticiaCarrossel(start);
+                                }
                                 iniciarCarrosselNoticias();
                             }, 300);
                         });
                     } else {
+                        if (noticiasRss.length > 4) {
+                            const corte = Math.max(4, Math.ceil(noticiasRss.length * 0.6));
+                            const topo = shuffleArray(noticiasRss.slice(0, corte));
+                            noticiasRss = topo.concat(noticiasRss.slice(corte));
+                        }
                         setTimeout(() => {
-                            atualizarNoticiaCarrossel(0);
+                            if (noticiasRss.length) {
+                                const start = Math.floor(Math.random() * Math.min(4, noticiasRss.length));
+                                atualizarNoticiaCarrossel(start);
+                            }
                             iniciarCarrosselNoticias();
                         }, 300);
                     }
                     noticiasSlideAtivo = true;
-                    // Slide de notícias SEMPRE fica dark
-                    document.body.classList.add('news-dark');
                 } else {
                     pararCarrosselNoticias();
                     noticiasSlideAtivo = false;
+                }
+
+                // DÓLAR
+                if (s?.type === 'dolar') {
+                    dolarSlideActive = true;
+                    const wrapper = slideEl.querySelector('.dolar-grafico-wrapper');
+                    if (wrapper) {
+                        const oldCanvas = wrapper.querySelector('canvas');
+                        if (oldCanvas) oldCanvas.remove();
+                        const newCanvas = document.createElement('canvas');
+                        newCanvas.id = 'chartDolarCanvas';
+                        wrapper.appendChild(newCanvas);
+                    }
+                    setTimeout(() => carregarSlideDolar(), 80);
+                } else {
+                    if (dolarAtualizacaoTimer) {
+                        clearInterval(dolarAtualizacaoTimer);
+                        dolarAtualizacaoTimer = null;
+                    }
+                    dolarSlideActive = false;
+                    pararAnimacaoDolar();
+                    if (chartDolar) {
+                        chartDolar.destroy();
+                        chartDolar = null;
+                    }
+                }
+
+                // Fundo e barra totalmente pretos (igual notícias) para notícias e dólar
+                if (s?.type === 'noticias_rss' || s?.type === 'dolar') {
+                    document.body.classList.add('news-dark');
+                } else {
                     document.body.classList.remove('news-dark');
                 }
 
+                // Esconde cotação da barra inferior no slide de Dólar (evita duplicidade)
+                if (s?.type === 'dolar') {
+                    document.body.classList.add('dolar-slide-active');
+                } else {
+                    document.body.classList.remove('dolar-slide-active');
+                }
+
+                // CAMPANHA
                 if (s?.type === 'campanha_reta_final' && s.campanhaInfo) {
                     setTimeout(() => iniciarSequenciaCampanha(s.campanhaInfo), 350);
                 } else {
@@ -2203,7 +2177,8 @@
                 let dur = CONFIG.slideInterval;
                 if (s?.type === 'video') dur = CONFIG.videoSlideDuration;
                 if (s?.type === 'campanha_reta_final') dur = CONFIG.campanhaSlideDuration;
-                if (s?.type === 'noticias_rss') dur = CONFIG.noticiasRssSlideDuration; // 2 minutos
+                if (s?.type === 'noticias_rss') dur = CONFIG.noticiasRssSlideDuration;
+                if (s?.type === 'dolar') dur = CONFIG.slideInterval;
                 slideTimer = setTimeout(() => { if (!paused) { proximoSlide(); iniciarTimer(); } else iniciarTimer(); }, dur);
             }
             function resetarTimer() { if (slideTimer) clearTimeout(slideTimer); iniciarTimer(); }
@@ -2214,6 +2189,7 @@
                 }
             }
 
+            // ===== RÁDIO =====
             function carregarRadio(index) {
                 const radio = RADIOS[index];
                 if (!radio) return;
@@ -2237,6 +2213,7 @@
                 });
             }
 
+            // ===== SIDEBAR =====
             function toggleSidebar() {
                 sidebarHidden = !sidebarHidden;
                 document.getElementById('mainGrid').classList.toggle('sidebar-hidden', sidebarHidden);
@@ -2254,6 +2231,7 @@
                 }
             }
 
+            // ===== PONTO =====
             let pontoAtivo = false, pontoFechamentoTimer = null;
             function verificarLembretePonto() {
                 const agora = getHoraSincronizada();
@@ -2314,6 +2292,7 @@
             }
             limparRegistrosPontoAntigos();
 
+            // ===== MENU DE PERSONALIZAÇÃO =====
             function initSlideManager() {
                 const panel = document.getElementById('slideManagerPanel');
                 const overlay = document.getElementById('slideManagerOverlay');
@@ -2386,8 +2365,6 @@
                     atualizarTodosRelogios();
                 });
 
-                // Modo Dark global (todos os slides) – padrão desativado
-                // Notícias sempre ficam dark, independente deste toggle
                 const darkToggle = document.getElementById('darkModeToggle');
                 const darkStatus = document.getElementById('darkModeStatus');
                 const savedDark = localStorage.getItem('darkModeGlobal');
@@ -2409,7 +2386,7 @@
                 function popularListaSlides() {
                     const container = document.getElementById('slideListContainer');
                     container.innerHTML = allSlides.map(s => {
-                        const cat = (s.type === 'relogio' || s.type === 'logo' || s.type === 'noticias_rss') ? 'geral' : 'novidades';
+                        const cat = (s.type === 'relogio' || s.type === 'logo' || s.type === 'noticias_rss' || s.type === 'dolar') ? 'geral' : 'novidades';
                         const label = s.customLabel || (s.type === 'relogio' ? 'Relógio' : s.type === 'logo' ? 'Logo' : s.type === 'video' ? 'Vídeo' : s.type);
                         const checked = slideVisibility[s.type] !== false;
                         return `<div class="slide-item" data-type="${s.type}" data-cat="${cat}">
@@ -2429,6 +2406,7 @@
                 popularListaSlides();
             }
 
+            // ===== INICIALIZAÇÃO =====
             async function carregarDadosPlanilha() {
                 try {
                     const [cadastro, video, campanhas] = await Promise.all([
@@ -2499,7 +2477,8 @@
                 await buscarNoticiasRss();
                 const slideAtivo = document.querySelector('.slide.active[data-type="noticias_rss"]');
                 if (slideAtivo && noticiasRss.length) {
-                    atualizarNoticiaCarrossel(0);
+                    const start = Math.floor(Math.random() * Math.min(4, noticiasRss.length));
+                    atualizarNoticiaCarrossel(start);
                     iniciarCarrosselNoticias();
                 }
             }
@@ -2507,4 +2486,4 @@
         })();
     </script>
 </body>
-</html>  26873
+</html>
