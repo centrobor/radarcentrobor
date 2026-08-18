@@ -7,7 +7,6 @@
     <title>Radar Centrobor – Gestão à Vista</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS ===== */
@@ -144,7 +143,6 @@
             right: 50%; transform: translateX(50%); background: rgba(76,175,80,0.15);
             font-size: 1.6rem; padding: 10px 24px; border-color: #4caf50;
         }
-        /* Esconde cotação da barra no slide de Dólar (evita duplicidade) */
         body.dolar-slide-active .dolar-cotacao {
             opacity: 0 !important;
             pointer-events: none !important;
@@ -223,7 +221,6 @@
         .radio-embed { background:rgba(0,0,0,0.4); backdrop-filter:blur(4px); border-radius:var(--radius-md); overflow:hidden; flex-shrink:0; height:75px; border:1px solid rgba(255,255,255,0.06); transition: background 0.9s ease, border-color 0.9s ease; }
         .radio-embed iframe { width:100%; height:100%; border:none; }
 
-        /* ===== MODO DARK GLOBAL ===== */
         body.dark-mode .slides-zone {
             border-color: rgba(255,255,255,0.04);
             box-shadow: 0 2px 20px rgba(0,0,0,0.55);
@@ -254,7 +251,21 @@
             background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.4) 100%);
         }
 
-        /* ===== SLIDE DÓLAR – fundo preto + cabeçalho igual notícias ===== */
+        /* Remover o pseudo-elemento com gradiente azul no slide de clima */
+        .slide.weather-active::before {
+            display: none !important;
+        }
+        /* Garantir que o fundo do slide de clima seja preto por padrão */
+        .slide[data-type="previsao_tempo"] {
+            background-color: #000;
+        }
+        .slide.weather-active {
+            background-color: #000 !important;
+        }
+        .slide.weather-active .weather-slide {
+            background-color: inherit;
+        }
+
         .slide[data-type="dolar"]::before,
         .slide[data-type="noticias_rss"]::before {
             display: none !important;
@@ -354,8 +365,8 @@
             border: 1px solid rgba(255,255,255,0.08);
             color: #fff;
         }
-        .dolar-variacao.positiva { color: #a5d6a7; }
-        .dolar-variacao.negativa { color: #ef9a9a; }
+        .dolar-variacao.positiva { color: #18f221; }
+        .dolar-variacao.negativa { color: #cb1515; }
         .dolar-atualizacao {
             font-size: 1rem;
             color: rgba(255,255,255,0.35);
@@ -382,7 +393,6 @@
         @keyframes slideSlideIn { 0%{opacity:0;transform:translateX(100%);}100%{opacity:1;transform:translateX(0);} }
         @keyframes slideParallaxIn { 0%{opacity:0;transform:translateY(60px) scale(0.95);}100%{opacity:1;transform:translateY(0) scale(1);} }
 
-        /* ===== OUTROS SLIDES ===== */
         .relogio-slide { width:100%; height:100%; display:flex; align-items:center; justify-content:center; }
         .relogio-content { padding: 50px 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 40%; }
         .relogio-slide .hora-grande { font-size:17rem; font-weight:700; color:#fff; letter-spacing:4px; line-height:1; }
@@ -411,35 +421,43 @@
         .b-date { font-size:0.8rem; color:#ffd700; font-weight:600; }
         .b-days { font-size:0.7rem; color:rgba(255,255,255,0.5); }
 
-        /* ===== WEATHER SLIDE ===== */
-        .weather-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; overflow: hidden; }
-        .weather-bg { position: absolute; inset: 0; background: url('https://images.pexels.com/photos/38602262/pexels-photo-38602262.jpeg?cs=srgb&dl=pexels-ian-panelo-38602262.jpg&fm=jpg') center/cover no-repeat; z-index: 0; }
-        .weather-overlay { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(11,26,46,0.75) 0%, rgba(11,26,46,0.48) 40%, rgba(11,26,46,0.78) 100%); z-index: 1; }
-        .weather-content { position: relative; z-index: 2; width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
-        .weather-top { display: flex; align-items: center; justify-content: flex-start; gap: 40px; }
-        .weather-current { display: flex; align-items: center; gap: 36px; }
-        .temp-big { font-size: 9rem; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -4px; text-shadow: 0 6px 40px rgba(0,0,0,0.35); }
-        .current-info { text-align: left; }
-        .current-condition { font-size: 2.5rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-        .current-condition i { font-size: 3.2rem; color: #facc15; }
-        .current-details { display: flex; gap: 24px; font-size: 1.25rem; color: rgba(255,255,255,0.75); }
-        .current-details span { display: flex; align-items: center; gap: 8px; }
-        .hourly-row { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
-        .hourly-row::-webkit-scrollbar { display: none; }
-        .hour-card { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px 22px; min-width: 120px; text-align: center; flex-shrink: 0; }
-        .hour-time { font-size: 1.1rem; color: rgba(255,255,255,0.65); font-weight: 600; margin-bottom: 8px; }
-        .hour-icon { font-size: 2.3rem; color: #fff; margin: 8px 0; }
-        .hour-temp { font-size: 1.7rem; font-weight: 700; color: #fff; }
-        .daily-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        .day-card { background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.13); border-radius: 20px; padding: 22px 14px; text-align: center; }
-        .day-name { font-size: 1.15rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px; }
-        .day-icon { font-size: 2.5rem; color: #fff; margin: 10px 0; }
-        .day-temps { font-size: 1.45rem; font-weight: 700; color: #fff; }
-        .day-temps span { color: rgba(255,255,255,0.5); font-weight: 500; font-size: 1.2rem; }
+        .weather-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; overflow: hidden; background-color: #000; }
+        .weather-slide .weather-bg {
+            position: absolute; inset: 0; z-index: 0;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            transition: background-image 0.9s ease, background-color 0.9s ease;
+            filter: brightness(0.65);
+            background-color: #000;
+        }
+        .weather-slide .weather-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(160deg, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.5) 40%, rgba(0,0,0,0.8) 100%);
+            z-index: 1;
+        }
+        .weather-slide .weather-content { position: relative; z-index: 2; width: 100%; max-width: 1180px; display: flex; flex-direction: column; gap: 28px; }
+        .weather-slide .weather-top { display: flex; align-items: center; justify-content: flex-start; gap: 40px; }
+        .weather-slide .weather-current { display: flex; align-items: center; gap: 36px; }
+        .weather-slide .temp-big { font-size: 9rem; font-weight: 800; color: #fff; line-height: 1; letter-spacing: -4px; text-shadow: 0 6px 40px rgba(0,0,0,0.35); }
+        .weather-slide .current-info { text-align: left; }
+        .weather-slide .current-condition { font-size: 2.5rem; font-weight: 600; color: #fff; display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
+        .weather-slide .current-condition i { font-size: 3.2rem; color: #facc15; }
+        .weather-slide .current-details { display: flex; gap: 24px; font-size: 1.25rem; color: rgba(255,255,255,0.75); }
+        .weather-slide .current-details span { display: flex; align-items: center; gap: 8px; }
+        .weather-slide .hourly-row { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+        .weather-slide .hourly-row::-webkit-scrollbar { display: none; }
+        .weather-slide .hour-card { background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; padding: 20px 22px; min-width: 120px; text-align: center; flex-shrink: 0; }
+        .weather-slide .hour-time { font-size: 1.1rem; color: rgba(255,255,255,0.65); font-weight: 600; margin-bottom: 8px; }
+        .weather-slide .hour-icon { font-size: 2.3rem; color: #fff; margin: 8px 0; }
+        .weather-slide .hour-temp { font-size: 1.7rem; font-weight: 700; color: #fff; }
+        .weather-slide .daily-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+        .weather-slide .day-card { background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.13); border-radius: 20px; padding: 22px 14px; text-align: center; }
+        .weather-slide .day-name { font-size: 1.15rem; font-weight: 600; color: rgba(255,255,255,0.8); margin-bottom: 8px; }
+        .weather-slide .day-icon { font-size: 2.5rem; color: #fff; margin: 10px 0; }
+        .weather-slide .day-temps { font-size: 1.45rem; font-weight: 700; color: #fff; }
+        .weather-slide .day-temps span { color: rgba(255,255,255,0.5); font-weight: 500; font-size: 1.2rem; }
 
-        /* ===== SLIDE NOTÍCIAS RSS ===== */
         .noticias-rss-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
-        .noticias-rss-slide .rss-bg { position: absolute; inset: -8%; width: 116%; height: 116%; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; transition: background-image 0.9s ease, opacity 0.6s ease; transform-origin: center center; animation: rssSlowZoom 22s ease-in-out infinite alternate; }
+        .noticias-rss-slide .rss-bg { position: absolute; inset: -8%; width: 116%; height: 116%; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; transition: background-image 0.9s ease, opacity 0.6s ease; transform-origin: center center; animation: rssSlowZoom 22s ease-in-out infinite alternate; background-color: #000; }
         @keyframes rssSlowZoom { 0%   { transform: scale(1); } 100% { transform: scale(1.14); } }
         .noticias-rss-slide .rss-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.78) 85%); z-index: 1; }
         .noticias-rss-slide .rss-header { position: absolute; top: 28px; left: 32px; z-index: 3; display: flex; align-items: center; gap: 12px; background: rgba(0,0,0,0.45); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.12); padding: 10px 20px 10px 16px; border-radius: 40px; box-shadow: 0 4px 24px rgba(0,0,0,0.35); }
@@ -452,7 +470,6 @@
         .noticias-rss-slide .rss-meta .rss-tempo { font-weight: 300; }
         .noticias-rss-slide .rss-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 4; color: rgba(255,255,255,0.6); font-size: 1.2rem; background: rgba(11,26,46,0.7); }
 
-        /* ===== SLIDE CAMPANHA ===== */
         .campanha-slide { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; position: relative; overflow: hidden; }
         .campanha-slide .campanha-bg { position: absolute; inset: 0; background-image: url('https://chatgpt.com/backend-api/estuary/public_content/enc/eyJpZCI6Im1fNmE3Y2MzMDhjMzJjODE5MWE4YmI1MjNiZTU1YzkwMTA6ZmlsZV8wMDAwMDAwMDVlNTg4MjBlOGFkOTZjMWJkMDg2Yzc2YSIsImdpem1vX2lkIjpudWxsLCJ3aWQiOm51bGwsIm9pZCI6bnVsbCwic2lkIjpudWxsLCJjcyI6bnVsbCwiZm4iOm51bGwsImNkIjpudWxsLCJ0cyI6IjIwNjc3IiwicCI6InB5aSIsImNpZCI6IjEiLCJzaWciOiJmNDMxZDNiNjRmY2VlNmFhMzI4Njg5MzFkYjQ3NTFmNDQ5Yjc4ODk1ZGQ4OTVmMzAxMmExNzE1MjUzM2YxMjc3IiwidiI6IjAiLCJjZG4iOm51bGwsImNwIjpudWxsLCJtYSI6bnVsbH0='); background-position: center center; background-size: cover; background-repeat: no-repeat; z-index: 0; }
         .campanha-slide .campanha-overlay { position: absolute; inset: 0; background: linear-gradient(165deg, rgba(11,26,46,0.72) 0%, rgba(11,26,46,0.48) 45%, rgba(11,26,46,0.75) 100%); z-index: 1; }
@@ -514,20 +531,62 @@
         #radioSelector button:hover { background:var(--accent); color:#0b1a2e; border-color:var(--accent); }
         #radioSelector button.active-radio { background:rgba(56,189,248,0.2); border-color:var(--accent); color:#fff; }
 
-        .ponto-overlay { position:fixed; top:0;left:0;width:100%;height:100%; z-index:10000; background:rgba(0,0,0,0.75); backdrop-filter:blur(8px); display:none; align-items:center; justify-content:center; flex-direction:column; color:#fff; text-align:center; padding:20px; }
-        .ponto-overlay.active { display:flex; }
-        .ponto-card { background:rgba(15,31,46,0.9); border-radius:var(--radius-xl); padding:40px 60px; max-width:700px; width:100%; border:1px solid rgba(255,255,255,0.12); box-shadow:0 20px 60px rgba(0,0,0,0.6); backdrop-filter:blur(16px); }
-        .ponto-card i { font-size:4rem; color:#facc15; margin-bottom:16px; }
-        .ponto-card h2 { font-size:2.8rem; font-weight:800; margin-bottom:8px; }
-        .ponto-card .sub { font-size:1.4rem; opacity:0.8; margin-bottom:8px; }
-        .ponto-card .msg-final { font-size:2.2rem; font-weight:700; color:#4caf50; margin:8px 0 16px; display:none; }
-        .ponto-card .tempo-restante { font-size:1.2rem; color:rgba(255,255,255,0.6); margin-bottom:12px; }
-        .btn-ponto { margin-top:12px; background:#4caf50; border:none; color:#fff; font-weight:700; font-size:1.2rem; padding:12px 40px; border-radius:40px; cursor:pointer; transition:0.2s; box-shadow:0 4px 20px rgba(76,175,80,0.3); }
-        .btn-ponto:hover { transform:scale(1.05); background:#43a047; }
-        .btn-fechar-ponto { margin-top:8px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); color:#fff; font-size:0.9rem; padding:8px 24px; border-radius:30px; cursor:pointer; }
-        .btn-fechar-ponto:hover { background:rgba(255,255,255,0.2); }
+        .ponto-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(12px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #fff;
+            text-align: center;
+            padding: 20px;
+        }
+        .ponto-overlay.active { display: flex; }
+        .ponto-card {
+            background: rgba(15, 31, 46, 0.92);
+            border-radius: var(--radius-xl);
+            padding: 50px 70px;
+            max-width: 750px;
+            width: 100%;
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            box-shadow: 0 20px 80px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(16px);
+            animation: pulseGlow 2s ease-in-out infinite alternate;
+        }
+        @keyframes pulseGlow {
+            0% { border-color: rgba(255, 215, 0, 0.2); box-shadow: 0 0 30px rgba(255, 215, 0, 0.1); }
+            100% { border-color: rgba(255, 215, 0, 0.7); box-shadow: 0 0 60px rgba(255, 215, 0, 0.3); }
+        }
+        .ponto-card i {
+            font-size: 5rem;
+            color: #facc15;
+            margin-bottom: 20px;
+            display: block;
+        }
+        .ponto-card h2 {
+            font-size: 3.2rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            text-shadow: 0 0 40px rgba(255, 215, 0, 0.15);
+            letter-spacing: 1px;
+        }
+        .ponto-card .tempo-restante {
+            font-size: 2.8rem;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 16px 32px;
+            border-radius: 60px;
+            display: inline-block;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 8px;
+            font-variant-numeric: tabular-nums;
+        }
 
-        @media (max-width:900px) {
+        @media (max-width: 900px) {
             .main-grid { flex-direction:column; }
             .sidebar-right { flex:0 0 auto; width:100%; max-height:300px; }
             .bottombar { height:80px; }
@@ -537,9 +596,9 @@
             .dolar-cotacao { font-size:1rem; right:70px; padding:6px 12px; }
             .relogio-slide .hora-grande { font-size:6rem; }
             .hero-name { font-size:2.8rem; }
-            .weather-top { flex-direction: column; align-items: flex-start; }
-            .temp-big { font-size:6rem; }
-            .daily-row { grid-template-columns: repeat(3, 1fr); }
+            .weather-slide .weather-top { flex-direction: column; align-items: flex-start; }
+            .weather-slide .temp-big { font-size:6rem; }
+            .weather-slide .daily-row { grid-template-columns: repeat(3, 1fr); }
             .campanha-main { flex-direction: column; gap: 28px; }
             .progress-ring, .progress-ring svg { width: 220px; height: 220px; }
             .ring-number { font-size: 5rem; }
@@ -552,6 +611,9 @@
             .dolar-rotulo { font-size: 1.5rem; }
             .dolar-valor-wrapper { flex: 0 0 auto; width: 100%; min-width: 0; }
             .dolar-grafico-wrapper { flex: 1; min-height: 220px; height: 55%; }
+            .ponto-card { padding: 30px 20px; }
+            .ponto-card h2 { font-size: 2.2rem; }
+            .ponto-card .tempo-restante { font-size: 2rem; padding: 12px 24px; }
         }
     </style>
 </head>
@@ -617,7 +679,7 @@
         <div class="slide-manager-overlay" id="slideManagerOverlay"></div>
         <div class="slide-manager-panel" id="slideManagerPanel">
             <div class="panel-header">
-                <h3><i class="fas fa-sliders-h"></i> Personalizar Slides</h3>
+                <h3><i class="fas fa-sliders-h"></i> Personalizar <span>Slides</span></h3>
                 <button class="close-btn" id="closeSlideManager"><i class="fas fa-times"></i></button>
             </div>
             <div class="filter-buttons">
@@ -657,15 +719,12 @@
         </div>
     </div>
 
+    <!-- PONTO OVERLAY (sem botões) -->
     <div class="ponto-overlay" id="pontoOverlay">
         <div class="ponto-card">
             <i class="fas fa-clock"></i>
-            <h2 id="pontoTitulo">Hora de Bater o Ponto!</h2>
-            <div class="sub" id="pontoSub">Já bateu o ponto hoje?</div>
-            <div class="msg-final" id="pontoMsgFinal">Já bateu o ponto!</div>
+            <h2 id="pontoTitulo">Não Esqueça de Bater o Ponto</h2>
             <div class="tempo-restante" id="pontoTempoRestante"></div>
-            <button class="btn-ponto" id="pontoBtn"><i class="fas fa-check"></i> Sim, já bati!</button>
-            <button class="btn-fechar-ponto" id="pontoFecharBtn"><i class="fas fa-times"></i> Fechar</button>
         </div>
     </div>
 
@@ -688,25 +747,13 @@
 
                 noticiasRssUrls: [
                     'https://g1.globo.com/rss/g1/economia',
-                    'https://g1.globo.com/rss/g1/politica',
                     'https://g1.globo.com/rss/g1/tecnologia',
-                    'https://g1.globo.com/rss/g1/mundo',
                     'https://g1.globo.com/rss/g1/ciencia',
                     'https://rss.uol.com.br/feed/economia.xml',
                     'https://rss.uol.com.br/feed/mercado.xml',
                     'https://valor.globo.com/rss/valor-economico',
-                    'https://exame.com/feed/',
-                    'https://www.infomoney.com.br/feed/',
-                    'https://rss.tecmundo.com.br/feed',
-                    'http://feeds.bbci.co.uk/portuguese/rss.xml',
-                    'https://www.reuters.com/rssfeed/brazil',
-                    'https://economia.estadao.com.br/feed',
-                    'https://politica.estadao.com.br/feed',
-                    'https://www1.folha.uol.com.br/mercado/rss.xml',
                     'https://www.cnnbrasil.com.br/economia/feed/',
-                    'https://jovempan.com.br/feed/economia',
                     'https://www.moneytimes.com.br/feed/',
-                    'https://www.sunoresearch.com.br/feed/',
                     'https://canaltech.com.br/feed/',
                     'https://olhardigital.com.br/feed/'
                 ],
@@ -767,6 +814,68 @@
             let dolarSlideActive = false;
             let dolarDrawTimer = null;
             let dolarCountRaf = null;
+
+            // ===== FUNDOS DINÂMICOS PARA CLIMA =====
+            const WEATHER_BACKGROUNDS = {
+                clear_day: [
+                    'https://images.alphacoders.com/581/thumb-1920-581842.jpg',
+                    'https://p0.piqsels.com/preview/48/737/139/city-landscape-cidade-building.jpg',
+                    'https://s2-oglobo.glbimg.com/383KEQ0OlhPZmbzpnYZqMU4hstc=/0x0:3456x2304/888x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_da025474c0c44edd99332dddb09cabe8/internal_photos/bs/2023/a/O/mrFcclTGGHgcpt8U0cVQ/ant3609.jpg',
+                    'https://i.pinimg.com/736x/9d/e7/d1/9de7d1f41ba478b8e4f02c4868ee2ac0.jpg',
+                    'https://www.oliberal.com/image/contentid/policy:1.982895:1750813534/image.jpg',
+                    'https://www.correiodamanha.com.br/_midias/jpg/2023/05/03/840x560/1_056e6c53_01cd_4e1f_856f_aecffc7073e1-148607.jpg'
+                ],
+                clear_sunset: [
+                    'https://img.magnific.com/fotos-gratis/fotografia-aerea-do-horizonte-da-cidade-sob-um-ceu-laranja-ao-por-do-sol_181624-19234.jpg?semt=ais_test_b&w=740&q=80',
+                    'https://upload.wikimedia.org/wikipedia/commons/f/f6/Avenida_Paulista_no_p%C3%B4r_do_sol.jpg?utm_source=pt.wikipedia.org&utm_campaign=index&utm_content=original',
+                    'https://img.magnific.com/fotos-gratis/bela-arquitetura-construindo-cidade-de-taipei_74190-3105.jpg?semt=ais_test_b&w=740&q=80',
+                    'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f6/Avenida_Paulista_no_p%C3%B4r_do_sol.jpg/1280px-Avenida_Paulista_no_p%C3%B4r_do_sol.jpg?utm_source=pt.wikipedia.org&utm_campaign=index&utm_content=thumbnail',
+                    'https://vivaacidadenews.com.br/wp-content/uploads/2024/10/Roda-2.jpg',
+                    'https://i0.wp.com/cases.realtycorp.com.br/wp-content/uploads/2024/11/faria-lima-plaza-844-2-1678135991.jpg?fit=1600%2C1200&ssl=1'
+                ],
+                clear_night: [
+                    'https://media.istockphoto.com/id/807441952/pt/foto/aerial-view-of-marginal-pinheiros-and-estaiada-bridge-at-night-in-sao-paulo-brazil.jpg?s=612x612&w=0&k=20&c=TzVqGort3EUVLovacZTawvvUxZedhNMJTzQoM5Lg3w0=',
+                    'https://media.istockphoto.com/id/638248078/pt/foto/rua-principal-mostrar-as-linhas-do-fluxo-de-tr%C3%A1fego-de-tempo-de-exposi%C3%A7%C3%A3o.jpg?s=612x612&w=0&k=20&c=Q_N3cs82dqqndQuVM5y_rV8__QXwoB7KaKsYC4k-KDY=',
+                    'https://png.pngtree.com/thumb_back/fw800/background/20260121/pngtree-city-street-at-night-with-bicycle-and-wet-pavement-image_21187263.webp'
+                ],
+                partly_day: [
+                    'https://s2-g1.glbimg.com/g9-KvotetHaumYKtNyUKfZd9FX4=/0x0:1600x1200/984x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_59edd422c0c84a879bd37670ae4f538a/internal_photos/bs/2021/j/r/VLmBDQRrWp2beiQ17FyQ/whatsapp-image-2021-11-26-at-10.24.52.jpeg',
+                    'https://f.i.uol.com.br/fotografia/2020/10/16/16028605955f89b633a77b1_1602860595_3x2_md.jpg',
+                    'https://imagens.climatempo.com.br/climapress/galeria/2022/11/0faf044fa57c9d52a867c359bf93dcbb.jpg',
+                    'https://f.i.uol.com.br/fotografia/2024/08/22/172437286366c7d77fd133f_1724372863_16x9_md.jpg',
+                    'https://img.cdndsgni.com/preview/10491668.jpg'
+                ],
+                partly_night: [
+                    'https://newr7-r7-prod.web.arc-cdn.net/resizer/v2/7C4FJQMICFOGXAICEYXGVT33QI.jpg?auth=de4ebefeef2b6dbc6dc499cb017faf1a7954874b32ef3815a1021190f787654c&width=1500&height=1000',
+                    'https://s2.glbimg.com/Cid8zdL7yPIrd4gXBLbMv3zQZE8=/620x465/s.glbimg.com/jo/g1/f/original/2016/10/20/chuva-sp.jpg',
+                    'https://f.i.uol.com.br/fotografia/2025/01/24/17377454106793e402d9de5_1737745410_3x2_md.jpg',
+                    'https://hi-mundim.com.br/wp-content/uploads/2024/09/VISTA_DO_ALTO_DA_PENHA_E_PARTE_DO_TATUAPE_-_panoramio-e1727357109836.jpg'
+                ],
+                cloudy: [
+                    'https://st2.depositphotos.com/3837271/9781/i/450/depositphotos_97817414-stock-photo-banespa-building-in-sao-paulo.jpg',
+                    'https://static.vecteezy.com/ti/fotos-gratis/t1/74154952-cidade-de-sao-paulo-foto.jpg',
+                    'https://media.gazetadopovo.com.br/2025/10/24154042/DJI_20251021095449_0060_D.MP4_snapshot_00.48.535.jpg.webp',
+                    'https://saopauloantiga.com.br/wp-content/uploads/2022/03/edificiomirantedovale_ispa.jpg',
+                    'https://img.magnific.com/fotos-premium/por-do-sol-sobre-a-ponte-octavio-frias-oliveira-sao-paulo-brasil_306105-3194.jpg?semt=ais_hybrid&w=740&q=80'
+                ],
+                rainy: [
+                    'https://assets.portalleodias.com/2024/04/foto-leo-dias-2026-07-28T181943.228.png',
+                    'https://www.bnewssaopaulo.com.br/media/uploads/2026/06/chuva-sao-paulo-ia.jpeg',
+                    'https://classic.exame.com/wp-content/uploads/2025/12/MG_1340.jpg?ims=1200x900',
+                    'https://cultura.uol.com.br/upload/tvcultura/noticias/happens_big/20241220102614_chegadadenovafrentefriaechuvaemsp.jpg',
+                    'https://s2-oglobo.glbimg.com/W8G9MuHqV0w7AuFWl5Wq0-vMwxo=/0x0:1024x683/924x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_da025474c0c44edd99332dddb09cabe8/internal_photos/bs/2023/W/p/ztH1m5SpepLak2aZQQVw/104911604-sao-paulo-sp-03-11-2023-clima-tempo-chuva-e-calor-por-volta-das-16h-o-dia-virou-noite-1-.jpg'
+                ],
+                snowy: [
+                    'https://clickpetroleoegas.com.br/wp-content/uploads/2025/05/NEVE_SURPREENDEU_SUL_DO_BRASIL.jpg',
+                    'https://revistaforum.com.br/forumtudo/wp-content/uploads/2026/06/Urupema_Santa_Catarina_202606150136.jpg'
+                ],
+                storm: [
+                    'https://s2-oglobo.glbimg.com/dGZ6jckS4X-4fpBtSNHGeg6Wdyk=/0x0:5235x3490/888x0/smart/filters:strip_icc()/i.s3.glbimg.com/v1/AUTH_da025474c0c44edd99332dddb09cabe8/internal_photos/bs/2024/a/o/lBABAKTOeJdR2MxfX3vw/105599933-brasil-sao-paulo-sp-19-01-2024-o-perigo-que-vem-do-ceu-as-fortes-chuvas-com-raios-q.jpg',
+                    'https://admin.itatiaia.com.br/wp-content/uploads/sites/27/2026/03/chuva_mudanca_tempo_03.jpg?resize=1200%2C675&w=1200&h=675&quality=75&crop=1',
+                    'https://jovempan.com.br/wp-content/uploads/sites/2/2025/03/ato20241220157.jpg?w=1000&h=660&crop=1'
+                ]
+            };
+            let lastWeatherBg = null;
 
             // ===== FUNÇÕES AUXILIARES =====
             function shuffleArray(arr) {
@@ -838,7 +947,7 @@
             buscarClima();
             setInterval(buscarClima, 900000);
 
-            // ===== DÓLAR (cotação na barra) =====
+            // ===== DÓLAR =====
             function atualizarBarraDolar(num) {
                 if (num == null || isNaN(num) || num <= 0) return;
                 const el = document.getElementById('dolarValor');
@@ -851,7 +960,6 @@
 
             async function buscarCotacaoDolar() {
                 try {
-                    // Preferência: usa o mesmo pipeline do slide (API + fallback planilha)
                     if (typeof obterDadosDolarCompletos === 'function') {
                         const dados = await obterDadosDolarCompletos();
                         if (dados && dados.cotacao > 0) {
@@ -861,7 +969,6 @@
                             return;
                         }
                     }
-                    // Fallback direto na planilha
                     const response = await fetch(BASES.dolar);
                     const dados = await response.json();
                     if (dados && dados.length > 0) {
@@ -890,7 +997,6 @@
                     } catch(_){}
                 }
             }
-            // Aguarda funções do slide existirem (declaradas mais abaixo) e então inicia
             setTimeout(() => {
                 buscarCotacaoDolar();
                 setInterval(buscarCotacaoDolar, CONFIG.dolarRefreshInterval);
@@ -964,7 +1070,7 @@
                 return `<div class="birthday-week-slide"><div class="week-bg" style="background:url('${BG_ANIVERSARIO}') center/cover;"></div><h2><i class="fas fa-birthday-cake"></i> Aniversariantes da Semana</h2><div class="birthday-week-grid">${cards}</div></div>`;
             }
 
-            // ===== CLIMA (weather) =====
+            // ===== CLIMA =====
             function getWeatherIcon(code) {
                 if (code <= 1) return 'fa-sun';
                 if (code <= 3) return 'fa-cloud-sun';
@@ -982,9 +1088,54 @@
                 return 'Tempestade';
             }
 
+            function getWeatherBackground(code, now) {
+                const hour = now.getHours();
+                const isDay = hour >= 6 && hour < 18;
+                const isSunset = hour >= 17 && hour < 19;
+
+                let category = 'cloudy';
+                if (code === 0) {
+                    if (isSunset) category = 'clear_sunset';
+                    else if (isDay) category = 'clear_day';
+                    else category = 'clear_night';
+                } else if (code >= 1 && code <= 3) {
+                    if (isDay) category = 'partly_day';
+                    else category = 'partly_night';
+                } else if (code >= 4 && code <= 48) {
+                    category = 'cloudy';
+                } else if (code >= 51 && code <= 67) {
+                    category = 'rainy';
+                } else if (code >= 71 && code <= 77) {
+                    category = 'snowy';
+                } else if (code >= 80) {
+                    category = 'storm';
+                }
+
+                const images = WEATHER_BACKGROUNDS[category] || WEATHER_BACKGROUNDS.cloudy;
+                let selected = null;
+                if (images.length === 1) {
+                    selected = images[0];
+                } else {
+                    const available = images.filter(img => img !== lastWeatherBg);
+                    if (available.length === 0) {
+                        selected = images[0];
+                    } else {
+                        selected = available[Math.floor(Math.random() * available.length)];
+                    }
+                }
+                lastWeatherBg = selected;
+                return selected;
+            }
+
             function buildWeatherSlide(data) {
                 if (!data?.current_weather) return null;
                 const agora = getHoraSincronizada();
+                const cw = data.current_weather;
+                const temp = Math.round(cw.temperature);
+                const icon = getWeatherIcon(cw.weathercode);
+                const desc = getWeatherDesc(cw.weathercode);
+                const bgImage = getWeatherBackground(cw.weathercode, agora);
+
                 const hoje = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate());
                 let startIndex = 0;
                 if (data.daily && data.daily.time) {
@@ -997,10 +1148,6 @@
                         }
                     }
                 }
-                const cw = data.current_weather;
-                const temp = Math.round(cw.temperature);
-                const icon = getWeatherIcon(cw.weathercode);
-                const desc = getWeatherDesc(cw.weathercode);
 
                 let hourlyHtml = '';
                 if (data.hourly?.time) {
@@ -1039,7 +1186,7 @@
                 }
 
                 return `<div class="weather-slide">
-                    <div class="weather-bg"></div>
+                    <div class="weather-bg" style="background-image: url('${bgImage}'); background-color: #000;"></div>
                     <div class="weather-overlay"></div>
                     <div class="weather-content">
                         <div class="weather-top">
@@ -1976,6 +2123,136 @@
             function carregarVisibilidade() { const saved = localStorage.getItem('slideVisibility'); if (saved) slideVisibility = JSON.parse(saved); }
             carregarVisibilidade();
 
+            // ----- Função para extrair cor média da imagem -----
+            function extrairCorMediaImagem(url, callback) {
+                const img = new Image();
+                img.crossOrigin = 'Anonymous';
+                img.onload = function() {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        // Reduz tamanho para performance
+                        const maxSize = 80;
+                        let w = img.width, h = img.height;
+                        if (w > maxSize || h > maxSize) {
+                            const ratio = Math.min(maxSize / w, maxSize / h);
+                            w = Math.floor(w * ratio);
+                            h = Math.floor(h * ratio);
+                        }
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        const imageData = ctx.getImageData(0, 0, w, h);
+                        const data = imageData.data;
+                        let r = 0, g = 0, b = 0, count = 0;
+                        // Amostra a cada 4 pixels para performance
+                        for (let i = 0; i < data.length; i += 16) {
+                            r += data[i];
+                            g += data[i+1];
+                            b += data[i+2];
+                            count++;
+                        }
+                        if (count === 0) { callback(null); return; }
+                        r = Math.round(r / count);
+                        g = Math.round(g / count);
+                        b = Math.round(b / count);
+                        // Escurece bastante para garantir contraste com textos claros e fundo limpo
+                        const escurecida = `rgb(${Math.round(r*0.28)}, ${Math.round(g*0.28)}, ${Math.round(b*0.28)})`;
+                        callback(escurecida);
+                    } catch (e) {
+                        callback(null);
+                    }
+                };
+                img.onerror = function() {
+                    callback(null);
+                };
+                img.src = url;
+            }
+
+            // ----- Armazenar estilo original da bottombar e do animated-bg para restaurar -----
+            let bottombarOriginalStyle = null;
+            let animatedBgOriginalStyle = null;
+
+            function aplicarCorFundoClima(cor) {
+                const corFinal = cor || '#000000';
+
+                // Slide atual
+                const slideEl = document.querySelector('.slide.active[data-type="previsao_tempo"]');
+                if (slideEl) {
+                    slideEl.style.backgroundColor = corFinal;
+                    const bgEl = slideEl.querySelector('.weather-bg');
+                    if (bgEl) bgEl.style.backgroundColor = corFinal;
+                    const weatherSlide = slideEl.querySelector('.weather-slide');
+                    if (weatherSlide) weatherSlide.style.backgroundColor = corFinal;
+                }
+
+                // Bottombar
+                const bb = document.getElementById('bottombar');
+                if (bb) {
+                    if (!bottombarOriginalStyle) {
+                        bottombarOriginalStyle = {
+                            background: bb.style.background,
+                            backdropFilter: bb.style.backdropFilter,
+                            borderTopColor: bb.style.borderTopColor
+                        };
+                    }
+                    bb.style.background = corFinal;
+                    bb.style.backdropFilter = 'none';
+                    bb.style.borderTopColor = 'rgba(255,255,255,0.1)';
+                }
+
+                // Animated-bg (fundo da página inteira) — este era o que faltava
+                const animBg = document.querySelector('.animated-bg');
+                if (animBg) {
+                    if (!animatedBgOriginalStyle) {
+                        animatedBgOriginalStyle = {
+                            background: animBg.style.background,
+                            backgroundImage: animBg.style.backgroundImage,
+                            animation: animBg.style.animation,
+                            filter: animBg.style.filter
+                        };
+                    }
+                    animBg.style.background = corFinal;
+                    animBg.style.backgroundImage = 'none';
+                    animBg.style.animation = 'none';
+                    animBg.style.filter = 'none';
+                }
+            }
+
+            function restaurarFundoOriginal() {
+                // Restaura bottombar
+                if (bottombarOriginalStyle) {
+                    const bb = document.getElementById('bottombar');
+                    if (bb) {
+                        bb.style.background = bottombarOriginalStyle.background || '';
+                        bb.style.backdropFilter = bottombarOriginalStyle.backdropFilter || '';
+                        bb.style.borderTopColor = bottombarOriginalStyle.borderTopColor || '';
+                    }
+                    bottombarOriginalStyle = null;
+                }
+
+                // Restaura animated-bg
+                if (animatedBgOriginalStyle) {
+                    const animBg = document.querySelector('.animated-bg');
+                    if (animBg) {
+                        animBg.style.background = animatedBgOriginalStyle.background || '';
+                        animBg.style.backgroundImage = animatedBgOriginalStyle.backgroundImage || '';
+                        animBg.style.animation = animatedBgOriginalStyle.animation || '';
+                        animBg.style.filter = animatedBgOriginalStyle.filter || '';
+                    }
+                    animatedBgOriginalStyle = null;
+                }
+
+                // Limpa estilos inline do slide de clima
+                document.querySelectorAll('.slide[data-type="previsao_tempo"]').forEach(el => {
+                    el.style.backgroundColor = '';
+                    const bg = el.querySelector('.weather-bg');
+                    if (bg) bg.style.backgroundColor = '';
+                    const ws = el.querySelector('.weather-slide');
+                    if (ws) ws.style.backgroundColor = '';
+                });
+            }
+
             function construirSlides() {
                 allSlides = [];
                 allSlides.push({ type: 'relogio', html: `<div class="relogio-slide"><div class="relogio-content"><div class="hora-grande" id="slide-hora">00:00</div><div class="data-grande" id="slide-data">Carregando...</div><div class="clima-grande"><i class="fas fa-sun" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div></div></div>` });
@@ -1985,7 +2262,7 @@
                     const ws = buildWeatherSlide(currentWeatherData);
                     if (ws) allSlides.push({ type: 'previsao_tempo', html: ws, customLabel: 'Clima / Previsão' });
                 } else {
-                    allSlides.push({ type: 'previsao_tempo', html: `<div class="weather-slide"><div class="weather-bg"></div><div class="weather-overlay"></div><div class="weather-content"><div class="temp-big">--°</div></div></div>`, customLabel: 'Clima / Previsão' });
+                    allSlides.push({ type: 'previsao_tempo', html: `<div class="weather-slide"><div class="weather-bg" style="background-image: url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1600&q=80'); background-color: #000;"></div><div class="weather-overlay"></div><div class="weather-content"><div class="temp-big">--°</div></div></div>`, customLabel: 'Clima / Previsão' });
                 }
 
                 allSlides.push({
@@ -1994,7 +2271,6 @@
                     customLabel: 'Notícias (G1 + TecMundo)'
                 });
 
-                // SLIDE DÓLAR
                 allSlides.push({
                     type: 'dolar',
                     html: buildDolarSlide(),
@@ -2144,27 +2420,54 @@
                     }
                 }
 
-                // Fundo e barra totalmente pretos (igual notícias) para notícias e dólar
                 if (s?.type === 'noticias_rss' || s?.type === 'dolar') {
                     document.body.classList.add('news-dark');
                 } else {
                     document.body.classList.remove('news-dark');
                 }
 
-                // Esconde cotação da barra inferior no slide de Dólar (evita duplicidade)
                 if (s?.type === 'dolar') {
                     document.body.classList.add('dolar-slide-active');
                 } else {
                     document.body.classList.remove('dolar-slide-active');
                 }
 
-                // CAMPANHA
                 if (s?.type === 'campanha_reta_final' && s.campanhaInfo) {
                     setTimeout(() => iniciarSequenciaCampanha(s.campanhaInfo), 350);
                 } else {
                     if (campanhaCountdownInterval) { clearInterval(campanhaCountdownInterval); campanhaCountdownInterval = null; }
                     if (campanhaAnimTimeout) { clearTimeout(campanhaAnimTimeout); campanhaAnimTimeout = null; }
                     ringAnimRunning = false;
+                }
+
+                // ===== CLIMA: aplicar cor na bottombar + no fundo da página + no slide =====
+                document.querySelectorAll('.slide.weather-active').forEach(el => el.classList.remove('weather-active'));
+
+                if (s?.type === 'previsao_tempo') {
+                    // Adiciona a classe para remover o pseudo-elemento (::before)
+                    slideEl.classList.add('weather-active');
+
+                    // Já aplica preto imediatamente para evitar o azul enquanto carrega a cor
+                    aplicarCorFundoClima('#000000');
+
+                    const bgEl = slideEl.querySelector('.weather-bg');
+                    if (bgEl) {
+                        const style = window.getComputedStyle(bgEl);
+                        const bgImage = style.backgroundImage;
+                        const urlMatch = bgImage.match(/url\(["']?(.*?)["']?\)/);
+                        if (urlMatch && urlMatch[1]) {
+                            const imageUrl = urlMatch[1];
+                            extrairCorMediaImagem(imageUrl, function(cor) {
+                                // Só aplica se ainda estivermos no slide de clima
+                                if (document.querySelector('.slide.active[data-type="previsao_tempo"]')) {
+                                    aplicarCorFundoClima(cor || '#000000');
+                                }
+                            });
+                        }
+                    }
+                } else {
+                    // Saiu do clima → restaura tudo
+                    restaurarFundoOriginal();
                 }
             }
 
@@ -2233,10 +2536,14 @@
 
             // ===== PONTO =====
             let pontoAtivo = false, pontoFechamentoTimer = null;
+
             function verificarLembretePonto() {
                 const agora = getHoraSincronizada();
                 const totalMin = agora.getHours() * 60 + agora.getMinutes();
-                const horarios = [{ label: 'Iniciar', h: 8, m: 0 }, { label: 'Encerrar', h: 17, m: 45 }];
+                const horarios = [
+                    { label: 'Iniciar', h: 8, m: 0 },
+                    { label: 'Encerrar', h: 17, m: 45 }
+                ];
                 let alvo = null;
                 for (let h of horarios) {
                     const alvoMin = h.h * 60 + h.m;
@@ -2247,45 +2554,50 @@
                     const chave = `ponto_${alvo.h}_${alvo.m}_${hoje}`;
                     if (localStorage.getItem(chave) === 'exibido') return;
                     pontoAtivo = true;
-                    document.getElementById('pontoTitulo').textContent = `${alvo.label} o Expediente`;
-                    document.getElementById('pontoSub').textContent = 'Já bateu o ponto hoje?';
-                    document.getElementById('pontoMsgFinal').style.display = 'none';
+
+                    document.getElementById('pontoTitulo').textContent = 'Não Esqueça de Bater o Ponto';
                     document.getElementById('pontoOverlay').classList.add('active');
-                    let seg = 180;
+
+                    let seg = 120;
                     atualizarTempoRestante(seg);
+
                     if (pontoFechamentoTimer) clearInterval(pontoFechamentoTimer);
                     pontoFechamentoTimer = setInterval(() => {
                         seg--;
                         atualizarTempoRestante(seg);
-                        if (seg <= 0) { clearInterval(pontoFechamentoTimer); desativarPonto(); }
+                        if (seg <= 0) {
+                            clearInterval(pontoFechamentoTimer);
+                            desativarPonto();
+                        }
                     }, 1000);
+
                     localStorage.setItem(chave, 'exibido');
                 }
             }
+
             function atualizarTempoRestante(s) {
                 const el = document.getElementById('pontoTempoRestante');
                 if (s > 0) {
                     const m = Math.floor(s / 60), sec = s % 60;
-                    el.textContent = `Fechando em ${m}:${String(sec).padStart(2,'0')}`;
+                    el.textContent = `${m}:${String(sec).padStart(2,'0')} min`;
                     el.style.display = 'block';
-                } else el.textContent = 'Fechando...';
+                } else {
+                    el.textContent = 'Fechando...';
+                }
             }
+
             function desativarPonto() {
                 pontoAtivo = false;
                 document.getElementById('pontoOverlay').classList.remove('active');
-                if (pontoFechamentoTimer) clearInterval(pontoFechamentoTimer);
-                document.getElementById('pontoMsgFinal').style.display = 'none';
+                if (pontoFechamentoTimer) {
+                    clearInterval(pontoFechamentoTimer);
+                    pontoFechamentoTimer = null;
+                }
             }
-            document.getElementById('pontoBtn').addEventListener('click', () => {
-                desativarPonto();
-                const btn = document.getElementById('pontoBtn');
-                btn.innerHTML = 'OK!';
-                btn.style.background = '#4caf50';
-                setTimeout(() => { btn.innerHTML = '<i class="fas fa-check"></i> Sim, já bati!'; btn.style.background = ''; }, 2000);
-            });
-            document.getElementById('pontoFecharBtn').addEventListener('click', desativarPonto);
+
             setInterval(verificarLembretePonto, 10000);
             setTimeout(verificarLembretePonto, 1000);
+
             function limparRegistrosPontoAntigos() {
                 const hoje = new Date().toDateString();
                 Object.keys(localStorage).filter(k => k.startsWith('ponto_') && !k.includes(hoje)).forEach(k => localStorage.removeItem(k));
