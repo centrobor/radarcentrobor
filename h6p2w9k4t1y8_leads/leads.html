@@ -7,10 +7,8 @@
     <!-- Favicon adicionado -->
     <link rel="icon" href="img/radar-centrobor-logo_fundo_transparente.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js">
-    </script>
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js">
-    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
     <style>
         /* ===== ESTILOS COMPLETOS (mantidos) ===== */
         :root {
@@ -1345,6 +1343,33 @@
                 return matches / wordsLead.length >= 0.9;
             }
 
+            // ===== NOVA FUNÇÃO: busca campo por sinônimos =====
+            function getField(obj, aliases) {
+                if (!obj) return '';
+                const keys = Object.keys(obj);
+                for (let alias of aliases) {
+                    const normAlias = normalizeStr(alias);
+                    const key = keys.find(k => normalizeStr(k).includes(normAlias));
+                    if (key && obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+                        return obj[key];
+                    }
+                }
+                return '';
+            }
+
+            // ===== NOVA FUNÇÃO: parse de data brasileira =====
+            function parseBRDate(str) {
+                if (!str) return new Date(0);
+                const parts = str.trim().split('/');
+                if (parts.length === 3) {
+                    const day = parseInt(parts[0], 10);
+                    const month = parseInt(parts[1], 10) - 1;
+                    const year = parseInt(parts[2], 10);
+                    return new Date(year, month, day);
+                }
+                return new Date(str);
+            }
+
             function extractDateFromLead(lead) {
                 const dateFields = [lead["DATA DO PREENCHIMENTO"], lead["Data do Preenchimento"], lead[
                     "data_preenchimento"], lead["Data"], lead["data"], lead["DATA"], lead["UTM CONTENT"]
@@ -1549,21 +1574,17 @@
 
                 // 2. Busca por nome da empresa (melhorada)
                 if (empresaLead) {
-                    // Normaliza o nome da empresa do lead, substituindo "/", "." e "-" por espaços
                     const empresaNorm = normalizeStr(empresaLead.replace(/[\/\.\-]/g, ' '));
-                    // Termos a serem removidos na comparação
                     const termos = ['ltda', 's/a', 's a', 's.a', 'eireli', 'me', 'epp', 'comercio', 'industrial',
                         'servicos'
                     ];
                     let empresaClean = empresaNorm;
                     termos.forEach(t => {
-                        // Como já substituímos "/" e ".", podemos usar \b com segurança
                         empresaClean = empresaClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '').trim();
                     });
-                    if (!empresaClean) empresaClean = empresaNorm; // fallback
+                    if (!empresaClean) empresaClean = empresaNorm;
 
                     for (let cli of carteiraClientes) {
-                        // Para cada cliente na carteira, fazemos o mesmo tratamento
                         let razao = (cli["Nome/Razão Social"] || "").replace(/[\/\.\-]/g, ' ');
                         let nomeChave = (cli["Nome Chave"] || "").replace(/[\/\.\-]/g, ' ');
                         let razaoNorm = normalizeStr(razao);
@@ -1609,158 +1630,177 @@
             }
 
             function processLeads() {
-    cleanExpiredTempOverrides();
-    const finalLeadsIndex = new Map();
-    for (const lf of leadsFinal) {
-        const cnpj = normalizeCNPJ(lf["CNPJ"] || ""),
-            nomeEmpresa = normalizeStr(lf["Empresa"] || lf["Nome"] || ""),
-            nomeLead = normalizeStr(lf["Nome"] || "");
-        if (cnpj) finalLeadsIndex.set(cnpj, lf);
-        if (nomeEmpresa) finalLeadsIndex.set(nomeEmpresa, lf);
-        if (nomeLead) finalLeadsIndex.set(nomeLead, lf);
-    }
-    processedLeads = [];
-    const seenIds = new Set();
-    for (const lead of rawLeads) {
-        // ===== CORREÇÃO: validar CNPJ antes de usar como chave única =====
-        let cnpjLeadRaw = normalizeCNPJ(lead["CNPJ"] || "");
-        // Só considera CNPJ válido se tiver pelo menos 11 dígitos (tamanho mínimo de CNPJ real)
-        let cnpjValido = cnpjLeadRaw.length >= 11 ? cnpjLeadRaw : "";
-        let empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || ""),
-            nomeLead = normalizeStr(lead["Nome Completo"] || "");
-        let leadId = lead["ID"] || `${lead["UTM CONTENT"]}_${lead["WhatsApp"]}` ||
-            `lead_${Math.random().toString(36).substr(2,9)}`;
-        
-        // Normaliza WhatsApp removendo tudo que não for dígito (para evitar duplicatas por formatação)
-        let whatsNormalizado = (lead["WhatsApp"] || "").replace(/\D/g, '');
-        let uniqueKey = cnpjValido || `${empresaLead}|${nomeLead}|${whatsNormalizado}`;
-        
-        if (seenIds.has(uniqueKey)) continue;
-        seenIds.add(uniqueKey);
-        // ===== FIM DA CORREÇÃO =====
-
-        let dataObj = extractDateFromLead(lead);
-        let override = localOverrides[leadId];
-        let isManualOverride = override && override.edited === true;
-        let isTempOverride = override && override.tempStatus && override.tempExpiry && Date.now() < override.tempExpiry;
-
-        let statusFinal = "",
-            vendedorRaw = "",
-            valorVendaFinal = 0;
-        let isNovoCliente = false,
-            isRevendaCliente = false,
-            clienteCarteira = null;
-
-        if (override && override.valorVenda !== undefined && override.valorVenda !== null) {
-            valorVendaFinal = Number(override.valorVenda) || 0;
-        }
-
-        if (isManualOverride) {
-            statusFinal = override.status;
-            vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
-        } else if (isTempOverride) {
-            statusFinal = override.tempStatus;
-        } else {
-            let finalMatch = null;
-            if (cnpjValido && finalLeadsIndex.has(cnpjValido)) finalMatch = finalLeadsIndex.get(cnpjValido);
-            else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(empresaLead);
-            else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
-            else
-                for (let [key, value] of finalLeadsIndex.entries())
-                    if (key.length > 3 && (isSimilarCompany(empresaLead, key) || isSimilarCompany(nomeLead, key))) { finalMatch = value; break; }
-
-            if (finalMatch) {
-                statusFinal = finalMatch["Status"] || lead["  "] || "";
-                let vendedorPlanilha = normalizeVendedorName(finalMatch["Vendedor"] || "");
-                if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
-                let dataFinalObj = dataObj;
-                if (finalMatch["Data"]) { let d = new Date(finalMatch["Data"]); if (!isNaN(d.getTime())) dataFinalObj = d; }
-                if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 && dataFinalObj < DATA_LIMITE_LUAN) vendedorRaw = getVendedorPorData(dataFinalObj);
-                else vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
-                if (!override || override.valorVenda === undefined) {
-                    valorVendaFinal = cleanCurrency(finalMatch["Valor da Venda"] || 0);
+                cleanExpiredTempOverrides();
+                const finalLeadsIndex = new Map();
+                for (const lf of leadsFinal) {
+                    const cnpj = normalizeCNPJ(lf["CNPJ"] || ""),
+                        nomeEmpresa = normalizeStr(lf["Empresa"] || lf["Nome"] || ""),
+                        nomeLead = normalizeStr(lf["Nome"] || "");
+                    if (cnpj) finalLeadsIndex.set(cnpj, lf);
+                    if (nomeEmpresa) finalLeadsIndex.set(nomeEmpresa, lf);
+                    if (nomeLead) finalLeadsIndex.set(nomeLead, lf);
                 }
-                if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
-                if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
-            } else {
-                clienteCarteira = findClientInCarteira(lead);
-                let isRev = isRevenda(lead);
-                let statusOriginal = lead["  "] || "";
+                processedLeads = [];
+                const seenIds = new Set();
+                for (const lead of rawLeads) {
+                    // ===== CORREÇÃO: validar CNPJ antes de usar como chave única =====
+                    let cnpjLeadRaw = normalizeCNPJ(lead["CNPJ"] || "");
+                    // Só considera CNPJ válido se tiver pelo menos 11 dígitos (tamanho mínimo de CNPJ real)
+                    let cnpjValido = cnpjLeadRaw.length >= 11 ? cnpjLeadRaw : "";
+                    let empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || ""),
+                        nomeLead = normalizeStr(lead["Nome Completo"] || "");
+                    let leadId = lead["ID"] || `${lead["UTM CONTENT"]}_${lead["WhatsApp"]}` ||
+                        `lead_${Math.random().toString(36).substr(2,9)}`;
 
-                if (clienteCarteira) {
-                    let rep = clienteCarteira["Representante"] || "";
-                    vendedorRaw = getVendedorFromRepresentante(rep);
+                    // Normaliza WhatsApp removendo tudo que não for dígito
+                    let whatsNormalizado = (lead["WhatsApp"] || "").replace(/\D/g, '');
+                    let uniqueKey = cnpjValido || `${empresaLead}|${nomeLead}|${whatsNormalizado}`;
+
+                    if (seenIds.has(uniqueKey)) continue;
+                    seenIds.add(uniqueKey);
+
+                    let dataObj = extractDateFromLead(lead);
+                    let override = localOverrides[leadId];
+                    let isManualOverride = override && override.edited === true;
+                    let isTempOverride = override && override.tempStatus && override.tempExpiry && Date.now() < override.tempExpiry;
+
+                    let statusFinal = "",
+                        vendedorRaw = "",
+                        valorVendaFinal = 0;
+                    let isNovoCliente = false,
+                        isRevendaCliente = false,
+                        clienteCarteira = null;
+                    let finalMatch = null; // guarda a linha da planilha final
+
+                    if (override && override.valorVenda !== undefined && override.valorVenda !== null) {
+                        valorVendaFinal = Number(override.valorVenda) || 0;
+                    }
+
+                    if (isManualOverride) {
+                        statusFinal = override.status;
+                        vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
+                    } else if (isTempOverride) {
+                        statusFinal = override.tempStatus;
+                    } else {
+                        // Tenta localizar na planilha final
+                        if (cnpjValido && finalLeadsIndex.has(cnpjValido)) finalMatch = finalLeadsIndex.get(cnpjValido);
+                        else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(empresaLead);
+                        else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
+                        else
+                            for (let [key, value] of finalLeadsIndex.entries())
+                                if (key.length > 3 && (isSimilarCompany(empresaLead, key) || isSimilarCompany(nomeLead, key))) { finalMatch = value; break; }
+
+                        if (finalMatch) {
+                            // ===== LEITURA DINÂMICA DOS CAMPOS =====
+                            statusFinal = getField(finalMatch, ['status', 'situação', 'situacao', 'resultado']) || lead["  "] || "";
+                            // Mapeamento de status da planilha final
+                            if (statusFinal === "Não Fechou") statusFinal = "Não Gerou Venda";
+                            if (statusFinal === "Fechou" || statusFinal === "Fechou Venda") statusFinal = "Gerou Venda";
+
+                            let vendedorPlanilha = normalizeVendedorName(getField(finalMatch, ['vendedor', 'representante', 'responsavel', 'consultor']) || "");
+                            if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
+
+                            let dataFinalObj = dataObj;
+                            const dataFinalRaw = getField(finalMatch, ['data', 'data venda', 'data fechamento', 'dt venda']);
+                            if (dataFinalRaw) {
+                                let d = parseBRDate(dataFinalRaw);
+                                if (!isNaN(d.getTime()) && d.getTime() > 0) dataFinalObj = d;
+                            }
+
+                            if (dataFinalObj && !isNaN(dataFinalObj.getTime()) && dataFinalObj.getTime() > 0 && dataFinalObj < DATA_LIMITE_LUAN) {
+                                vendedorRaw = getVendedorPorData(dataFinalObj);
+                            } else {
+                                vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
+                            }
+
+                            if (!override || override.valorVenda === undefined) {
+                                const valorRaw = getField(finalMatch, ['valor da venda', 'valor venda', 'valor', 'venda']);
+                                valorVendaFinal = cleanCurrency(valorRaw || 0);
+                            }
+
+                            if (statusFinal === "Atendido Não Gerou Venda") statusFinal = "Não Gerou Venda";
+                            if (statusFinal === "Atendido Gerou Venda") statusFinal = "Gerou Venda";
+                        } else {
+                            // Carteira ou distribuição
+                            clienteCarteira = findClientInCarteira(lead);
+                            let isRev = isRevenda(lead);
+                            let statusOriginal = lead["  "] || "";
+
+                            if (clienteCarteira) {
+                                let rep = clienteCarteira["Representante"] || "";
+                                vendedorRaw = getVendedorFromRepresentante(rep);
+                                if (!vendedorRaw) {
+                                    vendedorRaw = "indeterminado – Necessita verificar";
+                                }
+                                if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
+                                else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
+                                else if (statusOriginal.includes("Proposta") || statusOriginal.includes("Atendido")) statusFinal = "Lead Atendido";
+                                else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
+                                else statusFinal = "Lead Atendido";
+                            } else {
+                                if (isRev) {
+                                    vendedorRaw = config.vendedorRevendas || "Não definido";
+                                    isRevendaCliente = true;
+                                    isNovoCliente = false;
+                                } else {
+                                    vendedorRaw = config.vendedorNovos || getVendedorPorData(dataObj) || "Não definido";
+                                    isNovoCliente = true;
+                                    isRevendaCliente = false;
+                                }
+                                statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
+                            }
+                        }
+                    }
+
                     if (!vendedorRaw) {
                         vendedorRaw = "indeterminado – Necessita verificar";
                     }
-                    if (statusOriginal.includes("Fechou a Venda")) statusFinal = "Gerou Venda";
-                    else if (statusOriginal.includes("Lead Qualificado")) statusFinal = "Lead Qualificado";
-                    else if (statusOriginal.includes("Proposta") || statusOriginal.includes("Atendido")) statusFinal = "Lead Atendido";
-                    else if (statusOriginal.includes("Já é Cliente")) statusFinal = "Cliente da Carteira";
-                    else statusFinal = "Lead Atendido";
-                } else {
-                    if (isRev) {
-                        vendedorRaw = config.vendedorRevendas || "Não definido";
-                        isRevendaCliente = true;
-                        isNovoCliente = false;
-                    } else {
-                        vendedorRaw = config.vendedorNovos || getVendedorPorData(dataObj) || "Não definido";
-                        isNovoCliente = true;
-                        isRevendaCliente = false;
+
+                    vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
+                    if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
+                        let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
+                        nomeVendedorMap.set(vendedorRaw, newV);
+                        aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
                     }
-                    statusFinal = statusOriginal.trim() !== "" ? statusOriginal : "Precisa Encaminhar";
+
+                    let vendedorDisplay = vendedorRaw;
+                    if (vendedorRaw === "indeterminado – Necessita verificar") {
+                        vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
+                    } else if (isNovoCliente && vendedorRaw && vendedorRaw !== "Não definido") {
+                        vendedorDisplay = `<i class="fas fa-user-plus"></i> ATRIBUIDO POR CLIENTE NOVO - ${vendedorRaw}`;
+                    } else if (isRevendaCliente && vendedorRaw && vendedorRaw !== "Não definido") {
+                        vendedorDisplay = `<i class="fas fa-sync-alt"></i> ATRIBUIDO POR REVENDA - ${vendedorRaw}`;
+                    }
+
+                    processedLeads.push({
+                        id: leadId,
+                        dataHora: dataObj,
+                        dataStr: formatDateBR(dataObj),
+                        nome: lead["Nome Completo"] || "",
+                        empresa: lead["Nome da empresa"] || "",
+                        whatsapp: lead["WhatsApp"] || "",
+                        email: lead["E-mail"] || "",
+                        cnpj: lead["CNPJ"] || "",
+                        mensagem: lead["Mensagem"] || "",
+                        utmSource: lead["UTM SOURCE"] || "",
+                        utmMedium: lead["UTM MEDIUM"] || "",
+                        utmCampaign: lead["UTM CAMPAIGN"] || "",
+                        utmTerm: lead["UTM TERM"] || "",
+                        utmContent: lead["UTM CONTENT"] || "",
+                        status: statusFinal,
+                        vendedor: vendedorDisplay,
+                        vendedorRaw: vendedorRaw,
+                        isRevenda: isRevendaCliente,
+                        clienteExistente: !!clienteCarteira,
+                        isNovoCliente: isNovoCliente && !clienteCarteira,
+                        isRevendaCliente: isRevendaCliente && !clienteCarteira,
+                        utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
+                        valorVenda: valorVendaFinal,
+                        finalData: finalMatch || null // guarda todas as colunas extras da planilha final
+                    });
                 }
+                processedLeads.sort((a, b) => b.dataHora - a.dataHora);
             }
-        }
-
-        if (!vendedorRaw) {
-            vendedorRaw = "indeterminado – Necessita verificar";
-        }
-
-        vendedorRaw = resolveCanonical(vendedorRaw) || vendedorRaw;
-        if (vendedorRaw && !nomeVendedorMap.has(vendedorRaw) && vendedorRaw !== "indeterminado – Necessita verificar") {
-            let newV = { nome: vendedorRaw, email: "", whatsapp: "", cor: getRandomColor(vendedorRaw) };
-            nomeVendedorMap.set(vendedorRaw, newV);
-            aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
-        }
-
-        let vendedorDisplay = vendedorRaw;
-        if (vendedorRaw === "indeterminado – Necessita verificar") {
-            vendedorDisplay = `<i class="fas fa-exclamation-triangle"></i> ${vendedorRaw}`;
-        } else if (isNovoCliente && vendedorRaw && vendedorRaw !== "Não definido") {
-            vendedorDisplay = `<i class="fas fa-user-plus"></i> ATRIBUIDO POR CLIENTE NOVO - ${vendedorRaw}`;
-        } else if (isRevendaCliente && vendedorRaw && vendedorRaw !== "Não definido") {
-            vendedorDisplay = `<i class="fas fa-sync-alt"></i> ATRIBUIDO POR REVENDA - ${vendedorRaw}`;
-        }
-
-        processedLeads.push({
-            id: leadId,
-            dataHora: dataObj,
-            dataStr: formatDateBR(dataObj),
-            nome: lead["Nome Completo"] || "",
-            empresa: lead["Nome da empresa"] || "",
-            whatsapp: lead["WhatsApp"] || "",
-            email: lead["E-mail"] || "",
-            cnpj: lead["CNPJ"] || "",
-            mensagem: lead["Mensagem"] || "",
-            utmSource: lead["UTM SOURCE"] || "",
-            utmMedium: lead["UTM MEDIUM"] || "",
-            utmCampaign: lead["UTM CAMPAIGN"] || "",
-            utmTerm: lead["UTM TERM"] || "",
-            utmContent: lead["UTM CONTENT"] || "",
-            status: statusFinal,
-            vendedor: vendedorDisplay,
-            vendedorRaw: vendedorRaw,
-            isRevenda: isRevendaCliente,
-            clienteExistente: !!clienteCarteira,
-            isNovoCliente: isNovoCliente && !clienteCarteira,
-            isRevendaCliente: isRevendaCliente && !clienteCarteira,
-            utmIconHtml: getUtmIcon(lead["UTM SOURCE"]),
-            valorVenda: valorVendaFinal
-        });
-    }
-    processedLeads.sort((a, b) => b.dataHora - a.dataHora);
-}
 
             // ============================================================
             //  FUNÇÕES DE RENDERIZAÇÃO
@@ -1879,7 +1919,6 @@
                 currentLeadDetail = lead;
                 lastLeadIdClicked = leadId;
 
-                // Reconstrói objeto lead original para busca
                 const leadOriginal = {
                     "Nome Completo": lead.nome,
                     "Nome da empresa": lead.empresa,
@@ -1897,12 +1936,10 @@
                 let cliente = findClientInCarteira(leadOriginal);
 
                 if (cliente) {
-                    // Abre a ficha do cliente (correspondência exata)
                     abrirFichaCliente(cliente, lead);
                     return;
                 }
 
-                // --- Detalhe normal do lead ---
                 let tipoLead = '';
                 if (lead.isNovoCliente) {
                     tipoLead =
@@ -1922,7 +1959,17 @@
                 <div class="detail-item"><i class="fab fa-whatsapp"></i><strong>WhatsApp:</strong> ${lead.whatsapp || '-'}</div>
                 <div class="detail-item"><i class="fas fa-envelope"></i><strong>E-mail:</strong> ${lead.email || '-'}</div>
                 <div class="detail-item"><i class="fas fa-tag"></i><strong>Status:</strong> ${lead.status}</div>
-                <div class="detail-item"><i class="fas fa-dollar-sign"></i><strong>Valor da Venda:</strong> ${lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-'}</div>
+                <div class="detail-item"><i class="fas fa-dollar-sign"></i><strong>Valor da Venda:</strong> ${lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-'}</div>`;
+                // Exibe colunas extras da planilha final, se existirem
+                if (lead.finalData) {
+                    if (lead.finalData["Cadastro Realizado?"] !== undefined) {
+                        html += `<div class="detail-item"><i class="fas fa-check-circle"></i><strong>Cadastro Realizado?:</strong> ${lead.finalData["Cadastro Realizado?"] || '-'}</div>`;
+                    }
+                    if (lead.finalData["Valor da Propostas"] !== undefined) {
+                        html += `<div class="detail-item"><i class="fas fa-file-invoice-dollar"></i><strong>Valor da Propostas:</strong> ${lead.finalData["Valor da Propostas"] || '-'}</div>`;
+                    }
+                }
+                html += `
                 <div class="detail-item"><i class="fas fa-user-tie"></i><strong>Vendedor:</strong> ${lead.vendedor}</div>
                 <div class="detail-item"><i class="fas fa-calendar"></i><strong>Data/Hora:</strong> ${lead.dataStr}</div>
                 <div class="detail-item"><i class="fas fa-comment"></i><strong>Mensagem original:</strong> ${lead.mensagem || '-'}</div>
@@ -1953,7 +2000,6 @@
                 const modal = document.getElementById('clienteFichaModal');
                 const content = document.getElementById('clienteFichaContent');
 
-                // Determina vendedor e atribuição
                 let vendedorNome = lead ? lead.vendedorRaw : '';
                 let vendedorCor = vendedorNome ? (nomeVendedorMap.get(vendedorNome)?.cor || getRandomColor(vendedorNome)) :
                     '#6b7280';
@@ -2174,7 +2220,6 @@
                 if (tipo === 'email' && !vendedor.email && !await promptCadastroVendedor(lead.vendedorRaw)) return;
                 if (tipo === 'whatsapp' && !vendedor.whatsapp && !await promptCadastroVendedor(lead.vendedorRaw)) return;
 
-                // Altera status de "Precisa Encaminhar" para "Lead Qualificado" temporariamente (24h)
                 if (lead.status === "Precisa Encaminhar") {
                     localOverrides[lead.id] = {
                         ...localOverrides[lead.id],
@@ -2358,19 +2403,31 @@
 
             // ==================== EXPORTAÇÕES ====================
             function exportRelatorioConversao() {
-                let data = getFilteredLeads().map(l => ({
-                    "Data": formatDateOnlyBR(l.dataHora),
-                    "Nome": l.nome,
-                    "WhatsApp": l.whatsapp,
-                    "Email": l.email || "-",
-                    "Empresa": l.empresa,
-                    "CNPJ": l.cnpj || "-",
-                    "Mensagem": l.mensagem || "",
-                    "Status": l.status,
-                    "Valor da Venda": l.valorVenda > 0 ? l.valorVenda : "",
-                    "Vendedor": l.vendedorRaw,
-                    "Obs.": ""
-                }));
+                let data = getFilteredLeads().map(l => {
+                    let row = {
+                        "Data": formatDateOnlyBR(l.dataHora),
+                        "Nome": l.nome,
+                        "WhatsApp": l.whatsapp,
+                        "Email": l.email || "-",
+                        "Empresa": l.empresa,
+                        "CNPJ": l.cnpj || "-",
+                        "Mensagem": l.mensagem || "",
+                        "Status": l.status,
+                        "Valor da Venda": l.valorVenda > 0 ? l.valorVenda : "",
+                        "Vendedor": l.vendedorRaw,
+                        "Obs.": ""
+                    };
+                    // Adiciona colunas extras da planilha final, se existirem
+                    if (l.finalData) {
+                        Object.keys(l.finalData).forEach(key => {
+                            if (!row.hasOwnProperty(key)) {
+                                row[key] = l.finalData[key];
+                            }
+                        });
+                    }
+                    return row;
+                });
+
                 let ws = XLSX.utils.json_to_sheet(data);
                 ws['!cols'] = [
                     { wch: 12 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 40 },
@@ -2383,21 +2440,33 @@
             }
 
             function exportLeadsBruto() {
-                let data = getFilteredLeads().map(l => ({
-                    "": l.status,
-                    "Nome Completo": l.nome,
-                    "WhatsApp": l.whatsapp,
-                    "E-mail": l.email || "",
-                    "Nome da empresa": l.empresa,
-                    "CNPJ": l.cnpj || "",
-                    "Mensagem": l.mensagem || "",
-                    "UTM SOURCE": l.utmSource || "",
-                    "UTM MEDIUM": l.utmMedium || "",
-                    "UTM CAMPAIGN": l.utmCampaign || "",
-                    "UTM TERM": l.utmTerm || "",
-                    "UTM CONTENT": l.utmContent || "",
-                    "DATA DO PREENCHIMENTO": formatDateBR(l.dataHora)
-                }));
+                let data = getFilteredLeads().map(l => {
+                    let row = {
+                        "": l.status,
+                        "Nome Completo": l.nome,
+                        "WhatsApp": l.whatsapp,
+                        "E-mail": l.email || "",
+                        "Nome da empresa": l.empresa,
+                        "CNPJ": l.cnpj || "",
+                        "Mensagem": l.mensagem || "",
+                        "UTM SOURCE": l.utmSource || "",
+                        "UTM MEDIUM": l.utmMedium || "",
+                        "UTM CAMPAIGN": l.utmCampaign || "",
+                        "UTM TERM": l.utmTerm || "",
+                        "UTM CONTENT": l.utmContent || "",
+                        "DATA DO PREENCHIMENTO": formatDateBR(l.dataHora)
+                    };
+                    // Mescla colunas extras da planilha final, se existirem
+                    if (l.finalData) {
+                        Object.keys(l.finalData).forEach(key => {
+                            if (!row.hasOwnProperty(key)) {
+                                row[key] = l.finalData[key];
+                            }
+                        });
+                    }
+                    return row;
+                });
+
                 let ws = XLSX.utils.json_to_sheet(data);
                 ws['!cols'] = [
                     { wch: 22 }, { wch: 30 }, { wch: 16 }, { wch: 30 }, { wch: 30 }, { wch: 20 }, { wch: 40 },
