@@ -8,7 +8,11 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <!-- Bibliotecas para PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <style>
+        /* ... (mesmo CSS anterior, mantido) ... */
         :root {
             --primary: #1e3a5f;
             --primary-dark: #0f2b48;
@@ -275,6 +279,7 @@
             <button class="menu-item" id="menu-export-relatorio"><i class="fas fa-file-excel"></i> Exportar Relatório</button>
             <button class="menu-item" id="menu-export-leads"><i class="fas fa-table"></i> Exportar Leads Bruto</button>
             <button class="menu-item" id="menu-export-json"><i class="fas fa-download"></i> Exportar JSON</button>
+            <button class="menu-item" id="menu-export-pdf"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Sistema</div>
@@ -329,6 +334,7 @@
         <div class="widget-item" id="exportRelatorioBtn"><i class="fas fa-file-excel"></i> Exportar Excel (Relatório)</div>
         <div class="widget-item" id="exportLeadsBrutoBtn"><i class="fas fa-table"></i> Exportar Excel (Leads Bruto)</div>
         <div class="widget-item" id="exportJsonBtn"><i class="fas fa-download"></i> Exportar JSON</div>
+        <div class="widget-item" id="exportPdfBtn"><i class="fas fa-file-pdf"></i> Exportar PDF</div>
         <div class="widget-item" id="refreshDataBtn"><i class="fas fa-sync-alt"></i> Recarregar agora</div>
         <div class="widget-item" id="editProfileBtn"><i class="fas fa-user-edit"></i> Editar Perfil</div>
     </div>
@@ -578,6 +584,18 @@
                 if (src.includes('organic')) return '<i class="fas fa-chart-line utm-icon" style="color:#22c55e;"></i>';
                 return '<i class="fas fa-link utm-icon" style="color:#6b7280;"></i>';
             }
+            function getCampanhaNome(lead) {
+                const src = (lead.utmSource || '').toLowerCase();
+                let nome = '';
+                if (src.includes('google')) nome = 'Google';
+                else if (src.includes('facebook') || src.includes('fb')) nome = 'Facebook';
+                else if (src.includes('instagram')) nome = 'Instagram';
+                else if (src.includes('linkedin')) nome = 'LinkedIn';
+                else if (src.includes('email') || src.includes('mail')) nome = 'E-mail';
+                else if (src.includes('organic')) nome = 'Orgânico';
+                else nome = lead.utmSource || lead.utmMedium || '-';
+                return nome;
+            }
             function cleanCurrency(val) {
                 if (!val) return 0;
                 if (typeof val === 'number') return val;
@@ -624,7 +642,7 @@
                 return novoStatus;
             }
 
-            // ===== LABEL DE CAMPANHA (com ícone) =====
+            // ===== LABEL DE CAMPANHA (com ícone) para exibição na tabela =====
             function getCampanhaLabel(lead) {
                 const src = (lead.utmSource || '').toLowerCase();
                 let nome = '';
@@ -635,7 +653,6 @@
                 else if (src.includes('email') || src.includes('mail')) nome = 'E-mail';
                 else if (src.includes('organic')) nome = 'Orgânico';
                 else nome = lead.utmSource || lead.utmMedium || '-';
-                // Retorna o ícone + nome
                 return getUtmIcon(lead.utmSource) + ' ' + nome;
             }
 
@@ -965,6 +982,8 @@
                         if (diasParaVencer < 0) diasParaVencer = 0;
                     }
 
+                    const campanhaNome = getCampanhaNome({ utmSource: lead["UTM SOURCE"] || "", utmMedium: lead["UTM MEDIUM"] || "" });
+
                     processedLeads.push({
                         id: leadId,
                         dataHora: dataObj,
@@ -995,6 +1014,7 @@
                         observacoes: observacoes,
                         cadastroRealizado: cadastroRealizado,
                         campanhaLabel: getCampanhaLabel({ utmSource: lead["UTM SOURCE"] || "", utmMedium: lead["UTM MEDIUM"] || "" }),
+                        campanhaNome: campanhaNome,
                         diasParaVencer: diasParaVencer
                     });
 
@@ -1279,7 +1299,7 @@
                     let propostaDisplay = l.valorProposta > 0 ? `R$ ${formatCurrency(l.valorProposta)}` : '-';
                     let cadastroDisplay = l.cadastroRealizado || '-';
                     let obsDisplay = l.observacoes ? l.observacoes.substring(0,30) + (l.observacoes.length > 30 ? '...' : '') : '-';
-                    let campanhaDisplay = l.campanhaLabel || '-'; // já vem com ícone
+                    let campanhaDisplay = l.campanhaLabel || '-';
                     let vendedorDisplay = l.vendedor;
                     let diasDisplay = formatDiasParaVencer(l.diasParaVencer);
                     return `<tr class="${rowClass}" data-id="${l.id}">
@@ -1827,7 +1847,7 @@
                 document.getElementById('gerenciarVendedoresModal').style.display = 'flex';
             }
 
-            // ===== EXPORTAÇÕES (formato solicitado) =====
+            // ===== EXPORTAÇÕES =====
             function exportRelatorioConversao() {
                 let data = getFilteredLeads().map(l => {
                     let row = {
@@ -1843,7 +1863,7 @@
                         "Valor da Proposta": l.valorProposta > 0 ? l.valorProposta : "",
                         "Valor da Venda": l.valorVenda > 0 ? l.valorVenda : "",
                         "Vendedor": l.vendedorRaw,
-                        "Campanha?": l.campanhaLabel || "",
+                        "Campanha?": l.campanhaNome || "",
                         "Obs.": l.observacoes || ""
                     };
                     if (l.finalData) {
@@ -1875,6 +1895,132 @@
                 a.download = `leads_${new Date().toISOString().slice(0,10)}.json`;
                 a.click();
                 showToast("Exportação JSON concluída!");
+            }
+
+            // ===== EXPORTAR PDF (corrigido, sem imagem externa) =====
+            function exportPDF() {
+                const filtered = getFilteredLeads();
+                if (filtered.length === 0) {
+                    showToast("Nenhum lead para exportar.", true);
+                    return;
+                }
+
+                // Verificar se pdfMake está disponível
+                if (typeof pdfMake === 'undefined') {
+                    showToast("Biblioteca PDF não carregada. Tente recarregar a página.", true);
+                    return;
+                }
+
+                // Calcular KPIs
+                const total = filtered.length;
+                const emAberto = filtered.filter(l => l.status === "Em Aberto").length;
+                const emAndamento = filtered.filter(l => l.status === "Em Andamento").length;
+                const naoFechou = filtered.filter(l => l.status === "Não Fechou").length;
+                const gerouVenda = filtered.filter(l => l.status === "Gerou Venda").length;
+                const faturamento = filtered.filter(l => l.status === "Gerou Venda").reduce((sum, l) => sum + (l.valorVenda || 0), 0);
+
+                // Montar tabela
+                const tableBody = filtered.map(l => [
+                    formatDateOnlyBR(l.dataHora),
+                    l.nome || '',
+                    l.empresa || '',
+                    l.status || '',
+                    l.valorVenda > 0 ? 'R$ ' + formatCurrency(l.valorVenda) : '',
+                    l.valorProposta > 0 ? 'R$ ' + formatCurrency(l.valorProposta) : '',
+                    l.vendedorRaw || '',
+                    l.campanhaNome || ''
+                ]);
+
+                const docDefinition = {
+                    pageSize: 'A4',
+                    pageOrientation: 'landscape',
+                    pageMargins: [20, 40, 20, 40],
+                    content: [
+                        // Cabeçalho (apenas texto, sem imagem)
+                        {
+                            text: 'Centrobor - Relatório de Leads',
+                            style: 'header',
+                            alignment: 'center',
+                            fontSize: 16,
+                            bold: true,
+                            color: '#1e3a5f',
+                            margin: [0, 0, 0, 5]
+                        },
+                        {
+                            text: `Gerado em ${new Date().toLocaleString('pt-BR')}`,
+                            alignment: 'center',
+                            fontSize: 10,
+                            color: '#64748b',
+                            margin: [0, 0, 0, 15]
+                        },
+                        // KPIs em linha
+                        {
+                            columns: [
+                                { text: `Total: ${total}`, style: 'kpi' },
+                                { text: `Em Aberto: ${emAberto}`, style: 'kpi' },
+                                { text: `Em Andamento: ${emAndamento}`, style: 'kpi' },
+                                { text: `Não Fechou: ${naoFechou}`, style: 'kpi' },
+                                { text: `Gerou Venda: ${gerouVenda}`, style: 'kpi' },
+                                { text: `Faturamento: R$ ${formatCurrency(faturamento)}`, style: 'kpi' }
+                            ],
+                            columnGap: 6,
+                            margin: [0, 0, 0, 15]
+                        },
+                        // Tabela
+                        {
+                            table: {
+                                headerRows: 1,
+                                widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                                body: [
+                                    [
+                                        { text: 'Data', style: 'tableHeader' },
+                                        { text: 'Nome', style: 'tableHeader' },
+                                        { text: 'Empresa', style: 'tableHeader' },
+                                        { text: 'Status', style: 'tableHeader' },
+                                        { text: 'Valor Venda', style: 'tableHeader' },
+                                        { text: 'Valor Proposta', style: 'tableHeader' },
+                                        { text: 'Vendedor', style: 'tableHeader' },
+                                        { text: 'Campanha', style: 'tableHeader' }
+                                    ],
+                                    ...tableBody.map(row => row.map(cell => ({ text: cell || '-', fontSize: 7 })))
+                                ]
+                            },
+                            layout: {
+                                hLineWidth: function(i, node) { return (i === 0 || i === node.table.body.length) ? 0.5 : 0.1; },
+                                vLineWidth: function(i, node) { return 0.1; },
+                                hLineColor: function(i, node) { return '#cccccc'; },
+                                vLineColor: function(i, node) { return '#cccccc'; },
+                                paddingLeft: function(i, node) { return 3; },
+                                paddingRight: function(i, node) { return 3; },
+                                paddingTop: function(i, node) { return 2; },
+                                paddingBottom: function(i, node) { return 2; }
+                            }
+                        }
+                    ],
+                    styles: {
+                        header: { fontSize: 16, bold: true, color: '#1e3a5f' },
+                        kpi: { fontSize: 10, bold: true, color: '#1e3a5f', alignment: 'center', margin: [0, 1] },
+                        tableHeader: { fontSize: 8, bold: true, color: 'white', fillColor: '#1e3a5f', alignment: 'center' }
+                    },
+                    footer: function(currentPage, pageCount) {
+                        return {
+                            text: `Centrobor · CRM de Leads · Página ${currentPage} de ${pageCount}`,
+                            alignment: 'center',
+                            fontSize: 7,
+                            color: '#94a3b8',
+                            margin: [0, 10]
+                        };
+                    }
+                };
+
+                // Gerar PDF
+                try {
+                    pdfMake.createPdf(docDefinition).download(`relatorio_leads_${new Date().toISOString().slice(0,10)}.pdf`);
+                    showToast("PDF gerado com sucesso!");
+                } catch (e) {
+                    showToast("Erro ao gerar PDF: " + e.message, true);
+                    console.error(e);
+                }
             }
 
             // ===== VALORES PENDENTES =====
@@ -2078,6 +2224,7 @@
                 document.getElementById('exportRelatorioBtn').onclick = exportRelatorioConversao;
                 document.getElementById('exportLeadsBrutoBtn').onclick = exportLeadsBruto;
                 document.getElementById('exportJsonBtn').onclick = exportJSON;
+                document.getElementById('exportPdfBtn').onclick = exportPDF;
                 document.getElementById('refreshDataBtn').onclick = () => { fetchAllData(); showToast("Dados recarregados!"); };
                 document.getElementById('editProfileBtn').onclick = () => document.getElementById('profileModal').style.display = 'flex';
                 document.getElementById('configAtribuicaoBtn').onclick = () => { populateFilters(); document.getElementById('configAtribModal').style.display = 'flex'; };
@@ -2132,6 +2279,7 @@
                 document.getElementById('menu-export-relatorio').addEventListener('click', function() { closeHamburger(); exportRelatorioConversao(); });
                 document.getElementById('menu-export-leads').addEventListener('click', function() { closeHamburger(); exportLeadsBruto(); });
                 document.getElementById('menu-export-json').addEventListener('click', function() { closeHamburger(); exportJSON(); });
+                document.getElementById('menu-export-pdf').addEventListener('click', function() { closeHamburger(); exportPDF(); });
                 document.getElementById('menu-recarregar').addEventListener('click', function() { closeHamburger(); fetchAllData(); showToast("Dados recarregados!"); });
                 document.getElementById('menu-sair').addEventListener('click', function() { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
                 document.getElementById('bb-feed').addEventListener('click', function() { window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html'; });
