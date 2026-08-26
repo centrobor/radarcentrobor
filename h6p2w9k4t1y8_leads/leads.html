@@ -573,87 +573,58 @@
             function formatDateBR(d) { if (!d || isNaN(d.getTime()) || d.getTime() === 0) return "Data indisponível"; let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()} ${date.getHours().toString().padStart(2,'0')}:${date.getMinutes().toString().padStart(2,'0')}`; }
             function formatDateOnlyBR(d) { if (!d || isNaN(d.getTime()) || d.getTime() === 0) return ""; let date = new Date(d); return `${date.getDate().toString().padStart(2,'0')}/${(date.getMonth()+1).toString().padStart(2,'0')}/${date.getFullYear()}`; }
             function getRandomColor(name) { let hash = 0; for (let i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i); let color = (hash & 0x00FFFFFF).toString(16).toUpperCase(); return "#" + ("00000".substring(0, 6 - color.length) + color); }
+            
+            // ===== NOVO MAPEAMENTO DE PROVEDORES =====
+            const PROVEDORES = [
+                { pattern: /google|adwords|googleads/, nome: 'Google', icon: 'fab fa-google', cor: '#ea4335' },
+                { pattern: /facebook|fb|meta|fbads/, nome: 'Facebook', icon: 'fab fa-facebook', cor: '#1877f2' },
+                { pattern: /instagram|ig|insta/, nome: 'Instagram', icon: 'fab fa-instagram', cor: '#e4405f' },
+                { pattern: /linkedin|ln/, nome: 'LinkedIn', icon: 'fab fa-linkedin', cor: '#0a66c2' },
+                { pattern: /twitter|x\.com|tweet/, nome: 'Twitter/X', icon: 'fab fa-twitter', cor: '#1da1f2' },
+                { pattern: /tiktok|tt/, nome: 'TikTok', icon: 'fab fa-tiktok', cor: '#000000' },
+                { pattern: /youtube|yt/, nome: 'YouTube', icon: 'fab fa-youtube', cor: '#ff0000' },
+                { pattern: /bing/, nome: 'Bing', icon: 'fab fa-microsoft', cor: '#0078d4' },
+                { pattern: /yahoo/, nome: 'Yahoo', icon: 'fab fa-yahoo', cor: '#6001d2' },
+                { pattern: /whatsapp|wa/, nome: 'WhatsApp', icon: 'fab fa-whatsapp', cor: '#25d366' },
+                { pattern: /email|mail|e-mail/, nome: 'E-mail', icon: 'fas fa-envelope', cor: '#6b7280' },
+                { pattern: /organic|orgânico|natural/, nome: 'Orgânico', icon: 'fas fa-chart-line', cor: '#22c55e' }
+            ];
+
             function getUtmIcon(utmSource) {
                 if (!utmSource) return '<i class="fas fa-globe utm-icon" style="color:#6b7280;"></i>';
-                const src = utmSource.toLowerCase();
-                if (src.includes('google')) return '<i class="fab fa-google utm-icon" style="color:#ea4335;"></i>';
-                if (src.includes('facebook') || src.includes('fb') || src.includes('meta')) return '<i class="fab fa-facebook utm-icon" style="color:#1877f2;"></i>';
-                if (src.includes('instagram')) return '<i class="fab fa-instagram utm-icon" style="color:#e4405f;"></i>';
-                if (src.includes('linkedin')) return '<i class="fab fa-linkedin utm-icon" style="color:#0a66c2;"></i>';
-                if (src.includes('email') || src.includes('mail')) return '<i class="fas fa-envelope utm-icon" style="color:#6b7280;"></i>';
-                if (src.includes('organic')) return '<i class="fas fa-chart-line utm-icon" style="color:#22c55e;"></i>';
+                const src = utmSource.toLowerCase().replace(/[^a-z0-9]/g, '');
+                for (let p of PROVEDORES) {
+                    if (p.pattern.test(src)) {
+                        return `<i class="${p.icon} utm-icon" style="color:${p.cor};"></i>`;
+                    }
+                }
                 return '<i class="fas fa-link utm-icon" style="color:#6b7280;"></i>';
             }
-            function getCampanhaNome(lead) {
-                const src = (lead.utmSource || '').toLowerCase();
-                let nome = '';
-                if (src.includes('google')) nome = 'Google';
-                else if (src.includes('facebook') || src.includes('fb')) nome = 'Facebook';
-                else if (src.includes('instagram')) nome = 'Instagram';
-                else if (src.includes('linkedin')) nome = 'LinkedIn';
-                else if (src.includes('email') || src.includes('mail')) nome = 'E-mail';
-                else if (src.includes('organic')) nome = 'Orgânico';
-                else nome = lead.utmSource || lead.utmMedium || '-';
-                return nome;
-            }
-            function cleanCurrency(val) {
-                if (!val) return 0;
-                if (typeof val === 'number') return val;
-                let str = String(val).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.');
-                return parseFloat(str) || 0;
-            }
-            function formatCurrency(v) { return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
-            function showToast(msg, isError = false) {
-                const toast = document.getElementById('toast');
-                toast.textContent = msg;
-                toast.className = 'toast ' + (isError ? 'error' : '');
-                setTimeout(() => toast.classList.add('show'), 10);
-                setTimeout(() => toast.classList.remove('show'), 3000);
-            }
 
-            // ===== NORMALIZAÇÃO DE STATUS =====
-            function normalizeStatus(status, cadastroRealizado) {
-                const map = {
-                    "lead em aberto": "Em Aberto",
-                    "em aberto": "Em Aberto",
-                    "lead qualificado": "Em Andamento",
-                    "qualificado": "Em Andamento",
-                    "em andamento": "Em Andamento",
-                    "aguardando resposta": "Aguardando Resposta",
-                    "aguardando": "Aguardando Resposta",
-                    "não fechou": "Não Fechou",
-                    "nao fechou": "Não Fechou",
-                    "não gerou venda": "Não Fechou",
-                    "nao gerou venda": "Não Fechou",
-                    "gerou venda": "Gerou Venda",
-                    "fechou": "Gerou Venda",
-                    "fechou venda": "Gerou Venda",
-                    "cliente da carteira": "Em Aberto",
-                    "precisa encaminhar": "Em Aberto",
-                    "lead atendido": "Lead Atendido",
-                    "atendido": "Lead Atendido"
-                };
-                const key = normalizeStr(status);
-                let novoStatus = map[key] || status;
-                if (cadastroRealizado && cadastroRealizado.toLowerCase() === 'sim' && 
-                    novoStatus !== "Gerou Venda" && novoStatus !== "Não Fechou") {
-                    novoStatus = "Em Aberto";
+            function getCampanhaNome(lead) {
+                const sources = [
+                    lead.utmSource,
+                    lead.utmMedium,
+                    lead.utmCampaign,
+                    lead.utmContent,
+                    lead.utmTerm
+                ];
+                const combined = sources.filter(Boolean).join(' ').toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (!combined) return '-';
+
+                for (let p of PROVEDORES) {
+                    if (p.pattern.test(combined)) {
+                        return p.nome;
+                    }
                 }
-                return novoStatus;
+                return sources.find(s => s) || '-';
             }
 
             // ===== LABEL DE CAMPANHA (com ícone) para exibição na tabela =====
             function getCampanhaLabel(lead) {
-                const src = (lead.utmSource || '').toLowerCase();
-                let nome = '';
-                if (src.includes('google')) nome = 'Google';
-                else if (src.includes('facebook') || src.includes('fb')) nome = 'Facebook';
-                else if (src.includes('instagram')) nome = 'Instagram';
-                else if (src.includes('linkedin')) nome = 'LinkedIn';
-                else if (src.includes('email') || src.includes('mail')) nome = 'E-mail';
-                else if (src.includes('organic')) nome = 'Orgânico';
-                else nome = lead.utmSource || lead.utmMedium || '-';
-                return getUtmIcon(lead.utmSource) + ' ' + nome;
+                const nome = getCampanhaNome(lead);
+                const icon = getUtmIcon(lead.utmSource);
+                return `${icon} ${nome}`;
             }
 
             // ===== FUNÇÕES DE VENDEDORES =====
@@ -1905,13 +1876,11 @@
                     return;
                 }
 
-                // Verificar se pdfMake está disponível
                 if (typeof pdfMake === 'undefined') {
                     showToast("Biblioteca PDF não carregada. Tente recarregar a página.", true);
                     return;
                 }
 
-                // Calcular KPIs
                 const total = filtered.length;
                 const emAberto = filtered.filter(l => l.status === "Em Aberto").length;
                 const emAndamento = filtered.filter(l => l.status === "Em Andamento").length;
@@ -1919,7 +1888,6 @@
                 const gerouVenda = filtered.filter(l => l.status === "Gerou Venda").length;
                 const faturamento = filtered.filter(l => l.status === "Gerou Venda").reduce((sum, l) => sum + (l.valorVenda || 0), 0);
 
-                // Montar tabela
                 const tableBody = filtered.map(l => [
                     formatDateOnlyBR(l.dataHora),
                     l.nome || '',
@@ -1936,7 +1904,6 @@
                     pageOrientation: 'landscape',
                     pageMargins: [20, 40, 20, 40],
                     content: [
-                        // Cabeçalho (apenas texto, sem imagem)
                         {
                             text: 'Centrobor - Relatório de Leads',
                             style: 'header',
@@ -1953,7 +1920,6 @@
                             color: '#64748b',
                             margin: [0, 0, 0, 15]
                         },
-                        // KPIs em linha
                         {
                             columns: [
                                 { text: `Total: ${total}`, style: 'kpi' },
@@ -1966,7 +1932,6 @@
                             columnGap: 6,
                             margin: [0, 0, 0, 15]
                         },
-                        // Tabela
                         {
                             table: {
                                 headerRows: 1,
@@ -2013,7 +1978,6 @@
                     }
                 };
 
-                // Gerar PDF
                 try {
                     pdfMake.createPdf(docDefinition).download(`relatorio_leads_${new Date().toISOString().slice(0,10)}.pdf`);
                     showToast("PDF gerado com sucesso!");
