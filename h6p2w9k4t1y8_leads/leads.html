@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -12,7 +11,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
     <style>
-        /* ===== CSS ===== (mantido exatamente igual ao original) */
         :root {
             --primary: #1e3a5f;
             --primary-dark: #0f2b48;
@@ -115,6 +113,46 @@
         .leads-table tr.row-nao-fechou { background-color: rgba(239,68,68,0.10); }
         .leads-table tr.row-em-andamento { background-color: rgba(139,92,246,0.10); }
         .leads-table tr.row-lead-atendido { background-color: rgba(245,158,11,0.10); }
+        .leads-table tr.row-em-aberto { background-color: rgba(59,130,246,0.12); }
+        .leads-table tr.row-aguardando { background-color: rgba(245,158,11,0.08); }
+        .leads-table tr.row-gerou-venda td,
+        .leads-table tr.row-nao-fechou td,
+        .leads-table tr.row-em-andamento td,
+        .leads-table tr.row-lead-atendido td,
+        .leads-table tr.row-em-aberto td,
+        .leads-table tr.row-aguardando td { background-color: inherit; }
+
+        .recorrente-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border-radius: 30px;
+            padding: 2px 10px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid transparent;
+            margin-right: 4px;
+        }
+        .recorrente-badge i { font-size: 0.7rem; }
+        .badge-recorrente { background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%); border-color: #818cf8; color: #3730a3; }
+        .badge-recorrente i { color: #4f46e5; }
+        .badge-venda { background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%); border-color: #34d399; color: #065f46; }
+        .badge-venda i { color: #059669; }
+        .badge-manual { background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); border-color: #fbbf24; color: #92400e; }
+        .badge-manual i { color: #d97706; }
+        .badge-alterado { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); border-color: #a78bfa; color: #5b21b6; }
+        .badge-alterado i { color: #7c3aed; }
+        .badge-andamento { background: linear-gradient(135deg, #cffafe 0%, #67e8f9 100%); border-color: #22d3ee; color: #164e63; }
+        .badge-andamento i { color: #0891b2; }
+        .badge-auto { background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%); border-color: #38bdf8; color: #0c4a6e; }
+        .badge-auto i { color: #0284c7; }
+
+        .revisao-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+        .revisao-table th, .revisao-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
+        .revisao-table select, .revisao-table input { width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; }
+        .revisao-table .acao-select { min-width: 120px; }
         .status-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 50px; font-size: 0.68rem; font-weight: 700; }
         .status-gerou-venda { background: #d1fae5; color: #065f46; }
         .status-nao-fechou { background: #fee2e2; color: #991b1b; }
@@ -144,7 +182,7 @@
         .detail-item { display: flex; align-items: baseline; gap: 12px; font-size: 0.9rem; border-bottom: 1px solid #edf2f7; padding-bottom: 8px; }
         .detail-item i { width: 24px; color: var(--primary); }
         .detail-item strong { min-width: 120px; color: #334155; }
-        .mensagem-padrao { background: #f8fafc; padding: 16px; border-radius: 24px; margin-top: 20px; font-family: monospace; white-space: pre-wrap; font-size: 0.8rem; border-left: 4px solid var(--primary); }
+        .mensagem-padrao { background: #f8fafc; padding: 16px; border-radius: 24px; margin-top: 20px; font-family: monospace; white-space: pre-wrap; font-size: 0.8rem; border-left: 4px solid var(--primary); max-height: 300px; overflow-y: auto; }
         .action-buttons { display: flex; gap: 12px; margin-top: 24px; flex-wrap: wrap; justify-content: flex-end; }
         .ficha-secao { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
         .ficha-secao h4 { font-size: 0.9rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
@@ -217,7 +255,6 @@
     </style>
 </head>
 <body>
-    <!-- Mobile Topbar -->
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
             <img src="https://cdn-icons-png.flaticon.com/512/12225/12225881.png" alt="Avatar" class="topbar-avatar" id="topbar-avatar">
@@ -287,6 +324,7 @@
             <div class="filter-group"><i class="fas fa-globe"></i><label>Origem</label><select id="origemFilter"><option value="todos">Todas</option></select></div>
             <div class="filter-group"><i class="fas fa-dollar-sign"></i><label>Venda min</label><input type="number" id="vendaMinFilter" placeholder="0" style="width:70px;"></div>
             <div class="filter-group"><i class="fas fa-dollar-sign"></i><label>Venda max</label><input type="number" id="vendaMaxFilter" placeholder="999999" style="width:70px;"></div>
+            <button id="cadastroManualBtn" class="btn btn-primary"><i class="fas fa-user-plus"></i> Cadastrar Lead</button>
             <button id="clearFiltersBtn" class="btn btn-outline btn-sm">Limpar filtros</button>
             <button id="toggleFiltersBtn" class="btn btn-outline btn-sm">Ocultar</button>
         </div>
@@ -340,7 +378,7 @@
     </div>
     <div id="editLeadModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header"><h3>Editar Lead (override local)</h3><button class="close-modal">&times;</button></div>
+            <div class="modal-header"><h3 id="editLeadModalTitle">Editar Lead (override local)</h3><button class="close-modal">&times;</button></div>
             <form id="editLeadForm">
                 <div class="form-group"><label>Nome</label><input id="editNome"></div>
                 <div class="form-group"><label>Empresa</label><input id="editEmpresa"></div>
@@ -359,7 +397,11 @@
                 <div class="form-group"><label>Campanha (UTM Campaign)</label><input id="editUtmCampaign" type="text"></div>
                 <div class="form-group"><label>Termo (UTM Term)</label><input id="editUtmTerm" type="text"></div>
                 <div class="form-group"><label>Conteúdo (UTM Content)</label><input id="editUtmContent" type="text"></div>
-                <div class="action-buttons"><button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar alterações</button><button type="button" class="btn btn-secondary close-modal">Cancelar</button></div>
+                <div class="action-buttons">
+                    <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar alterações</button>
+                    <button type="button" class="btn btn-secondary close-modal">Cancelar</button>
+                    <button type="button" id="deleteLeadBtn" class="btn btn-danger"><i class="fas fa-trash"></i> Excluir Lead</button>
+                </div>
             </form>
         </div>
     </div>
@@ -417,6 +459,23 @@
             </div>
         </div>
     </div>
+    <div id="modalRevisao" class="modal">
+        <div class="modal-content" style="max-width: 920px;">
+            <div class="modal-header">
+                <h3><i class="fas fa-clipboard-list"></i> Revisão de Leads</h3>
+                <button class="close-modal" id="closeRevisao">&times;</button>
+            </div>
+            <p style="margin-bottom:16px;color:#64748b;">
+                Os leads abaixo necessitam de ação. Revise cada um, escolha a ação e clique em <strong>"Aplicar todas"</strong> para processar de uma vez.
+            </p>
+            <div id="revisaoContainer" style="max-height: 55vh; overflow-y: auto;"></div>
+            <div class="action-buttons">
+                <button id="revisaoSalvarBtn" class="btn btn-primary"><i class="fas fa-check-double"></i> Aplicar todas</button>
+                <button id="revisaoAdiarBtn" class="btn btn-secondary"><i class="fas fa-clock"></i> Adiar todas (30 dias)</button>
+                <button class="btn btn-secondary close-modal">Fechar</button>
+            </div>
+        </div>
+    </div>
     <div id="valorPropostaModal" class="modal">
         <div class="modal-content">
             <div class="modal-header"><h3><i class="fas fa-file-invoice-dollar"></i> Leads com Cadastro Realizado - Valor da Proposta Pendente</h3><button class="close-modal">&times;</button></div>
@@ -458,7 +517,6 @@
         (function() {
             "use strict";
 
-            // ===== CONSTANTES =====
             var SHEET_LEADS = "https://opensheet.elk.sh/1eDF6XnXH2ewU-Zvh73H9XPllPU8LehS1LSJJLlnwPy0/LEADS%20FORMUL%C3%81RIO";
             var SHEET_CARTEIRA = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes";
             var SHEET_VENDEDORES = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/cadastro";
@@ -472,7 +530,6 @@
             var PENDENCIA_VALOR_HOURS = 24;
             var PENDENCIA_PROPOSTA_HOURS = 24;
 
-            // ===== ESTADO GLOBAL =====
             var rawLeads = [], carteiraClientes = [], vendedoresCadastro = [], leadsFinal = [];
             var processedLeads = [];
             var localOverrides = JSON.parse(localStorage.getItem('leadOverrides') || '{}');
@@ -487,7 +544,6 @@
             var filaJustificativas = [];
             var lastLeadIdClicked = null;
 
-            // ===== FUNÇÕES AUXILIARES =====
             function normalizeStr(str) { return (str || "").toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); }
             function normalizeCNPJ(cnpj) { if (!cnpj) return ""; return cnpj.toString().replace(/[\.\-\/]/g, '').replace(/\s/g, ''); }
             function similar(a, b) { if (!a || !b) return false; return normalizeStr(a) === normalizeStr(b); }
@@ -559,7 +615,6 @@
             function formatDateOnlyBR(d) { if (!d || isNaN(d.getTime()) || d.getTime() === 0) return ""; var date = new Date(d); return date.getDate().toString().padStart(2,'0') + '/' + (date.getMonth()+1).toString().padStart(2,'0') + '/' + date.getFullYear(); }
             function getRandomColor(name) { var hash = 0; for (var i = 0; i < name.length; i++) hash = ((hash << 5) - hash) + name.charCodeAt(i); var color = (hash & 0x00FFFFFF).toString(16).toUpperCase(); return "#" + ("00000".substring(0, 6 - color.length) + color); }
             
-            // ===== FUNÇÕES DE FORMATAÇÃO E LIMPEZA =====
             function cleanCurrency(valor) {
                 if (typeof valor === 'number') return valor;
                 if (!valor) return 0;
@@ -572,29 +627,18 @@
                 return valor.toFixed(2).replace('.', ',');
             }
 
-            // ===== NORMALIZAÇÃO DE STATUS =====
             function normalizeStatus(status, cadastroRealizado) {
                 if (!status) return "Lead Atendido";
                 var s = status.trim();
                 var map = {
-                    "fechou venda": "Gerou Venda",
-                    "gerou venda": "Gerou Venda",
-                    "venda": "Gerou Venda",
-                    "não fechou": "Não Fechou",
-                    "nao fechou": "Não Fechou",
-                    "em andamento": "Em Andamento",
-                    "andamento": "Em Andamento",
-                    "em aberto": "Em Aberto",
-                    "aberto": "Em Aberto",
-                    "aguardando resposta": "Aguardando Resposta",
-                    "aguardando": "Aguardando Resposta",
-                    "lead atendido": "Lead Atendido",
-                    "atendido": "Lead Atendido",
-                    "lead qualificado": "Lead Atendido",
-                    "cliente da carteira": "Lead Atendido",
-                    "já é cliente": "Lead Atendido",
-                    "proposta": "Lead Atendido",
-                    "qualificado": "Lead Atendido"
+                    "fechou venda": "Gerou Venda", "gerou venda": "Gerou Venda", "venda": "Gerou Venda",
+                    "não fechou": "Não Fechou", "nao fechou": "Não Fechou",
+                    "em andamento": "Em Andamento", "andamento": "Em Andamento",
+                    "em aberto": "Em Aberto", "aberto": "Em Aberto",
+                    "aguardando resposta": "Aguardando Resposta", "aguardando": "Aguardando Resposta",
+                    "lead atendido": "Lead Atendido", "atendido": "Lead Atendido",
+                    "lead qualificado": "Lead Atendido", "cliente da carteira": "Lead Atendido",
+                    "já é cliente": "Lead Atendido", "proposta": "Lead Atendido", "qualificado": "Lead Atendido"
                 };
                 var lower = s.toLowerCase();
                 for (var key in map) {
@@ -603,7 +647,6 @@
                 return s;
             }
 
-            // ===== MAPEAMENTO DE PROVEDORES =====
             var PROVEDORES = [
                 { pattern: /google|adwords|googleads/, nome: 'Google', icon: 'fab fa-google', cor: '#ea4335' },
                 { pattern: /facebook|fb|meta|fbads/, nome: 'Facebook', icon: 'fab fa-facebook', cor: '#1877f2' },
@@ -623,39 +666,26 @@
                 if (!utmSource) return '<i class="fas fa-globe utm-icon" style="color:#6b7280;"></i>';
                 var src = utmSource.toLowerCase().replace(/[^a-z0-9]/g, '');
                 for (var p of PROVEDORES) {
-                    if (p.pattern.test(src)) {
-                        return '<i class="' + p.icon + ' utm-icon" style="color:' + p.cor + ';"></i>';
-                    }
+                    if (p.pattern.test(src)) return '<i class="' + p.icon + ' utm-icon" style="color:' + p.cor + ';"></i>';
                 }
                 return '<i class="fas fa-link utm-icon" style="color:#6b7280;"></i>';
             }
 
             function getCampanhaNome(lead) {
-                var sources = [
-                    lead.utmSource,
-                    lead.utmMedium,
-                    lead.utmCampaign,
-                    lead.utmContent,
-                    lead.utmTerm
-                ];
+                var sources = [lead.utmSource, lead.utmMedium, lead.utmCampaign, lead.utmContent, lead.utmTerm];
                 var combined = sources.filter(function(s) { return s; }).join(' ').toLowerCase().replace(/[^a-z0-9]/g, '');
                 if (!combined) return '-';
                 for (var p of PROVEDORES) {
-                    if (p.pattern.test(combined)) {
-                        return p.nome;
-                    }
+                    if (p.pattern.test(combined)) return p.nome;
                 }
                 var found = sources.find(function(s) { return s; });
                 return found || '-';
             }
 
             function getCampanhaLabel(lead) {
-                var nome = getCampanhaNome(lead);
-                var icon = getUtmIcon(lead.utmSource);
-                return icon + ' ' + nome;
+                return getUtmIcon(lead.utmSource) + ' ' + getCampanhaNome(lead);
             }
 
-            // ===== FUNÇÕES DE VENDEDORES =====
             function groupSimilarNames(allNames) {
                 var groups = [], used = new Set();
                 for (var i = 0; i < allNames.length; i++) {
@@ -744,7 +774,6 @@
                 return resolveCanonical(repStr.replace(/^\d+\s*-\s*/, "").trim());
             }
 
-            // ===== BUSCA NA CARTEIRA =====
             function findClientInCarteira(lead) {
                 var cnpjLead = normalizeCNPJ(lead["CNPJ"] || "");
                 var empresaLead = lead["Nome da empresa"] || lead["Nome Completo"] || "";
@@ -767,8 +796,7 @@
                         var nomeChave = (cli["Nome Chave"] || "").replace(/[\/\.\-]/g, ' ');
                         var razaoNorm = normalizeStr(razao);
                         var nomeChaveNorm = normalizeStr(nomeChave);
-                        var razaoClean = razaoNorm;
-                        var nomeChaveClean = nomeChaveNorm;
+                        var razaoClean = razaoNorm, nomeChaveClean = nomeChaveNorm;
                         termos.forEach(function(t) {
                             razaoClean = razaoClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '').trim();
                             nomeChaveClean = nomeChaveClean.replace(new RegExp('\\b' + t + '\\b', 'gi'), '').trim();
@@ -795,37 +823,140 @@
                 localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
             }
 
-            // ===== ADICIONAR OBSERVAÇÃO AUTOMÁTICA =====
-            function addAutoObservation(leadId, campo, valorAntigo, valorNovo, detalhe) {
+            function addAutoObservation(leadId, campo, valorAntigo, valorNovo, detalhe, tipo) {
                 if (!leadId) return;
                 if (!localOverrides[leadId]) localOverrides[leadId] = {};
                 if (!localOverrides[leadId].observacoes) localOverrides[leadId].observacoes = '';
 
                 var now = new Date();
                 var dataFormatada = formatDateBR(now);
-                var mensagem = '[Automático ' + dataFormatada + '] ';
+                var tag = (tipo === 'manual') ? 'Manual' : 'Automático';
+                var mensagem = '[' + tag + ' ' + dataFormatada + '] ';
 
                 if (campo && valorAntigo !== undefined && valorNovo !== undefined) {
-                    mensagem += 'Campo "' + campo + '" alterado: “' + (valorAntigo || 'vazio') + '” → “' + (valorNovo || 'vazio') + '”';
+                    mensagem += campo + ': "' + (valorAntigo || 'vazio') + '" → "' + (valorNovo || 'vazio') + '"';
                 } else if (detalhe) {
                     mensagem += detalhe;
                 } else {
                     mensagem += 'Alteração registrada.';
                 }
 
-                var novaObs = mensagem;
-                var obsAtual = localOverrides[leadId].observacoes;
-                if (obsAtual.trim()) {
-                    localOverrides[leadId].observacoes = obsAtual.trim() + '\n' + novaObs;
-                } else {
-                    localOverrides[leadId].observacoes = novaObs;
-                }
+                var obsAtual = localOverrides[leadId].observacoes || '';
+                var combinado = obsAtual.trim() ? (obsAtual.trim() + '\n' + mensagem) : mensagem;
+                localOverrides[leadId].observacoes = organizarObservacoes(combinado);
                 localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
             }
 
-            // ===== PROCESSAMENTO PRINCIPAL =====
+            // ===== ORGANIZAR OBSERVAÇÕES – versão final (limpa duplicatas e linhas vazias) =====
+            function organizarObservacoes(texto) {
+                if (!texto || !texto.trim()) return '';
+
+                var linhas = texto.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+                var campoRegex = /^\[(Automático|Manual)\s+([^\]]+)\]\s+([^:]+):\s*"([^"]*)"\s*→\s*"([^"]*)"$/;
+                var dadosAlteradosRegex = /^\[(Automático|Manual)\s+[^\]]+\]\s+Dados alterados neste contato:?$/i;
+
+                var porCampo = {};
+                var ordemCampos = [];
+                var blocoRecorrente = [];
+                var outras = [];
+                var i = 0;
+
+                while (i < linhas.length) {
+                    var linha = linhas[i];
+
+                    var m = linha.match(campoRegex);
+                    if (m) {
+                        var tag = m[1], data = m[2], campo = m[3].trim(), de = m[4], para = m[5];
+                        if (!porCampo[campo]) {
+                            porCampo[campo] = { tag: tag, original: de, ultimo: para, vezes: 1, ultimaData: data };
+                            ordemCampos.push(campo);
+                        } else {
+                            porCampo[campo].ultimo = para;
+                            porCampo[campo].vezes += 1;
+                            porCampo[campo].ultimaData = data;
+                            porCampo[campo].tag = tag;
+                        }
+                        i++;
+                        continue;
+                    }
+
+                    if (dadosAlteradosRegex.test(linha) || linha.toLowerCase().indexOf('dados alterados neste contato') !== -1) {
+                        i++;
+                        while (i < linhas.length) {
+                            var ln = linhas[i];
+                            if (ln.indexOf('[Automático') === 0 || ln.indexOf('[Manual') === 0) break;
+                            if (ln.indexOf('CONTATO RECORRENTE') !== -1 || ln.indexOf('Contato recorrente') !== -1) break;
+                            if (ln.indexOf('Novo registro de um lead') !== -1) break;
+                            i++;
+                        }
+                        continue;
+                    }
+
+                    if (linha.indexOf('CONTATO RECORRENTE') !== -1 ||
+                        linha.indexOf('Contato recorrente') !== -1 ||
+                        linha.indexOf('Novo registro de um lead que já teve contato') !== -1) {
+
+                        var bloco = [linha];
+                        i++;
+                        while (i < linhas.length) {
+                            var ln2 = linhas[i];
+                            if (ln2.indexOf('[Automático') === 0 || ln2.indexOf('[Manual') === 0) break;
+                            if (ln2.indexOf('CONTATO RECORRENTE') !== -1 || ln2.indexOf('Contato recorrente') !== -1) break;
+                            bloco.push(ln2);
+                            i++;
+                        }
+                        blocoRecorrente = bloco;
+                        continue;
+                    }
+
+                    outras.push(linha);
+                    i++;
+                }
+
+                var resultado = [];
+
+                ordemCampos.forEach(function(campo) {
+                    var info = porCampo[campo];
+                    if (info.vezes === 1) {
+                        resultado.push('[' + info.tag + ' ' + info.ultimaData + '] ' + campo + ': "' + info.original + '" → "' + info.ultimo + '"');
+                    } else {
+                        resultado.push('[' + info.tag + ' ' + info.ultimaData + '] ' + campo + ': original "' + info.original + '", alterado ' + info.vezes + 'x, última: "' + info.ultimo + '"');
+                    }
+                });
+
+                if (blocoRecorrente.length) {
+                    resultado = resultado.concat(blocoRecorrente);
+                }
+
+                outras.forEach(function(l) {
+                    if (resultado.indexOf(l) === -1) resultado.push(l);
+                });
+
+                return resultado.join('\n');
+            }
+
+            // Limpa duplicatas já existentes no localStorage
+            function limparDuplicatasExistentes() {
+                var mudou = false;
+                Object.keys(localOverrides).forEach(function(id) {
+                    if (!localOverrides[id] || !localOverrides[id].observacoes) return;
+                    var original = localOverrides[id].observacoes;
+                    var limpo = organizarObservacoes(original);
+                    if (limpo !== original) {
+                        localOverrides[id].observacoes = limpo;
+                        mudou = true;
+                    }
+                });
+                if (mudou) {
+                    localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+                    console.log('[CRM] Duplicatas de observações limpas automaticamente.');
+                }
+            }
+
             function processLeads() {
                 cleanExpiredTempOverrides();
+                limparDuplicatasExistentes();
+
                 var finalLeadsIndex = new Map();
                 for (var lf of leadsFinal) {
                     var cnpj = normalizeCNPJ(lf["CNPJ"] || ""), nomeEmpresa = normalizeStr(lf["Empresa"] || lf["Nome"] || ""), nomeLead = normalizeStr(lf["Nome"] || "");
@@ -838,18 +969,25 @@
                 
                 processedLeads = [];
                 filaJustificativas = [];
-                var seenIds = new Set();
 
                 for (var lead of rawLeads) {
                     var cnpjLeadRaw = normalizeCNPJ(lead["CNPJ"] || "");
                     var cnpjValido = cnpjLeadRaw.length >= 11 ? cnpjLeadRaw : "";
                     var empresaLead = normalizeStr(lead["Nome da empresa"] || lead["Nome Completo"] || "");
                     var nomeLead = normalizeStr(lead["Nome Completo"] || "");
-                    var leadId = lead["ID"] || lead["UTM CONTENT"] + '_' + lead["WhatsApp"] || 'lead_' + Math.random().toString(36).substr(2,9);
+                    var leadId = lead["ID"] || (lead["UTM CONTENT"] || '') + '_' + (lead["WhatsApp"] || '') || 'lead_' + Math.random().toString(36).substr(2,9);
                     var whatsNormalizado = (lead["WhatsApp"] || "").replace(/\D/g, '');
-                    var uniqueKey = cnpjValido || empresaLead + '|' + nomeLead + '|' + whatsNormalizado;
-                    if (seenIds.has(uniqueKey)) continue;
-                    seenIds.add(uniqueKey);
+
+                    if (localOverrides[leadId] && localOverrides[leadId].excluido === true) continue;
+
+                    var leadsAnteriores = processedLeads.filter(function(p) {
+                        if (cnpjValido && p.cnpj && normalizeCNPJ(p.cnpj) === cnpjValido) return true;
+                        var pWhats = (p.whatsapp || '').replace(/\D/g, '');
+                        if (whatsNormalizado && pWhats && pWhats === whatsNormalizado) return true;
+                        if (empresaLead && p.empresa && normalizeStr(p.empresa) === empresaLead && nomeLead && normalizeStr(p.nome) === nomeLead) return true;
+                        return false;
+                    });
+                    var isRecorrente = leadsAnteriores.length > 0;
 
                     var dataObj = extractDateFromLead(lead);
                     var override = localOverrides[leadId];
@@ -958,11 +1096,44 @@
                         }
                     }
 
-                    if (statusFinal && normalizeStr(statusFinal).indexOf('desqualificad') !== -1) {
-                        continue;
-                    }
+                    if (statusFinal && normalizeStr(statusFinal).indexOf('desqualificad') !== -1) continue;
 
                     statusFinal = normalizeStatus(statusFinal, cadastroRealizado);
+
+                    if (valorVendaFinal > 0) {
+                        statusFinal = "Gerou Venda";
+                        if (!cadastroRealizado || cadastroRealizado.toLowerCase() !== 'sim') cadastroRealizado = "Sim";
+                    }
+
+                    if (isRecorrente && !isManualOverride && valorVendaFinal <= 0) {
+                        statusFinal = "Em Aberto";
+
+                        var histRec = gerarHistoricoRecorrente(leadsAnteriores, {
+                            nome: nome, empresa: empresa, whatsapp: whatsapp, email: email, cnpj: cnpj
+                        });
+
+                        var baseObs = (override && override.observacoes) ? override.observacoes : (observacoes || '');
+                        if (baseObs) baseObs = organizarObservacoes(baseObs);
+
+                        var jaTemRecorrente = baseObs && (
+                            baseObs.indexOf('CONTATO RECORRENTE') !== -1 ||
+                            baseObs.indexOf('Contato recorrente') !== -1 ||
+                            baseObs.indexOf('Novo registro de um lead que já teve contato') !== -1
+                        );
+
+                        if (!jaTemRecorrente) {
+                            observacoes = organizarObservacoes((baseObs ? baseObs + '\n' : '') + histRec);
+                        } else {
+                            observacoes = baseObs;
+                        }
+
+                        var obsAnterior = (localOverrides[leadId] && localOverrides[leadId].observacoes) || '';
+                        if (obsAnterior !== observacoes) {
+                            if (!localOverrides[leadId]) localOverrides[leadId] = {};
+                            localOverrides[leadId].observacoes = observacoes;
+                            localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+                        }
+                    }
 
                     var agora = Date.now();
                     var dataLead = dataObj && !isNaN(dataObj.getTime()) && dataObj.getTime() > 0 ? dataObj : new Date(0);
@@ -970,24 +1141,15 @@
                     var precisaJustificativa = cadastroRealizado && cadastroRealizado.toLowerCase() === 'sim';
                     var isStatusAtivo = STATUS_ATIVOS.indexOf(statusFinal) !== -1;
 
-                    if (isStatusAtivo && diffDias > DIAS_LIMITE) {
+                    if (isStatusAtivo && diffDias > DIAS_LIMITE && valorVendaFinal <= 0) {
                         var justificativa = justificativasLeads[leadId];
-                        if (justificativa && justificativa.decisao === 'em_aberto' && justificativa.prolongadoAte && justificativa.prolongadoAte > agora) {
-                            // mantém status
-                        } else {
-                            if (precisaJustificativa) {
-                                filaJustificativas.push({
-                                    leadId: leadId,
-                                    nome: nome,
-                                    empresa: empresa,
-                                    data: formatDateOnlyBR(dataLead),
-                                    observacaoAtual: observacoes,
-                                    statusAtual: statusFinal
-                                });
-                            } else {
-                                statusFinal = "Não Fechou";
-                                addAutoObservation(leadId, null, null, null, 'Lead vencido após ' + Math.floor(diffDias) + ' dias. Status alterado automaticamente de "' + statusFinal + '" para "Não Fechou".');
-                            }
+                        if (!(justificativa && justificativa.decisao === 'em_aberto' && justificativa.prolongadoAte && justificativa.prolongadoAte > agora)) {
+                            filaJustificativas.push({
+                                leadId: leadId, nome: nome, empresa: empresa,
+                                data: formatDateOnlyBR(dataLead), observacaoAtual: observacoes,
+                                statusAtual: statusFinal, isRecorrente: isRecorrente,
+                                precisaJustificativa: !!precisaJustificativa
+                            });
                         }
                     }
 
@@ -1021,47 +1183,244 @@
                     var campanhaNome = getCampanhaNome({ utmSource: utmSource, utmMedium: utmMedium, utmCampaign: utmCampaign, utmContent: utmContent, utmTerm: utmTerm });
 
                     processedLeads.push({
-                        id: leadId,
-                        dataHora: dataObj,
-                        dataStr: formatDateBR(dataObj),
-                        nome: nome,
-                        empresa: empresa,
-                        whatsapp: whatsapp,
-                        email: email,
-                        cnpj: cnpj,
-                        mensagem: mensagem,
-                        utmSource: utmSource,
-                        utmMedium: utmMedium,
-                        utmCampaign: utmCampaign,
-                        utmTerm: utmTerm,
-                        utmContent: utmContent,
-                        status: statusFinal,
-                        vendedor: vendedorDisplay,
-                        vendedorRaw: vendedorRaw,
-                        vendedorOriginal: vendedorOriginal || "",
-                        isRevenda: isRevendaCliente,
-                        clienteExistente: !!clienteCarteira,
-                        isNovoCliente: isNovoCliente && !clienteCarteira,
-                        isRevendaCliente: isRevendaCliente && !clienteCarteira,
-                        utmIconHtml: getUtmIcon(utmSource),
-                        valorVenda: valorVendaFinal,
-                        valorProposta: valorPropostaFinal,
-                        finalData: finalMatch || null,
-                        observacoes: observacoes,
-                        cadastroRealizado: cadastroRealizado,
+                        id: leadId, dataHora: dataObj, dataStr: formatDateBR(dataObj),
+                        nome: nome, empresa: empresa, whatsapp: whatsapp, email: email, cnpj: cnpj, mensagem: mensagem,
+                        utmSource: utmSource, utmMedium: utmMedium, utmCampaign: utmCampaign, utmTerm: utmTerm, utmContent: utmContent,
+                        status: statusFinal, vendedor: vendedorDisplay, vendedorRaw: vendedorRaw, vendedorOriginal: vendedorOriginal || "",
+                        isRevenda: isRevendaCliente, clienteExistente: !!clienteCarteira,
+                        isNovoCliente: isNovoCliente && !clienteCarteira, isRevendaCliente: isRevendaCliente && !clienteCarteira,
+                        utmIconHtml: getUtmIcon(utmSource), valorVenda: valorVendaFinal, valorProposta: valorPropostaFinal,
+                        finalData: finalMatch || null, observacoes: observacoes, cadastroRealizado: cadastroRealizado,
                         campanhaLabel: getCampanhaLabel({ utmSource: utmSource, utmMedium: utmMedium, utmCampaign: utmCampaign, utmContent: utmContent, utmTerm: utmTerm }),
-                        campanhaNome: campanhaNome,
-                        diasParaVencer: diasParaVencer
+                        campanhaNome: campanhaNome, diasParaVencer: diasParaVencer, isRecorrente: isRecorrente
                     });
                 }
 
+                Object.keys(localOverrides).forEach(function(oid) {
+                    if (oid.indexOf('manual_') !== 0) return;
+                    if (localOverrides[oid].excluido === true) return;
+                    if (processedLeads.find(function(p) { return p.id === oid; })) return;
+                    var o = localOverrides[oid];
+                    if (!o || !o.edited) return;
+                    var ts = o.timestamp ? new Date(o.timestamp) : new Date();
+                    var vRaw = o.vendedor || 'Não definido';
+                    processedLeads.push({
+                        id: oid, dataHora: ts, dataStr: formatDateBR(ts),
+                        nome: o.nome || '', empresa: o.empresa || '', whatsapp: o.whatsapp || '', email: o.email || '',
+                        cnpj: o.cnpj || '', mensagem: o.mensagem || '',
+                        utmSource: o.utmSource || '', utmMedium: o.utmMedium || '', utmCampaign: o.utmCampaign || '',
+                        utmTerm: o.utmTerm || '', utmContent: o.utmContent || '',
+                        status: o.status || 'Em Aberto', vendedor: vRaw, vendedorRaw: vRaw, vendedorOriginal: o.vendedorOriginal || vRaw,
+                        isRevenda: false, clienteExistente: false, isNovoCliente: true, isRevendaCliente: false,
+                        utmIconHtml: getUtmIcon(o.utmSource), valorVenda: Number(o.valorVenda) || 0, valorProposta: Number(o.valorProposta) || 0,
+                        finalData: null, observacoes: o.observacoes || '', cadastroRealizado: o.cadastroRealizado || '',
+                        campanhaLabel: getCampanhaLabel(o), campanhaNome: getCampanhaNome(o) || '-',
+                        diasParaVencer: DIAS_LIMITE, isRecorrente: false
+                    });
+                });
+
                 processedLeads.sort(function(a, b) { return b.dataHora - a.dataHora; });
-                if (filaJustificativas.length > 0) exibirProximaJustificativa();
                 verificarInconsistencias();
                 atualizarFiltrosDinamicos();
+                if (filaJustificativas.length > 0) setTimeout(exibirModalRevisao, 400);
             }
 
-            // ===== ATUALIZAR FILTROS DINÂMICOS =====
+            function gerarHistoricoRecorrente(leadsAnteriores, leadNovo) {
+                if (!leadsAnteriores || leadsAnteriores.length === 0) {
+                    return '[Automático ' + formatDateBR(new Date()) + '] Contato recorrente detectado.';
+                }
+
+                var dataAgora = formatDateBR(new Date());
+                var ultimo = leadsAnteriores[leadsAnteriores.length - 1];
+                var linhas = [];
+
+                linhas.push('[Automático ' + dataAgora + '] CONTATO RECORRENTE');
+                linhas.push('─────────────────────────────────');
+                linhas.push('Nome: ' + (leadNovo.nome || ultimo.nome || '-'));
+                linhas.push('Data do último contato: ' + (ultimo.dataStr || formatDateBR(ultimo.dataHora)));
+                linhas.push('Status anterior: ' + (ultimo.status || '-'));
+                linhas.push('Registros anteriores: ' + leadsAnteriores.length);
+                linhas.push('─────────────────────────────────');
+                linhas.push('Novo registro de um lead que já teve contato anterior com nosso time.');
+                linhas.push('Mantido em Aberto por apresentar potencial de oportunidade.');
+                linhas.push('Consulte o histórico antes do atendimento.');
+
+                var maxDetalhe = 3;
+                var detalhar = leadsAnteriores.slice(-maxDetalhe);
+                var omitidos = leadsAnteriores.length - detalhar.length;
+                if (omitidos > 0) linhas.push('… ' + omitidos + ' contato(s) mais antigo(s)');
+                detalhar.forEach(function(ant, idx) {
+                    var n = omitidos + idx + 1;
+                    var parte = '#' + n + ' ' + (ant.dataStr || formatDateBR(ant.dataHora)) + ' — ' + (ant.status || '-');
+                    if (ant.vendedorRaw) parte += ' | ' + ant.vendedorRaw;
+                    if (ant.valorVenda > 0) parte += ' | R$ ' + formatCurrency(ant.valorVenda);
+                    linhas.push(parte);
+                });
+
+                if (leadNovo && ultimo) {
+                    var diffs = [];
+                    if (leadNovo.whatsapp && ultimo.whatsapp && leadNovo.whatsapp.replace(/\D/g,'') !== (ultimo.whatsapp || '').replace(/\D/g,'')) {
+                        diffs.push('WhatsApp: "' + ultimo.whatsapp + '" → "' + leadNovo.whatsapp + '"');
+                    }
+                    if (leadNovo.email && ultimo.email && normalizeStr(leadNovo.email) !== normalizeStr(ultimo.email)) {
+                        diffs.push('E-mail: "' + ultimo.email + '" → "' + leadNovo.email + '"');
+                    }
+                    if (leadNovo.nome && ultimo.nome && normalizeStr(leadNovo.nome) !== normalizeStr(ultimo.nome)) {
+                        diffs.push('Nome: "' + ultimo.nome + '" → "' + leadNovo.nome + '"');
+                    }
+                    if (leadNovo.empresa && ultimo.empresa && normalizeStr(leadNovo.empresa) !== normalizeStr(ultimo.empresa)) {
+                        diffs.push('Empresa: "' + ultimo.empresa + '" → "' + leadNovo.empresa + '"');
+                    }
+                    if (diffs.length > 0) {
+                        linhas.push('[Automático ' + dataAgora + '] Dados alterados:');
+                        diffs.forEach(function(d) { linhas.push('  ' + d); });
+                    }
+                }
+
+                return linhas.join('\n');
+            }
+
+            function gerarMensagemParaVendedor(lead) {
+                var msg = 'Segue o lead para retorno/contato:\n\n';
+                msg += 'Nome: ' + (lead.nome || '-') + '\n';
+                msg += 'Empresa: ' + (lead.empresa || '-') + '\n';
+                msg += 'CNPJ: ' + (lead.cnpj || '-') + '\n';
+                msg += 'WhatsApp: ' + (lead.whatsapp || '-') + '\n';
+                msg += 'E-mail: ' + (lead.email || '-') + '\n';
+                msg += 'Mensagem: ' + (lead.mensagem || '-') + '\n';
+
+                if (!lead.observacoes || !lead.observacoes.trim()) return msg;
+
+                var linhas = lead.observacoes.split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+                var resumo = [];
+                var temRecorrente = false;
+
+                linhas.forEach(function(ln) {
+                    if (/^\[(Automático|Manual)/.test(ln) && ln.indexOf('→') !== -1) {
+                        resumo.push(ln);
+                        return;
+                    }
+                    if (ln.indexOf('CONTATO RECORRENTE') !== -1 || ln.indexOf('Contato recorrente') !== -1) {
+                        temRecorrente = true;
+                        resumo.push(ln);
+                        return;
+                    }
+                    if (temRecorrente) {
+                        if (ln.indexOf('Status anterior:') === 0 ||
+                            ln.indexOf('Data do último contato:') === 0 ||
+                            ln.indexOf('#') === 0 ||
+                            ln.indexOf('Novo registro de um lead') !== -1) {
+                            resumo.push(ln);
+                        }
+                        if (ln.indexOf('[Automático') === 0 && ln.indexOf('CONTATO') === -1) {
+                            temRecorrente = false;
+                        }
+                    }
+                });
+
+                if (resumo.length > 0) {
+                    msg += '\n--- HISTÓRICO ---\n' + resumo.join('\n');
+                }
+
+                return msg;
+            }
+
+            // ===== RESTANTE DO CÓDIGO (modais, render, export, etc.) =====
+            // (mantido idêntico ao anterior, apenas as funções acima foram atualizadas)
+
+            function exibirModalRevisao() {
+                if (!filaJustificativas || filaJustificativas.length === 0) return;
+                var modal = document.getElementById('modalRevisao');
+                var container = document.getElementById('revisaoContainer');
+                if (!modal || !container) return;
+                var html = '<table class="revisao-table"><thead><tr><th>Lead</th><th>Problema</th><th>Ação</th><th>Observação</th></tr></thead><tbody>';
+                filaJustificativas.forEach(function(item) {
+                    var label = item.isRecorrente
+                        ? 'Recorrente Em Aberto há mais de ' + DIAS_LIMITE + ' dias'
+                        : (item.precisaJustificativa ? 'Cadastro "Sim" há mais de ' + DIAS_LIMITE + ' dias' : 'Ativo há mais de ' + DIAS_LIMITE + ' dias');
+                    html += '<tr>';
+                    html += '<td><strong>' + (item.nome || '-') + '</strong><br><small>' + (item.empresa || '-') + '</small></td>';
+                    html += '<td><span class="status-badge ' + getStatusClass(item.statusAtual) + '">' + item.statusAtual + '</span><br><small>' + label + '</small></td>';
+                    html += '<td><select class="acao-select" data-id="' + item.leadId + '">';
+                    html += '<option value="encerrar">Encerrar como Não Fechou</option>';
+                    html += '<option value="adiar">Manter Em Aberto (+30 dias)</option>';
+                    html += '<option value="venda">Marcar Gerou Venda</option>';
+                    html += '</select>';
+                    html += ' <input type="text" class="input-valor-revisao" placeholder="R$ venda" style="width:90px;margin-top:4px;" data-id="' + item.leadId + '"></td>';
+                    html += '<td><input type="text" class="obs-revisao" placeholder="Justificativa (opcional)" data-id="' + item.leadId + '" style="width:100%;"></td>';
+                    html += '</tr>';
+                });
+                html += '</tbody></table>';
+                container.innerHTML = html;
+                window._revisaoLista = filaJustificativas.slice();
+                modal.style.display = 'flex';
+            }
+
+            function salvarRevisaoUnificada() {
+                var lista = window._revisaoLista || [];
+                var alterados = 0;
+                lista.forEach(function(item) {
+                    var select = document.querySelector('.acao-select[data-id="' + item.leadId + '"]');
+                    var obsInput = document.querySelector('.obs-revisao[data-id="' + item.leadId + '"]');
+                    var valorInput = document.querySelector('.input-valor-revisao[data-id="' + item.leadId + '"]');
+                    if (!select) return;
+                    var acao = select.value;
+                    var obs = obsInput ? obsInput.value.trim() : '';
+                    if (!localOverrides[item.leadId]) localOverrides[item.leadId] = {};
+                    if (acao === 'encerrar') {
+                        localOverrides[item.leadId].status = "Não Fechou";
+                        localOverrides[item.leadId].edited = true;
+                        localOverrides[item.leadId].timestamp = Date.now();
+                        addAutoObservation(item.leadId, null, null, null, 'Encerrado via revisão: ' + (obs || 'sem justificativa'));
+                        alterados++;
+                    } else if (acao === 'adiar') {
+                        if (!justificativasLeads[item.leadId]) justificativasLeads[item.leadId] = {};
+                        justificativasLeads[item.leadId].decisao = 'em_aberto';
+                        justificativasLeads[item.leadId].prolongadoAte = Date.now() + DIAS_LIMITE * 24 * 60 * 60 * 1000;
+                        justificativasLeads[item.leadId].observacao = obs || 'Adiado via revisão';
+                        addAutoObservation(item.leadId, null, null, null, 'Prazo prolongado via revisão: ' + (obs || 'sem justificativa'));
+                        alterados++;
+                    } else if (acao === 'venda') {
+                        var valor = valorInput ? cleanCurrency(valorInput.value) : 0;
+                        if (valor <= 0) { showToast('Informe o valor da venda para ' + item.nome, true); return; }
+                        localOverrides[item.leadId].status = "Gerou Venda";
+                        localOverrides[item.leadId].valorVenda = valor;
+                        localOverrides[item.leadId].cadastroRealizado = "Sim";
+                        localOverrides[item.leadId].edited = true;
+                        localOverrides[item.leadId].timestamp = Date.now();
+                        addAutoObservation(item.leadId, 'Status', item.statusAtual, 'Gerou Venda', 'Via revisão R$ ' + formatCurrency(valor) + (obs ? ' — ' + obs : ''));
+                        alterados++;
+                    }
+                });
+                if (alterados > 0) {
+                    localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+                    localStorage.setItem('justificativasLeads', JSON.stringify(justificativasLeads));
+                    filaJustificativas = [];
+                    processLeads();
+                    renderDashboard();
+                    showToast(alterados + ' lead(s) atualizado(s)!');
+                } else {
+                    showToast('Nenhuma alteração realizada.', true);
+                }
+                document.getElementById('modalRevisao').style.display = 'none';
+            }
+
+            function adiarRevisaoUnificada() {
+                var lista = window._revisaoLista || [];
+                lista.forEach(function(item) {
+                    if (!justificativasLeads[item.leadId]) justificativasLeads[item.leadId] = {};
+                    justificativasLeads[item.leadId].decisao = 'em_aberto';
+                    justificativasLeads[item.leadId].prolongadoAte = Date.now() + DIAS_LIMITE * 24 * 60 * 60 * 1000;
+                    justificativasLeads[item.leadId].observacao = 'Adiado via revisão';
+                });
+                localStorage.setItem('justificativasLeads', JSON.stringify(justificativasLeads));
+                filaJustificativas = [];
+                processLeads();
+                renderDashboard();
+                document.getElementById('modalRevisao').style.display = 'none';
+                showToast('Todos os prazos adiados por 30 dias.');
+            }
+
             function atualizarFiltrosDinamicos() {
                 var campanhas = [...new Set(processedLeads.map(function(l) { return l.campanhaNome; }).filter(Boolean))].sort();
                 var campSelect = document.getElementById('campanhaFilter');
@@ -1076,7 +1435,6 @@
                 origSelect.value = currentOrig;
             }
 
-            // ===== JUSTIFICATIVAS =====
             function exibirProximaJustificativa() {
                 if (filaJustificativas.length === 0) return;
                 var pendente = filaJustificativas.shift();
@@ -1127,13 +1485,13 @@
                 };
             }
 
-            // ===== INCONSISTÊNCIAS =====
             var inconsistenciasAtuais = [];
 
             function verificarInconsistencias() {
                 inconsistenciasAtuais = [];
                 processedLeads.forEach(function(lead) {
-                    if (lead.status === "Gerou Venda" && lead.cadastroRealizado.toLowerCase() !== 'sim') {
+                    var cadastroLower = (lead.cadastroRealizado || '').toLowerCase();
+                    if (lead.status === "Gerou Venda" && cadastroLower !== 'sim') {
                         inconsistenciasAtuais.push({ lead: lead, motivo: 'Gerou Venda mas Cadastro não está como "Sim"' });
                     }
                     if (lead.status === "Gerou Venda" && (!lead.valorVenda || lead.valorVenda <= 0)) {
@@ -1141,7 +1499,7 @@
                             inconsistenciasAtuais.push({ lead: lead, motivo: 'Gerou Venda mas Valor da Venda não preenchido' });
                         }
                     }
-                    if (lead.cadastroRealizado.toLowerCase() === 'sim' && (!lead.valorProposta || lead.valorProposta <= 0)) {
+                    if (cadastroLower === 'sim' && (!lead.valorProposta || lead.valorProposta <= 0)) {
                         if (!inconsistenciasAtuais.find(function(i) { return i.lead.id === lead.id && i.motivo.indexOf('Valor Proposta') !== -1; })) {
                             inconsistenciasAtuais.push({ lead: lead, motivo: 'Cadastro "Sim" mas Valor da Proposta não preenchido' });
                         }
@@ -1154,7 +1512,7 @@
                             }
                         }
                     }
-                    if (lead.status === "Em Andamento" && lead.cadastroRealizado.toLowerCase() === 'sim') {
+                    if (lead.status === "Em Andamento" && cadastroLower === 'sim') {
                         if (!inconsistenciasAtuais.find(function(i) { return i.lead.id === lead.id && i.motivo.indexOf('Em Andamento') !== -1; })) {
                             inconsistenciasAtuais.push({ lead: lead, motivo: 'Lead em Andamento com Cadastro Realizado = "Sim" (deveria ser Em Aberto ou evoluído)' });
                         }
@@ -1210,7 +1568,26 @@
                 modal.style.display = 'flex';
             }
 
-            // ===== RENDERIZAÇÃO =====
+            function excluirLead(leadId) {
+                if (!confirm('Tem certeza que deseja excluir este lead? Esta ação não pode ser desfeita.')) return;
+                if (leadId && leadId.indexOf('manual_') === 0) {
+                    delete localOverrides[leadId];
+                    localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+                    processedLeads = processedLeads.filter(function(l) { return l.id !== leadId; });
+                } else if (leadId) {
+                    if (!localOverrides[leadId]) localOverrides[leadId] = {};
+                    localOverrides[leadId].excluido = true;
+                    localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+                    processedLeads = processedLeads.filter(function(l) { return l.id !== leadId; });
+                } else {
+                    showToast('ID do lead inválido.', true);
+                    return;
+                }
+                renderDashboard();
+                document.getElementById('editLeadModal').style.display = 'none';
+                showToast('Lead excluído com sucesso!');
+            }
+
             function getFilteredLeads() {
                 return processedLeads.filter(function(l) {
                     if (currentFilters.vendedor !== "todos" && l.vendedorRaw !== currentFilters.vendedor) return false;
@@ -1243,6 +1620,8 @@
                     case "Não Fechou": return "row-nao-fechou";
                     case "Em Andamento": return "row-em-andamento";
                     case "Lead Atendido": return "row-lead-atendido";
+                    case "Em Aberto": return "row-em-aberto";
+                    case "Aguardando Resposta": return "row-aguardando";
                     default: return "";
                 }
             }
@@ -1266,7 +1645,6 @@
                 var revendas = filtered.filter(function(l) { return l.isRevenda; }).length;
                 var novos = filtered.filter(function(l) { return l.isNovoCliente; }).length;
                 var valorPropostaTotal = filtered.filter(function(l) { return l.cadastroRealizado === 'Sim'; }).reduce(function(sum, l) { return sum + (l.valorProposta || 0); }, 0);
-
                 var faturamentoTotal = filtered.filter(function(l) { return l.status === "Gerou Venda"; }).reduce(function(sum, l) { return sum + (l.valorVenda || 0); }, 0);
                 var ticketMedio = gerouVenda > 0 ? faturamentoTotal / gerouVenda : 0;
 
@@ -1296,17 +1674,31 @@
                     var valorExibicao = l.valorVenda > 0 ? '<span class="valor-venda">R$ ' + formatCurrency(l.valorVenda) + '</span>' : '-';
                     var propostaDisplay = l.valorProposta > 0 ? 'R$ ' + formatCurrency(l.valorProposta) : '-';
                     var cadastroDisplay = l.cadastroRealizado || '-';
-                    var obsDisplay = l.observacoes ? l.observacoes.substring(0,30) + (l.observacoes.length > 30 ? '...' : '') : '-';
+                    
+                    var isManual = l.id && l.id.startsWith('manual_');
+                    var isAlterado = !isManual && localOverrides[l.id] && localOverrides[l.id].edited === true;
+                    var temAuto = l.observacoes && (l.observacoes.indexOf('[Automático') !== -1);
+                    var badges = [];
+                    if (l.isRecorrente) badges.push('<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span>');
+                    if (l.status === "Gerou Venda") badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-dollar-sign"></i> Venda</span>');
+                    if (isManual) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-pen-fancy"></i> Manual</span>');
+                    else if (isAlterado) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-edit"></i> Alterado</span>');
+                    if (temAuto) badges.push('<span class="recorrente-badge badge-auto"><i class="fas fa-robot"></i> Auto</span>');
+                    if (localOverrides[l.id] && localOverrides[l.id].tempStatus && Date.now() < localOverrides[l.id].tempExpiry) {
+                        badges.push('<span class="recorrente-badge badge-andamento"><i class="fas fa-clock"></i> Em andamento</span>');
+                    }
+                    var obsDisplay = badges.length ? badges.join(' ') : (l.observacoes ? l.observacoes.substring(0, 30) + (l.observacoes.length > 30 ? '…' : '') : '-');
+                    
                     var campanhaDisplay = l.campanhaLabel || '-';
                     var vendedorDisplay = l.vendedor;
                     var diasDisplay = formatDiasParaVencer(l.diasParaVencer);
-                    return '<tr class="' + rowClass + '" data-id="' + l.id + '">\n                    <td>' + l.dataStr + '</td>\n                    <td>' + l.nome.substring(0,40) + '</td>\n                    <td>' + l.empresa.substring(0,40) + '</td>\n                    <td>' + l.whatsapp + '</td>\n                    <td><span class="status-badge ' + statusClass + '">' + statusIconHtml + l.status + '</span></td>\n                    <td>' + diasDisplay + '</td>\n                    <td>' + valorExibicao + '</td>\n                    <td>' + propostaDisplay + '</td>\n                    <td>' + cadastroDisplay + '</td>\n                    <td>' + obsDisplay + '</td>\n                    <td>' + campanhaDisplay + '</td>\n                    <td><span class="vendedor-tag" style="background:' + vendedorCor + '">' + vendedorDisplay + '</span></td>\n                    <td><button class="btn btn-sm btn-outline view-detail" data-id="' + l.id + '"><i class="fas fa-eye"></i></button></td>\n                </tr>';
+                    var nomeDisplay = (l.nome || '').substring(0,40);
+                    return '<tr class="' + rowClass + '" data-id="' + l.id + '">\n                    <td>' + l.dataStr + '</td>\n                    <td>' + nomeDisplay + '</td>\n                    <td>' + (l.empresa || '').substring(0,40) + '</td>\n                    <td>' + l.whatsapp + '</td>\n                    <td><span class="status-badge ' + statusClass + '">' + statusIconHtml + l.status + '</span></td>\n                    <td>' + diasDisplay + '</td>\n                    <td>' + valorExibicao + '</td>\n                    <td>' + propostaDisplay + '</td>\n                    <td>' + cadastroDisplay + '</td>\n                    <td>' + obsDisplay + '</td>\n                    <td>' + campanhaDisplay + '</td>\n                    <td><span class="vendedor-tag" style="background:' + vendedorCor + '">' + vendedorDisplay + '</span></td>\n                    <td><button class="btn btn-sm btn-outline view-detail" data-id="' + l.id + '"><i class="fas fa-eye"></i></button></td>\n                </tr>';
                 }).join('');
                 document.querySelectorAll('.view-detail').forEach(function(btn) { btn.addEventListener('click', function(e) { e.stopPropagation(); showLeadDetail(btn.dataset.id); }); });
                 document.querySelectorAll('#tableBody tr').forEach(function(tr) { tr.addEventListener('click', function() { var leadId = tr.dataset.id; if (leadId) showLeadDetail(leadId); }); });
             }
 
-            // ===== DETALHE DO LEAD =====
             function showLeadDetail(leadId) {
                 var lead = processedLeads.find(function(l) { return l.id === leadId; });
                 if (!lead) return;
@@ -1314,18 +1706,10 @@
                 lastLeadIdClicked = leadId;
 
                 var leadOriginal = {
-                    "Nome Completo": lead.nome,
-                    "Nome da empresa": lead.empresa,
-                    "CNPJ": lead.cnpj,
-                    "WhatsApp": lead.whatsapp,
-                    "E-mail": lead.email,
-                    "Mensagem": lead.mensagem,
-                    "UTM SOURCE": lead.utmSource,
-                    "UTM MEDIUM": lead.utmMedium,
-                    "UTM CAMPAIGN": lead.utmCampaign,
-                    "UTM TERM": lead.utmTerm,
-                    "UTM CONTENT": lead.utmContent,
-                    "DATA DO PREENCHIMENTO": lead.dataStr
+                    "Nome Completo": lead.nome, "Nome da empresa": lead.empresa, "CNPJ": lead.cnpj,
+                    "WhatsApp": lead.whatsapp, "E-mail": lead.email, "Mensagem": lead.mensagem,
+                    "UTM SOURCE": lead.utmSource, "UTM MEDIUM": lead.utmMedium, "UTM CAMPAIGN": lead.utmCampaign,
+                    "UTM TERM": lead.utmTerm, "UTM CONTENT": lead.utmContent, "DATA DO PREENCHIMENTO": lead.dataStr
                 };
                 var cliente = findClientInCarteira(leadOriginal);
                 if (cliente) { abrirFichaCliente(cliente, lead); return; }
@@ -1334,12 +1718,12 @@
                 if (lead.isNovoCliente) tipoLead = '<span style="background:#dbeafe;color:#1e40af;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🆕 Cliente Novo</span>';
                 else if (lead.isRevendaCliente) tipoLead = '<span style="background:#fef3c7;color:#92400e;padding:2px 10px;border-radius:20px;font-weight:600;font-size:0.75rem;">🔄 Revenda</span>';
 
-                var mensagemPadrao = 'Segue o lead para retorno/contato:\n\nNome: ' + lead.nome + '\nEmpresa: ' + lead.empresa + '\nCNPJ: ' + (lead.cnpj || '-') + '\nWhatsApp: ' + lead.whatsapp + '\nE-mail: ' + lead.email + '\nMensagem: ' + (lead.mensagem || '-');
-
+                var mensagemPadrao = gerarMensagemParaVendedor(lead);
                 var vendedorDisplay = lead.vendedor;
                 var vendedorCor = (nomeVendedorMap.get(lead.vendedorRaw) || {}).cor || "#6b7280";
+                var badgeRecorrente = lead.isRecorrente ? '<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span> ' : '';
 
-                var html = '<div class="detail-list">\n                <div class="detail-item"><i class="fas fa-user"></i><strong>Nome:</strong> ' + lead.nome + ' ' + tipoLead + '</div>\n                <div class="detail-item"><i class="fas fa-building"></i><strong>Empresa:</strong> ' + lead.empresa + '</div>\n                <div class="detail-item"><i class="fas fa-id-card"></i><strong>CNPJ:</strong> ' + (lead.cnpj || '-') + '</div>\n                <div class="detail-item"><i class="fab fa-whatsapp"></i><strong>WhatsApp:</strong> ' + (lead.whatsapp || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-envelope"></i><strong>E-mail:</strong> ' + (lead.email || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-tag"></i><strong>Status:</strong> ' + lead.status + '</div>\n                <div class="detail-item"><i class="fas fa-dollar-sign"></i><strong>Valor da Venda:</strong> ' + (lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-file-invoice-dollar"></i><strong>Valor da Proposta:</strong> ' + (lead.valorProposta > 0 ? 'R$ ' + formatCurrency(lead.valorProposta) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-check-circle"></i><strong>Cadastro Realizado?:</strong> ' + (lead.cadastroRealizado || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-clock"></i><strong>Dias para vencer:</strong> ' + (lead.diasParaVencer !== null ? formatDiasParaVencer(lead.diasParaVencer) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-comment-dots"></i><strong>Observações:</strong></div>\n                <div id="observacoesContainer" style="width:100%; margin-left: 36px;">\n                    ' + renderObservacoes(lead.id) + '\n                </div>\n                <div class="detail-item"><i class="fas fa-bullhorn"></i><strong>Campanha:</strong> ' + (lead.campanhaLabel || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-globe"></i><strong>Origem:</strong> ' + (lead.utmSource || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-user-tie"></i><strong>Vendedor:</strong> <span class="vendedor-tag" style="background:' + vendedorCor + '">' + vendedorDisplay + '</span></div>\n                <div class="detail-item"><i class="fas fa-calendar"></i><strong>Data/Hora:</strong> ' + lead.dataStr + '</div>\n                <div class="detail-item"><i class="fas fa-comment"></i><strong>Mensagem original:</strong> ' + (lead.mensagem || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-chart-line"></i><strong>Origem (UTM):</strong> ' + lead.utmIconHtml + ' ' + (lead.utmSource || '-') + (lead.utmCampaign ? ' / ' + lead.utmCampaign : '') + '</div>\n            </div>\n            <div style="background:#fef9e7;padding:12px;border-radius:16px;margin-top:12px;border-left:4px solid #f59e0b;">\n                <i class="fas fa-info-circle" style="color:#f59e0b;"></i>\n                <span style="font-weight:500;">Empresa não localizada na carteira de clientes com correspondência exata.</span>\n                <span style="display:block;margin-top:4px;font-size:0.85rem;color:#92400e;">⚠ Verificação manual necessária. Vendedor atribuído automaticamente conforme regras de distribuição.</span>\n            </div>\n            <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio:<br>' + mensagemPadrao.replace(/\n/g,'<br>') + '</div>';
+                var html = '<div class="detail-list">\n                <div class="detail-item"><i class="fas fa-user"></i><strong>Nome:</strong> ' + lead.nome + ' ' + tipoLead + '</div>\n                <div class="detail-item"><i class="fas fa-building"></i><strong>Empresa:</strong> ' + lead.empresa + '</div>\n                <div class="detail-item"><i class="fas fa-id-card"></i><strong>CNPJ:</strong> ' + (lead.cnpj || '-') + '</div>\n                <div class="detail-item"><i class="fab fa-whatsapp"></i><strong>WhatsApp:</strong> ' + (lead.whatsapp || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-envelope"></i><strong>E-mail:</strong> ' + (lead.email || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-tag"></i><strong>Status:</strong> ' + lead.status + '</div>\n                <div class="detail-item"><i class="fas fa-dollar-sign"></i><strong>Valor da Venda:</strong> ' + (lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-file-invoice-dollar"></i><strong>Valor da Proposta:</strong> ' + (lead.valorProposta > 0 ? 'R$ ' + formatCurrency(lead.valorProposta) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-check-circle"></i><strong>Cadastro Realizado?:</strong> ' + (lead.cadastroRealizado || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-clock"></i><strong>Dias para vencer:</strong> ' + (lead.diasParaVencer !== null ? formatDiasParaVencer(lead.diasParaVencer) : '-') + '</div>\n                <div class="detail-item"><i class="fas fa-comment-dots"></i><strong>Observações:</strong> ' + badgeRecorrente + '</div>\n                <div id="observacoesContainer" style="width:100%; margin-left: 36px;">\n                    ' + renderObservacoes(lead.id) + '\n                </div>\n                <div class="detail-item"><i class="fas fa-bullhorn"></i><strong>Campanha:</strong> ' + (lead.campanhaLabel || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-globe"></i><strong>Origem:</strong> ' + (lead.utmSource || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-user-tie"></i><strong>Vendedor:</strong> <span class="vendedor-tag" style="background:' + vendedorCor + '">' + vendedorDisplay + '</span></div>\n                <div class="detail-item"><i class="fas fa-calendar"></i><strong>Data/Hora:</strong> ' + lead.dataStr + '</div>\n                <div class="detail-item"><i class="fas fa-comment"></i><strong>Mensagem original:</strong> ' + (lead.mensagem || '-') + '</div>\n                <div class="detail-item"><i class="fas fa-chart-line"></i><strong>Origem (UTM):</strong> ' + lead.utmIconHtml + ' ' + (lead.utmSource || '-') + (lead.utmCampaign ? ' / ' + lead.utmCampaign : '') + '</div>\n            </div>\n            <div style="background:#fef9e7;padding:12px;border-radius:16px;margin-top:12px;border-left:4px solid #f59e0b;">\n                <i class="fas fa-info-circle" style="color:#f59e0b;"></i>\n                <span style="font-weight:500;">Empresa não localizada na carteira de clientes com correspondência exata.</span>\n                <span style="display:block;margin-top:4px;font-size:0.85rem;color:#92400e;">⚠ Verificação manual necessária. Vendedor atribuído automaticamente conforme regras de distribuição.</span>\n            </div>\n            <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio (com histórico):<br>' + mensagemPadrao.replace(/\n/g,'<br>') + '</div>';
                 document.getElementById('detailContent').innerHTML = html;
                 document.getElementById('leadDetailModal').style.display = 'flex';
                 document.getElementById('detailEmailBtn').onclick = function() { handleSend(lead, 'email', mensagemPadrao); };
@@ -1348,7 +1732,6 @@
                 document.getElementById('detailEditBtn').onclick = function() { openEditLead(lead); };
             }
 
-            // ===== OBSERVAÇÕES EDITÁVEIS =====
             function renderObservacoes(leadId) {
                 var lead = processedLeads.find(function(l) { return l.id === leadId; });
                 if (!lead) return '<div>Nenhuma observação.</div>';
@@ -1365,17 +1748,13 @@
                     document.querySelectorAll('.edit-obs-btn').forEach(function(btn) {
                         btn.onclick = function(e) {
                             e.stopPropagation();
-                            var lid = btn.dataset.leadId;
-                            var idx = parseInt(btn.dataset.index);
-                            editarObservacao(lid, idx);
+                            editarObservacao(btn.dataset.leadId, parseInt(btn.dataset.index));
                         };
                     });
                     document.querySelectorAll('.delete-obs-btn').forEach(function(btn) {
                         btn.onclick = function(e) {
                             e.stopPropagation();
-                            var lid = btn.dataset.leadId;
-                            var idx = parseInt(btn.dataset.index);
-                            excluirObservacao(lid, idx);
+                            excluirObservacao(btn.dataset.leadId, parseInt(btn.dataset.index));
                         };
                     });
                 }, 50);
@@ -1392,11 +1771,8 @@
                 var newText = prompt("Editar observação:", oldText);
                 if (newText === null) return;
                 newText = newText.trim();
-                if (newText === '') {
-                    lines.splice(index, 1);
-                } else {
-                    lines[index] = newText;
-                }
+                if (newText === '') lines.splice(index, 1);
+                else lines[index] = newText;
                 var novaObs = lines.join('\n');
                 if (!localOverrides[leadId]) localOverrides[leadId] = {};
                 localOverrides[leadId].observacoes = novaObs;
@@ -1425,7 +1801,6 @@
                 showToast("Observação excluída.");
             }
 
-            // ===== FICHA DO CLIENTE =====
             function abrirFichaCliente(cliente, lead) {
                 document.getElementById('leadDetailModal').style.display = 'none';
                 var modal = document.getElementById('clienteFichaModal');
@@ -1444,10 +1819,10 @@
                     atribuicaoLabel = '';
                 }
                 var vendedorDisplay = lead ? lead.vendedor : vendedorNome;
-                var mensagemPadrao = lead ? 'Segue o lead para retorno/contato:\n\nNome: ' + lead.nome + '\nEmpresa: ' + lead.empresa + '\nCNPJ: ' + (lead.cnpj || '-') + '\nWhatsApp: ' + lead.whatsapp + '\nE-mail: ' + lead.email + '\nMensagem: ' + (lead.mensagem || '-') : '';
+                var mensagemPadrao = lead ? gerarMensagemParaVendedor(lead) : '';
                 var html = '\n                <div class="ficha-secao">\n                    <h4><i class="fas fa-user-tie"></i> Vendedor Responsável</h4>\n                    <span class="vendedor-badge" style="background:' + vendedorCor + ';">\n                        ' + vendedorDisplay + '\n                        ' + (atribuicaoLabel ? '<span class="atribuicao-tag">' + atribuicaoIcon + ' ' + atribuicaoLabel + '</span>' : '') + '\n                    </span>\n                </div>\n                <div class="ficha-secao">\n                    <h4><i class="fas fa-building"></i> Dados da Empresa</h4>\n                    <div class="ficha-grid">\n                        ' + fichaCampo('fa-hashtag', 'Código', cliente['Código']) + '\n                        ' + fichaCampo('fa-tag', 'Nome Chave', cliente['Nome Chave']) + '\n                        ' + fichaCampo('fa-file-signature', 'Razão Social', cliente['Nome/Razão Social']) + '\n                        ' + fichaCampo('fa-id-card', 'CPF/CNPJ', cliente['CPF/CGC']) + '\n                        ' + fichaCampo('fa-passport', 'RG/IE', cliente['RG/IE']) + '\n                        ' + fichaCampo('fa-city', 'Cidade', cliente['Cidade']) + '\n                        ' + fichaCampo('fa-map-pin', 'UF', cliente['UF']) + '\n                        ' + fichaCampo('fa-check-circle', 'Situação', cliente['ATivo/Inativo']) + '\n                        ' + fichaCampo('fa-calendar-check', 'Dt. Cadastro', cliente['Dt.Cadastro']) + '\n                        ' + fichaCampo('fa-truck', 'Transportadora', cliente['Transportadora']) + '\n                        ' + fichaCampo('fa-dollar-sign', 'Limite Crédito', cliente['Limite de Crédito']) + '\n                    </div>\n                </div>\n                <div class="ficha-secao">\n                    <h4><i class="fas fa-map-marker-alt"></i> Endereço</h4>\n                    <div class="ficha-grid">\n                        ' + fichaCampo('fa-road', 'Endereço', cliente['Endereço']) + '\n                        ' + fichaCampo('fa-home', 'Número', cliente['Número']) + '\n                        ' + fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento']) + '\n                        ' + fichaCampo('fa-map', 'Bairro', cliente['Bairro']) + '\n                        ' + fichaCampo('fa-city', 'Cidade', cliente['Cidade']) + '\n                        ' + fichaCampo('fa-map-pin', 'UF', cliente['UF']) + '\n                        ' + fichaCampo('fa-globe-americas', 'País', cliente['País']) + '\n                        ' + fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP']) + '\n                    </div>\n                </div>\n                <div class="ficha-secao">\n                    <h4><i class="fas fa-phone-alt"></i> Contato</h4>\n                    <div class="ficha-grid">\n                        ' + fichaCampo('fa-phone', 'Telefone', cliente['Telefone']) + '\n                        ' + fichaCampo('fa-phone-volume', 'Fone', cliente['Fone']) + '\n                        ' + fichaCampo('fa-user', 'Contato', cliente['Contato']) + '\n                        ' + fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail']) + '\n                        ' + fichaCampo('fa-building', 'Departamento', cliente['Departamento']) + '\n                        ' + fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo']) + '\n                        ' + fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário']) + '\n                    </div>\n                </div>';
                 if (lead) {
-                    html += '\n                    <div class="ficha-secao">\n                        <h4><i class="fas fa-info-circle"></i> Dados do Lead</h4>\n                        <div class="ficha-grid">\n                            ' + fichaCampo('fa-user', 'Nome', lead.nome) + '\n                            ' + fichaCampo('fa-building', 'Empresa', lead.empresa) + '\n                            ' + fichaCampo('fa-id-card', 'CNPJ', lead.cnpj || '-') + '\n                            ' + fichaCampo('fab fa-whatsapp', 'WhatsApp', lead.whatsapp || '-') + '\n                            ' + fichaCampo('fas fa-envelope', 'E-mail', lead.email || '-') + '\n                            ' + fichaCampo('fas fa-tag', 'Status', lead.status) + '\n                            ' + fichaCampo('fas fa-dollar-sign', 'Valor Venda', lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-') + '\n                            ' + fichaCampo('fas fa-file-invoice-dollar', 'Valor Proposta', lead.valorProposta > 0 ? 'R$ ' + formatCurrency(lead.valorProposta) : '-') + '\n                            ' + fichaCampo('fas fa-calendar', 'Data/Hora', lead.dataStr) + '\n                            <div class="ficha-campo" style="grid-column: 1 / -1;"><i class="fas fa-comment-dots"></i><span class="campo-label">Observações:</span><span class="campo-valor">' + (lead.observacoes || '-') + '</span></div>\n                        </div>\n                    </div>\n                    <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio:<br>' + mensagemPadrao.replace(/\n/g,'<br>') + '</div>';
+                    html += '\n                    <div class="ficha-secao">\n                        <h4><i class="fas fa-info-circle"></i> Dados do Lead</h4>\n                        <div class="ficha-grid">\n                            ' + fichaCampo('fa-user', 'Nome', lead.nome) + '\n                            ' + fichaCampo('fa-building', 'Empresa', lead.empresa) + '\n                            ' + fichaCampo('fa-id-card', 'CNPJ', lead.cnpj || '-') + '\n                            ' + fichaCampo('fab fa-whatsapp', 'WhatsApp', lead.whatsapp || '-') + '\n                            ' + fichaCampo('fas fa-envelope', 'E-mail', lead.email || '-') + '\n                            ' + fichaCampo('fas fa-tag', 'Status', lead.status) + '\n                            ' + fichaCampo('fas fa-dollar-sign', 'Valor Venda', lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '-') + '\n                            ' + fichaCampo('fas fa-file-invoice-dollar', 'Valor Proposta', lead.valorProposta > 0 ? 'R$ ' + formatCurrency(lead.valorProposta) : '-') + '\n                            ' + fichaCampo('fas fa-calendar', 'Data/Hora', lead.dataStr) + '\n                            <div class="ficha-campo" style="grid-column: 1 / -1;"><i class="fas fa-comment-dots"></i><span class="campo-label">Observações:</span><span class="campo-valor">' + (lead.observacoes || '-') + '</span></div>\n                        </div>\n                    </div>\n                    <div class="mensagem-padrao"><i class="fas fa-copy"></i> Mensagem para envio (com histórico):<br>' + mensagemPadrao.replace(/\n/g,'<br>') + '</div>';
                 }
                 content.innerHTML = html;
                 window._clienteFichaAtual = { cliente: cliente, lead: lead };
@@ -1469,20 +1844,15 @@
                 };
                 document.getElementById('fichaCopiarBtn').onclick = function() { copiarDadosFicha(window._clienteFichaAtual.cliente, window._clienteFichaAtual.lead); };
                 document.getElementById('fichaEditLeadBtn').onclick = function() {
-                    if (lead) {
-                        modal.style.display = 'none';
-                        openEditLead(lead);
-                    } else {
-                        showToast("Lead não disponível para edição.", true);
-                    }
+                    if (lead) { modal.style.display = 'none'; openEditLead(lead); }
+                    else showToast("Lead não disponível para edição.", true);
                 };
                 document.getElementById('closeClienteFicha').onclick = function() { modal.style.display = 'none'; };
                 modal.onclick = function(e) { if (e.target === modal) modal.style.display = 'none'; };
                 modal.style.display = 'flex';
             }
             function fichaCampo(icone, label, valor) {
-                var val = valor || '—';
-                return '<div class="ficha-campo"><i class="fas ' + icone + '"></i><span class="campo-label">' + label + ':</span><span class="campo-valor">' + val + '</span></div>';
+                return '<div class="ficha-campo"><i class="fas ' + icone + '"></i><span class="campo-label">' + label + ':</span><span class="campo-valor">' + (valor || '—') + '</span></div>';
             }
             function copiarDadosFicha(cliente, lead) {
                 var texto = '═══════════════════════════════════\n  FICHA CADASTRAL DO CLIENTE\n═══════════════════════════════════\n\n';
@@ -1526,6 +1896,7 @@
                     texto += 'Valor Venda: ' + (lead.valorVenda > 0 ? 'R$ ' + formatCurrency(lead.valorVenda) : '—') + '\n';
                     texto += 'Valor Proposta: ' + (lead.valorProposta > 0 ? 'R$ ' + formatCurrency(lead.valorProposta) : '—') + '\n';
                     texto += 'Data/Hora: ' + (lead.dataStr || '—') + '\n';
+                    texto += '\n--- HISTÓRICO DE CONTATOS / OBSERVAÇÕES ---\n' + (lead.observacoes || 'Nenhum histórico registrado.');
                 }
                 navigator.clipboard.writeText(texto).then(function() {
                     showToast('✅ Dados copiados com sucesso!');
@@ -1540,7 +1911,6 @@
                 });
             }
 
-            // ===== ENVIO / EDIÇÃO =====
             async function handleSend(lead, tipo, mensagem) {
                 if (tipo === 'email' && !lead.email) { showToast("Lead não possui e-mail.", true); return; }
                 if (tipo === 'whatsapp' && !lead.whatsapp) { showToast("Lead não possui WhatsApp.", true); return; }
@@ -1599,7 +1969,6 @@
                 });
             }
 
-            // ===== EDIÇÃO COMPLETA (COM HISTÓRICO DETALHADO) =====
             function openEditLead(lead) {
                 document.getElementById('editNome').value = lead.nome;
                 document.getElementById('editEmpresa').value = lead.empresa;
@@ -1622,33 +1991,30 @@
                 document.getElementById('editUtmContent').value = lead.utmContent || '';
 
                 var modal = document.getElementById('editLeadModal');
+                var titleEl = document.getElementById('editLeadModalTitle');
+                if (titleEl) titleEl.textContent = 'Editar Lead (override local)';
                 modal.style.display = 'flex';
 
                 var form = document.getElementById('editLeadForm');
                 var newForm = form.cloneNode(true);
                 form.parentNode.replaceChild(newForm, form);
 
+                var deleteBtn = document.getElementById('deleteLeadBtn');
+                if (deleteBtn) {
+                    var newDeleteBtn = newForm.querySelector('#deleteLeadBtn');
+                    if (newDeleteBtn) newDeleteBtn.onclick = function() { excluirLead(lead.id); };
+                }
+
                 newForm.addEventListener('submit', function(e) {
                     e.preventDefault();
 
                     var oldValues = {
-                        nome: lead.nome,
-                        empresa: lead.empresa,
-                        whatsapp: lead.whatsapp,
-                        email: lead.email || '',
-                        cnpj: lead.cnpj || '',
-                        mensagem: lead.mensagem || '',
-                        status: lead.status,
-                        vendedor: lead.vendedorRaw,
-                        observacoes: lead.observacoes || '',
-                        valorProposta: lead.valorProposta || 0,
-                        valorVenda: lead.valorVenda || 0,
+                        nome: lead.nome, empresa: lead.empresa, whatsapp: lead.whatsapp, email: lead.email || '', cnpj: lead.cnpj || '',
+                        mensagem: lead.mensagem || '', status: lead.status, vendedor: lead.vendedorRaw,
+                        observacoes: lead.observacoes || '', valorProposta: lead.valorProposta || 0, valorVenda: lead.valorVenda || 0,
                         cadastroRealizado: lead.cadastroRealizado || '',
-                        utmSource: lead.utmSource || '',
-                        utmMedium: lead.utmMedium || '',
-                        utmCampaign: lead.utmCampaign || '',
-                        utmTerm: lead.utmTerm || '',
-                        utmContent: lead.utmContent || ''
+                        utmSource: lead.utmSource || '', utmMedium: lead.utmMedium || '', utmCampaign: lead.utmCampaign || '',
+                        utmTerm: lead.utmTerm || '', utmContent: lead.utmContent || ''
                     };
 
                     var newValues = {
@@ -1672,21 +2038,14 @@
                     };
 
                     var campos = [
-                        { chave: 'nome', label: 'Nome' },
-                        { chave: 'empresa', label: 'Empresa' },
-                        { chave: 'whatsapp', label: 'WhatsApp' },
-                        { chave: 'email', label: 'E-mail' },
-                        { chave: 'cnpj', label: 'CNPJ' },
-                        { chave: 'mensagem', label: 'Mensagem' },
-                        { chave: 'status', label: 'Status' },
-                        { chave: 'vendedor', label: 'Vendedor' },
-                        { chave: 'valorProposta', label: 'Valor da Proposta' },
-                        { chave: 'valorVenda', label: 'Valor da Venda' },
+                        { chave: 'nome', label: 'Nome' }, { chave: 'empresa', label: 'Empresa' },
+                        { chave: 'whatsapp', label: 'WhatsApp' }, { chave: 'email', label: 'E-mail' },
+                        { chave: 'cnpj', label: 'CNPJ' }, { chave: 'mensagem', label: 'Mensagem' },
+                        { chave: 'status', label: 'Status' }, { chave: 'vendedor', label: 'Vendedor' },
+                        { chave: 'valorProposta', label: 'Valor da Proposta' }, { chave: 'valorVenda', label: 'Valor da Venda' },
                         { chave: 'cadastroRealizado', label: 'Cadastro Realizado?' },
-                        { chave: 'utmSource', label: 'UTM Source' },
-                        { chave: 'utmMedium', label: 'UTM Medium' },
-                        { chave: 'utmCampaign', label: 'UTM Campaign' },
-                        { chave: 'utmTerm', label: 'UTM Term' },
+                        { chave: 'utmSource', label: 'UTM Source' }, { chave: 'utmMedium', label: 'UTM Medium' },
+                        { chave: 'utmCampaign', label: 'UTM Campaign' }, { chave: 'utmTerm', label: 'UTM Term' },
                         { chave: 'utmContent', label: 'UTM Content' }
                     ];
 
@@ -1702,37 +2061,29 @@
                         }
                     });
 
+                    if (!localOverrides[lead.id]) localOverrides[lead.id] = {};
                     if (newValues.observacoes && newValues.observacoes !== oldValues.observacoes) {
-                        var now = new Date();
-                        var dataFormatada = formatDateBR(now);
-                        var manualObs = '[Manual ' + dataFormatada + '] ' + newValues.observacoes;
-                        if (!localOverrides[lead.id]) localOverrides[lead.id] = {};
-                        if (!localOverrides[lead.id].observacoes) localOverrides[lead.id].observacoes = '';
-                        if (localOverrides[lead.id].observacoes.indexOf(manualObs) === -1) {
-                            localOverrides[lead.id].observacoes = localOverrides[lead.id].observacoes.trim() + '\n' + manualObs;
+                        var soTextoUsuario = newValues.observacoes;
+                        var obsBase = localOverrides[lead.id].observacoes || oldValues.observacoes || '';
+                        if (soTextoUsuario.indexOf('[Automático') === -1 && soTextoUsuario.indexOf('[Manual') === -1 && soTextoUsuario !== obsBase) {
+                            addAutoObservation(lead.id, null, null, null, soTextoUsuario, 'manual');
+                        } else if (soTextoUsuario !== obsBase) {
+                            localOverrides[lead.id].observacoes = organizarObservacoes(soTextoUsuario);
                         }
                     }
 
                     var override = {
-                        status: newValues.status,
-                        vendedor: newValues.vendedor,
+                        status: newValues.status, vendedor: newValues.vendedor,
                         vendedorOriginal: lead.vendedorOriginal || lead.vendedorRaw,
-                        timestamp: Date.now(),
-                        edited: true,
+                        timestamp: Date.now(), edited: true,
                         mensagem: newValues.mensagem,
-                        observacoes: localOverrides[lead.id]?.observacoes || lead.observacoes || '',
-                        valorProposta: newValues.valorProposta,
-                        valorVenda: newValues.valorVenda,
-                        nome: newValues.nome,
-                        empresa: newValues.empresa,
-                        whatsapp: newValues.whatsapp,
-                        email: newValues.email,
-                        cnpj: newValues.cnpj,
+                        observacoes: localOverrides[lead.id].observacoes || lead.observacoes || '',
+                        valorProposta: newValues.valorProposta, valorVenda: newValues.valorVenda,
+                        nome: newValues.nome, empresa: newValues.empresa, whatsapp: newValues.whatsapp,
+                        email: newValues.email, cnpj: newValues.cnpj,
                         cadastroRealizado: newValues.cadastroRealizado,
-                        utmSource: newValues.utmSource,
-                        utmMedium: newValues.utmMedium,
-                        utmCampaign: newValues.utmCampaign,
-                        utmTerm: newValues.utmTerm,
+                        utmSource: newValues.utmSource, utmMedium: newValues.utmMedium,
+                        utmCampaign: newValues.utmCampaign, utmTerm: newValues.utmTerm,
                         utmContent: newValues.utmContent
                     };
 
@@ -1746,7 +2097,112 @@
                 });
             }
 
-            // ===== FILTROS E POPULAÇÃO =====
+            function abrirCadastroManual(prefill) {
+                prefill = prefill || {};
+                var titleEl = document.getElementById('editLeadModalTitle');
+                if (titleEl) titleEl.textContent = 'Cadastrar Lead manualmente';
+                document.getElementById('editNome').value = prefill.nome || '';
+                document.getElementById('editEmpresa').value = prefill.empresa || '';
+                document.getElementById('editWhats').value = prefill.whatsapp || '';
+                document.getElementById('editEmail').value = prefill.email || '';
+                document.getElementById('editCnpj').value = prefill.cnpj || '';
+                document.getElementById('editMensagem').value = prefill.mensagem || '';
+                document.getElementById('editStatus').innerHTML = ['Em Aberto', 'Em Andamento', 'Aguardando Resposta', 'Não Fechou', 'Gerou Venda', 'Lead Atendido']
+                    .map(function(s) { return '<option' + (s === 'Em Aberto' ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+                var vendedores = [...new Set(Array.from(nomeVendedorMap.values()).map(function(v) { return v.nome; }))].sort();
+                document.getElementById('editVendedor').innerHTML = vendedores.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
+                document.getElementById('editObservacoes').value = '';
+                document.getElementById('editValorProposta').value = '';
+                document.getElementById('editValorVenda').value = '';
+                document.getElementById('editCadastroRealizado').value = '';
+                document.getElementById('editUtmSource').value = prefill.utmSource || '';
+                document.getElementById('editUtmMedium').value = prefill.utmMedium || '';
+                document.getElementById('editUtmCampaign').value = prefill.utmCampaign || '';
+                document.getElementById('editUtmTerm').value = prefill.utmTerm || '';
+                document.getElementById('editUtmContent').value = prefill.utmContent || '';
+
+                var modal = document.getElementById('editLeadModal');
+                modal.style.display = 'flex';
+
+                var form = document.getElementById('editLeadForm');
+                var newForm = form.cloneNode(true);
+                form.parentNode.replaceChild(newForm, form);
+
+                var deleteBtn = newForm.querySelector('#deleteLeadBtn');
+                if (deleteBtn) deleteBtn.style.display = 'none';
+
+                newForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    var nomeVal = document.getElementById('editNome').value.trim();
+                    var whatsVal = document.getElementById('editWhats').value.trim();
+                    if (!nomeVal || !whatsVal) {
+                        showToast('Nome e WhatsApp são obrigatórios.', true);
+                        return;
+                    }
+                    var novoId = 'manual_' + Date.now();
+                    var dataAgora = new Date();
+                    var valorVenda = cleanCurrency(document.getElementById('editValorVenda').value);
+                    var statusVal = document.getElementById('editStatus').value;
+                    var cadastroVal = document.getElementById('editCadastroRealizado').value;
+                    if (valorVenda > 0) {
+                        statusVal = 'Gerou Venda';
+                        cadastroVal = 'Sim';
+                    }
+                    var obsManual = document.getElementById('editObservacoes').value.trim();
+                    var obsFinal = '[Manual ' + formatDateBR(dataAgora) + '] Lead cadastrado manualmente.';
+                    if (obsManual) obsFinal += '\n[Manual ' + formatDateBR(dataAgora) + '] ' + obsManual;
+                    obsFinal = organizarObservacoes(obsFinal);
+
+                    localOverrides[novoId] = {
+                        edited: true, timestamp: Date.now(),
+                        nome: nomeVal, empresa: document.getElementById('editEmpresa').value.trim(),
+                        whatsapp: whatsVal, email: document.getElementById('editEmail').value.trim(),
+                        cnpj: document.getElementById('editCnpj').value.trim(),
+                        mensagem: document.getElementById('editMensagem').value.trim(),
+                        status: statusVal,
+                        vendedor: document.getElementById('editVendedor').value,
+                        vendedorOriginal: document.getElementById('editVendedor').value,
+                        observacoes: obsFinal,
+                        valorProposta: cleanCurrency(document.getElementById('editValorProposta').value),
+                        valorVenda: valorVenda,
+                        cadastroRealizado: cadastroVal,
+                        utmSource: document.getElementById('editUtmSource').value.trim(),
+                        utmMedium: document.getElementById('editUtmMedium').value.trim(),
+                        utmCampaign: document.getElementById('editUtmCampaign').value.trim(),
+                        utmTerm: document.getElementById('editUtmTerm').value.trim(),
+                        utmContent: document.getElementById('editUtmContent').value.trim()
+                    };
+                    localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
+
+                    var vendedorRaw = localOverrides[novoId].vendedor;
+                    processedLeads.unshift({
+                        id: novoId, dataHora: dataAgora, dataStr: formatDateBR(dataAgora),
+                        nome: nomeVal, empresa: localOverrides[novoId].empresa,
+                        whatsapp: whatsVal, email: localOverrides[novoId].email,
+                        cnpj: localOverrides[novoId].cnpj,
+                        mensagem: localOverrides[novoId].mensagem,
+                        utmSource: localOverrides[novoId].utmSource,
+                        utmMedium: localOverrides[novoId].utmMedium,
+                        utmCampaign: localOverrides[novoId].utmCampaign,
+                        utmTerm: localOverrides[novoId].utmTerm,
+                        utmContent: localOverrides[novoId].utmContent,
+                        status: statusVal,
+                        vendedor: vendedorRaw, vendedorRaw: vendedorRaw, vendedorOriginal: vendedorRaw,
+                        isRevenda: false, clienteExistente: false, isNovoCliente: true, isRevendaCliente: false,
+                        utmIconHtml: getUtmIcon(localOverrides[novoId].utmSource),
+                        valorVenda: valorVenda, valorProposta: localOverrides[novoId].valorProposta,
+                        finalData: null, observacoes: obsFinal, cadastroRealizado: cadastroVal,
+                        campanhaLabel: getCampanhaLabel(localOverrides[novoId]),
+                        campanhaNome: getCampanhaNome(localOverrides[novoId]) || '-',
+                        diasParaVencer: DIAS_LIMITE, isRecorrente: false
+                    });
+                    renderDashboard();
+                    modal.style.display = 'none';
+                    if (titleEl) titleEl.textContent = 'Editar Lead (override local)';
+                    showToast('Lead cadastrado manualmente!');
+                });
+            }
+
             function setDefaultYearFilter() {
                 var currentYear = new Date().getFullYear();
                 currentFilters.dataInicio = currentYear + '-01-01';
@@ -1767,7 +2223,6 @@
                 document.getElementById('revendaVendedorSelect').value = config.vendedorRevendas || "";
             }
 
-            // ===== GERENCIAR VENDEDORES =====
             function abrirGerenciarVendedores() {
                 var container = document.getElementById('listaVendedores');
                 var grupos = JSON.parse(localStorage.getItem('extraVendedores') || '[]');
@@ -1818,57 +2273,33 @@
                 document.getElementById('gerenciarVendedoresModal').style.display = 'flex';
             }
 
-            // ===== EXPORTAÇÕES =====
-            // ===== EXPORTAÇÃO EXCEL COM CABEÇALHOS COMPATÍVEIS =====
             function exportRelatorioConversao() {
                 var filtered = getFilteredLeads();
                 var data = filtered.map(function(l) {
                     return {
-                        "Data": formatDateOnlyBR(l.dataHora),
-                        "Nome": l.nome,
-                        "WhatsApp": l.whatsapp,
-                        "Email": l.email || "",
-                        "Empresa": l.empresa,
-                        "CNPJ": l.cnpj || "",
-                        "Mensagem": l.mensagem || "",
-                        "Cadastro Realizado?": l.cadastroRealizado || "",
-                        "Status": l.status,
+                        "Data": l.dataStr, "Nome": l.nome, "WhatsApp": l.whatsapp, "Email": l.email || "",
+                        "Empresa": l.empresa, "CNPJ": l.cnpj || "", "Mensagem": l.mensagem || "",
+                        "Cadastro Realizado?": l.cadastroRealizado || "", "Status": l.status,
                         "Valor da Propostas": l.valorProposta > 0 ? l.valorProposta : "",
                         "Valor da Venda": l.valorVenda > 0 ? l.valorVenda : "",
-                        "Vendedor": l.vendedorRaw,
-                        "Campanha?": l.campanhaNome || "",
-                        "Obs.": l.observacoes || ""
+                        "Vendedor": l.vendedorRaw, "Campanha?": l.campanhaNome || "",
+                        "Obs.": (l.isRecorrente ? '🔄 Recorrente ' : '') + (l.observacoes || "")
                     };
                 });
-
                 var ws = XLSX.utils.json_to_sheet(data);
                 ws['!cols'] = [
-                    { wch: 12 }, // Data
-                    { wch: 30 }, // Nome
-                    { wch: 16 }, // WhatsApp
-                    { wch: 30 }, // Email
-                    { wch: 30 }, // Empresa
-                    { wch: 20 }, // CNPJ
-                    { wch: 40 }, // Mensagem
-                    { wch: 22 }, // Cadastro Realizado?
-                    { wch: 22 }, // Status
-                    { wch: 16 }, // Valor da Propostas
-                    { wch: 16 }, // Valor da Venda
-                    { wch: 20 }, // Vendedor
-                    { wch: 15 }, // Campanha?
-                    { wch: 30 }  // Obs.
+                    { wch: 20 }, { wch: 30 }, { wch: 16 }, { wch: 30 },
+                    { wch: 30 }, { wch: 20 }, { wch: 40 }, { wch: 22 },
+                    { wch: 22 }, { wch: 16 }, { wch: 16 }, { wch: 20 },
+                    { wch: 15 }, { wch: 50 }
                 ];
-
                 var wb = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(wb, ws, "Leads");
                 XLSX.writeFile(wb, 'leads_' + new Date().toISOString().slice(0,10) + '.xlsx');
                 showToast("Exportação Excel concluída!");
             }
 
-            function exportLeadsBruto() {
-                exportRelatorioConversao();
-            }
-
+            function exportLeadsBruto() { exportRelatorioConversao(); }
             function exportJSON() {
                 var blob = new Blob([JSON.stringify(processedLeads, null, 2)], { type: 'application/json' });
                 var a = document.createElement('a');
@@ -1877,18 +2308,10 @@
                 a.click();
                 showToast("Exportação JSON concluída!");
             }
-
-            // ===== EXPORTAR PDF =====
             function exportPDF() {
                 var filtered = getFilteredLeads();
-                if (filtered.length === 0) {
-                    showToast("Nenhum lead para exportar.", true);
-                    return;
-                }
-                if (typeof pdfMake === 'undefined') {
-                    showToast("Biblioteca PDF não carregada. Tente recarregar a página.", true);
-                    return;
-                }
+                if (filtered.length === 0) { showToast("Nenhum lead para exportar.", true); return; }
+                if (typeof pdfMake === 'undefined') { showToast("Biblioteca PDF não carregada.", true); return; }
                 var total = filtered.length;
                 var emAberto = filtered.filter(function(l) { return l.status === "Em Aberto"; }).length;
                 var emAndamento = filtered.filter(function(l) { return l.status === "Em Andamento"; }).length;
@@ -1898,21 +2321,16 @@
 
                 var tableBody = filtered.map(function(l) {
                     return [
-                        formatDateOnlyBR(l.dataHora),
-                        l.nome || '',
-                        l.empresa || '',
-                        l.status || '',
+                        l.dataStr, l.nome || '', l.empresa || '', l.status || '',
                         l.valorVenda > 0 ? 'R$ ' + formatCurrency(l.valorVenda) : '',
                         l.valorProposta > 0 ? 'R$ ' + formatCurrency(l.valorProposta) : '',
-                        l.vendedorRaw || '',
-                        l.campanhaNome || ''
+                        l.vendedorRaw || '', l.campanhaNome || '',
+                        (l.isRecorrente ? '🔄 Recorrente ' : '') + (l.observacoes || '')
                     ];
                 });
 
                 var docDefinition = {
-                    pageSize: 'A4',
-                    pageOrientation: 'landscape',
-                    pageMargins: [20, 40, 20, 40],
+                    pageSize: 'A4', pageOrientation: 'landscape', pageMargins: [20, 40, 20, 40],
                     content: [
                         { text: 'Centrobor - Relatório de Leads', style: 'header', alignment: 'center', fontSize: 16, bold: true, color: '#1e3a5f', margin: [0,0,0,5] },
                         { text: 'Gerado em ' + new Date().toLocaleString('pt-BR'), alignment: 'center', fontSize: 10, color: '#64748b', margin: [0,0,0,15] },
@@ -1926,9 +2344,9 @@
                         ], columnGap: 6, margin: [0,0,0,15] },
                         { table: {
                             headerRows: 1,
-                            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                            widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
                             body: [
-                                [{ text: 'Data', style: 'tableHeader' }, { text: 'Nome', style: 'tableHeader' }, { text: 'Empresa', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }, { text: 'Valor Venda', style: 'tableHeader' }, { text: 'Valor Proposta', style: 'tableHeader' }, { text: 'Vendedor', style: 'tableHeader' }, { text: 'Campanha', style: 'tableHeader' }]
+                                [{ text: 'Data/Hora', style: 'tableHeader' }, { text: 'Nome', style: 'tableHeader' }, { text: 'Empresa', style: 'tableHeader' }, { text: 'Status', style: 'tableHeader' }, { text: 'Valor Venda', style: 'tableHeader' }, { text: 'Valor Proposta', style: 'tableHeader' }, { text: 'Vendedor', style: 'tableHeader' }, { text: 'Campanha', style: 'tableHeader' }, { text: 'Obs.', style: 'tableHeader' }]
                             ].concat(tableBody.map(function(row) { return row.map(function(cell) { return { text: cell || '-', fontSize: 7 }; }); }))
                         }, layout: {
                             hLineWidth: function(i, node) { return (i === 0 || i === node.table.body.length) ? 0.5 : 0.1; },
@@ -1959,7 +2377,6 @@
                 }
             }
 
-            // ===== VALORES PENDENTES =====
             function checkPendingVendaValues() {
                 var pendentes = processedLeads.filter(function(l) { return l.status === "Gerou Venda" && (!l.valorVenda || l.valorVenda <= 0); });
                 if (pendentes.length === 0) return;
@@ -2102,7 +2519,6 @@
                 modal.onclick = function(e) { if (e.target === modal) closeModalHandler(); };
             }
 
-            // ===== CARREGAMENTO DE DADOS =====
             async function fetchAllData() {
                 try {
                     var [leadsRes, carteiraRes, vendRes, finalRes] = await Promise.all([
@@ -2124,7 +2540,6 @@
                 }
             }
 
-            // ===== TOAST =====
             function showToast(msg, isError) {
                 isError = isError || false;
                 var toast = document.getElementById('toast');
@@ -2135,7 +2550,6 @@
                 toast._hideTimer = setTimeout(function() { toast.classList.remove('show'); }, 4000);
             }
 
-            // ===== INICIALIZAÇÃO =====
             function initUI() {
                 document.getElementById('vendedorFilter').addEventListener('change', function(e) { currentFilters.vendedor = e.target.value; renderDashboard(); });
                 document.getElementById('statusFilter').addEventListener('change', function(e) { currentFilters.status = e.target.value; renderDashboard(); });
@@ -2230,6 +2644,19 @@
                 document.getElementById('bb-home').addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); document.querySelectorAll('.bb-item').forEach(function(el) { el.classList.remove('active'); }); this.classList.add('active'); });
 
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+                var revSalvar = document.getElementById('revisaoSalvarBtn');
+                var revAdiar = document.getElementById('revisaoAdiarBtn');
+                var revClose = document.getElementById('closeRevisao');
+                if (revSalvar) revSalvar.addEventListener('click', salvarRevisaoUnificada);
+                if (revAdiar) revAdiar.addEventListener('click', adiarRevisaoUnificada);
+                if (revClose) revClose.addEventListener('click', function() {
+                    document.getElementById('modalRevisao').style.display = 'none';
+                });
+
+                var cadManualBtn = document.getElementById('cadastroManualBtn');
+                if (cadManualBtn) cadManualBtn.addEventListener('click', function() { abrirCadastroManual(null); });
+
                 setDefaultYearFilter();
                 fetchAllData();
                 setInterval(fetchAllData, 600000);
