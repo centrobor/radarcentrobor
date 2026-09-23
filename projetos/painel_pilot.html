@@ -806,6 +806,9 @@
             let darkModeEnabled = false;
             let lastNewsFetch = 0;
 
+            // ===== WATCHDOG DOS SLIDES =====
+            let lastSlideAdvanceTime = Date.now();
+
             // Variáveis para o slide Dólar
             let chartDolar = null;
             let dolarAtual = 0;
@@ -1411,8 +1414,12 @@
                     try {
                         const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
                         const resposta = await fetch(proxyUrl);
+                        if (!resposta.ok) {
+                            // 422 etc → simplesmente ignora esse feed (sem poluir console)
+                            continue;
+                        }
                         const json = await resposta.json();
-                        if (json.status === 'ok' && json.items && json.items.length) {
+                        if (json && json.status === 'ok' && Array.isArray(json.items) && json.items.length) {
                             const isTec = url.includes('tecmundo');
                             const fonteFeed = nomeFonteDoFeed(url);
                             const items = json.items.map(item => {
@@ -1425,7 +1432,9 @@
                             });
                             todas = todas.concat(items);
                         }
-                    } catch (e) { console.warn('Erro ao buscar RSS de', url, e); }
+                    } catch (e) {
+                        // Silencia erros de rede individuais — outros feeds continuam
+                    }
                 }
 
                 const vistos = new Set();
@@ -2201,7 +2210,7 @@
                     bb.style.borderTopColor = 'rgba(255,255,255,0.1)';
                 }
 
-                // Animated-bg (fundo da página inteira) — este era o que faltava
+                // Animated-bg (fundo da página inteira)
                 const animBg = document.querySelector('.animated-bg');
                 if (animBg) {
                     if (!animatedBgOriginalStyle) {
@@ -2329,6 +2338,8 @@
             }
 
             function irParaSlide(idx) {
+                lastSlideAdvanceTime = Date.now();
+
                 const slidesEl = document.querySelectorAll('.slide');
                 if (!slidesEl.length) return;
                 idx = Math.min(Math.max(0, idx), slidesEl.length - 1);
@@ -2444,10 +2455,7 @@
                 document.querySelectorAll('.slide.weather-active').forEach(el => el.classList.remove('weather-active'));
 
                 if (s?.type === 'previsao_tempo') {
-                    // Adiciona a classe para remover o pseudo-elemento (::before)
                     slideEl.classList.add('weather-active');
-
-                    // Já aplica preto imediatamente para evitar o azul enquanto carrega a cor
                     aplicarCorFundoClima('#000000');
 
                     const bgEl = slideEl.querySelector('.weather-bg');
@@ -2458,7 +2466,6 @@
                         if (urlMatch && urlMatch[1]) {
                             const imageUrl = urlMatch[1];
                             extrairCorMediaImagem(imageUrl, function(cor) {
-                                // Só aplica se ainda estivermos no slide de clima
                                 if (document.querySelector('.slide.active[data-type="previsao_tempo"]')) {
                                     aplicarCorFundoClima(cor || '#000000');
                                 }
@@ -2466,13 +2473,13 @@
                         }
                     }
                 } else {
-                    // Saiu do clima → restaura tudo
                     restaurarFundoOriginal();
                 }
             }
 
             function proximoSlide() { if (visibleSlides.length) irParaSlide((currentSlideIndex + 1) % visibleSlides.length); }
             function slideAnterior() { if (visibleSlides.length) irParaSlide((currentSlideIndex - 1 + visibleSlides.length) % visibleSlides.length); }
+
             function iniciarTimer() {
                 if (slideTimer) clearTimeout(slideTimer);
                 if (!visibleSlides.length) return;
@@ -2482,9 +2489,45 @@
                 if (s?.type === 'campanha_reta_final') dur = CONFIG.campanhaSlideDuration;
                 if (s?.type === 'noticias_rss') dur = CONFIG.noticiasRssSlideDuration;
                 if (s?.type === 'dolar') dur = CONFIG.slideInterval;
-                slideTimer = setTimeout(() => { if (!paused) { proximoSlide(); iniciarTimer(); } else iniciarTimer(); }, dur);
+
+                slideTimer = setTimeout(() => {
+                    if (!paused) {
+                        try {
+                            proximoSlide();
+                        } catch (e) {
+                            console.error('Erro ao avançar slide, seguindo mesmo assim:', e);
+                        }
+                        lastSlideAdvanceTime = Date.now();
+                    }
+                    // Sempre reagenda, mesmo se deu erro
+                    iniciarTimer();
+                }, dur);
             }
-            function resetarTimer() { if (slideTimer) clearTimeout(slideTimer); iniciarTimer(); }
+
+            function resetarTimer() {
+                if (slideTimer) clearTimeout(slideTimer);
+                lastSlideAdvanceTime = Date.now();
+                iniciarTimer();
+            }
+
+            // Watchdog: se os slides travarem por qualquer motivo, força avanço
+            setInterval(() => {
+                if (paused) return;
+                const elapsed = Date.now() - lastSlideAdvanceTime;
+                const maxDur = Math.max(
+                    CONFIG.slideInterval,
+                    CONFIG.videoSlideDuration,
+                    CONFIG.noticiasRssSlideDuration,
+                    CONFIG.campanhaSlideDuration
+                );
+                if (elapsed > maxDur + 20000) {
+                    console.warn(`Watchdog: slides parados há ${Math.round(elapsed/1000)}s — forçando avanço`);
+                    try { proximoSlide(); } catch (e) { console.error(e); }
+                    lastSlideAdvanceTime = Date.now();
+                    resetarTimer();
+                }
+            }, 15000);
+
             function dispararConfetes() {
                 if (typeof confetti === 'function') {
                     confetti({ particleCount: 120, spread: 65, origin: { y: 0.6 } });
@@ -2784,7 +2827,18 @@
                         radioBtn.click();
                     }
                 });
-                setInterval(() => window.location.reload(), CONFIG.reloadInterval);
+
+                // ===== AUTO-REFRESH LEVE: recria SOMENTE os slides (rádio/vídeo continuam rodando) =====
+                setInterval(() => {
+                    try {
+                        console.log('[Auto-refresh] Recriando apenas os slides...');
+                        construirSlides();
+                        rebuildSlides();
+                        lastSlideAdvanceTime = Date.now();
+                    } catch (e) {
+                        console.warn('Erro no auto-refresh de slides:', e);
+                    }
+                }, CONFIG.reloadInterval);
 
                 await buscarNoticiasRss();
                 const slideAtivo = document.querySelector('.slide.active[data-type="noticias_rss"]');
