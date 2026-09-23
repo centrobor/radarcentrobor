@@ -134,6 +134,8 @@
         .badge-carteira i { color: #0891b2; }
         .badge-sheet { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-color: #22c55e; color: #14532d; }
         .badge-sheet i { color: #16a34a; }
+        .badge-dzyon { background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%); border-color: #ec4899; color: #831843; }
+        .badge-dzyon i { color: #db2777; }
         .revisao-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .revisao-table th, .revisao-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
         .revisao-table select, .revisao-table input { width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; }
@@ -535,6 +537,7 @@
             var justificativasLeads = JSON.parse(localStorage.getItem('justificativasLeads') || '{}');
             var filaJustificativas = [];
             var lastLeadIdClicked = null;
+            var suprimirAutoRevisao = false; // ⭐ FIX: evita modal reabrir após ação do usuário
 
             function normalizeStr(str) { return (str || "").toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w\s]/g, '').trim(); }
             function normalizeCNPJ(cnpj) { if (!cnpj) return ""; return cnpj.toString().replace(/[\.\-\/]/g, '').replace(/\s/g, ''); }
@@ -954,8 +957,7 @@
             //   PLANILHA FINAL (opensheet leads) SEMPRE TEM PRIORIDADE para
             //   status / vendedor / valorVenda / valorProposta / cadastroRealizado.
             //   Override local só PREENCHE esses campos quando a planilha
-            //   NÃO tem valor. Assim, quando o vendedor atribuído muda e a
-            //   planilha é atualizada, a mudança reflete imediatamente.
+            //   NÃO tem valor.
             //   Observações e demais campos aceitam override normalmente.
             // ============================================================
             function processLeads() {
@@ -1003,6 +1005,7 @@
 
                     var statusFinal = "", vendedorRaw = "", vendedorOriginal = "", valorVendaFinal = 0, valorPropostaFinal = 0;
                     var isNovoCliente = false, isRevendaCliente = false, clienteCarteira = null, finalMatch = null;
+                    var cadDzyon = false; // ⭐ flag Cad. em Dzyon
                     var observacoes = "";
                     var cadastroRealizado = "";
                     var utmSource = "", utmMedium = "", utmCampaign = "", utmTerm = "", utmContent = "";
@@ -1021,7 +1024,6 @@
                         }
                     }
 
-                    // Vamos rastrear se a planilha forneceu cada campo crítico
                     var sheetStatus = "";
                     var sheetVendedor = "";
                     var sheetValorVenda = 0;
@@ -1041,7 +1043,6 @@
                         sheetValorProposta = cleanCurrency(getField(finalMatch, ['valor da propostas', 'valor da proposta', 'valor propostas', 'valor proposta', 'valor cotação', 'proposta']) || 0);
                         sheetCadastro = getField(finalMatch, ['cadastro realizado?', 'cadastro realizado', 'cadastro']) || "";
 
-                        // Aplica na base
                         statusFinal = sheetStatus;
                         vendedorRaw = sheetVendedor || getVendedorPorData(dataObj);
                         vendedorOriginal = vendedorRaw;
@@ -1059,7 +1060,6 @@
                         utmTerm     = getField(finalMatch, ['utm term', 'termo']) || lead["UTM TERM"] || "";
                         utmContent  = getField(finalMatch, ['utm content', 'conteudo', 'conteúdo']) || lead["UTM CONTENT"] || "";
                     } else {
-                        // Sem match — carteira ou regras de atribuição
                         clienteCarteira = findClientInCarteira(lead);
                         var isRev = isRevenda(lead);
                         var statusOriginal = lead["  "] || "";
@@ -1076,6 +1076,8 @@
                                 vendedorRaw = "NA CARTEIRA";
                                 vendedorOriginal = "NA CARTEIRA";
                             }
+                            // ⭐ Cad. em Dzyon: cliente na carteira com Código
+                            cadDzyon = codigoCliente !== "";
 
                             if (statusOriginal.indexOf("Fechou a Venda") !== -1) statusFinal = "Gerou Venda";
                             else if (statusOriginal.indexOf("Lead Qualificado") !== -1) statusFinal = "Lead Qualificado";
@@ -1102,39 +1104,25 @@
 
                     // ============================================================
                     // 2) OVERRIDE — SÓ PREENCHE O QUE A PLANILHA NÃO TEM
-                    //    (planilha final SEMPRE vence nos campos críticos)
                     // ============================================================
                     if (override) {
-                        // STATUS: sheet vence. Override só se sheet não tiver status.
                         if ((!finalMatch || !sheetStatus || sheetStatus.trim() === "") && override.status !== undefined && override.status !== "") {
                             statusFinal = override.status;
                         }
-
-                        // VENDEDOR: sheet vence. Override só se sheet não tiver vendedor.
                         if ((!finalMatch || !sheetVendedor || sheetVendedor.trim() === "") && override.vendedor !== undefined && override.vendedor !== "") {
                             vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
                             vendedorOriginal = override.vendedorOriginal || vendedorRaw;
                         }
-
-                        // VALOR VENDA: sheet vence. Override só se sheet não tiver valor.
                         if ((!finalMatch || sheetValorVenda <= 0) && override.valorVenda !== undefined && override.valorVenda !== null && Number(override.valorVenda) > 0) {
                             valorVendaFinal = Number(override.valorVenda) || 0;
                         }
-
-                        // VALOR PROPOSTA: sheet vence. Override só se sheet não tiver valor.
                         if ((!finalMatch || sheetValorProposta <= 0) && override.valorProposta !== undefined && override.valorProposta !== null && Number(override.valorProposta) > 0) {
                             valorPropostaFinal = Number(override.valorProposta) || 0;
                         }
-
-                        // CADASTRO REALIZADO: sheet vence. Override só se sheet não tiver.
                         if ((!finalMatch || !sheetCadastro || sheetCadastro.trim() === "") && override.cadastroRealizado) {
                             cadastroRealizado = override.cadastroRealizado;
                         }
-
-                        // OBSERVAÇÕES: sempre aceita override (é campo CRM-only)
                         if (override.observacoes !== undefined) observacoes = override.observacoes || "";
-
-                        // Demais campos editáveis (aceitam override)
                         if (override.nome) nome = override.nome;
                         if (override.empresa) empresa = override.empresa;
                         if (override.whatsapp) whatsapp = override.whatsapp;
@@ -1147,7 +1135,6 @@
                         if (override.utmTerm !== undefined) utmTerm = override.utmTerm;
                         if (override.utmContent !== undefined) utmContent = override.utmContent;
 
-                        // Status temporário (24h) — só se sheet não tiver status e user não fixou manual
                         if (isTempOverride && override.status === undefined && (!finalMatch || !sheetStatus)) statusFinal = override.tempStatus;
                     }
 
@@ -1160,7 +1147,6 @@
                         if (!cadastroRealizado || cadastroRealizado.toLowerCase() !== 'sim') cadastroRealizado = "Sim";
                     }
 
-                    // Recorrente só vira "Em Aberto" se NÃO houver match na planilha final
                     if (isRecorrente && !isManualOverride && !finalMatch && valorVendaFinal <= 0) {
                         statusFinal = "Em Aberto";
 
@@ -1199,7 +1185,10 @@
 
                     if (isStatusAtivo && diffDias > DIAS_LIMITE && valorVendaFinal <= 0) {
                         var justificativa = justificativasLeads[leadId];
-                        if (!(justificativa && justificativa.decisao === 'em_aberto' && justificativa.prolongadoAte && justificativa.prolongadoAte > agora)) {
+                        var adiado = justificativa && justificativa.decisao === 'em_aberto' && justificativa.prolongadoAte && justificativa.prolongadoAte > agora;
+                        // ⭐ FIX: se foi revisado nos últimos 30 dias, não volta pra fila
+                        var revisadoRecente = justificativa && justificativa.revisadoEm && (agora - justificativa.revisadoEm) < (DIAS_LIMITE * 24 * 60 * 60 * 1000);
+                        if (!adiado && !revisadoRecente) {
                             filaJustificativas.push({
                                 leadId: leadId, nome: nome, empresa: empresa,
                                 data: formatDateOnlyBR(dataLead), observacaoAtual: observacoes,
@@ -1217,11 +1206,10 @@
                         aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
                     }
 
+                    // ⭐ vendedorDisplay SEM "ORIGINALMENTE DE X ATRIBUÍDO A Y"
                     var vendedorDisplay = vendedorRaw;
                     if (vendedorRaw === "NA CARTEIRA") {
                         vendedorDisplay = '<i class="fas fa-address-book"></i> NA CARTEIRA';
-                    } else if (vendedorOriginal && vendedorOriginal !== vendedorRaw) {
-                        vendedorDisplay = 'ORIGINALMENTE DE ' + vendedorOriginal + ' \n ATRIBUÍDO A ' + vendedorRaw;
                     } else if (vendedorRaw === "indeterminado – Necessita verificar") {
                         vendedorDisplay = '<i class="fas fa-exclamation-triangle"></i> ' + vendedorRaw;
                     } else if (isNovoCliente && vendedorRaw && vendedorRaw !== "Não definido") {
@@ -1246,6 +1234,7 @@
                         status: statusFinal, vendedor: vendedorDisplay, vendedorRaw: vendedorRaw, vendedorOriginal: vendedorOriginal || "",
                         isRevenda: isRevendaCliente, clienteExistente: !!clienteCarteira,
                         naCarteira: (vendedorRaw === "NA CARTEIRA"),
+                        cadDzyon: cadDzyon, // ⭐ novo flag
                         isNovoCliente: isNovoCliente && !clienteCarteira, isRevendaCliente: isRevendaCliente && !clienteCarteira,
                         utmIconHtml: getUtmIcon(utmSource), valorVenda: valorVendaFinal, valorProposta: valorPropostaFinal,
                         finalData: finalMatch || null, observacoes: observacoes, cadastroRealizado: cadastroRealizado,
@@ -1270,7 +1259,7 @@
                         utmSource: o.utmSource || '', utmMedium: o.utmMedium || '', utmCampaign: o.utmCampaign || '',
                         utmTerm: o.utmTerm || '', utmContent: o.utmContent || '',
                         status: o.status || 'Em Aberto', vendedor: vRaw, vendedorRaw: vRaw, vendedorOriginal: o.vendedorOriginal || vRaw,
-                        isRevenda: false, clienteExistente: false, naCarteira: false, isNovoCliente: true, isRevendaCliente: false,
+                        isRevenda: false, clienteExistente: false, naCarteira: false, cadDzyon: false, isNovoCliente: true, isRevendaCliente: false,
                         utmIconHtml: getUtmIcon(o.utmSource), valorVenda: Number(o.valorVenda) || 0, valorProposta: Number(o.valorProposta) || 0,
                         finalData: null, observacoes: o.observacoes || '', cadastroRealizado: o.cadastroRealizado || '',
                         campanhaLabel: getCampanhaLabel(o), campanhaNome: getCampanhaNome(o) || '-',
@@ -1280,7 +1269,7 @@
 
                 processedLeads.sort(function(a, b) { return b.dataHora - a.dataHora; });
                 atualizarFiltrosDinamicos();
-                if (filaJustificativas.length > 0) setTimeout(exibirModalRevisao, 400);
+                if (filaJustificativas.length > 0 && !suprimirAutoRevisao) setTimeout(exibirModalRevisao, 400);
             }
 
             function gerarHistoricoRecorrente(leadsAnteriores, leadNovo) {
@@ -1591,6 +1580,7 @@
             }
 
             function exibirModalRevisao() {
+                if (suprimirAutoRevisao) return; // ⭐ FIX: não abrir durante ações do usuário
                 if (!filaJustificativas || filaJustificativas.length === 0) return;
                 var modal = document.getElementById('modalRevisao');
                 var container = document.getElementById('revisaoContainer');
@@ -1621,6 +1611,8 @@
             function salvarRevisaoUnificada() {
                 var lista = window._revisaoLista || [];
                 var alterados = 0;
+                var agora = Date.now();
+
                 lista.forEach(function(item) {
                     var select = document.querySelector('.acao-select[data-id="' + item.leadId + '"]');
                     var obsInput = document.querySelector('.obs-revisao[data-id="' + item.leadId + '"]');
@@ -1629,17 +1621,20 @@
                     var acao = select.value;
                     var obs = obsInput ? obsInput.value.trim() : '';
                     if (!localOverrides[item.leadId]) localOverrides[item.leadId] = {};
+                    if (!justificativasLeads[item.leadId]) justificativasLeads[item.leadId] = {};
+
                     if (acao === 'encerrar') {
                         localOverrides[item.leadId].status = "Não Fechou";
                         localOverrides[item.leadId].edited = true;
-                        localOverrides[item.leadId].timestamp = Date.now();
+                        localOverrides[item.leadId].timestamp = agora;
                         addAutoObservation(item.leadId, null, null, null, 'Encerrado via revisão: ' + (obs || 'sem justificativa'), 'manual');
+                        justificativasLeads[item.leadId].revisadoEm = agora;
                         alterados++;
                     } else if (acao === 'adiar') {
-                        if (!justificativasLeads[item.leadId]) justificativasLeads[item.leadId] = {};
                         justificativasLeads[item.leadId].decisao = 'em_aberto';
-                        justificativasLeads[item.leadId].prolongadoAte = Date.now() + DIAS_LIMITE * 24 * 60 * 60 * 1000;
+                        justificativasLeads[item.leadId].prolongadoAte = agora + DIAS_LIMITE * 24 * 60 * 60 * 1000;
                         justificativasLeads[item.leadId].observacao = obs || 'Adiado via revisão';
+                        justificativasLeads[item.leadId].revisadoEm = agora;
                         addAutoObservation(item.leadId, null, null, null, 'Prazo prolongado via revisão: ' + (obs || 'sem justificativa'), 'manual');
                         alterados++;
                     } else if (acao === 'venda') {
@@ -1649,17 +1644,22 @@
                         localOverrides[item.leadId].valorVenda = valor;
                         localOverrides[item.leadId].cadastroRealizado = "Sim";
                         localOverrides[item.leadId].edited = true;
-                        localOverrides[item.leadId].timestamp = Date.now();
+                        localOverrides[item.leadId].timestamp = agora;
                         addAutoObservation(item.leadId, 'Status', item.statusAtual, 'Gerou Venda', 'Via revisão R$ ' + formatCurrency(valor) + (obs ? ' — ' + obs : ''), 'manual');
+                        justificativasLeads[item.leadId].revisadoEm = agora;
                         alterados++;
                     }
                 });
+
                 if (alterados > 0) {
                     localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
                     localStorage.setItem('justificativasLeads', JSON.stringify(justificativasLeads));
                     filaJustificativas = [];
+                    // ⭐ Suprime reabertura automática durante a atualização
+                    suprimirAutoRevisao = true;
                     processLeads();
                     renderDashboard();
+                    suprimirAutoRevisao = false;
                     showToast(alterados + ' lead(s) atualizado(s)!');
                 } else {
                     showToast('Nenhuma alteração realizada.', true);
@@ -1669,16 +1669,20 @@
 
             function adiarRevisaoUnificada() {
                 var lista = window._revisaoLista || [];
+                var agora = Date.now();
                 lista.forEach(function(item) {
                     if (!justificativasLeads[item.leadId]) justificativasLeads[item.leadId] = {};
                     justificativasLeads[item.leadId].decisao = 'em_aberto';
-                    justificativasLeads[item.leadId].prolongadoAte = Date.now() + DIAS_LIMITE * 24 * 60 * 60 * 1000;
+                    justificativasLeads[item.leadId].prolongadoAte = agora + DIAS_LIMITE * 24 * 60 * 60 * 1000;
                     justificativasLeads[item.leadId].observacao = 'Adiado via revisão';
+                    justificativasLeads[item.leadId].revisadoEm = agora;
                 });
                 localStorage.setItem('justificativasLeads', JSON.stringify(justificativasLeads));
                 filaJustificativas = [];
+                suprimirAutoRevisao = true;
                 processLeads();
                 renderDashboard();
+                suprimirAutoRevisao = false;
                 document.getElementById('modalRevisao').style.display = 'none';
                 showToast('Todos os prazos adiados por 30 dias.');
             }
@@ -1815,6 +1819,8 @@
                     var temPropostaManual = l.valorProposta > 0 && localOverrides[l.id] && localOverrides[l.id].valorProposta !== undefined;
 
                     var badges = [];
+                    // ⭐ Badge Cad. em Dzyon (átomo)
+                    if (l.cadDzyon) badges.push('<span class="recorrente-badge badge-dzyon"><i class="fas fa-atom"></i> Cad. em Dzyon</span>');
                     if (l.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> BD</span>');
                     if (l.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
                     if (l.isRecorrente) badges.push('<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span>');
@@ -1873,6 +1879,8 @@
                 var temPropostaManual = lead.valorProposta > 0 && localOverrides[lead.id] && localOverrides[lead.id].valorProposta !== undefined;
 
                 var badges = [];
+                // ⭐ Badge Cad. em Dzyon (átomo)
+                if (lead.cadDzyon) badges.push('<span class="recorrente-badge badge-dzyon"><i class="fas fa-atom"></i> Cad. em Dzyon</span>');
                 if (lead.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> Registro do BD</span>');
                 if (lead.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
                 if (lead.isRecorrente) badges.push('<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span>');
