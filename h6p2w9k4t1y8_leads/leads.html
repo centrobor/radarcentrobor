@@ -132,6 +132,8 @@
         .badge-auto i { color: #0284c7; }
         .badge-carteira { background: linear-gradient(135deg, #cffafe 0%, #a5f3fc 100%); border-color: #06b6d4; color: #155e75; }
         .badge-carteira i { color: #0891b2; }
+        .badge-sheet { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); border-color: #22c55e; color: #14532d; }
+        .badge-sheet i { color: #16a34a; }
         .revisao-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
         .revisao-table th, .revisao-table td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: middle; }
         .revisao-table select, .revisao-table input { width: 100%; padding: 4px 6px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.75rem; }
@@ -948,7 +950,13 @@
 
             // ============================================================
             // PROCESSAMENTO CENTRAL DE LEADS
-            // ⭐ Planilha final tem PRIORIDADE; override sobrescreve só campos tocados
+            // ⭐ REGRA DE OURO:
+            //   PLANILHA FINAL (opensheet leads) SEMPRE TEM PRIORIDADE para
+            //   status / vendedor / valorVenda / valorProposta / cadastroRealizado.
+            //   Override local só PREENCHE esses campos quando a planilha
+            //   NÃO tem valor. Assim, quando o vendedor atribuído muda e a
+            //   planilha é atualizada, a mudança reflete imediatamente.
+            //   Observações e demais campos aceitam override normalmente.
             // ============================================================
             function processLeads() {
                 cleanExpiredTempOverrides();
@@ -1000,7 +1008,9 @@
                     var utmSource = "", utmMedium = "", utmCampaign = "", utmTerm = "", utmContent = "";
                     var nome = lead["Nome Completo"] || "", empresa = lead["Nome da empresa"] || "", whatsapp = lead["WhatsApp"] || "", email = lead["E-mail"] || "", cnpj = lead["CNPJ"] || "", mensagem = lead["Mensagem"] || "";
 
-                    // 1) BASE: sempre calcula a partir da planilha final + carteira
+                    // ============================================================
+                    // 1) BASE: PLANILHA FINAL + CARTEIRA
+                    // ============================================================
                     if (cnpjValido && finalLeadsIndex.has(cnpjValido)) finalMatch = finalLeadsIndex.get(cnpjValido);
                     else if (empresaLead && finalLeadsIndex.has(empresaLead)) finalMatch = finalLeadsIndex.get(empresaLead);
                     else if (nomeLead && finalLeadsIndex.has(nomeLead)) finalMatch = finalLeadsIndex.get(nomeLead);
@@ -1011,26 +1021,36 @@
                         }
                     }
 
+                    // Vamos rastrear se a planilha forneceu cada campo crítico
+                    var sheetStatus = "";
+                    var sheetVendedor = "";
+                    var sheetValorVenda = 0;
+                    var sheetValorProposta = 0;
+                    var sheetCadastro = "";
+
                     if (finalMatch) {
-                        statusFinal = getField(finalMatch, ['status', 'situacao', 'situação', 'resultado']) || lead["  "] || "";
+                        sheetStatus = getField(finalMatch, ['status', 'situacao', 'situação', 'resultado']) || lead["  "] || "";
 
                         var vendedorPlanilha = normalizeVendedorName(getField(finalMatch, ['vendedor', 'representante', 'responsavel', 'responsável', 'consultor']) || "");
                         if (vendedorPlanilha === "Luan.Dantas") vendedorPlanilha = "Luan";
                         if (vendedorPlanilha && vendedorPlanilha.trim() !== "" && vendedorPlanilha.trim() !== "-") {
-                            vendedorRaw = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
-                        } else {
-                            vendedorRaw = getVendedorPorData(dataObj);
+                            sheetVendedor = resolveCanonical(vendedorPlanilha) || vendedorPlanilha;
                         }
+
+                        sheetValorVenda = cleanCurrency(getField(finalMatch, ['valor da venda', 'valor venda', 'valor', 'venda']) || 0);
+                        sheetValorProposta = cleanCurrency(getField(finalMatch, ['valor da propostas', 'valor da proposta', 'valor propostas', 'valor proposta', 'valor cotação', 'proposta']) || 0);
+                        sheetCadastro = getField(finalMatch, ['cadastro realizado?', 'cadastro realizado', 'cadastro']) || "";
+
+                        // Aplica na base
+                        statusFinal = sheetStatus;
+                        vendedorRaw = sheetVendedor || getVendedorPorData(dataObj);
                         vendedorOriginal = vendedorRaw;
-
-                        valorVendaFinal = cleanCurrency(getField(finalMatch, ['valor da venda', 'valor venda', 'valor', 'venda']) || 0);
-                        valorPropostaFinal = cleanCurrency(getField(finalMatch, ['valor da propostas', 'valor da proposta', 'valor propostas', 'valor proposta', 'valor cotação', 'proposta']) || 0);
-
-                        var cadSheet = getField(finalMatch, ['cadastro realizado?', 'cadastro realizado', 'cadastro']) || "";
-                        if (cadSheet) cadastroRealizado = cadSheet;
+                        valorVendaFinal = sheetValorVenda;
+                        valorPropostaFinal = sheetValorProposta;
+                        cadastroRealizado = sheetCadastro;
 
                         var obsSheet = getField(finalMatch, ['obs', 'observacoes', 'observações', 'justificativa']) || "";
-                        if (obsSheet && !observacoes) observacoes = obsSheet;
+                        if (obsSheet) observacoes = obsSheet;
 
                         var campanhaCol = getField(finalMatch, ['campanha?', 'campanha']);
                         utmSource   = campanhaCol || getField(finalMatch, ['utm source', 'origem']) || lead["UTM SOURCE"] || "";
@@ -1039,6 +1059,7 @@
                         utmTerm     = getField(finalMatch, ['utm term', 'termo']) || lead["UTM TERM"] || "";
                         utmContent  = getField(finalMatch, ['utm content', 'conteudo', 'conteúdo']) || lead["UTM CONTENT"] || "";
                     } else {
+                        // Sem match — carteira ou regras de atribuição
                         clienteCarteira = findClientInCarteira(lead);
                         var isRev = isRevenda(lead);
                         var statusOriginal = lead["  "] || "";
@@ -1079,15 +1100,41 @@
                         utmContent = lead["UTM CONTENT"] || "";
                     }
 
-                    // 2) OVERRIDE POR CIMA — só os campos que o usuário alterou
+                    // ============================================================
+                    // 2) OVERRIDE — SÓ PREENCHE O QUE A PLANILHA NÃO TEM
+                    //    (planilha final SEMPRE vence nos campos críticos)
+                    // ============================================================
                     if (override) {
-                        if (override.status !== undefined && override.status !== "") statusFinal = override.status;
-                        if (override.vendedor !== undefined && override.vendedor !== "") vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
-                        if (override.vendedorOriginal) vendedorOriginal = override.vendedorOriginal;
+                        // STATUS: sheet vence. Override só se sheet não tiver status.
+                        if ((!finalMatch || !sheetStatus || sheetStatus.trim() === "") && override.status !== undefined && override.status !== "") {
+                            statusFinal = override.status;
+                        }
+
+                        // VENDEDOR: sheet vence. Override só se sheet não tiver vendedor.
+                        if ((!finalMatch || !sheetVendedor || sheetVendedor.trim() === "") && override.vendedor !== undefined && override.vendedor !== "") {
+                            vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
+                            vendedorOriginal = override.vendedorOriginal || vendedorRaw;
+                        }
+
+                        // VALOR VENDA: sheet vence. Override só se sheet não tiver valor.
+                        if ((!finalMatch || sheetValorVenda <= 0) && override.valorVenda !== undefined && override.valorVenda !== null && Number(override.valorVenda) > 0) {
+                            valorVendaFinal = Number(override.valorVenda) || 0;
+                        }
+
+                        // VALOR PROPOSTA: sheet vence. Override só se sheet não tiver valor.
+                        if ((!finalMatch || sheetValorProposta <= 0) && override.valorProposta !== undefined && override.valorProposta !== null && Number(override.valorProposta) > 0) {
+                            valorPropostaFinal = Number(override.valorProposta) || 0;
+                        }
+
+                        // CADASTRO REALIZADO: sheet vence. Override só se sheet não tiver.
+                        if ((!finalMatch || !sheetCadastro || sheetCadastro.trim() === "") && override.cadastroRealizado) {
+                            cadastroRealizado = override.cadastroRealizado;
+                        }
+
+                        // OBSERVAÇÕES: sempre aceita override (é campo CRM-only)
                         if (override.observacoes !== undefined) observacoes = override.observacoes || "";
-                        if (override.valorVenda !== undefined && override.valorVenda !== null) valorVendaFinal = Number(override.valorVenda) || 0;
-                        if (override.valorProposta !== undefined && override.valorProposta !== null) valorPropostaFinal = Number(override.valorProposta) || 0;
-                        if (override.cadastroRealizado !== undefined && override.cadastroRealizado !== "") cadastroRealizado = override.cadastroRealizado;
+
+                        // Demais campos editáveis (aceitam override)
                         if (override.nome) nome = override.nome;
                         if (override.empresa) empresa = override.empresa;
                         if (override.whatsapp) whatsapp = override.whatsapp;
@@ -1100,7 +1147,8 @@
                         if (override.utmTerm !== undefined) utmTerm = override.utmTerm;
                         if (override.utmContent !== undefined) utmContent = override.utmContent;
 
-                        if (isTempOverride && override.status === undefined) statusFinal = override.tempStatus;
+                        // Status temporário (24h) — só se sheet não tiver status e user não fixou manual
+                        if (isTempOverride && override.status === undefined && (!finalMatch || !sheetStatus)) statusFinal = override.tempStatus;
                     }
 
                     if (statusFinal && normalizeStr(statusFinal).indexOf('desqualificad') !== -1) continue;
@@ -1112,6 +1160,7 @@
                         if (!cadastroRealizado || cadastroRealizado.toLowerCase() !== 'sim') cadastroRealizado = "Sim";
                     }
 
+                    // Recorrente só vira "Em Aberto" se NÃO houver match na planilha final
                     if (isRecorrente && !isManualOverride && !finalMatch && valorVendaFinal <= 0) {
                         statusFinal = "Em Aberto";
 
@@ -1201,7 +1250,8 @@
                         utmIconHtml: getUtmIcon(utmSource), valorVenda: valorVendaFinal, valorProposta: valorPropostaFinal,
                         finalData: finalMatch || null, observacoes: observacoes, cadastroRealizado: cadastroRealizado,
                         campanhaLabel: getCampanhaLabel({ utmSource: utmSource, utmMedium: utmMedium, utmCampaign: utmCampaign, utmContent: utmContent, utmTerm: utmTerm }),
-                        campanhaNome: campanhaNome, diasParaVencer: diasParaVencer, isRecorrente: isRecorrente
+                        campanhaNome: campanhaNome, diasParaVencer: diasParaVencer, isRecorrente: isRecorrente,
+                        fromSheet: !!finalMatch
                     });
                 }
 
@@ -1224,7 +1274,7 @@
                         utmIconHtml: getUtmIcon(o.utmSource), valorVenda: Number(o.valorVenda) || 0, valorProposta: Number(o.valorProposta) || 0,
                         finalData: null, observacoes: o.observacoes || '', cadastroRealizado: o.cadastroRealizado || '',
                         campanhaLabel: getCampanhaLabel(o), campanhaNome: getCampanhaNome(o) || '-',
-                        diasParaVencer: DIAS_LIMITE, isRecorrente: false
+                        diasParaVencer: DIAS_LIMITE, isRecorrente: false, fromSheet: false
                     });
                 });
 
@@ -1714,7 +1764,6 @@
 
             function renderDashboard() {
                 var filtered = getFilteredLeads();
-
                 verificarInconsistenciasDe(filtered);
 
                 var total = filtered.length;
@@ -1758,28 +1807,24 @@
                     var propostaDisplay = l.valorProposta > 0 ? 'R$ ' + formatCurrency(l.valorProposta) : '-';
                     var cadastroDisplay = l.cadastroRealizado || '-';
 
-                    // ⭐ Badges completos com todos os marcadores
                     var isManual = l.id && l.id.startsWith('manual_');
                     var isAlterado = !isManual && localOverrides[l.id] && localOverrides[l.id].edited === true;
                     var temAuto = l.observacoes && (l.observacoes.indexOf('[Automático') !== -1);
                     var temManualObs = l.observacoes && (l.observacoes.indexOf('[Manual') !== -1);
                     var temVendaManual = l.valorVenda > 0 && localOverrides[l.id] && localOverrides[l.id].valorVenda !== undefined;
                     var temPropostaManual = l.valorProposta > 0 && localOverrides[l.id] && localOverrides[l.id].valorProposta !== undefined;
-                    var temStatusManual = localOverrides[l.id] && localOverrides[l.id].status !== undefined;
-                    var temVendedorManual = localOverrides[l.id] && localOverrides[l.id].vendedor !== undefined;
 
                     var badges = [];
+                    if (l.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> Planilha</span>');
                     if (l.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
                     if (l.isRecorrente) badges.push('<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span>');
                     if (l.status === "Gerou Venda") badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-dollar-sign"></i> Venda</span>');
                     if (isManual) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-plus-circle"></i> Cadastro manual</span>');
                     if (isAlterado) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-edit"></i> Alterado</span>');
-                    if (temManualObs) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-pen-fancy"></i> Manual</span>');
+                    if (temManualObs) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-pen-fancy"></i> Obs. manual</span>');
                     if (temAuto) badges.push('<span class="recorrente-badge badge-auto"><i class="fas fa-robot"></i> Auto</span>');
-                    if (temStatusManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-tag"></i> Status</span>');
-                    if (temVendedorManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-user-tie"></i> Vendedor</span>');
-                    if (temVendaManual) badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-hand-holding-usd"></i> Venda (manual)</span>');
-                    if (temPropostaManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-file-invoice-dollar"></i> Proposta (manual)</span>');
+                    if (temVendaManual && !l.fromSheet) badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-hand-holding-usd"></i> Venda (manual)</span>');
+                    if (temPropostaManual && !l.fromSheet) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-file-invoice-dollar"></i> Proposta (manual)</span>');
                     if (localOverrides[l.id] && localOverrides[l.id].tempStatus && Date.now() < localOverrides[l.id].tempExpiry) {
                         badges.push('<span class="recorrente-badge badge-andamento"><i class="fas fa-clock"></i> Em andamento</span>');
                     }
@@ -1820,28 +1865,24 @@
                 var vendedorCor = (nomeVendedorMap.get(lead.vendedorRaw) || {}).cor || "#6b7280";
                 if (lead.vendedorRaw === "NA CARTEIRA") vendedorCor = "#06b6d4";
 
-                // ⭐ Faixa de badges no topo do modal
                 var isManual = lead.id && lead.id.startsWith('manual_');
                 var isAlterado = !isManual && localOverrides[lead.id] && localOverrides[lead.id].edited === true;
                 var temAuto = lead.observacoes && (lead.observacoes.indexOf('[Automático') !== -1);
                 var temManualObs = lead.observacoes && (lead.observacoes.indexOf('[Manual') !== -1);
-                var temStatusManual = localOverrides[lead.id] && localOverrides[lead.id].status !== undefined;
-                var temVendedorManual = localOverrides[lead.id] && localOverrides[lead.id].vendedor !== undefined;
                 var temVendaManual = lead.valorVenda > 0 && localOverrides[lead.id] && localOverrides[lead.id].valorVenda !== undefined;
                 var temPropostaManual = lead.valorProposta > 0 && localOverrides[lead.id] && localOverrides[lead.id].valorProposta !== undefined;
 
                 var badges = [];
+                if (lead.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> Registro da planilha</span>');
                 if (lead.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
                 if (lead.isRecorrente) badges.push('<span class="recorrente-badge badge-recorrente"><i class="fas fa-history"></i> Recorrente</span>');
                 if (lead.status === "Gerou Venda") badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-dollar-sign"></i> Venda</span>');
                 if (isManual) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-plus-circle"></i> Cadastro manual</span>');
                 if (isAlterado) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-edit"></i> Alterado</span>');
-                if (temManualObs) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-pen-fancy"></i> Manual</span>');
+                if (temManualObs) badges.push('<span class="recorrente-badge badge-manual"><i class="fas fa-pen-fancy"></i> Obs. manual</span>');
                 if (temAuto) badges.push('<span class="recorrente-badge badge-auto"><i class="fas fa-robot"></i> Auto</span>');
-                if (temStatusManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-tag"></i> Status editado</span>');
-                if (temVendedorManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-user-tie"></i> Vendedor editado</span>');
-                if (temVendaManual) badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-hand-holding-usd"></i> Venda (manual)</span>');
-                if (temPropostaManual) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-file-invoice-dollar"></i> Proposta (manual)</span>');
+                if (temVendaManual && !lead.fromSheet) badges.push('<span class="recorrente-badge badge-venda"><i class="fas fa-hand-holding-usd"></i> Venda (manual)</span>');
+                if (temPropostaManual && !lead.fromSheet) badges.push('<span class="recorrente-badge badge-alterado"><i class="fas fa-file-invoice-dollar"></i> Proposta (manual)</span>');
                 if (localOverrides[lead.id] && localOverrides[lead.id].tempStatus && Date.now() < localOverrides[lead.id].tempExpiry) {
                     badges.push('<span class="recorrente-badge badge-andamento"><i class="fas fa-clock"></i> Em andamento (24h)</span>');
                 }
@@ -2124,7 +2165,9 @@
 
                 var modal = document.getElementById('editLeadModal');
                 var titleEl = document.getElementById('editLeadModalTitle');
-                if (titleEl) titleEl.textContent = 'Editar Lead (override local)';
+                if (titleEl) titleEl.textContent = lead.fromSheet
+                    ? 'Editar Lead (planilha tem prioridade)'
+                    : 'Editar Lead (override local)';
                 modal.style.display = 'flex';
 
                 var form = document.getElementById('editLeadForm');
@@ -2211,7 +2254,8 @@
                     processLeads();
                     renderDashboard();
                     document.getElementById('editLeadModal').style.display = 'none';
-                    showToast('Lead "' + lead.nome + '" atualizado!');
+                    var aviso = lead.fromSheet ? ' (planilha mantém prioridade nos campos-chave)' : '';
+                    showToast('Lead "' + lead.nome + '" atualizado!' + aviso);
                 });
             }
 
@@ -2466,7 +2510,7 @@
             }
 
             function checkPendingVendaValues() {
-                var pendentes = processedLeads.filter(function(l) { return l.status === "Gerou Venda" && (!l.valorVenda || l.valorVenda <= 0); });
+                var pendentes = processedLeads.filter(function(l) { return l.status === "Gerou Venda" && (!l.valorVenda || l.valorVenda <= 0) && !l.fromSheet; });
                 if (pendentes.length === 0) return;
                 var pendingVendaValues = JSON.parse(localStorage.getItem('pendingVendaValues') || '{}');
                 var agora = Date.now();
@@ -2537,7 +2581,7 @@
             }
 
             function checkPendingPropostaValues() {
-                var pendentes = processedLeads.filter(function(l) { return l.cadastroRealizado === 'Sim' && (!l.valorProposta || l.valorProposta <= 0); });
+                var pendentes = processedLeads.filter(function(l) { return l.cadastroRealizado === 'Sim' && (!l.valorProposta || l.valorProposta <= 0) && !l.fromSheet; });
                 if (pendentes.length === 0) return;
                 var pendingPropostaValues = JSON.parse(localStorage.getItem('pendingPropostaValues') || '{}');
                 var agora = Date.now();
