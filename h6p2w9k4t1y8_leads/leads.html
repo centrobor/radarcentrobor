@@ -953,12 +953,11 @@
 
             // ============================================================
             // PROCESSAMENTO CENTRAL DE LEADS
-            // ⭐ REGRA DE OURO:
-            //   PLANILHA FINAL (opensheet leads) SEMPRE TEM PRIORIDADE para
-            //   status / vendedor / valorVenda / valorProposta / cadastroRealizado.
-            //   Override local só PREENCHE esses campos quando a planilha
-            //   NÃO tem valor.
-            //   Observações e demais campos aceitam override normalmente.
+            // ⭐ REGRA: override MANUAL (edited === true) tem PRIORIDADE
+            //   sobre a planilha nos campos status / vendedor / valorVenda /
+            //   valorProposta / cadastroRealizado.
+            //   Override "automático" (sem edited) só PREENCHE o que a
+            //   planilha não tem.
             // ============================================================
             function processLeads() {
                 cleanExpiredTempOverrides();
@@ -1005,7 +1004,7 @@
 
                     var statusFinal = "", vendedorRaw = "", vendedorOriginal = "", valorVendaFinal = 0, valorPropostaFinal = 0;
                     var isNovoCliente = false, isRevendaCliente = false, clienteCarteira = null, finalMatch = null;
-                    var cadDzyon = false; // ⭐ flag Cad. em Dzyon
+                    var cadDzyon = false;
                     var observacoes = "";
                     var cadastroRealizado = "";
                     var utmSource = "", utmMedium = "", utmCampaign = "", utmTerm = "", utmContent = "";
@@ -1076,7 +1075,6 @@
                                 vendedorRaw = "NA CARTEIRA";
                                 vendedorOriginal = "NA CARTEIRA";
                             }
-                            // ⭐ Cad. em Dzyon: cliente na carteira com Código
                             cadDzyon = codigoCliente !== "";
 
                             if (statusOriginal.indexOf("Fechou a Venda") !== -1) statusFinal = "Gerou Venda";
@@ -1103,25 +1101,54 @@
                     }
 
                     // ============================================================
-                    // 2) OVERRIDE — SÓ PREENCHE O QUE A PLANILHA NÃO TEM
+                    // 2) OVERRIDE
+                    // ⭐ Override MANUAL (edited === true) tem PRIORIDADE.
+                    //    Override automático só preenche o que a planilha não tem.
                     // ============================================================
                     if (override) {
-                        if ((!finalMatch || !sheetStatus || sheetStatus.trim() === "") && override.status !== undefined && override.status !== "") {
-                            statusFinal = override.status;
+                        var overrideExplicit = override.edited === true;
+
+                        var sheetStatusVazio   = !finalMatch || !sheetStatus   || sheetStatus.trim() === ""   || sheetStatus.trim() === "-";
+                        var sheetVendedorVazio = !finalMatch || !sheetVendedor || sheetVendedor.trim() === "" || sheetVendedor.trim() === "-";
+                        var sheetCadastroVazio = !finalMatch || !sheetCadastro || sheetCadastro.trim() === "" || sheetCadastro.trim() === "-";
+
+                        // STATUS
+                        if (override.status !== undefined && override.status !== "") {
+                            if (overrideExplicit || sheetStatusVazio) {
+                                statusFinal = override.status;
+                            }
                         }
-                        if ((!finalMatch || !sheetVendedor || sheetVendedor.trim() === "") && override.vendedor !== undefined && override.vendedor !== "") {
-                            vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
-                            vendedorOriginal = override.vendedorOriginal || vendedorRaw;
+
+                        // VENDEDOR
+                        if (override.vendedor !== undefined && override.vendedor !== "") {
+                            if (overrideExplicit || sheetVendedorVazio) {
+                                vendedorRaw = resolveCanonical(override.vendedor) || override.vendedor;
+                                vendedorOriginal = override.vendedorOriginal || vendedorRaw;
+                            }
                         }
-                        if ((!finalMatch || sheetValorVenda <= 0) && override.valorVenda !== undefined && override.valorVenda !== null && Number(override.valorVenda) > 0) {
-                            valorVendaFinal = Number(override.valorVenda) || 0;
+
+                        // VALOR VENDA
+                        if (override.valorVenda !== undefined && override.valorVenda !== null && Number(override.valorVenda) > 0) {
+                            if (overrideExplicit || !finalMatch || sheetValorVenda <= 0) {
+                                valorVendaFinal = Number(override.valorVenda) || 0;
+                            }
                         }
-                        if ((!finalMatch || sheetValorProposta <= 0) && override.valorProposta !== undefined && override.valorProposta !== null && Number(override.valorProposta) > 0) {
-                            valorPropostaFinal = Number(override.valorProposta) || 0;
+
+                        // VALOR PROPOSTA
+                        if (override.valorProposta !== undefined && override.valorProposta !== null && Number(override.valorProposta) > 0) {
+                            if (overrideExplicit || !finalMatch || sheetValorProposta <= 0) {
+                                valorPropostaFinal = Number(override.valorProposta) || 0;
+                            }
                         }
-                        if ((!finalMatch || !sheetCadastro || sheetCadastro.trim() === "") && override.cadastroRealizado) {
-                            cadastroRealizado = override.cadastroRealizado;
+
+                        // CADASTRO REALIZADO
+                        if (override.cadastroRealizado) {
+                            if (overrideExplicit || sheetCadastroVazio) {
+                                cadastroRealizado = override.cadastroRealizado;
+                            }
                         }
+
+                        // Demais campos
                         if (override.observacoes !== undefined) observacoes = override.observacoes || "";
                         if (override.nome) nome = override.nome;
                         if (override.empresa) empresa = override.empresa;
@@ -1142,7 +1169,10 @@
 
                     statusFinal = normalizeStatus(statusFinal, cadastroRealizado);
 
-                    if (valorVendaFinal > 0) {
+                    // ⭐ Só força "Gerou Venda" se o usuário NÃO escolheu um status manualmente
+                    var userEscolheuStatus = override && override.edited === true && override.status !== undefined && override.status !== "";
+
+                    if (valorVendaFinal > 0 && !userEscolheuStatus) {
                         statusFinal = "Gerou Venda";
                         if (!cadastroRealizado || cadastroRealizado.toLowerCase() !== 'sim') cadastroRealizado = "Sim";
                     }
@@ -1186,7 +1216,6 @@
                     if (isStatusAtivo && diffDias > DIAS_LIMITE && valorVendaFinal <= 0) {
                         var justificativa = justificativasLeads[leadId];
                         var adiado = justificativa && justificativa.decisao === 'em_aberto' && justificativa.prolongadoAte && justificativa.prolongadoAte > agora;
-                        // ⭐ FIX: se foi revisado nos últimos 30 dias, não volta pra fila
                         var revisadoRecente = justificativa && justificativa.revisadoEm && (agora - justificativa.revisadoEm) < (DIAS_LIMITE * 24 * 60 * 60 * 1000);
                         if (!adiado && !revisadoRecente) {
                             filaJustificativas.push({
@@ -1206,7 +1235,6 @@
                         aliasToCanonical.set(normalizeStr(vendedorRaw), vendedorRaw);
                     }
 
-                    // ⭐ vendedorDisplay SEM "ORIGINALMENTE DE X ATRIBUÍDO A Y"
                     var vendedorDisplay = vendedorRaw;
                     if (vendedorRaw === "NA CARTEIRA") {
                         vendedorDisplay = '<i class="fas fa-address-book"></i> NA CARTEIRA';
@@ -1234,7 +1262,7 @@
                         status: statusFinal, vendedor: vendedorDisplay, vendedorRaw: vendedorRaw, vendedorOriginal: vendedorOriginal || "",
                         isRevenda: isRevendaCliente, clienteExistente: !!clienteCarteira,
                         naCarteira: (vendedorRaw === "NA CARTEIRA"),
-                        cadDzyon: cadDzyon, // ⭐ novo flag
+                        cadDzyon: cadDzyon,
                         isNovoCliente: isNovoCliente && !clienteCarteira, isRevendaCliente: isRevendaCliente && !clienteCarteira,
                         utmIconHtml: getUtmIcon(utmSource), valorVenda: valorVendaFinal, valorProposta: valorPropostaFinal,
                         finalData: finalMatch || null, observacoes: observacoes, cadastroRealizado: cadastroRealizado,
@@ -1580,7 +1608,7 @@
             }
 
             function exibirModalRevisao() {
-                if (suprimirAutoRevisao) return; // ⭐ FIX: não abrir durante ações do usuário
+                if (suprimirAutoRevisao) return;
                 if (!filaJustificativas || filaJustificativas.length === 0) return;
                 var modal = document.getElementById('modalRevisao');
                 var container = document.getElementById('revisaoContainer');
@@ -1655,7 +1683,6 @@
                     localStorage.setItem('leadOverrides', JSON.stringify(localOverrides));
                     localStorage.setItem('justificativasLeads', JSON.stringify(justificativasLeads));
                     filaJustificativas = [];
-                    // ⭐ Suprime reabertura automática durante a atualização
                     suprimirAutoRevisao = true;
                     processLeads();
                     renderDashboard();
@@ -1819,7 +1846,6 @@
                     var temPropostaManual = l.valorProposta > 0 && localOverrides[l.id] && localOverrides[l.id].valorProposta !== undefined;
 
                     var badges = [];
-                    // ⭐ Badge Cad. em Dzyon (átomo)
                     if (l.cadDzyon) badges.push('<span class="recorrente-badge badge-dzyon"><i class="fas fa-atom"></i> Cad. em Dzyon</span>');
                     if (l.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> BD</span>');
                     if (l.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
@@ -1879,7 +1905,6 @@
                 var temPropostaManual = lead.valorProposta > 0 && localOverrides[lead.id] && localOverrides[lead.id].valorProposta !== undefined;
 
                 var badges = [];
-                // ⭐ Badge Cad. em Dzyon (átomo)
                 if (lead.cadDzyon) badges.push('<span class="recorrente-badge badge-dzyon"><i class="fas fa-atom"></i> Cad. em Dzyon</span>');
                 if (lead.fromSheet) badges.push('<span class="recorrente-badge badge-sheet"><i class="fas fa-table"></i> Registro do BD</span>');
                 if (lead.naCarteira) badges.push('<span class="recorrente-badge badge-carteira"><i class="fas fa-address-book"></i> Na Carteira</span>');
@@ -2174,7 +2199,7 @@
                 var modal = document.getElementById('editLeadModal');
                 var titleEl = document.getElementById('editLeadModalTitle');
                 if (titleEl) titleEl.textContent = lead.fromSheet
-                    ? 'Editar Lead (planilha tem prioridade)'
+                    ? 'Editar Lead (override tem prioridade)'
                     : 'Editar Lead (override local)';
                 modal.style.display = 'flex';
 
@@ -2262,8 +2287,7 @@
                     processLeads();
                     renderDashboard();
                     document.getElementById('editLeadModal').style.display = 'none';
-                    var aviso = lead.fromSheet ? ' (planilha mantém prioridade nos campos-chave)' : '';
-                    showToast('Lead "' + lead.nome + '" atualizado!' + aviso);
+                    showToast('Lead "' + lead.nome + '" atualizado!');
                 });
             }
 
