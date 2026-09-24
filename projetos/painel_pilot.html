@@ -473,8 +473,7 @@
         .noticias-rss-slide .rss-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 4; color: rgba(255,255,255,0.6); font-size: 1.2rem; background: rgba(11,26,46,0.7); }
 
         .campanha-slide { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 18px 28px; position: relative; overflow: hidden; }
-        .campanha-slide .campanha-bg { position: absolute; inset: 0; background-image: url('https://chatgpt.com/backend-api/estuary/public_content/enc/eyJpZCI6Im1fNmE3Y2MzMDhjMzJjODE5MWE4YmI1MjNiZTU1YzkwMTA6ZmlsZV8wMDAwMDAwMDVlNTg4MjBlOGFkOTZjMWJkMDg2Yzc2YSIsImdpem1vX2lkIjpudWxsLCJ3aWQiOm51bGwsIm9pZCI6bnVsbCwic2lkIjpudWxsLCJjcyI6bnVsbCwiZm4iOm51bGwsImNkIjpudWxsLCJ0cyI6IjIwNjc3IiwicCI6InB5aSIsImNpZCI6IjEiLCJzaWciOiJmNDMxZDNiNjRmY2VlNmFhMzI4Njg5MzFkYjQ3NTFmNDQ5Yjc4ODk1ZGQ4OTVmMzAxMmExNzE1MjUzM2YxMjc3IiwidiI6IjAiLCJjZG4iOm51bGwsImNwIjpudWxsLCJtYSI6bnVsbH0='); background-position: center center; background-size: cover; background-repeat: no-repeat; z-index: 0; }
-        .campanha-slide .campanha-overlay { position: absolute; inset: 0; background: linear-gradient(165deg, rgba(11,26,46,0.72) 0%, rgba(11,26,46,0.48) 45%, rgba(11,26,46,0.75) 100%); z-index: 1; }
+        .campanha-slide .campanha-bg { position: absolute; inset: 0; background-image: url('https://chatgpt.com/backend-api/estuary/public_content/enc/eyJpZCI6Im1fNmE3Y2MzMDhjMzJjODE5MWE4YmI1MjNiZTU1YzkwMTA6ZmlsZV8wMDAwMDAwMDVlNTg4MjBlOGFkOTZjMWJkMDg2Yzc2YSIsImdpem1vX2lkIjpudWxsLCJ3aWQiOm51bGwsIm9pZCI6bnVsbCwic2lkIjpudWxsLCJjcyI6bnVsbCwiZm4iOm51bGwsImNkIjpudWxsLCJ0cyI6IjIwNjc3IiwicCI6InB5aSIsImNpZCI6IjEiLCJzaWciOiJmNDMxZDNiNjRmY2VlNmFhMzI4Njg5MzFkYjQ3NTFmNDQ5Yjc4ODk1ZGQ4OTVmMzAxMmExNzE1MjUzM2YxMjc3IiwidiI6IjAiLCJjZG4iOm51bGwsImNwIjpudWxsLCJtYSI6bnVsbH0='); background-position: center center; background-size: cover; background-repeat: no-repeat; z-index: 0; }        .campanha-slide .campanha-overlay { position: absolute; inset: 0; background: linear-gradient(165deg, rgba(11,26,46,0.72) 0%, rgba(11,26,46,0.48) 45%, rgba(11,26,46,0.75) 100%); z-index: 1; }
         .campanha-content { position: relative; z-index: 2; width: 100%; max-width: 1120px; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; }
         .campanha-header { text-align: center; animation: fadeUp 0.5s ease 0.1s forwards; opacity: 0; }
         .campanha-titulo { font-size: 1.1rem; font-weight: 600; color: rgba(255,255,255,0.55); letter-spacing: 4px; text-transform: uppercase; margin-bottom: 4px; }
@@ -696,20 +695,19 @@
                 </div>
             </div>
 
-            <!-- ===== COMPORTAMENTO DA SIDEBAR ===== -->
+            <!-- ===== COMPORTAMENTO DA SIDEBAR (por slide) ===== -->
             <div class="panel-section">
-                <h4><i class="fas fa-columns"></i> Painel lateral no slide de notícias</h4>
-                <div class="field-row">
-                    <label style="flex:1;cursor:pointer;">
-                        <input type="checkbox" id="hideSidebarOnNewsToggle" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">
-                        Ocultar painel lateral nas notícias
-                    </label>
+                <h4><i class="fas fa-columns"></i> Ocultar painel lateral por slide</h4>
+                <p style="font-size:0.72rem;color:#94a3b8;margin-bottom:10px;line-height:1.45;">
+                    Marque os slides em que o painel lateral deve ser ocultado automaticamente.<br>
+                    O <strong>player continua rodando</strong> em segundo plano. Ao sair do slide, o painel reaparece (se foi ocultado automaticamente).
+                </p>
+                <div class="slide-list" id="hideSidebarListContainer"></div>
+                <div class="field-row" style="margin-top:8px;">
+                    <button class="btn-save green" id="saveHideSidebarBtn" style="width:100%;">Salvar preferências</button>
                 </div>
                 <div class="field-row">
-                    <span class="offset-status" id="hideSidebarOnNewsStatus">Painel fica visível nas notícias (tela dividida com o vídeo).</span>
-                </div>
-                <div class="field-row">
-                    <span class="offset-status" style="color:#64748b;font-size:0.68rem;">O player continua rodando nos bastidores em qualquer caso.</span>
+                    <span class="offset-status" id="hideSidebarStatus">Carregado do navegador.</span>
                 </div>
             </div>
 
@@ -855,7 +853,16 @@
             // Estado salvo no localStorage
             let playerUrl = localStorage.getItem('playerUrl') || DEFAULT_PLAYER_URL;
             let showRadio = localStorage.getItem('showRadio') !== 'false';
-            let hideSidebarOnNews = localStorage.getItem('hideSidebarOnNews') === 'true'; // padrão: false
+
+            // Mapa { tipoDoSlide: true|false } indicando em quais slides o painel lateral é ocultado
+            let hideSidebarForSlides = {};
+            try {
+                const savedHide = localStorage.getItem('hideSidebarForSlides');
+                hideSidebarForSlides = savedHide ? JSON.parse(savedHide) : {};
+            } catch (e) { hideSidebarForSlides = {}; }
+            // Default: slide de vídeo oculta o painel (mantém comportamento anterior)
+            if (hideSidebarForSlides.video === undefined) hideSidebarForSlides.video = true;
+
             let slideDurations = {};
             try {
                 const saved = localStorage.getItem('slideDurations');
@@ -894,7 +901,7 @@
             let cadastros = [], campanhasData = [];
             let slideVisibility = {};
             let sidebarHidden = false;
-            let sidebarHiddenAuto = false; // <-- flag para rastrear se foi ocultada automaticamente
+            let sidebarHiddenAuto = false; // flag para rastrear se foi ocultada automaticamente
             let currentRadioIndex = 0, radioTimer = null;
 
             let currentWeatherData = null;
@@ -1986,15 +1993,10 @@
                 if (s?.type === 'aniversariante_dia') dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
-                // ====== AUTO-OCULTAR SIDEBAR ======
-                // Regras:
-                //  - Slide de vídeo: SEMPRE oculta sidebar automaticamente
-                //  - Slide de notícias: oculta SOMENTE se hideSidebarOnNews estiver ativo
-                //  - Outros: restaura (se foi ocultada automaticamente)
-                const shouldHideForVideo = s?.type === 'video';
-                const shouldHideForNews = s?.type === 'noticias_rss' && hideSidebarOnNews;
+                // ====== AUTO-OCULTAR SIDEBAR (regra por slide, configurável) ======
+                const shouldHide = !!(s && hideSidebarForSlides[s.type] === true);
 
-                if (shouldHideForVideo || shouldHideForNews) {
+                if (shouldHide) {
                     if (!sidebarHidden) {
                         sidebarHiddenAuto = true;
                         aplicarSidebarHidden(true);
@@ -2207,6 +2209,65 @@
             }
             limparRegistrosPontoAntigos();
 
+            // ============ LISTA: OCULTAR PAINEL LATERAL POR SLIDE ============
+            function popularHideSidebarList() {
+                const container = document.getElementById('hideSidebarListContainer');
+                const statusEl = document.getElementById('hideSidebarStatus');
+                if (!container) return;
+                if (!allSlides.length) {
+                    container.innerHTML = '<div style="color:#94a3b8;font-size:0.78rem;">Nenhum slide carregado ainda.</div>';
+                    return;
+                }
+                container.innerHTML = allSlides.map(s => {
+                    const label = s.customLabel
+                        || (s.type === 'relogio' ? 'Relógio'
+                        : s.type === 'logo' ? 'Logo'
+                        : s.type === 'video' ? 'Centrobor Esportes'
+                        : s.type === 'canva' ? 'RADAR (Canva)'
+                        : s.type === 'dolar' ? 'Dólar'
+                        : s.type === 'previsao_tempo' ? 'Clima'
+                        : s.type === 'noticias_rss' ? 'Notícias'
+                        : s.type === 'campanha_reta_final' ? 'Campanha'
+                        : s.type);
+                    const checked = hideSidebarForSlides[s.type] === true;
+                    return `<div class="slide-item" data-type="${s.type}">
+                        <input type="checkbox" ${checked ? 'checked' : ''} data-hide-type="${s.type}">
+                        <span class="slide-label">${label}</span>
+                        <span class="slide-category ${checked ? 'novidades' : 'geral'}">${checked ? 'oculta' : 'visível'}</span>
+                    </div>`;
+                }).join('');
+
+                // Marca/desmarca e aplica em tempo real (sem precisar clicar em "Salvar")
+                container.querySelectorAll('input[data-hide-type]').forEach(cb => {
+                    cb.addEventListener('change', function() {
+                        const t = this.dataset.hideType;
+                        hideSidebarForSlides[t] = this.checked;
+                        localStorage.setItem('hideSidebarForSlides', JSON.stringify(hideSidebarForSlides));
+
+                        const item = this.closest('.slide-item');
+                        const badge = item ? item.querySelector('.slide-category') : null;
+                        if (badge) {
+                            badge.textContent = this.checked ? 'oculta' : 'visível';
+                            badge.className = 'slide-category ' + (this.checked ? 'novidades' : 'geral');
+                        }
+                        if (statusEl) {
+                            statusEl.textContent = 'Atualizado em ' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' });
+                        }
+                        // Se o slide em questão é o atual, aplica já
+                        const s = visibleSlides[currentSlideIndex];
+                        if (s && s.type === t) {
+                            if (this.checked && !sidebarHidden) {
+                                sidebarHiddenAuto = true;
+                                aplicarSidebarHidden(true);
+                            } else if (!this.checked && sidebarHiddenAuto) {
+                                sidebarHiddenAuto = false;
+                                aplicarSidebarHidden(false);
+                            }
+                        }
+                    });
+                });
+            }
+
             function initSlideManager() {
                 const panel = document.getElementById('slideManagerPanel');
                 const overlay = document.getElementById('slideManagerOverlay');
@@ -2240,31 +2301,30 @@
                     aplicarShowRadio();
                 });
 
-                // Ocultar sidebar nas notícias
-                const hideNewsToggle = document.getElementById('hideSidebarOnNewsToggle');
-                const hideNewsStatus = document.getElementById('hideSidebarOnNewsStatus');
-                hideNewsToggle.checked = hideSidebarOnNews;
-                hideNewsStatus.textContent = hideSidebarOnNews
-                    ? 'Painel é ocultado no slide de notícias (player continua rodando).'
-                    : 'Painel fica visível nas notícias (tela dividida com o vídeo).';
-                hideNewsToggle.addEventListener('change', function() {
-                    hideSidebarOnNews = this.checked;
-                    localStorage.setItem('hideSidebarOnNews', String(hideSidebarOnNews));
-                    hideNewsStatus.textContent = hideSidebarOnNews
-                        ? 'Painel é ocultado no slide de notícias (player continua rodando).'
-                        : 'Painel fica visível nas notícias (tela dividida com o vídeo).';
-                    // Se estamos no slide de notícias agora, aplica imediatamente
-                    const s = visibleSlides[currentSlideIndex];
-                    if (s?.type === 'noticias_rss') {
-                        if (hideSidebarOnNews && !sidebarHidden) {
+                // ============ LISTA: OCULTAR PAINEL LATERAL POR SLIDE ============
+                popularHideSidebarList();
+
+                // Botão "Salvar preferências" (redundante, mas dá feedback visual)
+                const saveHideBtn = document.getElementById('saveHideSidebarBtn');
+                if (saveHideBtn) {
+                    saveHideBtn.addEventListener('click', function() {
+                        localStorage.setItem('hideSidebarForSlides', JSON.stringify(hideSidebarForSlides));
+                        const statusEl = document.getElementById('hideSidebarStatus');
+                        if (statusEl) {
+                            statusEl.textContent = '✓ Salvo (' + new Date().toLocaleTimeString('pt-BR', { hour:'2-digit', minute:'2-digit' }) + ')';
+                        }
+                        // Aplica agora mesmo no slide atual, caso o usuário tenha mudado algo
+                        const s = visibleSlides[currentSlideIndex];
+                        const shouldHide = !!(s && hideSidebarForSlides[s.type] === true);
+                        if (shouldHide && !sidebarHidden) {
                             sidebarHiddenAuto = true;
                             aplicarSidebarHidden(true);
-                        } else if (!hideSidebarOnNews && sidebarHiddenAuto) {
+                        } else if (!shouldHide && sidebarHiddenAuto) {
                             sidebarHiddenAuto = false;
                             aplicarSidebarHidden(false);
                         }
-                    }
-                });
+                    });
+                }
 
                 // Durações por slide
                 document.querySelectorAll('.dur-grid input[data-slide-type]').forEach(inp => {
@@ -2376,6 +2436,8 @@
                             rebuildSlides();
                         });
                     });
+                    // Sincroniza a lista de "ocultar painel lateral" com os slides atuais
+                    popularHideSidebarList();
                 }
                 popularListaSlides();
             }
