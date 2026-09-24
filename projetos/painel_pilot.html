@@ -9,7 +9,6 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        /* ===== ESTILOS COMPLETOS ===== */
         :root {
             --bg-deep: #0b1a2e;
             --primary: #1e5a7a;
@@ -251,11 +250,9 @@
             background: linear-gradient(135deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.25) 50%, rgba(0,0,0,0.4) 100%);
         }
 
-        /* Remover o pseudo-elemento com gradiente azul no slide de clima */
         .slide.weather-active::before {
             display: none !important;
         }
-        /* Garantir que o fundo do slide de clima seja preto por padrão */
         .slide[data-type="previsao_tempo"] {
             background-color: #000;
         }
@@ -651,8 +648,13 @@
                     <button data-radio="1">Mix FM</button>
                     <button data-radio="2">Antena 1</button>
                 </div>
+                <!-- ===== PLAYER LATERAL: SPORT TV 3 ===== -->
                 <div class="video-box" id="video-box">
-                    <iframe id="youtube-player" src="" allow="autoplay; encrypted-media" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
+                    <iframe id="youtube-player"
+                            src="https://apitotal.net/0112/tv001/sport-tv-3"
+                            allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                            referrerpolicy="no-referrer"
+                            scrolling="no"></iframe>
                 </div>
                 <div class="radio-embed" id="radio-box"></div>
             </div>
@@ -719,7 +721,6 @@
         </div>
     </div>
 
-    <!-- PONTO OVERLAY (sem botões) -->
     <div class="ponto-overlay" id="pontoOverlay">
         <div class="ponto-card">
             <i class="fas fa-clock"></i>
@@ -730,7 +731,6 @@
 
     <script>
         (function() {
-            // ===== CONFIGURAÇÃO =====
             const CONFIG = {
                 lat: -23.5505,
                 lon: -46.6333,
@@ -741,7 +741,6 @@
                 campanhaSlideDuration: 16000,
                 reloadInterval: 600000,
                 radioInterval: 14400000,
-                youtubeRefreshInterval: 60000,
                 dolarRefreshInterval: 300000,
                 dolarSlideRefresh: 120000,
 
@@ -790,7 +789,11 @@
             let slideVisibility = {};
             let sidebarHidden = false;
             let currentRadioIndex = 0, radioTimer = null;
-            let currentVideoId = 'dQw4w9WgXcQ';
+
+            // ===== STREAM PADRÃO (Sport TV 3) =====
+            const STREAM_PADRAO = 'https://apitotal.net/0112/tv001/sport-tv-3';
+            let currentVideoUrl = STREAM_PADRAO;
+
             const transicoes = ['fade','zoom','flip','cube','coverflow','slide','parallax'];
             let currentWeatherData = null;
             let manualOffsetHours = 0;
@@ -806,10 +809,8 @@
             let darkModeEnabled = false;
             let lastNewsFetch = 0;
 
-            // ===== WATCHDOG DOS SLIDES =====
             let lastSlideAdvanceTime = Date.now();
 
-            // Variáveis para o slide Dólar
             let chartDolar = null;
             let dolarAtual = 0;
             let dolarVariacao = 0;
@@ -818,7 +819,6 @@
             let dolarDrawTimer = null;
             let dolarCountRaf = null;
 
-            // ===== FUNDOS DINÂMICOS PARA CLIMA =====
             const WEATHER_BACKGROUNDS = {
                 clear_day: [
                     'https://images.alphacoders.com/581/thumb-1920-581842.jpg',
@@ -880,7 +880,6 @@
             };
             let lastWeatherBg = null;
 
-            // ===== FUNÇÕES AUXILIARES =====
             function shuffleArray(arr) {
                 const a = Array.isArray(arr) ? [...arr] : [];
                 for (let i = a.length - 1; i > 0; i--) {
@@ -930,7 +929,6 @@
             }
             setInterval(atualizarTodosRelogios, 1000);
 
-            // ===== CLIMA =====
             async function buscarClima() {
                 try {
                     const url = `https://api.open-meteo.com/v1/forecast?latitude=${CONFIG.lat}&longitude=${CONFIG.lon}&current_weather=true&hourly=temperature_2m,weathercode&daily=weathercode,temperature_2m_max,temperature_2m_min&timezone=America/Sao_Paulo&forecast_days=5`;
@@ -950,7 +948,6 @@
             buscarClima();
             setInterval(buscarClima, 900000);
 
-            // ===== DÓLAR =====
             function atualizarBarraDolar(num) {
                 if (num == null || isNaN(num) || num <= 0) return;
                 const el = document.getElementById('dolarValor');
@@ -1005,25 +1002,35 @@
                 setInterval(buscarCotacaoDolar, CONFIG.dolarRefreshInterval);
             }, 500);
 
-            // ===== VÍDEO =====
-            function atualizarIframesVideo(id) {
+            // ===== VÍDEO — recebe URL direta =====
+            function atualizarIframesVideo(url) {
                 const iframeSlide = document.getElementById('live-youtube-iframe');
-                if (iframeSlide) iframeSlide.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt&playsinline=1`;
+                if (iframeSlide) iframeSlide.src = url;
                 const iframeSidebar = document.getElementById('youtube-player');
-                if (iframeSidebar) iframeSidebar.src = `https://www.youtube.com/embed/${id}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${id}&cc_load_policy=1&hl=pt&playsinline=1`;
+                if (iframeSidebar) iframeSidebar.src = url;
             }
+
             async function buscarVideoDaPlanilha() {
                 try {
                     const data = await fetch(BASES.video).then(r => r.json());
                     videoData = data;
                     if (data && data.length > 0) {
-                        const id = data[0]['id_link'] || data[0]['id'] || data[0]['ID'] || '';
-                        if (id && id !== currentVideoId) {
-                            currentVideoId = id;
-                            atualizarIframesVideo(currentVideoId);
+                        const raw = data[0]['url'] || data[0]['link'] || data[0]['id_link'] || data[0]['id'] || data[0]['ID'] || '';
+                        if (!raw) return;
+                        let url = raw;
+                        if (!/^https?:\/\//i.test(raw)) {
+                            url = `https://www.youtube.com/embed/${raw}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${raw}&cc_load_policy=1&hl=pt&playsinline=1`;
+                        }
+                        if (url && url !== currentVideoUrl) {
+                            currentVideoUrl = url;
+                            atualizarIframesVideo(currentVideoUrl);
                             const idx = allSlides.findIndex(s => s.type === 'video');
                             if (idx !== -1) {
-                                allSlides[idx].html = `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;"></iframe>`;
+                                allSlides[idx].html = `<iframe id="live-youtube-iframe"
+                                    src="${currentVideoUrl}"
+                                    style="width:100%;height:100%;border:none;"
+                                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                                    referrerpolicy="no-referrer"></iframe>`;
                                 rebuildSlides();
                             }
                         }
@@ -1031,9 +1038,7 @@
                 } catch (e) {}
             }
             buscarVideoDaPlanilha();
-            setInterval(buscarVideoDaPlanilha, CONFIG.youtubeRefreshInterval);
 
-            // ===== ANIVERSÁRIOS =====
             const BG_ANIVERSARIO = 'https://img.magnific.com/vetores-gratis/bandeira-de-aniversario-azul-com-baloes-e-confete_107791-30996.jpg?semt=ais_hybrid&w=740&q=80';
             function obterAniversariantesDaSemana() {
                 const hoje = getHoraSincronizada();
@@ -1073,7 +1078,6 @@
                 return `<div class="birthday-week-slide"><div class="week-bg" style="background:url('${BG_ANIVERSARIO}') center/cover;"></div><h2><i class="fas fa-birthday-cake"></i> Aniversariantes da Semana</h2><div class="birthday-week-grid">${cards}</div></div>`;
             }
 
-            // ===== CLIMA =====
             function getWeatherIcon(code) {
                 if (code <= 1) return 'fa-sun';
                 if (code <= 3) return 'fa-cloud-sun';
@@ -1209,7 +1213,6 @@
                 </div>`;
             }
 
-            // ================== NOTÍCIAS RSS ==================
             function limparTextoHtml(html) {
                 if (!html) return '';
                 return String(html)
@@ -1415,7 +1418,6 @@
                         const proxyUrl = `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`;
                         const resposta = await fetch(proxyUrl);
                         if (!resposta.ok) {
-                            // 422 etc → simplesmente ignora esse feed (sem poluir console)
                             continue;
                         }
                         const json = await resposta.json();
@@ -1433,7 +1435,6 @@
                             todas = todas.concat(items);
                         }
                     } catch (e) {
-                        // Silencia erros de rede individuais — outros feeds continuam
                     }
                 }
 
@@ -1590,7 +1591,6 @@
                 }
             }
 
-            // ========== CAMPANHA ==========
             function parseDataBR(str) {
                 if (!str) return null;
                 const p = str.split(/[/-]/);
@@ -1785,7 +1785,6 @@
                 }, 4200);
             }
 
-            // ========== DÓLAR – SLIDE ==========
             function formatarLabelDataBR(dataStr) {
                 if (!dataStr) return '';
                 const p = String(dataStr).split(/[/-]/);
@@ -2007,10 +2006,7 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        animation: {
-                            duration: 280,
-                            easing: 'easeOutQuad'
-                        },
+                        animation: { duration: 280, easing: 'easeOutQuad' },
                         plugins: {
                             legend: { display: false },
                             tooltip: {
@@ -2127,19 +2123,16 @@
                 </div>`;
             }
 
-            // ===== FUNÇÕES DE GERENCIAMENTO DE SLIDES =====
             function salvarVisibilidade() { localStorage.setItem('slideVisibility', JSON.stringify(slideVisibility)); }
             function carregarVisibilidade() { const saved = localStorage.getItem('slideVisibility'); if (saved) slideVisibility = JSON.parse(saved); }
             carregarVisibilidade();
 
-            // ----- Função para extrair cor média da imagem -----
             function extrairCorMediaImagem(url, callback) {
                 const img = new Image();
                 img.crossOrigin = 'Anonymous';
                 img.onload = function() {
                     try {
                         const canvas = document.createElement('canvas');
-                        // Reduz tamanho para performance
                         const maxSize = 80;
                         let w = img.width, h = img.height;
                         if (w > maxSize || h > maxSize) {
@@ -2154,7 +2147,6 @@
                         const imageData = ctx.getImageData(0, 0, w, h);
                         const data = imageData.data;
                         let r = 0, g = 0, b = 0, count = 0;
-                        // Amostra a cada 4 pixels para performance
                         for (let i = 0; i < data.length; i += 16) {
                             r += data[i];
                             g += data[i+1];
@@ -2165,7 +2157,6 @@
                         r = Math.round(r / count);
                         g = Math.round(g / count);
                         b = Math.round(b / count);
-                        // Escurece bastante para garantir contraste com textos claros e fundo limpo
                         const escurecida = `rgb(${Math.round(r*0.28)}, ${Math.round(g*0.28)}, ${Math.round(b*0.28)})`;
                         callback(escurecida);
                     } catch (e) {
@@ -2178,14 +2169,12 @@
                 img.src = url;
             }
 
-            // ----- Armazenar estilo original da bottombar e do animated-bg para restaurar -----
             let bottombarOriginalStyle = null;
             let animatedBgOriginalStyle = null;
 
             function aplicarCorFundoClima(cor) {
                 const corFinal = cor || '#000000';
 
-                // Slide atual
                 const slideEl = document.querySelector('.slide.active[data-type="previsao_tempo"]');
                 if (slideEl) {
                     slideEl.style.backgroundColor = corFinal;
@@ -2195,7 +2184,6 @@
                     if (weatherSlide) weatherSlide.style.backgroundColor = corFinal;
                 }
 
-                // Bottombar
                 const bb = document.getElementById('bottombar');
                 if (bb) {
                     if (!bottombarOriginalStyle) {
@@ -2210,7 +2198,6 @@
                     bb.style.borderTopColor = 'rgba(255,255,255,0.1)';
                 }
 
-                // Animated-bg (fundo da página inteira)
                 const animBg = document.querySelector('.animated-bg');
                 if (animBg) {
                     if (!animatedBgOriginalStyle) {
@@ -2229,7 +2216,6 @@
             }
 
             function restaurarFundoOriginal() {
-                // Restaura bottombar
                 if (bottombarOriginalStyle) {
                     const bb = document.getElementById('bottombar');
                     if (bb) {
@@ -2240,7 +2226,6 @@
                     bottombarOriginalStyle = null;
                 }
 
-                // Restaura animated-bg
                 if (animatedBgOriginalStyle) {
                     const animBg = document.querySelector('.animated-bg');
                     if (animBg) {
@@ -2252,7 +2237,6 @@
                     animatedBgOriginalStyle = null;
                 }
 
-                // Limpa estilos inline do slide de clima
                 document.querySelectorAll('.slide[data-type="previsao_tempo"]').forEach(el => {
                     el.style.backgroundColor = '';
                     const bg = el.querySelector('.weather-bg');
@@ -2266,7 +2250,7 @@
                 allSlides = [];
                 allSlides.push({ type: 'relogio', html: `<div class="relogio-slide"><div class="relogio-content"><div class="hora-grande" id="slide-hora">00:00</div><div class="data-grande" id="slide-data">Carregando...</div><div class="clima-grande"><i class="fas fa-sun" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div></div></div>` });
                 allSlides.push({ type: 'logo', html: `<div class="logo-slide"><img src="https://www.centrobor.com.br/wp-content/uploads/2026/01/centrobor-logo-branca-scaled.webp" alt="Centrobor"></div>` });
-                
+
                 if (currentWeatherData) {
                     const ws = buildWeatherSlide(currentWeatherData);
                     if (ws) allSlides.push({ type: 'previsao_tempo', html: ws, customLabel: 'Clima / Previsão' });
@@ -2293,8 +2277,19 @@
                     aniv.filter(a => a.diff === 0).forEach(a => allSlides.push({ type: 'aniversariante_dia', html: buildBirthdayHeroSlide(a, false, 0), customLabel: 'Hoje – ' + a.nome }));
                     allSlides.push({ type: 'aniversariantes_semana', html: buildBirthdayWeekSlide(aniv), customLabel: 'Aniversariantes da Semana' });
                 }
-                allSlides.push({ type: 'video', html: `<iframe id="live-youtube-iframe" src="https://www.youtube.com/embed/${currentVideoId}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${currentVideoId}&cc_load_policy=1&hl=pt&playsinline=1" style="width:100%;height:100%;border:none;"></iframe>` });
-                allSlides.push({ type: 'canva', html: `<iframe src="https://www.canva.com/design/DAHRodHp2gU/uZVqsviM03HQiXeRmccLfQ/view?embed" style="width:100%; height:100%; border:none;" allowfullscreen></iframe>`, customLabel: 'RADAR CENTROBOR' });
+
+                // ===== SLIDE DE VÍDEO: SPORT TV 3 =====
+                allSlides.push({
+                    type: 'video',
+                    html: `<iframe id="live-youtube-iframe"
+                                   src="${currentVideoUrl}"
+                                   style="width:100%;height:100%;border:none;"
+                                   allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+                                   referrerpolicy="no-referrer"></iframe>`,
+                    customLabel: 'Vídeo (Sport TV 3)'
+                });
+
+                allSlides.push({ type: 'canva', html: `<iframe src="https://www.canva.com/design/DAHRodHp2gU/uZVqsviM03HQiXeRmccLfQ/view?embed" style="width:100%; height:100%; border:none;" allow="fullscreen"></iframe>`, customLabel: 'RADAR CENTROBOR' });
 
                 const infoCamp = processarCampanha();
                 if (infoCamp) {
@@ -2371,7 +2366,6 @@
                 if (s?.type === 'aniversariante_dia') dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
-                // NOTÍCIAS RSS
                 if (s?.type === 'noticias_rss') {
                     const staleMs = 4 * 60 * 1000;
                     const precisaAtualizar = !noticiasRss.length || (Date.now() - lastNewsFetch > staleMs);
@@ -2406,7 +2400,6 @@
                     noticiasSlideAtivo = false;
                 }
 
-                // DÓLAR
                 if (s?.type === 'dolar') {
                     dolarSlideActive = true;
                     const wrapper = slideEl.querySelector('.dolar-grafico-wrapper');
@@ -2451,7 +2444,6 @@
                     ringAnimRunning = false;
                 }
 
-                // ===== CLIMA: aplicar cor na bottombar + no fundo da página + no slide =====
                 document.querySelectorAll('.slide.weather-active').forEach(el => el.classList.remove('weather-active'));
 
                 if (s?.type === 'previsao_tempo') {
@@ -2499,7 +2491,6 @@
                         }
                         lastSlideAdvanceTime = Date.now();
                     }
-                    // Sempre reagenda, mesmo se deu erro
                     iniciarTimer();
                 }, dur);
             }
@@ -2510,7 +2501,6 @@
                 iniciarTimer();
             }
 
-            // Watchdog: se os slides travarem por qualquer motivo, força avanço
             setInterval(() => {
                 if (paused) return;
                 const elapsed = Date.now() - lastSlideAdvanceTime;
@@ -2535,7 +2525,6 @@
                 }
             }
 
-            // ===== RÁDIO =====
             function carregarRadio(index) {
                 const radio = RADIOS[index];
                 if (!radio) return;
@@ -2559,7 +2548,6 @@
                 });
             }
 
-            // ===== SIDEBAR =====
             function toggleSidebar() {
                 sidebarHidden = !sidebarHidden;
                 document.getElementById('mainGrid').classList.toggle('sidebar-hidden', sidebarHidden);
@@ -2577,7 +2565,6 @@
                 }
             }
 
-            // ===== PONTO =====
             let pontoAtivo = false, pontoFechamentoTimer = null;
 
             function verificarLembretePonto() {
@@ -2647,7 +2634,6 @@
             }
             limparRegistrosPontoAntigos();
 
-            // ===== MENU DE PERSONALIZAÇÃO =====
             function initSlideManager() {
                 const panel = document.getElementById('slideManagerPanel');
                 const overlay = document.getElementById('slideManagerOverlay');
@@ -2742,7 +2728,7 @@
                     const container = document.getElementById('slideListContainer');
                     container.innerHTML = allSlides.map(s => {
                         const cat = (s.type === 'relogio' || s.type === 'logo' || s.type === 'noticias_rss' || s.type === 'dolar') ? 'geral' : 'novidades';
-                        const label = s.customLabel || (s.type === 'relogio' ? 'Relógio' : s.type === 'logo' ? 'Logo' : s.type === 'video' ? 'Vídeo' : s.type);
+                        const label = s.customLabel || (s.type === 'relogio' ? 'Relógio' : s.type === 'logo' ? 'Logo' : s.type === 'video' ? 'Vídeo (Sport TV 3)' : s.type);
                         const checked = slideVisibility[s.type] !== false;
                         return `<div class="slide-item" data-type="${s.type}" data-cat="${cat}">
                             <input type="checkbox" ${checked ? 'checked' : ''} data-type="${s.type}">
@@ -2761,7 +2747,6 @@
                 popularListaSlides();
             }
 
-            // ===== INICIALIZAÇÃO =====
             async function carregarDadosPlanilha() {
                 try {
                     const [cadastro, video, campanhas] = await Promise.all([
@@ -2773,8 +2758,14 @@
                     videoData = video;
                     campanhasData = campanhas || [];
                     if (video.length) {
-                        const id = video[0]['id_link'] || video[0]['id'] || video[0]['ID'];
-                        if (id) currentVideoId = id;
+                        const raw = video[0]['url'] || video[0]['link'] || video[0]['id_link'] || video[0]['id'] || video[0]['ID'];
+                        if (raw) {
+                            if (/^https?:\/\//i.test(raw)) {
+                                currentVideoUrl = raw;
+                            } else {
+                                currentVideoUrl = `https://www.youtube.com/embed/${raw}?autoplay=1&mute=1&controls=0&modestbranding=1&rel=0&loop=1&playlist=${raw}&cc_load_policy=1&hl=pt&playsinline=1`;
+                            }
+                        }
                     }
                 } catch (e) {}
             }
@@ -2828,7 +2819,6 @@
                     }
                 });
 
-                // ===== AUTO-REFRESH LEVE: recria SOMENTE os slides (rádio/vídeo continuam rodando) =====
                 setInterval(() => {
                     try {
                         console.log('[Auto-refresh] Recriando apenas os slides...');
