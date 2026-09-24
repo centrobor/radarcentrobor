@@ -38,7 +38,6 @@
             position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
             background: linear-gradient(135deg, #0a3d2e, #0b2d4a, #0a4a3a, #0b3b5a, #0a5c3a);
         }
-        /* ===== MODO DARK 100% PRETO ===== */
         body.dark-mode .animated-bg {
             background: #000 !important;
             background-image: none !important;
@@ -154,7 +153,7 @@
             margin-bottom: 14px;
         }
         .panel-section h4 {
-            color: #fff;
+            color: var(--accent);
             font-size: 0.85rem;
             font-weight: 700;
             margin-bottom: 12px;
@@ -163,7 +162,6 @@
             gap: 8px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            color: var(--accent);
         }
         .panel-section h4 i { font-size: 0.9rem; }
 
@@ -214,7 +212,6 @@
         .field-row .btn-save.green { background: #4caf50; }
         .offset-status { font-size: 0.7rem; color: var(--text-muted); width: 100%; }
 
-        /* Durações por slide - grid compacto */
         .dur-grid {
             display: grid;
             grid-template-columns: 1fr auto;
@@ -286,7 +283,6 @@
         .radio-embed { background:rgba(0,0,0,0.5); border-radius:var(--radius-md); overflow:hidden; flex-shrink:0; height:75px; border:1px solid rgba(255,255,255,0.06); }
         .radio-embed iframe { width:100%; height:100%; border:none; }
         .radio-embed.hidden { display: none !important; }
-        /* Quando a rádio some, o video-box cresce */
         .sidebar-right.no-radio .video-box { flex: 1; }
 
         #single-player {
@@ -320,7 +316,6 @@
             text-shadow: 0 2px 12px rgba(0,0,0,0.7);
         }
         #video-title-bar.active { display: flex; }
-        /* ===== BOLA BRANCA ===== */
         #video-title-bar i {
             font-size: 2rem;
             color: #ffffff;
@@ -358,7 +353,6 @@
         .slide[data-type="relogio"]::before { display: none !important; }
         .slide[data-type="video"] { background: transparent; }
         .slide[data-type="relogio"] { background: transparent; }
-        /* Em modo dark, todos os slides com fundo sólido */
         body.dark-mode .slide { background-color: #000; }
         body.dark-mode .slide[data-type="video"] { background: transparent; }
 
@@ -637,7 +631,7 @@
             </div>
 
             <iframe id="single-player"
-                    src="https://apitotal.net/0112/tv001/fifa-plus"
+                    src="https://apitotal.net/0112/tv001/sportv3"
                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
                     referrerpolicy="no-referrer"
                     scrolling="no"
@@ -688,7 +682,7 @@
                 </div>
             </div>
 
-            <!-- ===== OPÇÕES DE MÍDIA ===== -->
+            <!-- ===== MÍDIA: RÁDIO ===== -->
             <div class="panel-section">
                 <h4><i class="fas fa-volume-up"></i> Rádio</h4>
                 <div class="field-row">
@@ -699,6 +693,23 @@
                 </div>
                 <div class="field-row">
                     <span class="offset-status" id="radioStatus">Rádio visível.</span>
+                </div>
+            </div>
+
+            <!-- ===== COMPORTAMENTO DA SIDEBAR ===== -->
+            <div class="panel-section">
+                <h4><i class="fas fa-columns"></i> Painel lateral no slide de notícias</h4>
+                <div class="field-row">
+                    <label style="flex:1;cursor:pointer;">
+                        <input type="checkbox" id="hideSidebarOnNewsToggle" style="width:18px;height:18px;accent-color:var(--accent);cursor:pointer;">
+                        Ocultar painel lateral nas notícias
+                    </label>
+                </div>
+                <div class="field-row">
+                    <span class="offset-status" id="hideSidebarOnNewsStatus">Painel fica visível nas notícias (tela dividida com o vídeo).</span>
+                </div>
+                <div class="field-row">
+                    <span class="offset-status" style="color:#64748b;font-size:0.68rem;">O player continua rodando nos bastidores em qualquer caso.</span>
                 </div>
             </div>
 
@@ -806,7 +817,6 @@
         (function() {
             const DEFAULT_PLAYER_URL = 'https://apitotal.net/0112/tv001/sportv3';
 
-            // Durações padrão por tipo de slide (em segundos)
             const DEFAULT_DURATIONS = {
                 relogio: 15,
                 logo: 15,
@@ -845,12 +855,12 @@
             // Estado salvo no localStorage
             let playerUrl = localStorage.getItem('playerUrl') || DEFAULT_PLAYER_URL;
             let showRadio = localStorage.getItem('showRadio') !== 'false';
+            let hideSidebarOnNews = localStorage.getItem('hideSidebarOnNews') === 'true'; // padrão: false
             let slideDurations = {};
             try {
                 const saved = localStorage.getItem('slideDurations');
                 slideDurations = saved ? JSON.parse(saved) : {};
             } catch (e) { slideDurations = {}; }
-            // Preenche defaults faltantes
             Object.keys(DEFAULT_DURATIONS).forEach(k => {
                 if (typeof slideDurations[k] !== 'number' || slideDurations[k] < 3) {
                     slideDurations[k] = DEFAULT_DURATIONS[k];
@@ -884,7 +894,7 @@
             let cadastros = [], campanhasData = [];
             let slideVisibility = {};
             let sidebarHidden = false;
-            let sidebarHiddenByVideo = false;
+            let sidebarHiddenAuto = false; // <-- flag para rastrear se foi ocultada automaticamente
             let currentRadioIndex = 0, radioTimer = null;
 
             let currentWeatherData = null;
@@ -920,11 +930,9 @@
             };
             let lastWeatherBg = null;
 
-            // ====== HELPERS DURAÇÃO ======
             function getDurationForSlide(s) {
                 if (!s) return 15000;
                 let key = s.type;
-                // Agrupa todos os tipos de aniversariante em 'aniversariantes'
                 if (typeof key === 'string' && key.indexOf('aniversariante') === 0) key = 'aniversariantes';
                 const durSec = slideDurations[key];
                 if (typeof durSec === 'number' && durSec >= 3) return durSec * 1000;
@@ -935,7 +943,6 @@
                 localStorage.setItem('slideDurations', JSON.stringify(slideDurations));
             }
 
-            // ====== HELPERS PLAYER / RÁDIO ======
             function aplicarPlayerUrl() {
                 const iframe = document.getElementById('single-player');
                 if (!iframe) return;
@@ -1936,6 +1943,15 @@
             setInterval(() => { repositionSinglePlayer(false); }, 250);
             window.addEventListener('resize', () => repositionSinglePlayer(true));
 
+            // ====== APLICA / REMOVE a classe de sidebar oculta ======
+            function aplicarSidebarHidden(hidden) {
+                sidebarHidden = hidden;
+                document.getElementById('mainGrid').classList.toggle('sidebar-hidden', hidden);
+                document.getElementById('topToggleIcon').className = hidden ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
+                document.getElementById('sidebarTopToggle').classList.toggle('hidden-sidebar', hidden);
+                setTimeout(() => repositionSinglePlayer(true), 50);
+            }
+
             function irParaSlide(idx) {
                 lastSlideAdvanceTime = Date.now();
 
@@ -1970,25 +1986,25 @@
                 if (s?.type === 'aniversariante_dia') dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
-                if (s?.type === 'video') {
+                // ====== AUTO-OCULTAR SIDEBAR ======
+                // Regras:
+                //  - Slide de vídeo: SEMPRE oculta sidebar automaticamente
+                //  - Slide de notícias: oculta SOMENTE se hideSidebarOnNews estiver ativo
+                //  - Outros: restaura (se foi ocultada automaticamente)
+                const shouldHideForVideo = s?.type === 'video';
+                const shouldHideForNews = s?.type === 'noticias_rss' && hideSidebarOnNews;
+
+                if (shouldHideForVideo || shouldHideForNews) {
                     if (!sidebarHidden) {
-                        sidebarHiddenByVideo = true;
-                        sidebarHidden = true;
-                        document.getElementById('mainGrid').classList.add('sidebar-hidden');
-                        document.getElementById('topToggleIcon').className = 'fas fa-chevron-left';
-                        document.getElementById('sidebarTopToggle').classList.add('hidden-sidebar');
+                        sidebarHiddenAuto = true;
+                        aplicarSidebarHidden(true);
                     }
                 } else {
-                    if (sidebarHiddenByVideo) {
-                        sidebarHiddenByVideo = false;
-                        sidebarHidden = false;
-                        document.getElementById('mainGrid').classList.remove('sidebar-hidden');
-                        document.getElementById('topToggleIcon').className = 'fas fa-chevron-right';
-                        document.getElementById('sidebarTopToggle').classList.remove('hidden-sidebar');
+                    if (sidebarHiddenAuto) {
+                        sidebarHiddenAuto = false;
+                        aplicarSidebarHidden(false);
                     }
                 }
-
-                setTimeout(() => repositionSinglePlayer(true), 50);
 
                 if (s?.type === 'noticias_rss') {
                     const staleMs = 4 * 60 * 1000;
@@ -2066,7 +2082,6 @@
             function proximoSlide() { if (visibleSlides.length) irParaSlide((currentSlideIndex + 1) % visibleSlides.length); }
             function slideAnterior() { if (visibleSlides.length) irParaSlide((currentSlideIndex - 1 + visibleSlides.length) % visibleSlides.length); }
 
-            // ====== TIMER com duração específica por slide ======
             function iniciarTimer() {
                 if (slideTimer) clearTimeout(slideTimer);
                 if (!visibleSlides.length) return;
@@ -2091,7 +2106,6 @@
             setInterval(() => {
                 if (paused) return;
                 const elapsed = Date.now() - lastSlideAdvanceTime;
-                // Duração máxima possível: notícias (120s). Watchdog só dispara se travar muito
                 if (elapsed > 180000) {
                     try { proximoSlide(); } catch (e) {}
                     lastSlideAdvanceTime = Date.now();
@@ -2129,12 +2143,10 @@
             }
 
             function toggleSidebar() {
-                sidebarHidden = !sidebarHidden;
-                document.getElementById('mainGrid').classList.toggle('sidebar-hidden', sidebarHidden);
-                document.getElementById('topToggleIcon').className = sidebarHidden ? 'fas fa-chevron-left' : 'fas fa-chevron-right';
-                document.getElementById('sidebarTopToggle').classList.toggle('hidden-sidebar', sidebarHidden);
+                // Se o usuário clicar manualmente, cancela o modo "auto"
+                sidebarHiddenAuto = false;
+                aplicarSidebarHidden(!sidebarHidden);
                 localStorage.setItem('sidebarHidden', sidebarHidden);
-                setTimeout(() => repositionSinglePlayer(true), 50);
             }
             function carregarSidebarState() {
                 const saved = localStorage.getItem('sidebarHidden');
@@ -2205,7 +2217,7 @@
                 document.getElementById('closeSlideManager').addEventListener('click', closePanel);
                 overlay.addEventListener('click', closePanel);
 
-                // ====== URL DO PLAYER ======
+                // URL do player
                 const playerInput = document.getElementById('playerUrlInput');
                 playerInput.value = playerUrl;
                 document.getElementById('playerUrlStatus').textContent = 'Ativo: ' + playerUrl;
@@ -2219,7 +2231,7 @@
                     aplicarPlayerUrl();
                 });
 
-                // ====== MOSTRAR RÁDIO ======
+                // Mostrar rádio
                 const radioToggle = document.getElementById('showRadioToggle');
                 radioToggle.checked = showRadio;
                 document.getElementById('radioStatus').textContent = showRadio ? 'Rádio visível.' : 'Rádio oculta.';
@@ -2228,13 +2240,38 @@
                     aplicarShowRadio();
                 });
 
-                // ====== DURAÇÕES POR SLIDE ======
+                // Ocultar sidebar nas notícias
+                const hideNewsToggle = document.getElementById('hideSidebarOnNewsToggle');
+                const hideNewsStatus = document.getElementById('hideSidebarOnNewsStatus');
+                hideNewsToggle.checked = hideSidebarOnNews;
+                hideNewsStatus.textContent = hideSidebarOnNews
+                    ? 'Painel é ocultado no slide de notícias (player continua rodando).'
+                    : 'Painel fica visível nas notícias (tela dividida com o vídeo).';
+                hideNewsToggle.addEventListener('change', function() {
+                    hideSidebarOnNews = this.checked;
+                    localStorage.setItem('hideSidebarOnNews', String(hideSidebarOnNews));
+                    hideNewsStatus.textContent = hideSidebarOnNews
+                        ? 'Painel é ocultado no slide de notícias (player continua rodando).'
+                        : 'Painel fica visível nas notícias (tela dividida com o vídeo).';
+                    // Se estamos no slide de notícias agora, aplica imediatamente
+                    const s = visibleSlides[currentSlideIndex];
+                    if (s?.type === 'noticias_rss') {
+                        if (hideSidebarOnNews && !sidebarHidden) {
+                            sidebarHiddenAuto = true;
+                            aplicarSidebarHidden(true);
+                        } else if (!hideSidebarOnNews && sidebarHiddenAuto) {
+                            sidebarHiddenAuto = false;
+                            aplicarSidebarHidden(false);
+                        }
+                    }
+                });
+
+                // Durações por slide
                 document.querySelectorAll('.dur-grid input[data-slide-type]').forEach(inp => {
                     const k = inp.dataset.slideType;
                     inp.value = slideDurations[k];
                 });
                 document.getElementById('savePerSlideBtn').addEventListener('click', () => {
-                    let ok = true;
                     document.querySelectorAll('.dur-grid input[data-slide-type]').forEach(inp => {
                         const k = inp.dataset.slideType;
                         let v = parseInt(inp.value);
@@ -2248,7 +2285,7 @@
                     resetarTimer();
                 });
 
-                // ====== FILTROS ======
+                // Filtros
                 document.querySelectorAll('.filter-buttons button[data-filter]').forEach(btn => {
                     btn.addEventListener('click', function() {
                         document.querySelectorAll('.filter-buttons button[data-filter]').forEach(b => b.classList.remove('active'));
@@ -2268,7 +2305,7 @@
                     salvarVisibilidade(); rebuildSlides();
                 });
 
-                // ====== DATA / FUSO ======
+                // Data / fuso
                 document.getElementById('saveOffsetBtn').addEventListener('click', () => {
                     let v = parseFloat(document.getElementById('manualOffset').value);
                     if (isNaN(v)) v = 0;
@@ -2303,7 +2340,7 @@
                     atualizarTodosRelogios();
                 });
 
-                // ====== DARK MODE ======
+                // Dark mode
                 const darkToggle = document.getElementById('darkModeToggle');
                 const darkStatus = document.getElementById('darkModeStatus');
                 const savedDark = localStorage.getItem('darkModeGlobal');
@@ -2372,7 +2409,6 @@
                 document.getElementById('manualOffset').value = manualOffsetHours;
                 document.getElementById('offsetStatus').textContent = `(${manualOffsetHours}h = ${manualOffsetHours >= 0 ? '+' : ''}${manualOffsetHours}h local)`;
 
-                // Aplica URL do player e visibilidade da rádio
                 aplicarPlayerUrl();
                 aplicarShowRadio();
 
