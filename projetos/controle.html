@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Painel de Controle · Radar Centrobor</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+    <style>
+        :root {
+            --bg-1: #0a1929;
+            --bg-2: #0d2135;
+            --bg-3: #0f2a44;
+            --card: rgba(255,255,255,0.035);
+            --card-hover: rgba(255,255,255,0.055);
+            --border: rgba(255,255,255,0.07);
+            --border-strong: rgba(255,255,255,0.14);
+            --accent: #38bdf8;
+            --accent-hover: #0ea5e9;
+            --accent-soft: rgba(56,189,248,0.12);
+            --green: #22c55e;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --purple: #a78bfa;
+            --pink: #ec4899;
+            --text: #e2e8f0;
+            --text-strong: #f8fafc;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --radius-sm: 8px;
+            --radius: 12px;
+            --radius-lg: 18px;
+            --shadow-sm: 0 2px 8px rgba(0,0,0,0.25);
+            --shadow-md: 0 6px 20px rgba(0,0,0,0.35);
+            --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { height: 100%; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            background: linear-gradient(150deg, var(--bg-1) 0%, var(--bg-2) 55%, var(--bg-3) 100%);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+        button { font-family: inherit; }
+        input, select, textarea { font-family: inherit; }
+
+        /* ============ APP SHELL ============ */
+        .app { display: flex; flex-direction: column; height: 100vh; }
+
+        .app-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            background: rgba(0,0,0,0.28);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+        .header-left { display: flex; align-items: center; gap: 12px; }
+        .app-icon {
+            width: 38px; height: 38px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, var(--accent), #0284c7);
+            display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 1.05rem;
+            box-shadow: 0 4px 14px rgba(56,189,248,0.35);
+        }
+        .app-title { font-size: 0.92rem; font-weight: 700; color: var(--text-strong); letter-spacing: 0.2px; }
+        .app-subtitle { font-size: 0.68rem; color: var(--text-muted); font-weight: 500; }
+
+        .conn-status {
+            display: flex; align-items: center; gap: 7px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            background: rgba(0,0,0,0.25);
+            border: 1px solid var(--border);
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+        }
+        .conn-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: #555;
+            transition: all 0.3s;
+            flex-shrink: 0;
+        }
+        .conn-dot.ok { background: var(--green); box-shadow: 0 0 10px var(--green); animation: pulse 2s ease-in-out infinite; }
+        .conn-dot.off { background: var(--red); box-shadow: 0 0 10px var(--red); }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.15); opacity: 0.85; }
+        }
+
+        /* ============ TABS ============ */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            padding: 10px 12px 0;
+            background: rgba(0,0,0,0.18);
+            overflow-x: auto;
+            scrollbar-width: none;
+            flex-shrink: 0;
+            border-bottom: 1px solid var(--border);
+        }
+        .tab-bar::-webkit-scrollbar { display: none; }
+        .tab-btn {
+            display: flex; flex-direction: column;
+            align-items: center; gap: 4px;
+            padding: 9px 14px 10px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-dim);
+            font-size: 0.68rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            border-radius: 8px 8px 0 0;
+            min-width: 62px;
+        }
+        .tab-btn i { font-size: 1rem; transition: transform 0.2s; }
+        .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+        .tab-btn:hover i { transform: translateY(-1px); }
+        .tab-btn.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+            background: rgba(56,189,248,0.06);
+        }
+        .tab-btn.active i { color: var(--accent); }
+
+        /* ============ CONTENT ============ */
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.15) transparent;
+        }
+        .content::-webkit-scrollbar { width: 6px; }
+        .content::-webkit-scrollbar-track { background: transparent; }
+        .content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+        .tab-panel { display: none; animation: fadeIn 0.25s ease; }
+        .tab-panel.active { display: block; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ============ CARDS ============ */
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            transition: all 0.2s;
+        }
+        .card:hover { background: var(--card-hover); }
+        .card-header {
+            display: flex; align-items: center; gap: 9px;
+            font-size: 0.78rem; font-weight: 700;
+            color: var(--text-strong);
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+        }
+        .card-header i {
+            width: 26px; height: 26px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            background: var(--accent-soft);
+            color: var(--accent);
+            flex-shrink: 0;
+        }
+        .card-desc {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        /* ============ INPUTS ============ */
+        .field {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 10px;
+        }
+        .field:last-child { margin-bottom: 0; }
+        .field label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            min-width: 96px;
+            flex-shrink: 0;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .field label i { color: var(--accent); font-size: 0.75rem; width: 14px; }
+
+        .input, .select {
+            flex: 1;
+            min-width: 0;
+            padding: 8px 11px;
+            border-radius: 9px;
+            border: 1px solid var(--border-strong);
+            background: rgba(0,0,0,0.32);
+            color: var(--text-strong);
+            font-size: 0.78rem;
+            font-weight: 500;
+            transition: all 0.15s;
+            outline: none;
+        }
+        .input:focus, .select:focus {
+            border-color: var(--accent);
+            background: rgba(0,0,0,0.45);
+            box-shadow: 0 0 0 3px var(--accent-soft);
+        }
+        .input::placeholder { color: var(--text-dim); }
+
+        /* ============ BUTTONS ============ */
+        .btn {
+            display: inline-flex;
+            align-items: center; justify-content: center;
+            gap: 6px;
+            padding: 8px 14px;
+            border: none;
+            border-radius: 9px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+        .btn i { font-size: 0.78rem; }
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #0284c7);
+            color: #fff;
+            box-shadow: 0 3px 10px rgba(56,189,248,0.35);
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(56,189,248,0.5); }
+        .btn-primary:active { transform: translateY(0); }
+        .btn-green { background: linear-gradient(135deg, var(--green), #16a34a); color: #fff; box-shadow: 0 3px 10px rgba(34,197,94,0.35); }
+        .btn-green:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(34,197,94,0.5); }
+        .btn-red { background: linear-gradient(135deg, var(--red), #dc2626); color: #fff; box-shadow: 0 3px 10px rgba(239,68,68,0.35); }
+        .btn-red:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(239,68,68,0.5); }
+        .btn-ghost {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--border-strong);
+            color: var(--text);
+        }
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.22); }
+        .btn-full { width: 100%; }
+
+        .btn-grid {
+            display: grid;
+            gap: 8px;
+        }
+        .btn-grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+        .btn-grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+
+        /* ============ TOGGLE SWITCH ============ */
+        .switch-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 0;
+            gap: 10px;
+        }
+        .switch-row + .switch-row { border-top: 1px solid rgba(255,255,255,0.04); }
+        .switch-label {
+            display: flex; align-items: center; gap: 8px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: var(--text);
+            cursor: pointer;
+            flex: 1;
+            min-width: 0;
+        }
+        .switch-label i { color: var(--accent); width: 16px; text-align: center; font-size: 0.76rem; }
+        .switch-label small { display: block; font-size: 0.65rem; color: var(--text-dim); margin-top: 1px; }
+        .switch { position: relative; width: 40px; height: 22px; flex-shrink: 0; cursor: pointer; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .switch-track {
+            position: absolute; inset: 0;
+            background: rgba(255,255,255,0.12);
+            border-radius: 22px;
+            transition: background 0.25s;
+        }
+        .switch-thumb {
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 16px; height: 16px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .switch input:checked + .switch-track { background: var(--accent); }
+        .switch input:checked + .switch-track .switch-thumb { transform: translateX(18px); }
+
+        /* ============ SLIDER ============ */
+        .slider-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 0;
+        }
+        .slider-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            min-width: 96px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .slider-row label i { color: var(--accent); width: 14px; }
+        .slider-row input[type="range"] {
+            flex: 1;
+            -webkit-appearance: none;
+            height: 4px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.12);
+            outline: none;
+            cursor: pointer;
+            min-width: 0;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: grab;
+            box-shadow: 0 0 0 3px rgba(56,189,248,0.2);
+            transition: all 0.15s;
+        }
+        .slider-row input[type="range"]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(56,189,248,0.3); }
+        .slider-row input[type="range"]::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.15); }
+        .slider-row input[type="range"]::-moz-range-thumb {
+            width: 16px; height: 16px;
+            background: var(--accent);
+            border: none;
+            border-radius: 50%;
+            cursor: grab;
+        }
+        .slider-value {
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: var(--accent);
+            min-width: 48px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* ============ COLOR PICKER ============ */
+        .color-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0;
+        }
+        .color-row label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            min-width: 96px;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .color-row label i { color: var(--accent); width: 14px; }
+        .color-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+        }
+        .color-swatch {
+            width: 32px; height: 32px;
+            border-radius: 8px;
+            border: 2px solid var(--border-strong);
+            cursor: pointer;
+            padding: 0;
+            background: transparent;
+            flex-shrink: 0;
+            overflow: hidden;
+            position: relative;
+        }
+        .color-swatch input[type="color"] {
+            position: absolute;
+            inset: -8px;
+            width: 200%; height: 200%;
+            border: none; padding: 0;
+            cursor: pointer;
+            opacity: 0;
+        }
+        .color-swatch::after {
+            content: '';
+            position: absolute; inset: 0;
+            background: var(--swatch-color, #000);
+            pointer-events: none;
+        }
+        .color-hex {
+            flex: 1;
+            min-width: 0;
+            padding: 7px 10px;
+            border-radius: 8px;
+            border: 1px solid var(--border-strong);
+            background: rgba(0,0,0,0.32);
+            color: var(--text-strong);
+            font-size: 0.76rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            outline: none;
+            text-transform: uppercase;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+        }
+        .color-hex:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+        .preset-swatches {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .preset-swatches button {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+            padding: 0;
+        }
+        .preset-swatches button:hover { transform: scale(1.15); border-color: rgba(255,255,255,0.4); }
+
+        /* ============ THEME PICKER ============ */
+        .theme-picker {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .theme-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 6px;
+            background: rgba(0,0,0,0.2);
+            border: 2px solid var(--border);
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.18s;
+            color: var(--text);
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+        .theme-option:hover { border-color: var(--border-strong); transform: translateY(-1px); }
+        .theme-option.active {
+            border-color: var(--accent);
+            background: var(--accent-soft);
+            color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(56,189,248,0.1);
+        }
+        .theme-option .theme-preview {
+            width: 100%; height: 32px;
+            border-radius: 6px;
+            border: 1px solid var(--border-strong);
+            position: relative;
+            overflow: hidden;
+        }
+        .theme-preview.dark { background: linear-gradient(135deg, #0a1929, #0f2233); }
+        .theme-preview.light { background: linear-gradient(135deg, #f8fafc, #e2e8f0); }
+        .theme-preview.custom { background: linear-gradient(135deg, #1e3a5f, #38bdf8, #a78bfa); }
+        .theme-preview::after {
+            content: '';
+            position: absolute;
+            top: 6px; left: 6px; right: 6px;
+            height: 4px;
+            background: rgba(255,255,255,0.25);
+            border-radius: 2px;
+        }
+
+        /* ============ RADIO / SEGMENT ============ */
+        .segment {
+            display: flex;
+            background: rgba(0,0,0,0.28);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            padding: 3px;
+            gap: 2px;
+        }
+        .segment button {
+            flex: 1;
+            padding: 6px 8px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            display: flex; align-items: center; justify-content: center; gap: 5px;
+        }
+        .segment button i { font-size: 0.72rem; }
+        .segment button:hover { color: var(--text); }
+        .segment button.active {
+            background: linear-gradient(135deg, var(--accent), #0284c7);
+            color: #fff;
+            box-shadow: 0 2px 6px rgba(56,189,248,0.35);
+        }
+
+        /* ============ LIST ITEMS (slides) ============ */
+        .list {
+            max-height: 280px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.15) transparent;
+            margin: 0 -6px;
+            padding: 0 6px;
+        }
+        .list::-webkit-scrollbar { width: 5px; }
+        .list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-bottom: 2px;
+            transition: background 0.15s;
+            border: 1px solid transparent;
+        }
+        .list-item:hover { background: rgba(255,255,255,0.04); border-color: var(--border); }
+        .list-item input[type="checkbox"] {
+            width: 16px; height: 16px;
+            accent-color: var(--accent);
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        .list-item-label {
+            flex: 1;
+            font-size: 0.76rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .list-item-duration {
+            width: 56px;
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border-strong);
+            background: rgba(0,0,0,0.3);
+            color: var(--text-strong);
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-align: center;
+            outline: none;
+            flex-shrink: 0;
+        }
+        .list-item-duration:focus { border-color: var(--accent); }
+
+        .badge {
+            font-size: 0.58rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.4px;
+            font-weight: 700;
+            background: rgba(255,255,255,0.06);
+            color: var(--text-dim);
+            flex-shrink: 0;
+        }
+        .badge.ok { background: rgba(34,197,94,0.14); color: #4ade80; }
+        .badge.off { background: rgba(245,158,11,0.14); color: #fbbf24; }
+
+        /* ============ TIME LIST (ponto) ============ */
+        .time-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 8px;
+        }
+        .time-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+        }
+        .time-item input[type="time"] {
+            flex: 1;
+            padding: 5px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-strong);
+            background: rgba(0,0,0,0.3);
+            color: var(--text-strong);
+            font-size: 0.78rem;
+            font-weight: 700;
+            outline: none;
+            text-align: center;
+        }
+        .time-item input[type="time"]:focus { border-color: var(--accent); }
+        .time-item button {
+            width: 26px; height: 26px;
+            border-radius: 6px;
+            border: 1px solid rgba(239,68,68,0.3);
+            background: rgba(239,68,68,0.1);
+            color: #f87171;
+            cursor: pointer;
+            font-size: 0.72rem;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+        .time-item button:hover { background: rgba(239,68,68,0.25); color: #fff; }
+
+        /* ============ EMPTY STATE ============ */
+        .empty {
+            font-size: 0.74rem;
+            color: var(--text-dim);
+            text-align: center;
+            padding: 16px 10px;
+            font-style: italic;
+        }
+
+        /* ============ SAVE INDICATOR ============ */
+        .save-indicator {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            color: #fff;
+            padding: 8px 18px;
+            border-radius: 24px;
+            font-size: 0.74rem;
+            font-weight: 700;
+            box-shadow: var(--shadow-lg);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .save-indicator.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+        .save-indicator i { font-size: 0.8rem; }
+
+        /* ============ TOAST ============ */
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(15,31,46,0.98);
+            backdrop-filter: blur(12px);
+            color: var(--text-strong);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-strong);
+            font-size: 0.76rem;
+            font-weight: 600;
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 10000;
+            pointer-events: none;
+            max-width: 90%;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.success { border-color: rgba(34,197,94,0.4); }
+        .toast.success i { color: #4ade80; }
+        .toast.error { border-color: rgba(239,68,68,0.4); }
+        .toast.error i { color: #f87171; }
+        .toast.info i { color: var(--accent); }
+
+        /* ============ SCROLL BEHAVIOR ============ */
+        .content { scroll-behavior: smooth; }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- ===================== HEADER ===================== -->
+        <header class="app-header">
+            <div class="header-left">
+                <div class="app-icon"><i class="fas fa-sliders-h"></i></div>
+                <div>
+                    <div class="app-title">Painel de Controle</div>
+                    <div class="app-subtitle">Radar Centrobor</div>
+                </div>
+            </div>
+            <div class="conn-status">
+                <span class="conn-dot" id="statusDot"></span>
+                <span id="statusText">Conectando...</span>
+            </div>
+        </header>
+
+        <!-- ===================== TABS ===================== -->
+        <nav class="tab-bar">
+            <button class="tab-btn active" data-tab="geral"><i class="fas fa-gauge-high"></i><span>Geral</span></button>
+            <button class="tab-btn" data-tab="visual"><i class="fas fa-palette"></i><span>Visual</span></button>
+            <button class="tab-btn" data-tab="layout"><i class="fas fa-table-columns"></i><span>Layout</span></button>
+            <button class="tab-btn" data-tab="slides"><i class="fas fa-layer-group"></i><span>Slides</span></button>
+            <button class="tab-btn" data-tab="midia"><i class="fas fa-photo-film"></i><span>Mídia</span></button>
+            <button class="tab-btn" data-tab="sistema"><i class="fas fa-cog"></i><span>Sistema</span></button>
+        </nav>
+
+        <main class="content">
+            <!-- ============================================
+                 TAB: GERAL
+                 ============================================ -->
+            <section class="tab-panel active" data-tab="geral">
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-play"></i> Controles de mídia</div>
+                    <div class="card-desc">Controle o slideshow remotamente. O player continua rodando normalmente.</div>
+                    <div class="btn-grid cols-3">
+                        <button class="btn btn-ghost" data-cmd="prevSlide"><i class="fas fa-backward"></i> Anterior</button>
+                        <button class="btn btn-ghost" data-cmd="togglePause"><i class="fas fa-pause"></i> Pausar</button>
+                        <button class="btn btn-ghost" data-cmd="nextSlide"><i class="fas fa-forward"></i> Próximo</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-sync"></i> Recarregar conteúdo</div>
+                    <div class="card-desc">Force uma atualização imediata, sem esperar o próximo ciclo.</div>
+                    <div class="btn-grid cols-2">
+                        <button class="btn btn-ghost" data-cmd="refreshNews"><i class="fas fa-newspaper"></i> Notícias</button>
+                        <button class="btn btn-ghost" data-cmd="refreshDolar"><i class="fas fa-dollar-sign"></i> Dólar</button>
+                        <button class="btn btn-ghost" data-cmd="refreshWeather"><i class="fas fa-cloud-sun"></i> Clima</button>
+                        <button class="btn btn-ghost" data-cmd="reloadData"><i class="fas fa-database"></i> Planilhas</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-bolt"></i> Ações rápidas</div>
+                    <div class="btn-grid cols-2">
+                        <button class="btn btn-ghost" id="openMainBtn"><i class="fas fa-external-link-alt"></i> Abrir página</button>
+                        <button class="btn btn-ghost" id="reconnectBtn"><i class="fas fa-plug"></i> Reconectar</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================
+                 TAB: VISUAL
+                 ============================================ -->
+            <section class="tab-panel" data-tab="visual">
+                <!-- TEMA -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-circle-half-stroke"></i> Tema geral</div>
+                    <div class="card-desc">Escolha o esquema de cores da página principal.</div>
+                    <div class="theme-picker" id="themePicker">
+                        <button class="theme-option active" data-theme="dark">
+                            <div class="theme-preview dark"></div>
+                            <span>Escuro</span>
+                        </button>
+                        <button class="theme-option" data-theme="light">
+                            <div class="theme-preview light"></div>
+                            <span>Claro</span>
+                        </button>
+                        <button class="theme-option" data-theme="custom">
+                            <div class="theme-preview custom"></div>
+                            <span>Personalizado</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- FUNDO -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-image"></i> Fundo da página</div>
+                    <div class="card-desc">Tipo de fundo, cor base e imagem opcional.</div>
+
+                    <div class="field">
+                        <label><i class="fas fa-paint-roller"></i> Tipo</label>
+                        <div class="segment" id="bgTypeSegment" style="flex:1;">
+                            <button data-value="gradient" class="active"><i class="fas fa-fill-drip"></i> Gradiente</button>
+                            <button data-value="solid"><i class="fas fa-square"></i> Sólido</button>
+                            <button data-value="image"><i class="fas fa-image"></i> Imagem</button>
+                        </div>
+                    </div>
+
+                    <div class="color-row">
+                        <label><i class="fas fa-palette"></i> Cor</label>
+                        <div class="color-input-wrap">
+                            <button class="color-swatch" id="bgColorSwatch" style="--swatch-color: #0a1929;">
+                                <input type="color" id="bgColorPicker" value="#0a1929">
+                            </button>
+                            <input type="text" class="color-hex" id="bgColorHex" value="#0A1929" maxlength="7">
+                        </div>
+                    </div>
+                    <div class="preset-swatches">
+                        <button data-color="#0a1929" style="background:#0a1929" title="Azul profundo"></button>
+                        <button data-color="#000000" style="background:#000" title="Preto"></button>
+                        <button data-color="#1a2b3c" style="background:#1a2b3c" title="Cinza escuro"></button>
+                        <button data-color="#0f172a" style="background:#0f172a" title="Slate"></button>
+                        <button data-color="#1e1b4b" style="background:#1e1b4b" title="Índigo"></button>
+                        <button data-color="#0c4a6e" style="background:#0c4a6e" title="Ciano escuro"></button>
+                        <button data-color="#14532d" style="background:#14532d" title="Verde floresta"></button>
+                        <button data-color="#7c2d12" style="background:#7c2d12" title="Marrom"></button>
+                        <button data-color="#831843" style="background:#831843" title="Vinho"></button>
+                        <button data-color="#f8fafc" style="background:#f8fafc;border-color:#cbd5e1" title="Branco"></button>
+                    </div>
+
+                    <div class="field" style="margin-top:12px;">
+                        <label><i class="fas fa-link"></i> URL imagem</label>
+                        <input type="text" class="input" id="bgImageUrl" placeholder="https://...">
+                    </div>
+                    <div class="field">
+                        <button class="btn btn-ghost btn-full" id="bgImageTestBtn"><i class="fas fa-check"></i> Aplicar imagem</button>
+                    </div>
+
+                    <div class="slider-row">
+                        <label><i class="fas fa-water"></i> Desfoque</label>
+                        <input type="range" id="bgBlur" min="0" max="30" value="0">
+                        <span class="slider-value" id="bgBlurValue">0px</span>
+                    </div>
+                    <div class="slider-row">
+                        <label><i class="fas fa-sun"></i> Brilho</label>
+                        <input type="range" id="bgBrightness" min="20" max="150" value="100">
+                        <span class="slider-value" id="bgBrightnessValue">100%</span>
+                    </div>
+                </div>
+
+                <!-- TIPOGRAFIA -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-font"></i> Tipografia</div>
+                    <div class="card-desc">Ajuste o tamanho dos textos principais.</div>
+                    <div class="slider-row">
+                        <label><i class="fas fa-newspaper"></i> Notícias</label>
+                        <input type="range" id="newsFontSize" min="16" max="72" value="44">
+                        <span class="slider-value" id="newsFontSizeValue">44px</span>
+                    </div>
+                    <div class="slider-row">
+                        <label><i class="fas fa-clock"></i> Relógio</label>
+                        <input type="range" id="clockFontSize" min="48" max="200" value="120">
+                        <span class="slider-value" id="clockFontSizeValue">120px</span>
+                    </div>
+                    <div class="slider-row">
+                        <label><i class="fas fa-heading"></i> Títulos</label>
+                        <input type="range" id="titleFontSize" min="20" max="80" value="44">
+                        <span class="slider-value" id="titleFontSizeValue">44px</span>
+                    </div>
+                </div>
+
+                <!-- COR DE DESTAQUE -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-brush"></i> Cor de destaque</div>
+                    <div class="card-desc">Usada em destaques, ícones e barras.</div>
+                    <div class="color-row">
+                        <label><i class="fas fa-star"></i> Cor</label>
+                        <div class="color-input-wrap">
+                            <button class="color-swatch" id="accentSwatch" style="--swatch-color: #38bdf8;">
+                                <input type="color" id="accentColorPicker" value="#38bdf8">
+                            </button>
+                            <input type="text" class="color-hex" id="accentColorHex" value="#38BDF8" maxlength="7">
+                        </div>
+                    </div>
+                    <div class="preset-swatches">
+                        <button data-color="#38bdf8" style="background:#38bdf8" title="Ciano"></button>
+                        <button data-color="#22c55e" style="background:#22c55e" title="Verde"></button>
+                        <button data-color="#f59e0b" style="background:#f59e0b" title="Âmbar"></button>
+                        <button data-color="#ef4444" style="background:#ef4444" title="Vermelho"></button>
+                        <button data-color="#a78bfa" style="background:#a78bfa" title="Roxo"></button>
+                        <button data-color="#ec4899" style="background:#ec4899" title="Rosa"></button>
+                        <button data-color="#ffffff" style="background:#fff" title="Branco"></button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================
+                 TAB: LAYOUT
+                 ============================================ -->
+            <section class="tab-panel" data-tab="layout">
+                <!-- POSIÇÃO DA SIDEBAR -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-columns"></i> Posição do painel lateral</div>
+                    <div class="card-desc">Onde o vídeo/painel secundário aparece.</div>
+                    <div class="segment" id="sidebarPosSegment">
+                        <button data-value="right" class="active"><i class="fas fa-align-right"></i> Direita</button>
+                        <button data-value="left"><i class="fas fa-align-left"></i> Esquerda</button>
+                    </div>
+                    <div class="slider-row" style="margin-top:12px;">
+                        <label><i class="fas fa-arrows-alt-h"></i> Largura</label>
+                        <input type="range" id="sidebarWidth" min="30" max="70" value="50">
+                        <span class="slider-value" id="sidebarWidthValue">50%</span>
+                    </div>
+                </div>
+
+                <!-- MODO DE EXIBIÇÃO -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-table-columns"></i> Modo de exibição</div>
+                    <div class="card-desc">Como dividir a tela principal.</div>
+                    <div class="btn-grid cols-3">
+                        <button class="btn btn-ghost layout-mode active" data-mode="slide-video"><i class="fas fa-tv"></i> Slide + Vídeo</button>
+                        <button class="btn btn-ghost layout-mode" data-mode="two-videos"><i class="fas fa-video"></i> 2 Vídeos</button>
+                        <button class="btn btn-ghost layout-mode" data-mode="two-slides"><i class="fas fa-images"></i> 2 Slides</button>
+                    </div>
+                </div>
+
+                <!-- SEGUNDO PAINEL -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-tv"></i> Conteúdo do segundo painel</div>
+                    <div class="card-desc">Defina o que aparece no painel lateral (dependendo do modo acima).</div>
+
+                    <div class="field">
+                        <label><i class="fas fa-link"></i> URL vídeo 2</label>
+                        <input type="text" class="input" id="secondVideoUrl" placeholder="https://...">
+                    </div>
+                    <div class="field">
+                        <button class="btn btn-primary btn-full" id="saveSecondVideoBtn"><i class="fas fa-save"></i> Salvar URL do vídeo 2</button>
+                    </div>
+
+                    <div class="field" style="margin-top:12px;">
+                        <label><i class="fas fa-image"></i> Slide 2</label>
+                        <select class="select" id="secondSlideType">
+                            <option value="">Selecione um slide...</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- RÁDIO -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-volume-up"></i> Player de rádio</div>
+                    <div class="switch-row">
+                        <label class="switch-label"><i class="fas fa-volume-up"></i>
+                            <span>Mostrar player de rádio</span>
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="showRadioToggle">
+                            <span class="switch-track"><span class="switch-thumb"></span></span>
+                        </label>
+                    </div>
+                    <div class="field">
+                        <label><i class="fas fa-broadcast-tower"></i> Estação</label>
+                        <select class="select" id="radioSelect">
+                            <option value="0">Jovem Pan News</option>
+                            <option value="1">Mix FM</option>
+                            <option value="2">Antena 1</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================
+                 TAB: SLIDES
+                 ============================================ -->
+            <section class="tab-panel" data-tab="slides">
+                <!-- VISIBILIDADE -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-eye"></i> Slides visíveis</div>
+                    <div class="card-desc">Marque os slides que devem aparecer no rodízio.</div>
+                    <div class="btn-grid cols-2" style="margin-bottom:10px;">
+                        <button class="btn btn-ghost" id="selectAllSlides"><i class="fas fa-check-double"></i> Todos</button>
+                        <button class="btn btn-ghost" id="deselectAllSlides"><i class="fas fa-times"></i> Nenhum</button>
+                    </div>
+                    <div class="list" id="slideVisibilityList"></div>
+                </div>
+
+                <!-- OCULTAR SIDEBAR -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-eye-slash"></i> Ocultar painel lateral</div>
+                    <div class="card-desc">Slides marcados ocultam o painel lateral automaticamente. O player continua rodando.</div>
+                    <div class="list" id="hideSidebarList"></div>
+                </div>
+
+                <!-- DURAÇÕES -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-stopwatch"></i> Duração por slide</div>
+                    <div class="card-desc">Tempo em segundos que cada slide fica visível.</div>
+                    <div class="list" id="slideDurationList"></div>
+                    <div class="field" style="margin-top:10px;">
+                        <button class="btn btn-green btn-full" id="saveDurationsBtn"><i class="fas fa-save"></i> Salvar durações</button>
+                    </div>
+                </div>
+
+                <!-- ANIMAÇÕES -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-magic"></i> Animações e transições</div>
+                    <div class="card-desc">Como os slides e elementos se comportam visualmente.</div>
+
+                    <div class="field">
+                        <label><i class="fas fa-film"></i> Transição</label>
+                        <select class="select" id="slideTransition">
+                            <option value="fade">Fade suave</option>
+                            <option value="slide">Deslizar</option>
+                            <option value="zoom">Zoom</option>
+                            <option value="none">Sem transição</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label><i class="fas fa-wand-magic-sparkles"></i> Nível</label>
+                        <select class="select" id="animationLevel">
+                            <option value="full">Completo (tudo animado)</option>
+                            <option value="subtle">Sutil (só o essencial)</option>
+                            <option value="none">Estático (sem animações)</option>
+                        </select>
+                    </div>
+
+                    <div class="switch-row">
+                        <label class="switch-label"><i class="fas fa-chart-line"></i>
+                            <span>Gráfico do dólar animado<small>Desenha a linha progressivamente</small></span>
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="dolarChartAnimated" checked>
+                            <span class="switch-track"><span class="switch-thumb"></span></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-row">
+                        <label class="switch-label"><i class="fas fa-sort-numeric-up"></i>
+                            <span>Números subindo<small>Contadores animados</small></span>
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="numbersAnimated" checked>
+                            <span class="switch-track"><span class="switch-thumb"></span></span>
+                        </label>
+                    </div>
+
+                    <div class="switch-row">
+                        <label class="switch-label"><i class="fas fa-sparkles"></i>
+                            <span>Confetes em aniversários</span>
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="confettiEnabled" checked>
+                            <span class="switch-track"><span class="switch-thumb"></span></span>
+                        </label>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================
+                 TAB: MÍDIA
+                 ============================================ -->
+            <section class="tab-panel" data-tab="midia">
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-tv"></i> Player principal</div>
+                    <div class="card-desc">URL do stream principal (painel lateral ou tela cheia).</div>
+                    <div class="field">
+                        <input type="text" class="input" id="playerUrlInput" placeholder="https://...">
+                    </div>
+                    <button class="btn btn-primary btn-full" id="savePlayerUrlBtn"><i class="fas fa-save"></i> Salvar e aplicar</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-video"></i> Player secundário</div>
+                    <div class="card-desc">Usado quando o modo "2 Vídeos" está ativo.</div>
+                    <div class="field">
+                        <input type="text" class="input" id="secondVideoUrl2" placeholder="https://...">
+                    </div>
+                    <button class="btn btn-primary btn-full" id="saveSecondVideoBtn2"><i class="fas fa-save"></i> Salvar e aplicar</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-list"></i> Estações de rádio</div>
+                    <div class="card-desc">Uma será escolhida como padrão. A troca é feita na aba Layout.</div>
+                    <div class="list">
+                        <div class="list-item"><i class="fas fa-radio" style="color:var(--accent);"></i><span class="list-item-label">Jovem Pan News</span><span class="badge ok">Ativa</span></div>
+                        <div class="list-item"><i class="fas fa-radio" style="color:var(--accent);"></i><span class="list-item-label">Mix FM</span></div>
+                        <div class="list-item"><i class="fas fa-radio" style="color:var(--accent);"></i><span class="list-item-label">Antena 1</span></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-newspaper"></i> Fontes de notícias (RSS)</div>
+                    <div class="card-desc">Fontes combinadas para o slide de notícias.</div>
+                    <div class="list">
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">G1 — Economia / Tecnologia / Ciência</span></div>
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">UOL — Economia / Mercado</span></div>
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">Valor Econômico</span></div>
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">CNN Brasil — Economia</span></div>
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">Money Times</span></div>
+                        <div class="list-item"><i class="fas fa-rss" style="color:#f59e0b;"></i><span class="list-item-label">Canaltech / Olhar Digital</span></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ============================================
+                 TAB: SISTEMA
+                 ============================================ -->
+            <section class="tab-panel" data-tab="sistema">
+                <!-- DATA E HORA -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-clock"></i> Data e hora</div>
+                    <div class="card-desc">Ajuste o relógio exibido na página principal.</div>
+                    <div class="field">
+                        <label><i class="fas fa-hourglass-half"></i> Fuso (h)</label>
+                        <input type="number" class="input" id="manualOffset" step="0.5" placeholder="-3">
+                        <button class="btn btn-primary" id="saveOffsetBtn"><i class="fas fa-check"></i></button>
+                    </div>
+                    <div class="field">
+                        <label><i class="fas fa-calendar-check"></i> Data exata</label>
+                        <input type="datetime-local" class="input" id="manualExactDateTime">
+                    </div>
+                    <button class="btn btn-green btn-full" id="saveExactDateTimeBtn"><i class="fas fa-check"></i> Usar esta data</button>
+                    <div class="field" style="margin-top:10px;">
+                        <button class="btn btn-ghost btn-full" id="clearExactDateBtn"><i class="fas fa-times"></i> Remover data fixa</button>
+                    </div>
+                </div>
+
+                <!-- LEMBRETE DE PONTO -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-fingerprint"></i> Lembrete de ponto</div>
+                    <div class="card-desc">Exibe um aviso em tela cheia nos horários definidos.</div>
+
+                    <div class="switch-row">
+                        <label class="switch-label"><i class="fas fa-bell"></i>
+                            <span>Ativar lembretes</span>
+                        </label>
+                        <label class="switch">
+                            <input type="checkbox" id="pontoEnabled" checked>
+                            <span class="switch-track"><span class="switch-thumb"></span></span>
+                        </label>
+                    </div>
+
+                    <div style="margin-top:12px;">
+                        <label style="font-size:0.75rem;color:var(--text-muted);font-weight:600;display:block;margin-bottom:6px;">
+                            <i class="fas fa-list-ul" style="color:var(--accent);"></i> Horários
+                        </label>
+                        <div class="time-list" id="pontoTimeList"></div>
+                        <button class="btn btn-ghost btn-full" id="addPontoTimeBtn"><i class="fas fa-plus"></i> Adicionar horário</button>
+                    </div>
+
+                    <div class="slider-row" style="margin-top:12px;">
+                        <label><i class="fas fa-hourglass-end"></i> Duração</label>
+                        <input type="range" id="pontoDuration" min="30" max="600" step="30" value="120">
+                        <span class="slider-value" id="pontoDurationValue">120s</span>
+                    </div>
+                </div>
+
+                <!-- AUTO-ATUALIZAÇÃO -->
+                <div class="card">
+                    <div class="card-header"><i class="fas fa-redo"></i> Auto-atualização</div>
+                    <div class="card-desc">Intervalos (em minutos) para atualização automática de cada bloco.</div>
+                    <div class="field">
+                        <label><i class="fas fa-newspaper"></i> Notícias</label>
+                        <input type="number" class="input" id="refreshNewsMin" min="1" max="120" value="5">
+                        <span style="color:var(--text-dim);font-size:0.72rem;">min</span>
+                    </div>
+                    <div class="field">
+                        <label><i class="fas fa-dollar-sign"></i> Dólar</label>
+                        <input type="number" class="input" id="refreshDolarMin" min="1" max="120" value="5">
+                        <span style="color:var(--text-dim);font-size:0.72rem;">min</span>
+                    </div>
+                    <div class="field">
+                        <label><i class="fas fa-cloud-sun"></i> Clima</label>
+                        <input type="number" class="input" id="refreshWeatherMin" min="1" max="120" value="15">
+                        <span style="color:var(--text-dim);font-size:0.72rem;">min</span>
+                    </div>
+                </div>
+
+                <!-- RESET -->
+                <div class="card">
+                    <div class="card-header" style="color:#f87171;"><i class="fas fa-triangle-exclamation" style="background:rgba(239,68,68,0.14);color:#f87171;"></i> Área perigosa</div>
+                    <div class="card-desc">Resetar apaga TODAS as preferências salvas. A página principal volta ao padrão.</div>
+                    <button class="btn btn-red btn-full" id="resetAllBtn"><i class="fas fa-undo"></i> Resetar TUDO para o padrão</button>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Save indicator -->
+    <div class="save-indicator" id="saveIndicator"><i class="fas fa-check-circle"></i> Salvo</div>
+    <!-- Toast -->
+    <div class="toast" id="toast"><i class="fas fa-info-circle"></i><span id="toastMsg"></span></div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ============ CONSTANTS ============
+            const DEFAULT_DURATIONS = {
+                relogio: 15, logo: 15, previsao_tempo: 15, noticias_rss: 120,
+                dolar: 15, aniversariantes: 15, video: 25, canva: 20,
+                campanha_reta_final: 16
+            };
+            const DURATION_LABELS = {
+                relogio: { icon: 'fa-clock', label: 'Relógio' },
+                logo: { icon: 'fa-image', label: 'Logo' },
+                previsao_tempo: { icon: 'fa-cloud-sun', label: 'Clima' },
+                noticias_rss: { icon: 'fa-newspaper', label: 'Notícias' },
+                dolar: { icon: 'fa-dollar-sign', label: 'Dólar' },
+                aniversariantes: { icon: 'fa-birthday-cake', label: 'Aniversários' },
+                video: { icon: 'fa-futbol', label: 'Centrobor Esportes' },
+                canva: { icon: 'fa-presentation-screen', label: 'RADAR (Canva)' },
+                campanha_reta_final: { icon: 'fa-trophy', label: 'Campanha' }
+            };
+
+            // ============ STORAGE HELPER ============
+            const Store = {
+                get(key, def = null) {
+                    try {
+                        const v = localStorage.getItem(key);
+                        if (v === null) return def;
+                        try { return JSON.parse(v); } catch { return v; }
+                    } catch(e) { return def; }
+                },
+                set(key, value) {
+                    try {
+                        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+                    } catch(e) { console.error(e); }
+                }
+            };
+
+            // ============ DOM HELPER ============
+            const $ = (id) => document.getElementById(id);
+            const $$ = (sel) => document.querySelectorAll(sel);
+
+            // ============ STATE ============
+            let slidesInfo = [];
+            let hideSidebarForSlides = {};
+            let slideVisibility = {};
+            let slideDurations = {};
+            let pontoHours = ['08:00', '17:45'];
+
+            // ============ UI: TOAST / SAVE ============
+            let toastTimer = null;
+            function toast(msg, type = 'info') {
+                const el = $('toast');
+                const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-circle-xmark' : 'fa-info-circle';
+                el.className = 'toast show ' + type;
+                el.innerHTML = `<i class="fas ${icon}"></i><span id="toastMsg"></span>`;
+                document.getElementById('toastMsg').textContent = msg;
+                clearTimeout(toastTimer);
+                toastTimer = setTimeout(() => el.classList.remove('show'), 2400);
+            }
+
+            let saveTimer = null;
+            function flashSaved(label) {
+                const el = $('saveIndicator');
+                el.innerHTML = `<i class="fas fa-check-circle"></i> ${label || 'Salvo'}`;
+                el.classList.add('show');
+                clearTimeout(saveTimer);
+                saveTimer = setTimeout(() => el.classList.remove('show'), 1400);
+            }
+
+            // ============ UI: TABS ============
+            function initTabs() {
+                $$('.tab-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const tab = btn.dataset.tab;
+                        $$('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+                        $$('.tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tab === tab));
+                        $('.content').scrollTop = 0;
+                    });
+                });
+            }
+
+            // ============ STATUS / HEARTBEAT ============
+            function updateStatus() {
+                const hb = parseInt(Store.get('radarHeartbeat', '0') || '0', 10);
+                const elapsed = Date.now() - hb;
+                const dot = $('statusDot');
+                const txt = $('statusText');
+                if (elapsed < 15000) {
+                    dot.className = 'conn-dot ok';
+                    txt.textContent = 'Conectado';
+                } else {
+                    dot.className = 'conn-dot off';
+                    txt.textContent = 'Offline';
+                }
+            }
+
+            // ============ COMMANDS ============
+            function sendCommand(action) {
+                Store.set('radarCommand', { action, id: Date.now() + '_' + Math.random().toString(36).slice(2) });
+                toast('Comando enviado: ' + action, 'info');
+            }
+
+            // ============ THEME PICKER ============
+            function initThemePicker() {
+                const current = Store.get('radarTheme', 'dark');
+                $$('#themePicker .theme-option').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.theme === current);
+                    btn.addEventListener('click', () => {
+                        const theme = btn.dataset.theme;
+                        $$('#themePicker .theme-option').forEach(b => b.classList.toggle('active', b === btn));
+                        Store.set('radarTheme', theme);
+                        flashSaved('Tema: ' + theme);
+                    });
+                });
+            }
+
+            // ============ BACKGROUND TYPE SEGMENT ============
+            function initBgTypeSegment() {
+                const current = Store.get('radarBgType', 'gradient');
+                $$('#bgTypeSegment button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === current);
+                    btn.addEventListener('click', () => {
+                        $$('#bgTypeSegment button').forEach(b => b.classList.toggle('active', b === btn));
+                        Store.set('radarBgType', btn.dataset.value);
+                        flashSaved('Fundo: ' + btn.dataset.value);
+                    });
+                });
+            }
+
+            // ============ COLOR HELPERS ============
+            function bindColorPicker(pickerId, hexId, swatchId, storageKey, defaultColor, label) {
+                const picker = $(pickerId);
+                const hex = $(hexId);
+                const swatch = $(swatchId);
+                const initial = Store.get(storageKey, defaultColor);
+
+                picker.value = initial;
+                hex.value = initial.toUpperCase();
+                swatch.style.setProperty('--swatch-color', initial);
+
+                picker.addEventListener('input', () => {
+                    hex.value = picker.value.toUpperCase();
+                    swatch.style.setProperty('--swatch-color', picker.value);
+                    Store.set(storageKey, picker.value);
+                    flashSaved(label);
+                });
+
+                hex.addEventListener('input', () => {
+                    let v = hex.value.trim();
+                    if (!v.startsWith('#')) v = '#' + v;
+                    if (/^#[0-9A-Fa-f]{6}$/.test(v)) {
+                        picker.value = v;
+                        swatch.style.setProperty('--swatch-color', v);
+                        Store.set(storageKey, v);
+                        flashSaved(label);
+                    }
+                });
+
+                hex.addEventListener('blur', () => {
+                    let v = hex.value.trim();
+                    if (!v.startsWith('#')) v = '#' + v;
+                    if (!/^#[0-9A-Fa-f]{6}$/.test(v)) {
+                        hex.value = picker.value.toUpperCase();
+                    }
+                });
+            }
+
+            function bindPresetSwatches(containerSelector, storageKey, pickerId, hexId, swatchId, label) {
+                const container = document.querySelector(containerSelector);
+                if (!container) return;
+                container.querySelectorAll('button[data-color]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const color = btn.dataset.color;
+                        $(pickerId).value = color;
+                        $(hexId).value = color.toUpperCase();
+                        $(swatchId).style.setProperty('--swatch-color', color);
+                        Store.set(storageKey, color);
+                        flashSaved(label);
+                    });
+                });
+            }
+
+            // ============ SLIDER HELPER ============
+            function bindSlider(sliderId, valueId, storageKey, defaultVal, suffix, label, transform) {
+                const slider = $(sliderId);
+                const valueEl = $(valueId);
+                const initial = Store.get(storageKey, defaultVal);
+                slider.value = initial;
+                valueEl.textContent = initial + suffix;
+                slider.addEventListener('input', () => {
+                    const v = slider.value;
+                    valueEl.textContent = v + suffix;
+                    Store.set(storageKey, v);
+                    flashSaved(label);
+                    if (transform) transform(v);
+                });
+            }
+
+            // ============ TOGGLE HELPER ============
+            function bindToggle(toggleId, storageKey, defaultVal, label, onChange) {
+                const el = $(toggleId);
+                const initial = Store.get(storageKey, defaultVal);
+                // Handle boolean stored as string
+                const boolVal = initial === true || initial === 'true';
+                el.checked = boolVal;
+                el.addEventListener('change', () => {
+                    Store.set(storageKey, el.checked ? 'true' : 'false');
+                    flashSaved(label);
+                    if (onChange) onChange(el.checked);
+                });
+            }
+
+            // ============ LAYOUT MODE ============
+            function initLayoutMode() {
+                const current = Store.get('radarLayoutMode', 'slide-video');
+                $$('.layout-mode').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.mode === current);
+                    if (btn.dataset.mode === current) btn.classList.add('btn-primary');
+                    btn.addEventListener('click', () => {
+                        $$('.layout-mode').forEach(b => {
+                            b.classList.remove('active', 'btn-primary');
+                        });
+                        btn.classList.add('active', 'btn-primary');
+                        Store.set('radarLayoutMode', btn.dataset.mode);
+                        flashSaved('Modo: ' + btn.dataset.mode);
+                    });
+                });
+            }
+
+            // ============ SIDEBAR POSITION ============
+            function initSidebarPosition() {
+                const current = Store.get('radarSidebarPosition', 'right');
+                $$('#sidebarPosSegment button').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.value === current);
+                    btn.addEventListener('click', () => {
+                        $$('#sidebarPosSegment button').forEach(b => b.classList.toggle('active', b === btn));
+                        Store.set('radarSidebarPosition', btn.dataset.value);
+                        flashSaved('Painel: ' + btn.dataset.value);
+                    });
+                });
+            }
+
+            // ============ SLIDES LISTS ============
+            function renderSlideVisibilityList() {
+                const c = $('slideVisibilityList');
+                if (!slidesInfo.length) {
+                    c.innerHTML = '<div class="empty"><i class="fas fa-hourglass-half"></i> Aguardando página principal...</div>';
+                    return;
+                }
+                c.innerHTML = slidesInfo.map(s => {
+                    const checked = slideVisibility[s.type] !== false;
+                    return `<div class="list-item">
+                        <input type="checkbox" ${checked ? 'checked' : ''} data-vis-type="${s.type}">
+                        <span class="list-item-label">${s.label}</span>
+                        <span class="badge ${checked ? 'ok' : 'off'}">${checked ? 'on' : 'off'}</span>
+                    </div>`;
+                }).join('');
+                c.querySelectorAll('input[data-vis-type]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        slideVisibility[cb.dataset.visType] = cb.checked;
+                        Store.set('slideVisibility', slideVisibility);
+                        renderSlideVisibilityList();
+                        flashSaved('Slides visíveis');
+                    });
+                });
+            }
+
+            function renderHideSidebarList() {
+                const c = $('hideSidebarList');
+                if (!slidesInfo.length) {
+                    c.innerHTML = '<div class="empty"><i class="fas fa-hourglass-half"></i> Aguardando página principal...</div>';
+                    return;
+                }
+                c.innerHTML = slidesInfo.map(s => {
+                    const checked = hideSidebarForSlides[s.type] === true;
+                    return `<div class="list-item">
+                        <input type="checkbox" ${checked ? 'checked' : ''} data-hide-type="${s.type}">
+                        <span class="list-item-label">${s.label}</span>
+                        <span class="badge ${checked ? 'off' : 'ok'}">${checked ? 'oculta' : 'mostra'}</span>
+                    </div>`;
+                }).join('');
+                c.querySelectorAll('input[data-hide-type]').forEach(cb => {
+                    cb.addEventListener('change', () => {
+                        hideSidebarForSlides[cb.dataset.hideType] = cb.checked;
+                        Store.set('hideSidebarForSlides', hideSidebarForSlides);
+                        renderHideSidebarList();
+                        flashSaved('Painel lateral');
+                    });
+                });
+            }
+
+            function renderSlideDurationList() {
+                const c = $('slideDurationList');
+                if (!slidesInfo.length) {
+                    c.innerHTML = '<div class="empty"><i class="fas fa-hourglass-half"></i> Aguardando página principal...</div>';
+                    return;
+                }
+                c.innerHTML = slidesInfo.map(s => {
+                    const val = (typeof slideDurations[s.type] === 'number' && slideDurations[s.type] >= 3)
+                        ? slideDurations[s.type]
+                        : (DEFAULT_DURATIONS[s.type] || 15);
+                    return `<div class="list-item">
+                        <span class="list-item-label"><i class="fas ${DURATION_LABELS[s.type]?.icon || 'fa-square'}" style="color:var(--accent);width:14px;"></i> ${s.label}</span>
+                        <input type="number" class="list-item-duration" data-dur-type="${s.type}" value="${val}" min="3" max="3600">
+                        <span style="font-size:0.68rem;color:var(--text-dim);">s</span>
+                    </div>`;
+                }).join('');
+                c.querySelectorAll('input[data-dur-type]').forEach(inp => {
+                    inp.addEventListener('change', () => {
+                        let v = parseInt(inp.value);
+                        if (isNaN(v) || v < 3) v = DEFAULT_DURATIONS[inp.dataset.durType] || 15;
+                        if (v > 3600) v = 3600;
+                        inp.value = v;
+                    });
+                });
+            }
+
+            function renderSecondSlideSelect() {
+                const sel = $('secondSlideType');
+                const current = Store.get('radarSecondSlideType', '');
+                sel.innerHTML = '<option value="">Selecione um slide...</option>' +
+                    slidesInfo.map(s => `<option value="${s.type}" ${s.type === current ? 'selected' : ''}>${s.label}</option>`).join('');
+                sel.addEventListener('change', () => {
+                    Store.set('radarSecondSlideType', sel.value);
+                    flashSaved('Slide 2');
+                });
+            }
+
+            // ============ PONTO TIME LIST ============
+            function renderPontoTimeList() {
+                const c = $('pontoTimeList');
+                if (!pontoHours.length) {
+                    c.innerHTML = '<div class="empty"><i class="fas fa-clock"></i> Nenhum horário configurado</div>';
+                    return;
+                }
+                c.innerHTML = pontoHours.map((h, i) => `
+                    <div class="time-item">
+                        <input type="time" value="${h}" data-ponto-idx="${i}">
+                        <button data-ponto-remove="${i}" title="Remover"><i class="fas fa-times"></i></button>
+                    </div>
+                `).join('');
+                c.querySelectorAll('input[data-ponto-idx]').forEach(inp => {
+                    inp.addEventListener('change', () => {
+                        const idx = parseInt(inp.dataset.pontoIdx, 10);
+                        pontoHours[idx] = inp.value;
+                        Store.set('radarPontoHours', pontoHours);
+                        flashSaved('Horários');
+                    });
+                });
+                c.querySelectorAll('button[data-ponto-remove]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const idx = parseInt(btn.dataset.pontoRemove, 10);
+                        pontoHours.splice(idx, 1);
+                        Store.set('radarPontoHours', pontoHours);
+                        renderPontoTimeList();
+                        flashSaved('Horários');
+                    });
+                });
+            }
+
+            // ============ LOAD ============
+            function loadAll() {
+                try { hideSidebarForSlides = Store.get('hideSidebarForSlides', {}) || {}; } catch(e) { hideSidebarForSlides = {}; }
+                if (hideSidebarForSlides.video === undefined) hideSidebarForSlides.video = true;
+
+                try { slideVisibility = Store.get('slideVisibility', {}) || {}; } catch(e) { slideVisibility = {}; }
+                try { slideDurations = Store.get('slideDurations', {}) || {}; } catch(e) { slideDurations = {}; }
+                Object.keys(DEFAULT_DURATIONS).forEach(k => {
+                    if (typeof slideDurations[k] !== 'number' || slideDurations[k] < 3) slideDurations[k] = DEFAULT_DURATIONS[k];
+                });
+
+                try { slidesInfo = Store.get('radarSlidesInfo', []) || []; } catch(e) { slidesInfo = []; }
+                try { pontoHours = Store.get('radarPontoHours', ['08:00', '17:45']) || ['08:00', '17:45']; } catch(e) { pontoHours = ['08:00', '17:45']; }
+
+                // Player URLs
+                $('playerUrlInput').value = Store.get('playerUrl', 'https://apitotal.net/0112/tv001/sportv3');
+                $('secondVideoUrl').value = Store.get('radarSecondVideoUrl', '');
+                $('secondVideoUrl2').value = Store.get('radarSecondVideoUrl', '');
+
+                // Radio
+                const radioIdx = String(Store.get('radioIndex', 0));
+                $('radioSelect').value = radioIdx;
+
+                // Time
+                $('manualOffset').value = Store.get('manualOffsetHours', 0);
+                const exactISO = Store.get('exactTimeISO', '');
+                if (exactISO) {
+                    try { $('manualExactDateTime').value = new Date(exactISO).toISOString().slice(0, 16); } catch(e) {}
+                }
+
+                // Ponto
+                renderPontoTimeList();
+
+                // Sliders
+                bindSlider('bgBlur', 'bgBlurValue', 'radarBgBlur', '0', 'px', 'Desfoque');
+                bindSlider('bgBrightness', 'bgBrightnessValue', 'radarBgBrightness', '100', '%', 'Brilho');
+                bindSlider('newsFontSize', 'newsFontSizeValue', 'radarNewsFontSize', '44', 'px', 'Fonte notícias');
+                bindSlider('clockFontSize', 'clockFontSizeValue', 'radarClockFontSize', '120', 'px', 'Fonte relógio');
+                bindSlider('titleFontSize', 'titleFontSizeValue', 'radarTitleFontSize', '44', 'px', 'Fonte títulos');
+                bindSlider('sidebarWidth', 'sidebarWidthValue', 'radarSidebarWidth', '50', '%', 'Largura painel');
+                bindSlider('pontoDuration', 'pontoDurationValue', 'radarPontoDuration', '120', 's', 'Duração do aviso');
+
+                // Toggles
+                bindToggle('showRadioToggle', 'showRadio', true, 'Rádio');
+                bindToggle('dolarChartAnimated', 'radarDolarAnimated', true, 'Gráfico animado');
+                bindToggle('numbersAnimated', 'radarNumbersAnimated', true, 'Números animados');
+                bindToggle('confettiEnabled', 'radarConfetti', true, 'Confetes');
+                bindToggle('pontoEnabled', 'radarPontoEnabled', true, 'Lembrete de ponto');
+
+                // Selects
+                $('slideTransition').value = Store.get('radarSlideTransition', 'fade');
+                $('animationLevel').value = Store.get('radarAnimationLevel', 'full');
+                $('refreshNewsMin').value = Store.get('radarRefreshNewsMin', 5);
+                $('refreshDolarMin').value = Store.get('radarRefreshDolarMin', 5);
+                $('refreshWeatherMin').value = Store.get('radarRefreshWeatherMin', 15);
+
+                // Color pickers
+                bindColorPicker('bgColorPicker', 'bgColorHex', 'bgColorSwatch', 'radarBgColor', '#0a1929', 'Cor de fundo');
+                bindPresetSwatches('.preset-swatches:nth-of-type(1)', 'radarBgColor', 'bgColorPicker', 'bgColorHex', 'bgColorSwatch', 'Cor de fundo');
+                bindColorPicker('accentColorPicker', 'accentColorHex', 'accentSwatch', 'radarAccentColor', '#38bdf8', 'Cor de destaque');
+                bindPresetSwatches('.preset-swatches:nth-of-type(2)', 'radarAccentColor', 'accentColorPicker', 'accentColorHex', 'accentSwatch', 'Cor de destaque');
+
+                // Background image
+                $('bgImageUrl').value = Store.get('radarBgImage', '');
+
+                // Lists
+                renderSlideVisibilityList();
+                renderHideSidebarList();
+                renderSlideDurationList();
+                renderSecondSlideSelect();
+            }
+
+            // ============ COMMANDS BINDING ============
+            function bindCommands() {
+                document.querySelectorAll('button[data-cmd]').forEach(btn => {
+                    btn.addEventListener('click', () => sendCommand(btn.dataset.cmd));
+                });
+            }
+
+            // ============ BIND ALL ACTIONS ============
+            function bindAll() {
+                // Player URL
+                $('savePlayerUrlBtn').addEventListener('click', () => {
+                    const v = $('playerUrlInput').value.trim();
+                    if (!v || !/^https?:\/\//i.test(v)) {
+                        toast('URL inválida. Use http(s)://...', 'error');
+                        return;
+                    }
+                    Store.set('playerUrl', v);
+                    flashSaved('Player principal salvo');
+                });
+
+                // Second video URL (2 places: aba layout + aba mídia)
+                const saveSecond = () => {
+                    const v1 = $('secondVideoUrl').value.trim();
+                    const v2 = $('secondVideoUrl2').value.trim();
+                    const v = v2 || v1;
+                    Store.set('radarSecondVideoUrl', v);
+                    $('secondVideoUrl').value = v;
+                    $('secondVideoUrl2').value = v;
+                    flashSaved('Vídeo 2 salvo');
+                };
+                $('saveSecondVideoBtn').addEventListener('click', saveSecond);
+                $('saveSecondVideoBtn2').addEventListener('click', saveSecond);
+
+                // Background image
+                $('bgImageTestBtn').addEventListener('click', () => {
+                    const v = $('bgImageUrl').value.trim();
+                    Store.set('radarBgImage', v);
+                    flashSaved('Imagem aplicada');
+                });
+
+                // Radio
+                $('radioSelect').addEventListener('change', () => {
+                    Store.set('radioIndex', $('radioSelect').value);
+                    flashSaved('Rádio');
+                });
+
+                // Time
+                $('saveOffsetBtn').addEventListener('click', () => {
+                    let v = parseFloat($('manualOffset').value);
+                    if (isNaN(v)) v = 0;
+                    Store.set('manualOffsetHours', String(v));
+                    if (v !== 0) {
+                        localStorage.removeItem('exactTimeISO');
+                        localStorage.removeItem('exactTimeFixadoEm');
+                    }
+                    flashSaved('Fuso: ' + v + 'h');
+                });
+                $('saveExactDateTimeBtn').addEventListener('click', () => {
+                    const v = $('manualExactDateTime').value;
+                    if (!v) { toast('Selecione uma data/hora', 'error'); return; }
+                    const d = new Date(v);
+                    Store.set('exactTimeISO', d.toISOString());
+                    Store.set('exactTimeFixadoEm', String(Date.now()));
+                    Store.set('manualOffsetHours', '0');
+                    $('manualOffset').value = 0;
+                    flashSaved('Data fixada');
+                });
+                $('clearExactDateBtn').addEventListener('click', () => {
+                    localStorage.removeItem('exactTimeISO');
+                    localStorage.removeItem('exactTimeFixadoEm');
+                    $('manualExactDateTime').value = '';
+                    flashSaved('Data removida');
+                });
+
+                // Ponto
+                $('addPontoTimeBtn').addEventListener('click', () => {
+                    pontoHours.push('12:00');
+                    Store.set('radarPontoHours', pontoHours);
+                    renderPontoTimeList();
+                    flashSaved('Horário adicionado');
+                });
+
+                // Selects
+                $('slideTransition').addEventListener('change', () => {
+                    Store.set('radarSlideTransition', $('slideTransition').value);
+                    flashSaved('Transição');
+                });
+                $('animationLevel').addEventListener('change', () => {
+                    Store.set('radarAnimationLevel', $('animationLevel').value);
+                    flashSaved('Nível de animação');
+                });
+                $('refreshNewsMin').addEventListener('change', () => {
+                    Store.set('radarRefreshNewsMin', parseInt($('refreshNewsMin').value) || 5);
+                    flashSaved('Auto-atualização');
+                });
+                $('refreshDolarMin').addEventListener('change', () => {
+                    Store.set('radarRefreshDolarMin', parseInt($('refreshDolarMin').value) || 5);
+                    flashSaved('Auto-atualização');
+                });
+                $('refreshWeatherMin').addEventListener('change', () => {
+                    Store.set('radarRefreshWeatherMin', parseInt($('refreshWeatherMin').value) || 15);
+                    flashSaved('Auto-atualização');
+                });
+
+                // Slides bulk
+                $('selectAllSlides').addEventListener('click', () => {
+                    slidesInfo.forEach(s => { slideVisibility[s.type] = true; });
+                    Store.set('slideVisibility', slideVisibility);
+                    renderSlideVisibilityList();
+                    flashSaved('Todos visíveis');
+                });
+                $('deselectAllSlides').addEventListener('click', () => {
+                    slidesInfo.forEach(s => { slideVisibility[s.type] = false; });
+                    Store.set('slideVisibility', slideVisibility);
+                    renderSlideVisibilityList();
+                    flashSaved('Nenhum visível');
+                });
+
+                // Save durations
+                $('saveDurationsBtn').addEventListener('click', () => {
+                    document.querySelectorAll('input[data-dur-type]').forEach(inp => {
+                        const k = inp.dataset.durType;
+                        let v = parseInt(inp.value);
+                        if (isNaN(v) || v < 3) v = DEFAULT_DURATIONS[k] || 15;
+                        if (v > 3600) v = 3600;
+                        slideDurations[k] = v;
+                        inp.value = v;
+                    });
+                    Store.set('slideDurations', slideDurations);
+                    flashSaved('Durações salvas');
+                });
+
+                // Reset
+                $('resetAllBtn').addEventListener('click', () => {
+                    if (!confirm('⚠️ Isso vai apagar TODAS as preferências. Continuar?')) return;
+                    [
+                        'playerUrl', 'showRadio', 'hideSidebarForSlides', 'slideDurations',
+                        'slideVisibility', 'darkModeGlobal', 'manualOffsetHours',
+                        'exactTimeISO', 'exactTimeFixadoEm', 'radioIndex',
+                        'radarTheme', 'radarBgType', 'radarBgColor', 'radarBgImage',
+                        'radarBgBlur', 'radarBgBrightness', 'radarAccentColor',
+                        'radarSidebarPosition', 'radarSidebarWidth', 'radarLayoutMode',
+                        'radarSecondVideoUrl', 'radarSecondSlideType',
+                        'radarNewsFontSize', 'radarClockFontSize', 'radarTitleFontSize',
+                        'radarSlideTransition', 'radarAnimationLevel',
+                        'radarDolarAnimated', 'radarNumbersAnimated', 'radarConfetti',
+                        'radarPontoEnabled', 'radarPontoHours', 'radarPontoDuration',
+                        'radarRefreshNewsMin', 'radarRefreshDolarMin', 'radarRefreshWeatherMin'
+                    ].forEach(k => localStorage.removeItem(k));
+                    toast('Tudo resetado!', 'success');
+                    setTimeout(() => location.reload(), 800);
+                });
+
+                // Quick actions
+                $('openMainBtn').addEventListener('click', () => {
+                    window.open('index.html', '_blank');
+                });
+                $('reconnectBtn').addEventListener('click', () => {
+                    updateStatus();
+                    toast('Tentando reconectar...', 'info');
+                });
+            }
+
+            // ============ STORAGE EVENT (sync with main page) ============
+            window.addEventListener('storage', (e) => {
+                if (!e.key) return;
+                if (e.key === 'radarSlidesInfo') {
+                    try { slidesInfo = JSON.parse(e.newValue || '[]'); } catch(err) { slidesInfo = []; }
+                    renderSlideVisibilityList();
+                    renderHideSidebarList();
+                    renderSlideDurationList();
+                    renderSecondSlideSelect();
+                } else if (e.key === 'radarHeartbeat') {
+                    updateStatus();
+                } else if (e.key === 'hideSidebarForSlides') {
+                    try { hideSidebarForSlides = JSON.parse(e.newValue || '{}'); } catch(err) {}
+                    renderHideSidebarList();
+                } else if (e.key === 'slideVisibility') {
+                    try { slideVisibility = JSON.parse(e.newValue || '{}'); } catch(err) {}
+                    renderSlideVisibilityList();
+                } else if (e.key === 'slideDurations') {
+                    try { slideDurations = JSON.parse(e.newValue || '{}'); } catch(err) {}
+                    renderSlideDurationList();
+                }
+            });
+
+            // ============ INIT ============
+            function init() {
+                initTabs();
+                initThemePicker();
+                initBgTypeSegment();
+                initLayoutMode();
+                initSidebarPosition();
+                bindCommands();
+                bindAll();
+                loadAll();
+                updateStatus();
+                setInterval(updateStatus, 2500);
+
+                // Se o popup foi aberto por um clique, foca
+                window.focus();
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
+</html>
