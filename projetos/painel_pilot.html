@@ -20,7 +20,6 @@
             --radius-lg: 20px;
             --radius-md: 16px;
             --bottombar-height: 100px;
-
             --radar-bg-color: #0a1929;
             --radar-bg-image: none;
             --radar-bg-blur: 0px;
@@ -289,7 +288,6 @@
         }
         .slide > * { position: relative; z-index: 1; }
         .slide.active { opacity: 1; transform: scale(1); z-index: 2; pointer-events: auto; }
-
         body[data-radar-transition="slide"] .slide { transform: translateX(100%); }
         body[data-radar-transition="slide"] .slide.active { transform: translateX(0); }
         body[data-radar-transition="zoom"] .slide { transform: scale(0.6); }
@@ -320,7 +318,6 @@
             background: rgba(0,0,0,0.3); padding: 8px 24px; border-radius: 40px;
             border: 1px solid rgba(255,255,255,0.08);
         }
-
         .logo-slide { display: flex; align-items: center; justify-content: center; height: 100%; width: 100%; padding: 20px; }
         .logo-slide img { max-height: 55%; max-width: 75%; object-fit: contain; filter: drop-shadow(0 0 40px rgba(0,0,0,0.5)); }
 
@@ -845,6 +842,37 @@
             };
             let lastWeatherBg = null;
 
+            // ============================================================
+            // ⭐ PLUGIN: DESENHA O GRÁFICO PROGRESSIVAMENTE (clip que cresce)
+            // ============================================================
+            const drawProgressPlugin = {
+                id: 'radarDrawProgress',
+                beforeDatasetsDraw(chart) {
+                    const progress = chart._drawProgress;
+                    // Se não definido ou já no final, nada é cortado
+                    if (progress === undefined || progress >= 1) return;
+                    const { ctx, chartArea } = chart;
+                    if (!chartArea) return;
+
+                    // Calcula a largura visível com base no progresso (0 = nada, 1 = tudo)
+                    const totalW = chartArea.right - chartArea.left;
+                    const visibleW = totalW * progress;
+
+                    ctx.save();
+                    ctx.beginPath();
+                    // Retângulo que revela só a parte já "desenhada"
+                    ctx.rect(chartArea.left, chartArea.top, visibleW, chartArea.bottom - chartArea.top);
+                    ctx.clip();
+                    chart._clipped = true;
+                },
+                afterDatasetsDraw(chart) {
+                    if (chart._clipped) {
+                        chart.ctx.restore();
+                        chart._clipped = false;
+                    }
+                }
+            };
+
             function applyRadarSettings() {
                 const root = document.documentElement;
                 const body = document.body;
@@ -953,24 +981,20 @@
             }
             setInterval(atualizarTodosRelogios, 1000);
 
-            // ================= ANIMAÇÃO DE NÚMEROS (subindo) =================
-            function animateNumber(el, target, duration = 1600, formatter = (v) => v.toFixed(2).replace('.', ',')) {
+            function animateNumber(el, target, duration = 2400, formatter = (v) => v.toFixed(2).replace('.', ',')) {
                 if (!el) return;
                 if (!radarNumbersAnimated || radarAnimation === 'none') {
                     el.textContent = formatter(target);
                     return;
                 }
-                // Cancela animação anterior neste elemento
                 if (el._animRaf) cancelAnimationFrame(el._animRaf);
 
-                // Começa do valor atual exibido (ou de 0)
                 const rawAtual = (el.textContent || '').replace(/[^\d,.-]/g, '').replace(',', '.');
                 const from = parseFloat(rawAtual) || 0;
                 const start = performance.now();
 
                 function step(t) {
                     const p = Math.min(1, (t - start) / duration);
-                    // easeOutExpo: subida rápida no início, desacelera no final
                     const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
                     const v = from + (target - from) * eased;
                     el.textContent = formatter(v);
@@ -1504,7 +1528,6 @@
                 </div>`;
             }
 
-            // ⭐ ANEL DA CAMPANHA — animação melhorada
             function animarRingCountdown(valorFinal, totalDias, duracaoTotal = 2000) {
                 const el = document.getElementById('ringNumber');
                 const circle = document.getElementById('ringCircle');
@@ -1708,16 +1731,18 @@
                 }
             }
 
-            // ⭐ TEXTO DO DÓLAR — agora anima o número subindo
             function setTextoDolar(valor, syncBarra = false) {
                 const el = document.getElementById('dolarSlideValor');
                 if (!el) return;
                 if (valor == null || isNaN(valor)) { el.textContent = '--'; return; }
-                animateNumber(el, valor, 1800, (v) => `R$ ${v.toFixed(2).replace('.', ',')}`);
+                animateNumber(el, valor, 2400, (v) => `R$ ${v.toFixed(2).replace('.', ',')}`);
                 if (syncBarra) atualizarBarraDolar(valor);
             }
 
-            // ⭐ GRÁFICO DO DÓLAR — linha desenhada progressivamente
+            // ============================================================
+            // ⭐ GRÁFICO DO DÓLAR — linha se desenha da esquerda pra direita
+            //     (clip crescente no canvas, sincronizado com o número subindo)
+            // ============================================================
             function renderizarGraficoDolar(dados, valorAtual, variacao) {
                 const canvas = document.getElementById('chartDolarCanvas');
                 if (!canvas) return;
@@ -1731,6 +1756,7 @@
                 const valoresFull = temDados ? dados.valores : [valorAtual || 0];
                 const valorFinal = (valorAtual != null && !isNaN(valorAtual)) ? valorAtual : (valoresFull[valoresFull.length - 1] || 0);
 
+                // Dispara a animação do número subindo em paralelo
                 setTextoDolar(valorFinal, true);
 
                 const h = canvas.clientHeight || 280;
@@ -1739,12 +1765,7 @@
                 grad.addColorStop(1, 'rgba(255,255,255,0.01)');
 
                 const shouldAnimate = radarDolarAnimated && radarAnimation !== 'none';
-
-                // Começa com todos os pontos "colapsados" no primeiro valor
-                const pontoInicial = valoresFull[0];
-                const dadosIniciais = shouldAnimate
-                    ? valoresFull.map(() => pontoInicial)
-                    : valoresFull;
+                const drawDuration = 2400; // mesma duração do número subindo
 
                 chartDolar = new Chart(ctx, {
                     type: 'line',
@@ -1752,12 +1773,12 @@
                         labels: labelsFull,
                         datasets: [{
                             label: 'USD/BRL',
-                            data: dadosIniciais,
+                            data: valoresFull,
                             borderColor: '#ffffff',
                             backgroundColor: grad,
                             fill: true,
                             tension: 0.35,
-                            pointRadius: shouldAnimate ? 0 : 2.2,
+                            pointRadius: 2.2,
                             pointHoverRadius: 4,
                             pointBackgroundColor: '#ffffff',
                             pointBorderColor: '#ffffff',
@@ -1769,47 +1790,36 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        animation: shouldAnimate
-                            ? {
-                                duration: 2200,
-                                easing: 'easeOutQuart',
-                                delay: (context) => {
-                                    if (context.type === 'data' && context.mode === 'default' && context.dataIndex != null) {
-                                        return context.dataIndex * 18;
-                                    }
-                                    return 0;
-                                }
-                            }
-                            : false,
-                        animations: shouldAnimate
-                            ? {
-                                x: { duration: 0 },
-                                y: { duration: 2200, easing: 'easeOutQuart' }
-                            }
-                            : false,
+                        // Desligamos a animação padrão do Chart.js — quem manda é o plugin
+                        animation: false,
                         plugins: { legend: { display: false } },
                         scales: {
                             x: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.45)', maxTicksLimit: 8, maxRotation: 0 } },
                             y: { grid: { color: 'rgba(255,255,255,0.08)' }, ticks: { color: 'rgba(255,255,255,0.45)', callback: function(value) { return 'R$ ' + Number(value).toFixed(2); } } }
                         }
-                    }
+                    },
+                    plugins: [drawProgressPlugin]
                 });
 
-                // Após o primeiro render, injeta os dados reais → animação de desenho
+                // ⭐ Esconde tudo imediatamente (progress 0) e anima até 1 (tudo visível)
+                chartDolar._drawProgress = 0;
+                chartDolar.draw(); // aplica o clip de 0 = nada visível
+
                 if (shouldAnimate) {
-                    requestAnimationFrame(() => {
-                        requestAnimationFrame(() => {
-                            if (!chartDolar) return;
-                            chartDolar.data.datasets[0].data = valoresFull;
-                            setTimeout(() => {
-                                if (chartDolar) {
-                                    chartDolar.data.datasets[0].pointRadius = 2.2;
-                                    chartDolar.update('none');
-                                }
-                            }, 2100);
-                            chartDolar.update();
-                        });
-                    });
+                    const start = performance.now();
+                    function stepDraw(t) {
+                        if (!chartDolar) return;
+                        const p = Math.min(1, (t - start) / drawDuration);
+                        // easeOutQuart: desenho rápido no início, desacelera no fim
+                        const eased = 1 - Math.pow(1 - p, 3);
+                        chartDolar._drawProgress = eased;
+                        chartDolar.draw();
+                        if (p < 1) requestAnimationFrame(stepDraw);
+                    }
+                    requestAnimationFrame(stepDraw);
+                } else {
+                    chartDolar._drawProgress = 1;
+                    chartDolar.draw();
                 }
             }
 
