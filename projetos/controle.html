@@ -1507,20 +1507,30 @@
             };
 
             const Store = {
-                get(key, def = null) {
-                    try {
-                        const v = localStorage.getItem(key);
-                        if (v === null) return def;
-                        try { return JSON.parse(v); } catch { return v; }
-                    } catch(e) { return def; }
-                },
-                set(key, value) {
-                    try {
-                        localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
-                    } catch(e) { console.error(e); }
-                }
-            };
-
+    get(key, def = null) {
+        try {
+            const v = localStorage.getItem(key);
+            if (v === null) return def;
+            try { return JSON.parse(v); } catch { return v; }
+        } catch(e) { return def; }
+    },
+    set(key, value) {
+        try {
+            localStorage.setItem(key, typeof value === 'string' ? value : JSON.stringify(value));
+            // ⭐ Bump de versão (gatilho do polling na index.html)
+            const v = parseInt(localStorage.getItem('radarSettingsVersion') || '0', 10);
+            localStorage.setItem('radarSettingsVersion', String(v + 1));
+            // ⭐ Broadcast instantâneo (quando suportado)
+            if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                    const bc = new BroadcastChannel('radar-centrobor-sync');
+                    bc.postMessage({ type: 'settingsChanged', at: Date.now() });
+                    bc.close();
+                } catch(e) {}
+            }
+        } catch(e) { console.error(e); }
+    }
+};
             const $ = (id) => document.getElementById(id);
             const $$ = (sel) => document.querySelectorAll(sel);
 

@@ -1063,8 +1063,9 @@
             }
 
             // ============================================================
-            // ✅ CORRIGIDO: preserva ?embed e só adiciona/redefine _rt.
-            //    Recarrega apenas quando o slide do Canva está ativo.
+            // ✅ Canva: preserva ?embed, só atualiza _rt, e só recarrega
+            //    quando o slide do Canva está de fato ativo (a menos que
+            //    seja refresh manual com force = true).
             // ============================================================
             function reloadCanvaSlide(force = false) {
                 const slideEl = document.querySelector('.slide[data-type="canva"]');
@@ -1216,6 +1217,47 @@
 
                 renderSecondSlidePane();
                 setTimeout(() => repositionPlayers(true), 60);
+            }
+
+            // ============================================================
+            // ⭐ SINCRONIZAÇÃO EM TEMPO REAL
+            // Relê todas as configs do localStorage e reaplica. Chamada
+            // pelo watcher de versão, pelo BroadcastChannel e pelo
+            // listener de 'storage' (redundância).
+            // ============================================================
+            function recarregarConfiguracoesDoStorage() {
+                radarTheme = Store.get('radarTheme', 'dark');
+                radarBgType = Store.get('radarBgType', 'gradient');
+                radarBgColor = Store.get('radarBgColor', '#0a1929');
+                radarBgImage = Store.get('radarBgImage', '');
+                radarBgBlur = Store.get('radarBgBlur', '0');
+                radarBgBrightness = Store.get('radarBgBrightness', '100');
+                radarAccent = Store.get('radarAccentColor', '#38bdf8');
+                radarSidebarPos = Store.get('radarSidebarPosition', 'right');
+                radarSidebarWidth = Store.get('radarSidebarWidth', '50');
+                radarLayoutMode = Store.get('radarLayoutMode', 'slide-video');
+                radarSecondSlideType = Store.get('radarSecondSlideType', '');
+                radarNewsFont = Store.get('radarNewsFontSize', '44');
+                radarClockFont = Store.get('radarClockFontSize', '120');
+                radarTitleFont = Store.get('radarTitleFontSize', '44');
+                radarTransition = Store.get('radarSlideTransition', 'fade');
+                radarAnimation = Store.get('radarAnimationLevel', 'full');
+                radarDolarAnimated = Store.get('radarDolarAnimated', 'true') !== 'false';
+                radarNumbersAnimated = Store.get('radarNumbersAnimated', 'true') !== 'false';
+                radarConfetti = Store.get('radarConfetti', 'true') !== 'false';
+                radarPontoEnabled = Store.get('radarPontoEnabled', 'true') !== 'false';
+                radarRefreshNews = parseInt(Store.get('radarRefreshNewsMin', '5'), 10) || 5;
+                radarRefreshDolar = parseInt(Store.get('radarRefreshDolarMin', '5'), 10) || 5;
+                radarRefreshWeather = parseInt(Store.get('radarRefreshWeatherMin', '15'), 10) || 15;
+                radarCanvaRefreshEnabled = Store.get('radarCanvaRefreshEnabled', 'true') !== 'false';
+                radarCanvaRefreshMin = parseInt(Store.get('radarCanvaRefreshMin', '20'), 10) || 20;
+
+                applyRadarSettings();
+                restartCanvaRefresh();
+                restartInterval('news');
+                restartInterval('dolar');
+                restartInterval('weather');
+                resetarTimer();
             }
 
             function getDurationForSlide(s) {
@@ -2890,6 +2932,30 @@
                         break;
                 }
             });
+
+            // ⭐ Sincronização em tempo real — camada 2: BroadcastChannel (instantâneo quando suportado)
+            if (typeof BroadcastChannel !== 'undefined') {
+                try {
+                    const __radarBC = new BroadcastChannel('radar-centrobor-sync');
+                    __radarBC.onmessage = (ev) => {
+                        if (ev.data && ev.data.type === 'settingsChanged') {
+                            __radarSettingsVersion = parseInt(localStorage.getItem('radarSettingsVersion') || '0', 10);
+                            recarregarConfiguracoesDoStorage();
+                        }
+                    };
+                } catch(e) {}
+            }
+
+            // ⭐ Sincronização em tempo real — camada 3: polling de versão
+            // (garante que funcione mesmo em kiosk/embedded onde 'storage' e BroadcastChannel não disparam)
+            let __radarSettingsVersion = parseInt(localStorage.getItem('radarSettingsVersion') || '0', 10);
+            setInterval(() => {
+                const v = parseInt(localStorage.getItem('radarSettingsVersion') || '0', 10);
+                if (v !== __radarSettingsVersion) {
+                    __radarSettingsVersion = v;
+                    recarregarConfiguracoesDoStorage();
+                }
+            }, 700);
 
             let intervalNews = null, intervalDolar = null, intervalWeather = null;
 
