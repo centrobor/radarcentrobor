@@ -30,6 +30,7 @@
             --radar-title-font: 3.4rem;
             --radar-sidebar-width: 50%;
             --radar-slide-transition: 0.5s;
+            --radar-dominant-bg: #000;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -50,7 +51,6 @@
             background-position: center;
             transition: background 0.6s ease, filter 0.6s ease;
         }
-        /* ⭐ GRADIENTE agora usa a cor escolhida pelo usuário como base */
         @supports (color: color-mix(in srgb, red 50%, blue)) {
             body.radar-bg-gradient .animated-bg {
                 background: linear-gradient(135deg,
@@ -68,12 +68,6 @@
             background-image: var(--radar-bg-image) !important;
             filter: blur(var(--radar-bg-blur)) brightness(var(--radar-bg-brightness));
         }
-        body.dark-mode .animated-bg,
-        body.news-dark .animated-bg {
-            background: #000 !important;
-            background-image: none !important;
-            filter: none !important;
-        }
         body[data-radar-theme="light"] {
             --text-light: #0f172a;
             --text-muted: #475569;
@@ -81,7 +75,7 @@
             color: #0f172a;
         }
         body[data-radar-theme="light"] .animated-bg {
-            background: linear-gradient(135deg, #e0f2fe, #f0f9ff, #e0e7ff) !important;
+            background: linear-gradient(135deg, #e0f2fe, #f0f9ff, #e0e7ff);
         }
         body[data-radar-theme="light"] .bottombar,
         body[data-radar-theme="light"] .sidebar-top-toggle,
@@ -104,6 +98,29 @@
             background: rgba(255,255,255,0.5);
             border-color: rgba(0,0,0,0.08);
         }
+        /* ⭐ NEWS-DARK: fundo geral usa a cor predominante da imagem do slide atual */
+        body.news-dark .animated-bg {
+            background: var(--radar-dominant-bg, #000) !important;
+            background-image: none !important;
+            filter: none !important;
+            transition: background 0.8s ease;
+        }
+        /* ⭐ BARRA INFERIOR — também usa a cor predominante nos slides de notícias/clima */
+        body.news-dark .bottombar {
+            background: var(--radar-dominant-bg, #000) !important;
+            border-top-color: rgba(255,255,255,0.08) !important;
+            transition: background 0.8s ease, height 0.5s ease, opacity 0.5s ease, padding 0.5s ease;
+        }
+        /* ⭐ DÓLAR: fundo preto puro */
+        body.dolar-slide-active .animated-bg {
+            background: #000 !important;
+            background-image: none !important;
+            filter: none !important;
+        }
+        body.dolar-slide-active .bottombar {
+            background: rgba(0, 0, 0, 0.95) !important;
+        }
+
         .app-layer { position: relative; z-index: 1; display: flex; flex-direction: column; height: 100%; }
 
         .sidebar-top-toggle {
@@ -125,11 +142,10 @@
             border-top: 1px solid rgba(255,255,255,0.06);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0; z-index: 10; order: 2; padding: 0 20px; position: relative;
-            transition: height 0.5s ease, opacity 0.5s ease, padding 0.5s ease, background 0.5s ease;
+            transition: height 0.5s ease, opacity 0.5s ease, padding 0.5s ease, background 0.8s ease;
             overflow: hidden;
         }
         body.dark-mode .bottombar { background: rgba(0,0,0,0.95); border-top-color: rgba(255,255,255,0.04); }
-        body.news-dark .bottombar { background: rgba(0,0,0,0.95) !important; }
         .bottombar.canva-active { height: 0; padding: 0; opacity: 0; pointer-events: none; }
         .clock-center { display: flex; flex-direction: column; align-items: center; gap: 2px; transition: opacity 0.5s ease; }
         .bottombar.canva-active .clock-center { opacity: 0; pointer-events: none; }
@@ -292,6 +308,7 @@
             transform: scale(0.98);
             display: flex; align-items: center; justify-content: center; text-align: center;
             pointer-events: none; border-radius: var(--radius-xl); overflow: hidden;
+            background-color: transparent;
         }
         .slide::before {
             content: ''; position: absolute; inset: 0; z-index: 0;
@@ -307,7 +324,6 @@
         body[data-radar-transition="none"] .slide { transition: none; }
 
         .slide.weather-active::before { display: none !important; }
-        /* ⭐ Fundo dinâmico — cor predominante da imagem */
         .slide[data-type="previsao_tempo"] { background-color: var(--slide-dominant-color, #000); }
         .slide.weather-active { background-color: var(--slide-dominant-color, #000); }
         .slide[data-type="noticias_rss"] { background-color: var(--slide-dominant-color, #000); }
@@ -317,10 +333,7 @@
         .slide[data-type="video"]::before,
         .slide[data-type="relogio"]::before { display: none !important; }
         .slide[data-type="video"], .slide[data-type="relogio"] { background: transparent; }
-        body.dark-mode .slide { background-color: #000; }
-        body.dark-mode .slide[data-type="video"] { background: transparent; }
 
-        /* ⭐ BOTÃO DE REFRESH INDIVIDUAL POR SLIDE */
         .slide-refresh-btn {
             position: absolute;
             top: 18px;
@@ -827,7 +840,6 @@
             let radarRefreshNews = parseInt(Store.get('radarRefreshNewsMin', '5'), 10) || 5;
             let radarRefreshDolar = parseInt(Store.get('radarRefreshDolarMin', '5'), 10) || 5;
             let radarRefreshWeather = parseInt(Store.get('radarRefreshWeatherMin', '15'), 10) || 15;
-            // ⭐ NOVAS CONFIGS — refresh do Canva
             let radarCanvaRefreshEnabled = Store.get('radarCanvaRefreshEnabled', 'true') !== 'false';
             let radarCanvaRefreshMin = parseInt(Store.get('radarCanvaRefreshMin', '10'), 10) || 10;
             let canvaRefreshTimer = null;
@@ -898,9 +910,6 @@
             };
             let lastWeatherBg = null;
 
-            // ============================================================
-            // PLUGIN: desenha o gráfico progressivamente
-            // ============================================================
             const drawProgressPlugin = {
                 id: 'radarDrawProgress',
                 beforeDatasetsDraw(chart) {
@@ -924,9 +933,6 @@
                 }
             };
 
-            // ============================================================
-            // ⭐ EXTRAÇÃO DE COR PREDOMINANTE
-            // ============================================================
             const _dominantColorCache = {};
 
             function extrairCorPredominante(url, callback) {
@@ -944,7 +950,6 @@
                         ctx.drawImage(img, 0, 0, size, size);
                         const data = ctx.getImageData(0, 0, size, size).data;
 
-                        // Pondera por saturação para achar uma cor "de mood" — ignora cinza/branco/preto
                         let r = 0, g = 0, b = 0, totalW = 0;
                         for (let i = 0; i < data.length; i += 4) {
                             const pr = data[i], pg = data[i+1], pb = data[i+2];
@@ -952,7 +957,6 @@
                             const min = Math.min(pr, pg, pb);
                             const sat = max === 0 ? 0 : (max - min) / max;
                             const lightness = max / 255;
-                            // Evita pixels muito claros ou muito escuros
                             let weight = 0.2 + sat * 0.8;
                             if (lightness > 0.9 || lightness < 0.08) weight *= 0.15;
                             r += pr * weight;
@@ -965,7 +969,6 @@
                         g = Math.round(g / totalW);
                         b = Math.round(b / totalW);
 
-                        // Escurece para virar cor de fundo
                         const factor = 0.55;
                         r = Math.round(r * factor);
                         g = Math.round(g * factor);
@@ -1003,21 +1006,17 @@
 
                 extrairCorPredominante(imgUrl, (color) => {
                     if (!color) return;
-                    // Aplica no slide inteiro (aparece nas bordas e durante transições)
                     slideEl.style.setProperty('--slide-dominant-color', color);
                     slideEl.style.backgroundColor = color;
-                    // Aplica também no container interno (evita "flash" preto antes de carregar)
                     const inner = slideEl.querySelector('.weather-slide, .noticias-rss-slide');
                     if (inner) inner.style.backgroundColor = color;
-                    // Aplica no próprio bg como cor base
                     const bgEl = slideEl.querySelector('.weather-bg, .rss-bg');
                     if (bgEl) bgEl.style.backgroundColor = color;
+                    // ⭐ Setar variável global — usada pelo .animated-bg E pelo .bottombar
+                    document.documentElement.style.setProperty('--radar-dominant-bg', color);
                 });
             }
 
-            // ============================================================
-            // ⭐ REFRESH INDIVIDUAL POR SLIDE
-            // ============================================================
             function reloadCanvaSlide() {
                 const slideEl = document.querySelector('.slide[data-type="canva"]');
                 if (!slideEl) return;
@@ -1044,9 +1043,7 @@
             }
 
             function rebuildBirthdaySlides() {
-                // Regenera os slides de aniversariantes
                 const novos = obterAniversariantesDaSemana();
-                // Remove os antigos
                 for (let i = allSlides.length - 1; i >= 0; i--) {
                     const t = allSlides[i].type;
                     if (t.indexOf('aniversariante') === 0 || t === 'aniversariantes_semana') {
@@ -1103,7 +1100,7 @@
                         break;
                     case 'campanha_reta_final': rebuildCampanhaSlide(); break;
                     case 'relogio': atualizarTodosRelogios(); break;
-                    case 'video': /* nada — o iframe já é contínuo */ break;
+                    case 'video': break;
                 }
             }
 
@@ -1252,9 +1249,7 @@
                             const ws = buildWeatherSlide(data);
                             if (ws) {
                                 slideWeather.innerHTML = ws;
-                                // Reaplica cor predominante após trocar a imagem
                                 setTimeout(() => aplicarCorPredominante('previsao_tempo'), 120);
-                                // Reinsere o botão de refresh
                                 _inserirBotaoRefresh(slideWeather, 'previsao_tempo');
                             }
                         }
@@ -1683,7 +1678,6 @@
 
                 if (loading) loading.style.display = 'none';
 
-                // ⭐ Aplica cor predominante da nova imagem
                 aplicarCorPredominante('noticias_rss');
             }
 
@@ -2093,7 +2087,6 @@
             function carregarVisibilidade() { slideVisibility = Store.get('slideVisibility', {}) || {}; }
             carregarVisibilidade();
 
-            // ⭐ Insere botão de refresh no slide (usado após refresh dinâmico)
             function _inserirBotaoRefresh(slideEl, slideType) {
                 if (!slideEl) return;
                 if (slideEl.querySelector('.slide-refresh-btn')) return;
@@ -2358,7 +2351,6 @@
                 if (s?.type === 'aniversariante_dia' && radarConfetti) dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
-                // ⭐ Aplica cor predominante quando entra nos slides de clima/notícias
                 if (s?.type === 'previsao_tempo') setTimeout(() => aplicarCorPredominante('previsao_tempo'), 200);
                 if (s?.type === 'noticias_rss') setTimeout(() => aplicarCorPredominante('noticias_rss'), 200);
 
@@ -2422,7 +2414,7 @@
                     if (chartDolar) { chartDolar.destroy(); chartDolar = null; }
                 }
 
-                if (s?.type === 'noticias_rss' || s?.type === 'dolar') {
+                if (s?.type === 'noticias_rss' || s?.type === 'previsao_tempo') {
                     document.body.classList.add('news-dark');
                 } else {
                     document.body.classList.remove('news-dark');
@@ -2632,7 +2624,6 @@
                 }
             }
 
-            // ⭐ Clique nos botões de refresh dentro dos slides
             document.addEventListener('click', function(e) {
                 const btn = e.target.closest('[data-refresh-slide]');
                 if (btn) {
@@ -2813,7 +2804,6 @@
                         radarRefreshWeather = parseInt(e.newValue, 10) || 15;
                         restartInterval('weather');
                         break;
-                    // ⭐ NOVAS CONFIGS — Canva
                     case 'radarCanvaRefreshEnabled':
                         radarCanvaRefreshEnabled = e.newValue !== 'false';
                         restartCanvaRefresh();
@@ -2887,7 +2877,7 @@
                 construirSlides();
                 rebuildSlides();
                 iniciarRadioRotacao();
-                restartCanvaRefresh();  // ⭐ inicia auto-refresh do Canva
+                restartCanvaRefresh();
 
                 document.getElementById('loading-overlay').classList.add('hidden');
 
