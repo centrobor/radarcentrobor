@@ -284,7 +284,6 @@
         .bh-dominant .bh-badge { background: rgba(34,197,94,0.15); color: #4ade80; }
         .bh-black .bh-badge { background: rgba(148,163,184,0.15); color: #94a3b8; }
 
-        /* ⭐ NOVO: mini-preview do que muda */
         .behavior-preview {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -320,9 +319,11 @@
         }
         .bp-gradient {
             background: linear-gradient(135deg,
-                color-mix(in srgb, #0a1929 55%, #0a3d2e),
-                color-mix(in srgb, #0a1929 65%, #0b2d4a),
-                color-mix(in srgb, #0a1929 55%, #0a5c3a)
+                hsl(210, 40%, 12%),
+                hsl(215, 40%, 7%),
+                hsl(210, 48%, 16%),
+                hsl(215, 40%, 9%),
+                hsl(222, 36%, 12%)
             );
         }
         .bp-dominant {
@@ -1072,7 +1073,6 @@
                     </button>
                 </div>
 
-                <!-- ⭐ ATUALIZADO: Fundo por slide — agora menciona a barra inferior -->
                 <div class="card">
                     <div class="card-header"><i class="fas fa-wand-magic-sparkles"></i> Fundo por slide</div>
                     <div class="info-note">
@@ -1082,7 +1082,6 @@
                         </div>
                     </div>
 
-                    <!-- Mini-preview visual do comportamento -->
                     <div class="behavior-preview">
                         <div class="behavior-preview-card">
                             <div class="bp-label">Relógio, Logo, etc.</div>
@@ -1585,6 +1584,44 @@
                 toast('Comando enviado: ' + action, 'info');
             }
 
+            // ============================================================
+            // ⭐ MESMO cálculo do index — preview fiel ao que será aplicado
+            // ============================================================
+            function hexToHsl(hex) {
+                let h2 = String(hex || '').replace('#', '').trim();
+                if (h2.length === 3) h2 = h2.split('').map(c => c + c).join('');
+                if (h2.length !== 6) return null;
+                const r = parseInt(h2.substr(0, 2), 16) / 255;
+                const g = parseInt(h2.substr(2, 2), 16) / 255;
+                const b = parseInt(h2.substr(4, 2), 16) / 255;
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+                if (max === min) { h = s = 0; }
+                else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                        case g: h = ((b - r) / d + 2) / 6; break;
+                        case b: h = ((r - g) / d + 4) / 6; break;
+                    }
+                }
+                return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+            }
+
+            function calcularGradienteCSS(cor) {
+                const hsl = hexToHsl(cor) || { h: 210, s: 40, l: 12 };
+                const { h, s, l } = hsl;
+                const paradas = [
+                    `hsl(${(h - 8 + 360) % 360}, ${Math.max(20, s)}%, ${Math.max(8, l)}%)`,
+                    `hsl(${(h - 3 + 360) % 360}, ${Math.max(20, s)}%, ${Math.max(6, l - 5)}%)`,
+                    `hsl(${h}, ${Math.min(100, Math.max(20, s + 8))}%, ${Math.max(10, l + 4)}%)`,
+                    `hsl(${(h + 5) % 360}, ${Math.max(20, s)}%, ${Math.max(6, l - 3)}%)`,
+                    `hsl(${(h + 12) % 360}, ${Math.max(20, s - 4)}%, ${Math.max(8, l)}%)`
+                ];
+                return `linear-gradient(135deg, ${paradas.join(', ')})`;
+            }
+
             function updateBgPreview() {
                 const el = $('bgPreview');
                 if (!el) return;
@@ -1610,13 +1647,8 @@
                     }
                     el.style.filter = `blur(${blur}px) brightness(${brightness})`;
                 } else {
-                    el.style.background = `linear-gradient(135deg,
-                        color-mix(in srgb, ${color} 55%, #0a3d2e),
-                        color-mix(in srgb, ${color} 65%, #0b2d4a),
-                        color-mix(in srgb, ${color} 55%, #0a4a3a),
-                        color-mix(in srgb, ${color} 65%, #0b3b5a),
-                        color-mix(in srgb, ${color} 55%, #0a5c3a)
-                    )`;
+                    // ⭐ Mesmo cálculo do index, sem color-mix
+                    el.style.background = calcularGradienteCSS(color);
                 }
             }
 

@@ -51,18 +51,9 @@
             background-position: center;
             transition: background 0.6s ease, filter 0.6s ease;
         }
-        @supports (color: color-mix(in srgb, red 50%, blue)) {
-            body.radar-bg-gradient .animated-bg {
-                background: linear-gradient(135deg,
-                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a3d2e),
-                    color-mix(in srgb, var(--radar-bg-color) 65%, #0b2d4a),
-                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a4a3a),
-                    color-mix(in srgb, var(--radar-bg-color) 65%, #0b3b5a),
-                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a5c3a)
-                );
-            }
-        }
+        /* ⭐ Fundo sólido — fallback CSS (o JS aplica inline também) */
         body.radar-bg-solid .animated-bg { background: var(--radar-bg-color) !important; }
+        /* ⭐ Fundo com imagem — CSS cuida */
         body.radar-bg-image .animated-bg {
             background: var(--radar-bg-color) !important;
             background-image: var(--radar-bg-image) !important;
@@ -105,7 +96,6 @@
             filter: none !important;
             transition: background 0.8s ease;
         }
-        /* ⭐ BARRA INFERIOR — também usa a cor predominante nos slides de notícias/clima */
         body.news-dark .bottombar {
             background: var(--radar-dominant-bg, #000) !important;
             border-top-color: rgba(255,255,255,0.08) !important;
@@ -1012,9 +1002,75 @@
                     if (inner) inner.style.backgroundColor = color;
                     const bgEl = slideEl.querySelector('.weather-bg, .rss-bg');
                     if (bgEl) bgEl.style.backgroundColor = color;
-                    // ⭐ Setar variável global — usada pelo .animated-bg E pelo .bottombar
                     document.documentElement.style.setProperty('--radar-dominant-bg', color);
                 });
+            }
+
+            // ============================================================
+            // ⭐ APLICAÇÃO DO FUNDO PERSONALIZADO (sem depender de color-mix)
+            // ============================================================
+            function hexToHsl(hex) {
+                let h2 = String(hex || '').replace('#', '').trim();
+                if (h2.length === 3) h2 = h2.split('').map(c => c + c).join('');
+                if (h2.length !== 6) return null;
+                const r = parseInt(h2.substr(0, 2), 16) / 255;
+                const g = parseInt(h2.substr(2, 2), 16) / 255;
+                const b = parseInt(h2.substr(4, 2), 16) / 255;
+                const max = Math.max(r, g, b), min = Math.min(r, g, b);
+                let h, s, l = (max + min) / 2;
+                if (max === min) { h = s = 0; }
+                else {
+                    const d = max - min;
+                    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+                    switch (max) {
+                        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+                        case g: h = ((b - r) / d + 2) / 6; break;
+                        case b: h = ((r - g) / d + 4) / 6; break;
+                    }
+                }
+                return { h: Math.round(h * 360), s: Math.round(s * 100), l: Math.round(l * 100) };
+            }
+
+            function aplicarFundoPersonalizado() {
+                const bgEl = document.querySelector('.animated-bg');
+                if (!bgEl) return;
+
+                // Sempre limpa inline antes (para não grudar estilo antigo)
+                bgEl.style.background = '';
+                bgEl.style.backgroundImage = '';
+                bgEl.style.backgroundSize = '';
+                bgEl.style.backgroundPosition = '';
+                bgEl.style.filter = '';
+
+                // Imagem: CSS cuida, mas reforçamos inline também
+                if (radarBgType === 'image') {
+                    bgEl.style.background = radarBgColor;
+                    if (radarBgImage) {
+                        bgEl.style.backgroundImage = `url('${radarBgImage}')`;
+                        bgEl.style.backgroundSize = 'cover';
+                        bgEl.style.backgroundPosition = 'center';
+                    }
+                    bgEl.style.filter = `blur(${parseInt(radarBgBlur, 10) || 0}px) brightness(${(parseInt(radarBgBrightness, 10) || 100) / 100})`;
+                    return;
+                }
+
+                // Sólido
+                if (radarBgType === 'solid') {
+                    bgEl.style.background = radarBgColor;
+                    return;
+                }
+
+                // Gradiente — calculado em JS a partir da cor (sem color-mix)
+                const hsl = hexToHsl(radarBgColor) || { h: 210, s: 40, l: 12 };
+                const { h, s, l } = hsl;
+                const paradas = [
+                    `hsl(${(h - 8 + 360) % 360}, ${Math.max(20, s)}%, ${Math.max(8, l)}%)`,
+                    `hsl(${(h - 3 + 360) % 360}, ${Math.max(20, s)}%, ${Math.max(6, l - 5)}%)`,
+                    `hsl(${h}, ${Math.min(100, Math.max(20, s + 8))}%, ${Math.max(10, l + 4)}%)`,
+                    `hsl(${(h + 5) % 360}, ${Math.max(20, s)}%, ${Math.max(6, l - 3)}%)`,
+                    `hsl(${(h + 12) % 360}, ${Math.max(20, s - 4)}%, ${Math.max(8, l)}%)`
+                ];
+                bgEl.style.background = `linear-gradient(135deg, ${paradas.join(', ')})`;
             }
 
             function reloadCanvaSlide() {
@@ -1118,6 +1174,8 @@
 
                 body.classList.remove('radar-bg-solid', 'radar-bg-image', 'radar-bg-gradient');
                 body.classList.add('radar-bg-' + radarBgType);
+
+                // CSS vars
                 root.style.setProperty('--radar-bg-color', radarBgColor);
                 root.style.setProperty('--radar-bg-image', radarBgImage ? `url('${radarBgImage}')` : 'none');
                 root.style.setProperty('--radar-bg-blur', radarBgBlur + 'px');
@@ -1132,6 +1190,21 @@
                 body.setAttribute('data-radar-layout', radarLayoutMode);
                 body.setAttribute('data-radar-transition', radarTransition);
                 body.setAttribute('data-radar-animation', radarAnimation);
+
+                // ⭐ Aplica o fundo em JS (não depende de color-mix)
+                if (radarTheme !== 'light') {
+                    aplicarFundoPersonalizado();
+                } else {
+                    // Light theme: limpa inline para deixar o CSS claro atuar
+                    const bgEl = document.querySelector('.animated-bg');
+                    if (bgEl) {
+                        bgEl.style.background = '';
+                        bgEl.style.backgroundImage = '';
+                        bgEl.style.backgroundSize = '';
+                        bgEl.style.backgroundPosition = '';
+                        bgEl.style.filter = '';
+                    }
+                }
 
                 const second = document.getElementById('second-player');
                 if (second && secondVideoUrl && second.src !== secondVideoUrl) {
