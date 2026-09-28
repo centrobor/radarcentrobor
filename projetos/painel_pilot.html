@@ -51,9 +51,7 @@
             background-position: center;
             transition: background 0.6s ease, filter 0.6s ease;
         }
-        /* ⭐ Fundo sólido — fallback CSS (o JS aplica inline também) */
         body.radar-bg-solid .animated-bg { background: var(--radar-bg-color) !important; }
-        /* ⭐ Fundo com imagem — CSS cuida */
         body.radar-bg-image .animated-bg {
             background: var(--radar-bg-color) !important;
             background-image: var(--radar-bg-image) !important;
@@ -89,7 +87,6 @@
             background: rgba(255,255,255,0.5);
             border-color: rgba(0,0,0,0.08);
         }
-        /* ⭐ NEWS-DARK: fundo geral usa a cor predominante da imagem do slide atual */
         body.news-dark .animated-bg {
             background: var(--radar-dominant-bg, #000) !important;
             background-image: none !important;
@@ -101,7 +98,6 @@
             border-top-color: rgba(255,255,255,0.08) !important;
             transition: background 0.8s ease, height 0.5s ease, opacity 0.5s ease, padding 0.5s ease;
         }
-        /* ⭐ DÓLAR: fundo preto puro */
         body.dolar-slide-active .animated-bg {
             background: #000 !important;
             background-image: none !important;
@@ -831,7 +827,7 @@
             let radarRefreshDolar = parseInt(Store.get('radarRefreshDolarMin', '5'), 10) || 5;
             let radarRefreshWeather = parseInt(Store.get('radarRefreshWeatherMin', '15'), 10) || 15;
             let radarCanvaRefreshEnabled = Store.get('radarCanvaRefreshEnabled', 'true') !== 'false';
-            let radarCanvaRefreshMin = parseInt(Store.get('radarCanvaRefreshMin', '10'), 10) || 10;
+            let radarCanvaRefreshMin = parseInt(Store.get('radarCanvaRefreshMin', '20'), 10) || 20;
             let canvaRefreshTimer = null;
 
             const NEWS_CATEGORIES = {
@@ -1006,9 +1002,6 @@
                 });
             }
 
-            // ============================================================
-            // ⭐ APLICAÇÃO DO FUNDO PERSONALIZADO (sem depender de color-mix)
-            // ============================================================
             function hexToHsl(hex) {
                 let h2 = String(hex || '').replace('#', '').trim();
                 if (h2.length === 3) h2 = h2.split('').map(c => c + c).join('');
@@ -1035,14 +1028,12 @@
                 const bgEl = document.querySelector('.animated-bg');
                 if (!bgEl) return;
 
-                // Sempre limpa inline antes (para não grudar estilo antigo)
                 bgEl.style.background = '';
                 bgEl.style.backgroundImage = '';
                 bgEl.style.backgroundSize = '';
                 bgEl.style.backgroundPosition = '';
                 bgEl.style.filter = '';
 
-                // Imagem: CSS cuida, mas reforçamos inline também
                 if (radarBgType === 'image') {
                     bgEl.style.background = radarBgColor;
                     if (radarBgImage) {
@@ -1054,13 +1045,11 @@
                     return;
                 }
 
-                // Sólido
                 if (radarBgType === 'solid') {
                     bgEl.style.background = radarBgColor;
                     return;
                 }
 
-                // Gradiente — calculado em JS a partir da cor (sem color-mix)
                 const hsl = hexToHsl(radarBgColor) || { h: 210, s: 40, l: 12 };
                 const { h, s, l } = hsl;
                 const paradas = [
@@ -1073,20 +1062,37 @@
                 bgEl.style.background = `linear-gradient(135deg, ${paradas.join(', ')})`;
             }
 
-            function reloadCanvaSlide() {
+            // ============================================================
+            // ✅ CORRIGIDO: preserva ?embed e só adiciona/redefine _rt.
+            //    Recarrega apenas quando o slide do Canva está ativo.
+            // ============================================================
+            function reloadCanvaSlide(force = false) {
                 const slideEl = document.querySelector('.slide[data-type="canva"]');
                 if (!slideEl) return;
+
+                if (!force) {
+                    const s = visibleSlides[currentSlideIndex];
+                    if (!s || s.type !== 'canva') return;
+                }
+
                 const iframe = slideEl.querySelector('iframe');
                 if (!iframe) return;
-                const baseSrc = iframe.src.split('?')[0].split('&_rt=')[0];
-                iframe.src = baseSrc + '?_rt=' + Date.now();
+
+                try {
+                    const url = new URL(CANVA_BASE_URL);
+                    url.searchParams.set('_rt', Date.now());
+                    iframe.src = url.toString();
+                } catch (e) {
+                    const sep = CANVA_BASE_URL.includes('?') ? '&' : '?';
+                    iframe.src = CANVA_BASE_URL + sep + '_rt=' + Date.now();
+                }
             }
 
             function restartCanvaRefresh() {
                 if (canvaRefreshTimer) { clearInterval(canvaRefreshTimer); canvaRefreshTimer = null; }
                 if (!radarCanvaRefreshEnabled) return;
                 const ms = Math.max(1, radarCanvaRefreshMin) * 60 * 1000;
-                canvaRefreshTimer = setInterval(reloadCanvaSlide, ms);
+                canvaRefreshTimer = setInterval(() => reloadCanvaSlide(false), ms);
             }
 
             function reloadLogoSlide() {
@@ -1134,7 +1140,7 @@
                     setTimeout(() => btn.classList.remove('spinning'), 900);
                 }
                 switch (slideType) {
-                    case 'canva': reloadCanvaSlide(); break;
+                    case 'canva': reloadCanvaSlide(true); break;
                     case 'logo': reloadLogoSlide(); break;
                     case 'previsao_tempo': buscarClima(); break;
                     case 'noticias_rss':
@@ -1175,7 +1181,6 @@
                 body.classList.remove('radar-bg-solid', 'radar-bg-image', 'radar-bg-gradient');
                 body.classList.add('radar-bg-' + radarBgType);
 
-                // CSS vars
                 root.style.setProperty('--radar-bg-color', radarBgColor);
                 root.style.setProperty('--radar-bg-image', radarBgImage ? `url('${radarBgImage}')` : 'none');
                 root.style.setProperty('--radar-bg-blur', radarBgBlur + 'px');
@@ -1191,11 +1196,9 @@
                 body.setAttribute('data-radar-transition', radarTransition);
                 body.setAttribute('data-radar-animation', radarAnimation);
 
-                // ⭐ Aplica o fundo em JS (não depende de color-mix)
                 if (radarTheme !== 'light') {
                     aplicarFundoPersonalizado();
                 } else {
-                    // Light theme: limpa inline para deixar o CSS claro atuar
                     const bgEl = document.querySelector('.animated-bg');
                     if (bgEl) {
                         bgEl.style.background = '';
@@ -2882,7 +2885,7 @@
                         restartCanvaRefresh();
                         break;
                     case 'radarCanvaRefreshMin':
-                        radarCanvaRefreshMin = parseInt(e.newValue, 10) || 10;
+                        radarCanvaRefreshMin = parseInt(e.newValue, 10) || 20;
                         restartCanvaRefresh();
                         break;
                 }
