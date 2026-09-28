@@ -50,6 +50,18 @@
             background-position: center;
             transition: background 0.6s ease, filter 0.6s ease;
         }
+        /* ⭐ GRADIENTE agora usa a cor escolhida pelo usuário como base */
+        @supports (color: color-mix(in srgb, red 50%, blue)) {
+            body.radar-bg-gradient .animated-bg {
+                background: linear-gradient(135deg,
+                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a3d2e),
+                    color-mix(in srgb, var(--radar-bg-color) 65%, #0b2d4a),
+                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a4a3a),
+                    color-mix(in srgb, var(--radar-bg-color) 65%, #0b3b5a),
+                    color-mix(in srgb, var(--radar-bg-color) 55%, #0a5c3a)
+                );
+            }
+        }
         body.radar-bg-solid .animated-bg { background: var(--radar-bg-color) !important; }
         body.radar-bg-image .animated-bg {
             background: var(--radar-bg-color) !important;
@@ -295,8 +307,11 @@
         body[data-radar-transition="none"] .slide { transition: none; }
 
         .slide.weather-active::before { display: none !important; }
-        .slide[data-type="previsao_tempo"] { background-color: #000; }
-        .slide.weather-active { background-color: #000 !important; }
+        /* ⭐ Fundo dinâmico — cor predominante da imagem */
+        .slide[data-type="previsao_tempo"] { background-color: var(--slide-dominant-color, #000); }
+        .slide.weather-active { background-color: var(--slide-dominant-color, #000); }
+        .slide[data-type="noticias_rss"] { background-color: var(--slide-dominant-color, #000); }
+
         .slide[data-type="dolar"]::before,
         .slide[data-type="noticias_rss"]::before,
         .slide[data-type="video"]::before,
@@ -304,6 +319,41 @@
         .slide[data-type="video"], .slide[data-type="relogio"] { background: transparent; }
         body.dark-mode .slide { background-color: #000; }
         body.dark-mode .slide[data-type="video"] { background: transparent; }
+
+        /* ⭐ BOTÃO DE REFRESH INDIVIDUAL POR SLIDE */
+        .slide-refresh-btn {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 38px;
+            height: 38px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.55);
+            border: 1px solid rgba(255,255,255,0.18);
+            color: #fff;
+            font-size: 0.92rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            opacity: 0;
+            transition: opacity 0.3s ease, background 0.2s, transform 0.35s ease, border-color 0.2s;
+            pointer-events: auto;
+        }
+        .slide.active:hover .slide-refresh-btn { opacity: 1; }
+        .slide-refresh-btn:hover {
+            background: color-mix(in srgb, var(--radar-accent) 65%, transparent);
+            border-color: var(--radar-accent);
+            transform: rotate(180deg) scale(1.08);
+        }
+        .slide-refresh-btn:active { transform: rotate(180deg) scale(0.95); }
+        .slide-refresh-btn.spinning i { animation: spin 0.8s linear infinite; }
+        body[data-radar-theme="light"] .slide-refresh-btn {
+            background: rgba(255,255,255,0.85);
+            color: #0f172a;
+            border-color: rgba(0,0,0,0.15);
+        }
 
         .relogio-slide { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: transparent; }
         .relogio-content { padding: 50px 70px; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 40%; }
@@ -369,7 +419,7 @@
         .weather-slide {
             position: relative; width: 100%; height: 100%;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            padding: 18px 28px; overflow: hidden; background-color: #000;
+            padding: 18px 28px; overflow: hidden; background-color: inherit;
         }
         .weather-slide .weather-bg {
             position: absolute; inset: 0; z-index: 0;
@@ -403,7 +453,7 @@
         .weather-slide .day-temps { font-size: 1.45rem; font-weight: 700; color: #fff; }
         .weather-slide .day-temps span { color: rgba(255,255,255,0.5); font-weight: 500; font-size: 1.2rem; }
 
-        .noticias-rss-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        .noticias-rss-slide { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; background-color: inherit; }
         .noticias-rss-slide .rss-bg { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; z-index: 0; background-color: #000; }
         .noticias-rss-slide .rss-overlay { position: absolute; inset: 0; background: linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.78) 85%); z-index: 1; }
         .noticias-rss-slide .rss-header {
@@ -777,6 +827,10 @@
             let radarRefreshNews = parseInt(Store.get('radarRefreshNewsMin', '5'), 10) || 5;
             let radarRefreshDolar = parseInt(Store.get('radarRefreshDolarMin', '5'), 10) || 5;
             let radarRefreshWeather = parseInt(Store.get('radarRefreshWeatherMin', '15'), 10) || 15;
+            // ⭐ NOVAS CONFIGS — refresh do Canva
+            let radarCanvaRefreshEnabled = Store.get('radarCanvaRefreshEnabled', 'true') !== 'false';
+            let radarCanvaRefreshMin = parseInt(Store.get('radarCanvaRefreshMin', '10'), 10) || 10;
+            let canvaRefreshTimer = null;
 
             const NEWS_CATEGORIES = {
                 espaco: { weight: 5, words: ['nasa','espaço','espaco','astronomia','universo','cosmos','galáxia','galaxia','via láctea','via lactea','estrelas','planetas','exoplaneta','exoplanetas','lua','marte','júpiter','jupiter','saturno','sistema solar','eclipse','asteroide','cometa','meteoro','meteorito','buraco negro','supernova','telescópio','telescopio','james webb','hubble','spacex','foguete','satélite','satelite','missão espacial','missao espacial','exploração espacial','exploracao espacial','estação espacial','estacao espacial','iss','astronauta','lançamento espacial','lancamento espacial','artemis','colonização de marte','colonizacao de marte','vida extraterrestre','alienígena','alienigena'] },
@@ -800,6 +854,8 @@
                 dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`,
                 campanhas: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`
             };
+
+            const CANVA_BASE_URL = 'https://www.canva.com/design/DAHRodHp2gU/uZVqsviM03HQiXeRmccLfQ/view?embed';
 
             let allSlides = [], visibleSlides = [];
             let currentSlideIndex = 0, slideTimer = null, paused = false;
@@ -843,24 +899,19 @@
             let lastWeatherBg = null;
 
             // ============================================================
-            // ⭐ PLUGIN: DESENHA O GRÁFICO PROGRESSIVAMENTE (clip que cresce)
+            // PLUGIN: desenha o gráfico progressivamente
             // ============================================================
             const drawProgressPlugin = {
                 id: 'radarDrawProgress',
                 beforeDatasetsDraw(chart) {
                     const progress = chart._drawProgress;
-                    // Se não definido ou já no final, nada é cortado
                     if (progress === undefined || progress >= 1) return;
                     const { ctx, chartArea } = chart;
                     if (!chartArea) return;
-
-                    // Calcula a largura visível com base no progresso (0 = nada, 1 = tudo)
                     const totalW = chartArea.right - chartArea.left;
                     const visibleW = totalW * progress;
-
                     ctx.save();
                     ctx.beginPath();
-                    // Retângulo que revela só a parte já "desenhada"
                     ctx.rect(chartArea.left, chartArea.top, visibleW, chartArea.bottom - chartArea.top);
                     ctx.clip();
                     chart._clipped = true;
@@ -873,6 +924,193 @@
                 }
             };
 
+            // ============================================================
+            // ⭐ EXTRAÇÃO DE COR PREDOMINANTE
+            // ============================================================
+            const _dominantColorCache = {};
+
+            function extrairCorPredominante(url, callback) {
+                if (!url) { callback(null); return; }
+                if (_dominantColorCache[url]) { callback(_dominantColorCache[url]); return; }
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    try {
+                        const size = 30;
+                        const canvas = document.createElement('canvas');
+                        canvas.width = size;
+                        canvas.height = size;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, size, size);
+                        const data = ctx.getImageData(0, 0, size, size).data;
+
+                        // Pondera por saturação para achar uma cor "de mood" — ignora cinza/branco/preto
+                        let r = 0, g = 0, b = 0, totalW = 0;
+                        for (let i = 0; i < data.length; i += 4) {
+                            const pr = data[i], pg = data[i+1], pb = data[i+2];
+                            const max = Math.max(pr, pg, pb);
+                            const min = Math.min(pr, pg, pb);
+                            const sat = max === 0 ? 0 : (max - min) / max;
+                            const lightness = max / 255;
+                            // Evita pixels muito claros ou muito escuros
+                            let weight = 0.2 + sat * 0.8;
+                            if (lightness > 0.9 || lightness < 0.08) weight *= 0.15;
+                            r += pr * weight;
+                            g += pg * weight;
+                            b += pb * weight;
+                            totalW += weight;
+                        }
+                        if (totalW === 0) { callback(null); return; }
+                        r = Math.round(r / totalW);
+                        g = Math.round(g / totalW);
+                        b = Math.round(b / totalW);
+
+                        // Escurece para virar cor de fundo
+                        const factor = 0.55;
+                        r = Math.round(r * factor);
+                        g = Math.round(g * factor);
+                        b = Math.round(b * factor);
+
+                        const color = `rgb(${r}, ${g}, ${b})`;
+                        _dominantColorCache[url] = color;
+                        callback(color);
+                    } catch(e) {
+                        callback(null);
+                    }
+                };
+                img.onerror = () => callback(null);
+                img.src = url;
+            }
+
+            function _urlFromBackgroundImage(bgImage) {
+                if (!bgImage || bgImage === 'none') return '';
+                const m = bgImage.match(/url\(["']?(.+?)["']?\)/);
+                return m ? m[1] : '';
+            }
+
+            function aplicarCorPredominante(slideType) {
+                const slideEl = document.querySelector(`.slide[data-type="${slideType}"]`);
+                if (!slideEl) return;
+                let imgUrl = '';
+                if (slideType === 'previsao_tempo') {
+                    const bg = slideEl.querySelector('.weather-bg');
+                    if (bg) imgUrl = _urlFromBackgroundImage(window.getComputedStyle(bg).backgroundImage);
+                } else if (slideType === 'noticias_rss') {
+                    const bg = slideEl.querySelector('.rss-bg');
+                    if (bg) imgUrl = _urlFromBackgroundImage(window.getComputedStyle(bg).backgroundImage);
+                }
+                if (!imgUrl) return;
+
+                extrairCorPredominante(imgUrl, (color) => {
+                    if (!color) return;
+                    // Aplica no slide inteiro (aparece nas bordas e durante transições)
+                    slideEl.style.setProperty('--slide-dominant-color', color);
+                    slideEl.style.backgroundColor = color;
+                    // Aplica também no container interno (evita "flash" preto antes de carregar)
+                    const inner = slideEl.querySelector('.weather-slide, .noticias-rss-slide');
+                    if (inner) inner.style.backgroundColor = color;
+                    // Aplica no próprio bg como cor base
+                    const bgEl = slideEl.querySelector('.weather-bg, .rss-bg');
+                    if (bgEl) bgEl.style.backgroundColor = color;
+                });
+            }
+
+            // ============================================================
+            // ⭐ REFRESH INDIVIDUAL POR SLIDE
+            // ============================================================
+            function reloadCanvaSlide() {
+                const slideEl = document.querySelector('.slide[data-type="canva"]');
+                if (!slideEl) return;
+                const iframe = slideEl.querySelector('iframe');
+                if (!iframe) return;
+                const baseSrc = iframe.src.split('?')[0].split('&_rt=')[0];
+                iframe.src = baseSrc + '?_rt=' + Date.now();
+            }
+
+            function restartCanvaRefresh() {
+                if (canvaRefreshTimer) { clearInterval(canvaRefreshTimer); canvaRefreshTimer = null; }
+                if (!radarCanvaRefreshEnabled) return;
+                const ms = Math.max(1, radarCanvaRefreshMin) * 60 * 1000;
+                canvaRefreshTimer = setInterval(reloadCanvaSlide, ms);
+            }
+
+            function reloadLogoSlide() {
+                const slideEl = document.querySelector('.slide[data-type="logo"]');
+                if (!slideEl) return;
+                const img = slideEl.querySelector('img');
+                if (!img) return;
+                const base = img.src.split('?')[0];
+                img.src = base + '?_rt=' + Date.now();
+            }
+
+            function rebuildBirthdaySlides() {
+                // Regenera os slides de aniversariantes
+                const novos = obterAniversariantesDaSemana();
+                // Remove os antigos
+                for (let i = allSlides.length - 1; i >= 0; i--) {
+                    const t = allSlides[i].type;
+                    if (t.indexOf('aniversariante') === 0 || t === 'aniversariantes_semana') {
+                        allSlides.splice(i, 1);
+                    }
+                }
+                if (novos.length) {
+                    novos.filter(a => a.diff < 0).forEach(a => allSlides.push({ type: 'aniversariante_individual', html: buildBirthdayHeroSlide(a, false, a.diff), customLabel: 'Aniversário – ' + a.nome }));
+                    novos.filter(a => a.diff > 0).forEach(a => allSlides.push({ type: 'aniversariante_futuro', html: buildBirthdayHeroSlide(a, true, a.diff), customLabel: 'Próximo – ' + a.nome }));
+                    novos.filter(a => a.diff === 0).forEach(a => allSlides.push({ type: 'aniversariante_dia', html: buildBirthdayHeroSlide(a, false, 0), customLabel: 'Hoje – ' + a.nome }));
+                    allSlides.push({ type: 'aniversariantes_semana', html: buildBirthdayWeekSlide(novos), customLabel: 'Aniversariantes da Semana' });
+                }
+                rebuildSlides();
+            }
+
+            function rebuildCampanhaSlide() {
+                for (let i = allSlides.length - 1; i >= 0; i--) {
+                    if (allSlides[i].type === 'campanha_reta_final') allSlides.splice(i, 1);
+                }
+                const info = processarCampanha();
+                if (info) {
+                    const html = buildCampanhaSlide(info);
+                    if (html) allSlides.push({ type: 'campanha_reta_final', html, customLabel: 'Campanha Comercial – ' + info.nome, campanhaInfo: info });
+                }
+                rebuildSlides();
+            }
+
+            function refreshSlide(slideType) {
+                const btn = document.querySelector(`.slide[data-type="${slideType}"] .slide-refresh-btn`);
+                if (btn) {
+                    btn.classList.add('spinning');
+                    setTimeout(() => btn.classList.remove('spinning'), 900);
+                }
+                switch (slideType) {
+                    case 'canva': reloadCanvaSlide(); break;
+                    case 'logo': reloadLogoSlide(); break;
+                    case 'previsao_tempo': buscarClima(); break;
+                    case 'noticias_rss':
+                        buscarNoticiasRss().then(() => {
+                            if (noticiasRss.length) {
+                                const start = Math.floor(Math.random() * noticiasRss.length);
+                                atualizarNoticiaCarrossel(start);
+                                aplicarCorPredominante('noticias_rss');
+                            }
+                            iniciarCarrosselNoticias();
+                        });
+                        break;
+                    case 'dolar': carregarSlideDolar(); break;
+                    case 'aniversariante_individual':
+                    case 'aniversariante_futuro':
+                    case 'aniversariante_dia':
+                    case 'aniversariantes_semana':
+                        rebuildBirthdaySlides();
+                        break;
+                    case 'campanha_reta_final': rebuildCampanhaSlide(); break;
+                    case 'relogio': atualizarTodosRelogios(); break;
+                    case 'video': /* nada — o iframe já é contínuo */ break;
+                }
+            }
+
+            function refreshAllSlides() {
+                ['canva', 'logo', 'previsao_tempo', 'noticias_rss', 'dolar', 'aniversariantes_semana', 'campanha_reta_final'].forEach(t => refreshSlide(t));
+            }
+
             function applyRadarSettings() {
                 const root = document.documentElement;
                 const body = document.body;
@@ -881,7 +1119,7 @@
                 if (radarTheme === 'dark') body.classList.add('dark-mode');
                 else body.classList.remove('dark-mode');
 
-                body.classList.remove('radar-bg-solid', 'radar-bg-image');
+                body.classList.remove('radar-bg-solid', 'radar-bg-image', 'radar-bg-gradient');
                 body.classList.add('radar-bg-' + radarBgType);
                 root.style.setProperty('--radar-bg-color', radarBgColor);
                 root.style.setProperty('--radar-bg-image', radarBgImage ? `url('${radarBgImage}')` : 'none');
@@ -988,22 +1226,16 @@
                     return;
                 }
                 if (el._animRaf) cancelAnimationFrame(el._animRaf);
-
                 const rawAtual = (el.textContent || '').replace(/[^\d,.-]/g, '').replace(',', '.');
                 const from = parseFloat(rawAtual) || 0;
                 const start = performance.now();
-
                 function step(t) {
                     const p = Math.min(1, (t - start) / duration);
                     const eased = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
                     const v = from + (target - from) * eased;
                     el.textContent = formatter(v);
-                    if (p < 1) {
-                        el._animRaf = requestAnimationFrame(step);
-                    } else {
-                        el.textContent = formatter(target);
-                        el._animRaf = null;
-                    }
+                    if (p < 1) el._animRaf = requestAnimationFrame(step);
+                    else { el.textContent = formatter(target); el._animRaf = null; }
                 }
                 el._animRaf = requestAnimationFrame(step);
             }
@@ -1018,7 +1250,13 @@
                         const slideWeather = document.querySelector('.slide[data-type="previsao_tempo"]');
                         if (slideWeather) {
                             const ws = buildWeatherSlide(data);
-                            if (ws) slideWeather.innerHTML = ws;
+                            if (ws) {
+                                slideWeather.innerHTML = ws;
+                                // Reaplica cor predominante após trocar a imagem
+                                setTimeout(() => aplicarCorPredominante('previsao_tempo'), 120);
+                                // Reinsere o botão de refresh
+                                _inserirBotaoRefresh(slideWeather, 'previsao_tempo');
+                            }
                         }
                         atualizarTodosRelogios();
                     }
@@ -1180,6 +1418,7 @@
                 return `<div class="weather-slide">
                     <div class="weather-bg" style="background-image: url('${bgImage}'); background-color: #000;"></div>
                     <div class="weather-overlay"></div>
+                    <button class="slide-refresh-btn" data-refresh-slide="previsao_tempo" title="Forçar atualização do clima"><i class="fas fa-sync-alt"></i></button>
                     <div class="weather-content">
                         <div class="weather-top"><div class="weather-current">
                             <div class="temp-big">${temp}°</div>
@@ -1393,6 +1632,7 @@
                     <div class="rss-bg" id="rssBg" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1600&q=80');"></div>
                     <div class="rss-overlay"></div>
                     <div class="rss-header"><i class="fas fa-newspaper"></i><span>Notícias</span></div>
+                    <button class="slide-refresh-btn" data-refresh-slide="noticias_rss" title="Forçar atualização das notícias"><i class="fas fa-sync-alt"></i></button>
                     <div class="rss-content">
                         <div class="rss-title" id="rssTitle">Carregando notícias...</div>
                         <div class="rss-meta">
@@ -1442,6 +1682,9 @@
                 } else if (tempo) tempo.textContent = '';
 
                 if (loading) loading.style.display = 'none';
+
+                // ⭐ Aplica cor predominante da nova imagem
+                aplicarCorPredominante('noticias_rss');
             }
 
             function iniciarCarrosselNoticias() {
@@ -1497,6 +1740,7 @@
                 return `<div class="campanha-slide">
                     <div class="campanha-bg"></div>
                     <div class="campanha-overlay"></div>
+                    <button class="slide-refresh-btn" data-refresh-slide="campanha_reta_final" title="Forçar atualização da campanha"><i class="fas fa-sync-alt"></i></button>
                     <div class="campanha-content">
                         <div class="campanha-header">
                             <div class="campanha-titulo">Campanha Comercial</div>
@@ -1534,18 +1778,14 @@
                 const percentEl = document.getElementById('ringPercent');
                 if (!el || !circle || ringAnimRunning) return;
                 ringAnimRunning = true;
-
                 const inicio = 31;
                 const animar = radarNumbersAnimated && radarAnimation !== 'none';
                 const circumference = 2 * Math.PI * 130;
-
                 const percFinal = Math.min(100, Math.round(((totalDias - valorFinal) / totalDias) * 100));
                 const offsetFinal = circumference - (percFinal / 100) * circumference;
-
                 el.textContent = inicio;
                 circle.style.strokeDasharray = circumference;
                 circle.style.strokeDashoffset = circumference;
-
                 if (!animar) {
                     el.textContent = valorFinal;
                     circle.style.strokeDashoffset = offsetFinal;
@@ -1553,11 +1793,9 @@
                     ringAnimRunning = false;
                     return;
                 }
-
                 const totalSteps = Math.max(1, inicio - valorFinal);
                 const stepTime = Math.max(40, Math.floor(duracaoTotal / totalSteps));
                 let atual = inicio;
-
                 const timer = setInterval(() => {
                     atual--;
                     if (atual < valorFinal) {
@@ -1739,10 +1977,6 @@
                 if (syncBarra) atualizarBarraDolar(valor);
             }
 
-            // ============================================================
-            // ⭐ GRÁFICO DO DÓLAR — linha se desenha da esquerda pra direita
-            //     (clip crescente no canvas, sincronizado com o número subindo)
-            // ============================================================
             function renderizarGraficoDolar(dados, valorAtual, variacao) {
                 const canvas = document.getElementById('chartDolarCanvas');
                 if (!canvas) return;
@@ -1756,7 +1990,6 @@
                 const valoresFull = temDados ? dados.valores : [valorAtual || 0];
                 const valorFinal = (valorAtual != null && !isNaN(valorAtual)) ? valorAtual : (valoresFull[valoresFull.length - 1] || 0);
 
-                // Dispara a animação do número subindo em paralelo
                 setTextoDolar(valorFinal, true);
 
                 const h = canvas.clientHeight || 280;
@@ -1765,7 +1998,7 @@
                 grad.addColorStop(1, 'rgba(255,255,255,0.01)');
 
                 const shouldAnimate = radarDolarAnimated && radarAnimation !== 'none';
-                const drawDuration = 2400; // mesma duração do número subindo
+                const drawDuration = 2400;
 
                 chartDolar = new Chart(ctx, {
                     type: 'line',
@@ -1790,7 +2023,6 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        // Desligamos a animação padrão do Chart.js — quem manda é o plugin
                         animation: false,
                         plugins: { legend: { display: false } },
                         scales: {
@@ -1801,16 +2033,14 @@
                     plugins: [drawProgressPlugin]
                 });
 
-                // ⭐ Esconde tudo imediatamente (progress 0) e anima até 1 (tudo visível)
                 chartDolar._drawProgress = 0;
-                chartDolar.draw(); // aplica o clip de 0 = nada visível
+                chartDolar.draw();
 
                 if (shouldAnimate) {
                     const start = performance.now();
                     function stepDraw(t) {
                         if (!chartDolar) return;
                         const p = Math.min(1, (t - start) / drawDuration);
-                        // easeOutQuart: desenho rápido no início, desacelera no fim
                         const eased = 1 - Math.pow(1 - p, 3);
                         chartDolar._drawProgress = eased;
                         chartDolar.draw();
@@ -1846,6 +2076,7 @@
             function buildDolarSlide() {
                 return `<div class="dolar-slide">
                     <div class="dolar-header"><i class="fas fa-chart-line"></i><span>Economia</span></div>
+                    <button class="slide-refresh-btn" data-refresh-slide="dolar" title="Forçar atualização do dólar"><i class="fas fa-sync-alt"></i></button>
                     <div class="dolar-container">
                         <div class="dolar-grafico-wrapper"><canvas id="chartDolarCanvas"></canvas></div>
                         <div class="dolar-valor-wrapper">
@@ -1862,16 +2093,28 @@
             function carregarVisibilidade() { slideVisibility = Store.get('slideVisibility', {}) || {}; }
             carregarVisibilidade();
 
+            // ⭐ Insere botão de refresh no slide (usado após refresh dinâmico)
+            function _inserirBotaoRefresh(slideEl, slideType) {
+                if (!slideEl) return;
+                if (slideEl.querySelector('.slide-refresh-btn')) return;
+                const btn = document.createElement('button');
+                btn.className = 'slide-refresh-btn';
+                btn.setAttribute('data-refresh-slide', slideType);
+                btn.title = 'Forçar atualização';
+                btn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                slideEl.appendChild(btn);
+            }
+
             function construirSlides() {
                 allSlides = [];
                 allSlides.push({ type: 'relogio', html: `<div class="relogio-slide"><div class="relogio-content"><div class="hora-grande" id="slide-hora">00:00</div><div class="data-grande" id="slide-data">Carregando...</div><div class="clima-grande"><i class="fas fa-sun" id="slide-clima-icon"></i> <span id="slide-temp">--°C</span></div></div></div>` });
-                allSlides.push({ type: 'logo', html: `<div class="logo-slide"><img src="https://www.centrobor.com.br/wp-content/uploads/2026/01/centrobor-logo-branca-scaled.webp" alt="Centrobor"></div>` });
+                allSlides.push({ type: 'logo', html: `<div class="logo-slide"><img src="https://www.centrobor.com.br/wp-content/uploads/2026/01/centrobor-logo-branca-scaled.webp" alt="Centrobor"><button class="slide-refresh-btn" data-refresh-slide="logo" title="Recarregar logo"><i class="fas fa-sync-alt"></i></button></div>` });
 
                 if (currentWeatherData) {
                     const ws = buildWeatherSlide(currentWeatherData);
                     if (ws) allSlides.push({ type: 'previsao_tempo', html: ws, customLabel: 'Clima / Previsão' });
                 } else {
-                    allSlides.push({ type: 'previsao_tempo', html: `<div class="weather-slide"><div class="weather-bg" style="background-image: url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1600&q=80'); background-color: #000;"></div><div class="weather-overlay"></div><div class="weather-content"><div class="temp-big">--°</div></div></div>`, customLabel: 'Clima / Previsão' });
+                    allSlides.push({ type: 'previsao_tempo', html: `<div class="weather-slide"><div class="weather-bg" style="background-image: url('https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=1600&q=80'); background-color: #000;"></div><div class="weather-overlay"></div><button class="slide-refresh-btn" data-refresh-slide="previsao_tempo" title="Forçar atualização do clima"><i class="fas fa-sync-alt"></i></button><div class="weather-content"><div class="temp-big">--°</div></div></div>`, customLabel: 'Clima / Previsão' });
                 }
 
                 allSlides.push({ type: 'noticias_rss', html: buildNoticiasRssSlide(), customLabel: 'Notícias (G1 + TecMundo)' });
@@ -1886,7 +2129,7 @@
                 }
 
                 allSlides.push({ type: 'video', html: `<div style="width:100%;height:100%;background:transparent;"></div>`, customLabel: 'Centrobor Esportes' });
-                allSlides.push({ type: 'canva', html: `<iframe src="https://www.canva.com/design/DAHRodHp2gU/uZVqsviM03HQiXeRmccLfQ/view?embed" style="width:100%; height:100%; border:none;" allow="fullscreen"></iframe>`, customLabel: 'RADAR CENTROBOR' });
+                allSlides.push({ type: 'canva', html: `<iframe src="${CANVA_BASE_URL}" style="width:100%; height:100%; border:none;" allow="fullscreen"></iframe><button class="slide-refresh-btn" data-refresh-slide="canva" title="Forçar atualização do RADAR"><i class="fas fa-sync-alt"></i></button>`, customLabel: 'RADAR CENTROBOR' });
 
                 const infoCamp = processarCampanha();
                 if (infoCamp) {
@@ -2114,6 +2357,10 @@
 
                 if (s?.type === 'aniversariante_dia' && radarConfetti) dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
+
+                // ⭐ Aplica cor predominante quando entra nos slides de clima/notícias
+                if (s?.type === 'previsao_tempo') setTimeout(() => aplicarCorPredominante('previsao_tempo'), 200);
+                if (s?.type === 'noticias_rss') setTimeout(() => aplicarCorPredominante('noticias_rss'), 200);
 
                 const shouldHide = !!(s && hideSidebarForSlides[s.type] === true);
                 if (shouldHide) {
@@ -2356,7 +2603,7 @@
                 );
             }
 
-            function handleRadarCommand(action) {
+            function handleRadarCommand(action, payload) {
                 switch (action) {
                     case 'nextSlide': proximoSlide(); resetarTimer(); break;
                     case 'prevSlide': slideAnterior(); resetarTimer(); break;
@@ -2365,17 +2612,17 @@
                         const pb = document.getElementById('pause-slide-btn');
                         if (pb) pb.innerHTML = paused ? '<i class="fas fa-play"></i>' : '<i class="fas fa-pause"></i>';
                         break;
-                    case 'refreshNews':
-                        buscarNoticiasRss().then(() => {
-                            if (noticiasRss.length) {
-                                const start = Math.floor(Math.random() * noticiasRss.length);
-                                atualizarNoticiaCarrossel(start);
-                            }
-                            iniciarCarrosselNoticias();
-                        });
+                    case 'refreshNews': refreshSlide('noticias_rss'); break;
+                    case 'refreshDolar': refreshSlide('dolar'); break;
+                    case 'refreshWeather': refreshSlide('previsao_tempo'); break;
+                    case 'refreshCanva': refreshSlide('canva'); break;
+                    case 'refreshLogo': refreshSlide('logo'); break;
+                    case 'refreshBirthdays': refreshSlide('aniversariantes_semana'); break;
+                    case 'refreshCampanha': refreshSlide('campanha_reta_final'); break;
+                    case 'refreshAll': refreshAllSlides(); break;
+                    case 'refreshSlide':
+                        if (payload && payload.slideType) refreshSlide(payload.slideType);
                         break;
-                    case 'refreshDolar': buscarCotacaoDolar(); break;
-                    case 'refreshWeather': buscarClima(); break;
                     case 'reloadData':
                         carregarDadosPlanilha().then(() => {
                             construirSlides();
@@ -2385,11 +2632,25 @@
                 }
             }
 
+            // ⭐ Clique nos botões de refresh dentro dos slides
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('[data-refresh-slide]');
+                if (btn) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const slideType = btn.dataset.refreshSlide;
+                    refreshSlide(slideType);
+                }
+            }, true);
+
             window.addEventListener('storage', function(e) {
                 if (!e.key) return;
 
                 if (e.key === 'radarCommand' && e.newValue) {
-                    try { handleRadarCommand(JSON.parse(e.newValue).action); } catch(err) {}
+                    try {
+                        const cmd = JSON.parse(e.newValue);
+                        handleRadarCommand(cmd.action, cmd.payload);
+                    } catch(err) {}
                     return;
                 }
 
@@ -2552,6 +2813,15 @@
                         radarRefreshWeather = parseInt(e.newValue, 10) || 15;
                         restartInterval('weather');
                         break;
+                    // ⭐ NOVAS CONFIGS — Canva
+                    case 'radarCanvaRefreshEnabled':
+                        radarCanvaRefreshEnabled = e.newValue !== 'false';
+                        restartCanvaRefresh();
+                        break;
+                    case 'radarCanvaRefreshMin':
+                        radarCanvaRefreshMin = parseInt(e.newValue, 10) || 10;
+                        restartCanvaRefresh();
+                        break;
                 }
             });
 
@@ -2617,6 +2887,7 @@
                 construirSlides();
                 rebuildSlides();
                 iniciarRadioRotacao();
+                restartCanvaRefresh();  // ⭐ inicia auto-refresh do Canva
 
                 document.getElementById('loading-overlay').classList.add('hidden');
 
