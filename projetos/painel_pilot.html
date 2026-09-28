@@ -51,7 +51,9 @@
             background-position: center;
             transition: background 0.6s ease, filter 0.6s ease;
         }
+        /* ⭐ Fundo sólido — fallback CSS (o JS aplica inline também) */
         body.radar-bg-solid .animated-bg { background: var(--radar-bg-color) !important; }
+        /* ⭐ Fundo com imagem — CSS cuida */
         body.radar-bg-image .animated-bg {
             background: var(--radar-bg-color) !important;
             background-image: var(--radar-bg-image) !important;
@@ -87,6 +89,7 @@
             background: rgba(255,255,255,0.5);
             border-color: rgba(0,0,0,0.08);
         }
+        /* ⭐ NEWS-DARK: fundo geral usa a cor predominante da imagem do slide atual */
         body.news-dark .animated-bg {
             background: var(--radar-dominant-bg, #000) !important;
             background-image: none !important;
@@ -98,6 +101,7 @@
             border-top-color: rgba(255,255,255,0.08) !important;
             transition: background 0.8s ease, height 0.5s ease, opacity 0.5s ease, padding 0.5s ease;
         }
+        /* ⭐ DÓLAR: fundo preto puro */
         body.dolar-slide-active .animated-bg {
             background: #000 !important;
             background-image: none !important;
@@ -352,38 +356,6 @@
             background: rgba(255,255,255,0.85);
             color: #0f172a;
             border-color: rgba(0,0,0,0.15);
-        }
-
-        /* ⭐ OVERLAY DE CARREGAMENTO DO CANVA */
-        .canva-loading-overlay {
-            position: absolute;
-            inset: 0;
-            z-index: 5;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 14px;
-            background: rgba(0,0,0,0.85);
-            color: rgba(255,255,255,0.85);
-            font-size: 0.95rem;
-            font-weight: 600;
-            border-radius: var(--radius-xl);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease;
-        }
-        .canva-loading-overlay.active {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .canva-loading-overlay .spinner {
-            width: 34px;
-            height: 34px;
-            border: 3px solid rgba(56,189,248,0.2);
-            border-top-color: var(--radar-accent);
-            border-radius: 50%;
-            animation: spin 0.9s linear infinite;
         }
 
         .relogio-slide { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; background: transparent; }
@@ -887,11 +859,6 @@
 
             const CANVA_BASE_URL = 'https://www.canva.com/design/DAHRodHp2gU/uZVqsviM03HQiXeRmccLfQ/view?embed';
 
-            // ⭐ Controle do refresh do Canva
-            const CANVA_MIN_RELOAD_INTERVAL = 8000; // mínimo de 8s entre reloads
-            let lastCanvaReload = 0;
-            let canvaReloadTimeout = null;
-
             let allSlides = [], visibleSlides = [];
             let currentSlideIndex = 0, slideTimer = null, paused = false;
             let cadastros = [], campanhasData = [];
@@ -1039,6 +1006,9 @@
                 });
             }
 
+            // ============================================================
+            // ⭐ APLICAÇÃO DO FUNDO PERSONALIZADO (sem depender de color-mix)
+            // ============================================================
             function hexToHsl(hex) {
                 let h2 = String(hex || '').replace('#', '').trim();
                 if (h2.length === 3) h2 = h2.split('').map(c => c + c).join('');
@@ -1065,12 +1035,14 @@
                 const bgEl = document.querySelector('.animated-bg');
                 if (!bgEl) return;
 
+                // Sempre limpa inline antes (para não grudar estilo antigo)
                 bgEl.style.background = '';
                 bgEl.style.backgroundImage = '';
                 bgEl.style.backgroundSize = '';
                 bgEl.style.backgroundPosition = '';
                 bgEl.style.filter = '';
 
+                // Imagem: CSS cuida, mas reforçamos inline também
                 if (radarBgType === 'image') {
                     bgEl.style.background = radarBgColor;
                     if (radarBgImage) {
@@ -1082,11 +1054,13 @@
                     return;
                 }
 
+                // Sólido
                 if (radarBgType === 'solid') {
                     bgEl.style.background = radarBgColor;
                     return;
                 }
 
+                // Gradiente — calculado em JS a partir da cor (sem color-mix)
                 const hsl = hexToHsl(radarBgColor) || { h: 210, s: 40, l: 12 };
                 const { h, s, l } = hsl;
                 const paradas = [
@@ -1099,98 +1073,20 @@
                 bgEl.style.background = `linear-gradient(135deg, ${paradas.join(', ')})`;
             }
 
-            // ============================================================
-            // ⭐ CANVA — reload robusto
-            // ============================================================
-            function getCanvaSlideElements() {
+            function reloadCanvaSlide() {
                 const slideEl = document.querySelector('.slide[data-type="canva"]');
-                if (!slideEl) return null;
-                const iframe = slideEl.querySelector('iframe');
-                if (!iframe) return null;
-                return { slideEl, iframe };
-            }
-
-            function mostrarOverlayCanva(slideEl, mostrar) {
                 if (!slideEl) return;
-                let overlay = slideEl.querySelector('.canva-loading-overlay');
-                if (mostrar) {
-                    if (!overlay) {
-                        overlay = document.createElement('div');
-                        overlay.className = 'canva-loading-overlay';
-                        overlay.innerHTML = `
-                            <div class="spinner"></div>
-                            <div>Recarregando RADAR...</div>
-                        `;
-                        slideEl.appendChild(overlay);
-                    }
-                    // Força reflow antes de adicionar a classe
-                    void overlay.offsetWidth;
-                    overlay.classList.add('active');
-                } else {
-                    if (overlay) overlay.classList.remove('active');
-                }
-            }
-
-            function doReloadCanva() {
-                const els = getCanvaSlideElements();
-                if (!els) return;
-                const { slideEl, iframe } = els;
-
-                mostrarOverlayCanva(slideEl, true);
-
-                // ⭐ Constrói a URL correta: mantém ?embed e usa &_rt=
-                const sep = CANVA_BASE_URL.includes('?') ? '&' : '?';
-                const novaUrl = CANVA_BASE_URL + sep + '_rt=' + Date.now();
-
-                // ⭐ Recria o iframe (mais confiável que trocar src em cross-origin)
-                const novoIframe = document.createElement('iframe');
-                novoIframe.src = novaUrl;
-                novoIframe.setAttribute('allow', 'fullscreen');
-                novoIframe.setAttribute('allowfullscreen', 'true');
-                novoIframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
-                novoIframe.setAttribute('scrolling', 'no');
-                novoIframe.style.cssText = 'width:100%; height:100%; border:none;';
-
-                // Remove o antigo e coloca o novo
-                iframe.replaceWith(novoIframe);
-
-                // Esconde o overlay quando o iframe carregar (ou após timeout de segurança)
-                let timeoutId = setTimeout(() => {
-                    mostrarOverlayCanva(slideEl, false);
-                }, 6000);
-
-                novoIframe.addEventListener('load', () => {
-                    clearTimeout(timeoutId);
-                    setTimeout(() => mostrarOverlayCanva(slideEl, false), 300);
-                }, { once: true });
-            }
-
-            // ⭐ Função pública com debounce
-            function reloadCanvaSlide(force) {
-                const agora = Date.now();
-                const elapsed = agora - lastCanvaReload;
-
-                if (!force && elapsed < CANVA_MIN_RELOAD_INTERVAL) {
-                    // Agenda para depois do intervalo mínimo
-                    if (canvaReloadTimeout) clearTimeout(canvaReloadTimeout);
-                    const esperar = CANVA_MIN_RELOAD_INTERVAL - elapsed;
-                    canvaReloadTimeout = setTimeout(() => {
-                        canvaReloadTimeout = null;
-                        lastCanvaReload = Date.now();
-                        doReloadCanva();
-                    }, esperar);
-                    return;
-                }
-
-                lastCanvaReload = agora;
-                doReloadCanva();
+                const iframe = slideEl.querySelector('iframe');
+                if (!iframe) return;
+                const baseSrc = iframe.src.split('?')[0].split('&_rt=')[0];
+                iframe.src = baseSrc + '?_rt=' + Date.now();
             }
 
             function restartCanvaRefresh() {
                 if (canvaRefreshTimer) { clearInterval(canvaRefreshTimer); canvaRefreshTimer = null; }
                 if (!radarCanvaRefreshEnabled) return;
                 const ms = Math.max(1, radarCanvaRefreshMin) * 60 * 1000;
-                canvaRefreshTimer = setInterval(() => reloadCanvaSlide(false), ms);
+                canvaRefreshTimer = setInterval(reloadCanvaSlide, ms);
             }
 
             function reloadLogoSlide() {
@@ -1238,7 +1134,7 @@
                     setTimeout(() => btn.classList.remove('spinning'), 900);
                 }
                 switch (slideType) {
-                    case 'canva': reloadCanvaSlide(true); break;
+                    case 'canva': reloadCanvaSlide(); break;
                     case 'logo': reloadLogoSlide(); break;
                     case 'previsao_tempo': buscarClima(); break;
                     case 'noticias_rss':
@@ -1279,6 +1175,7 @@
                 body.classList.remove('radar-bg-solid', 'radar-bg-image', 'radar-bg-gradient');
                 body.classList.add('radar-bg-' + radarBgType);
 
+                // CSS vars
                 root.style.setProperty('--radar-bg-color', radarBgColor);
                 root.style.setProperty('--radar-bg-image', radarBgImage ? `url('${radarBgImage}')` : 'none');
                 root.style.setProperty('--radar-bg-blur', radarBgBlur + 'px');
@@ -1294,9 +1191,11 @@
                 body.setAttribute('data-radar-transition', radarTransition);
                 body.setAttribute('data-radar-animation', radarAnimation);
 
+                // ⭐ Aplica o fundo em JS (não depende de color-mix)
                 if (radarTheme !== 'light') {
                     aplicarFundoPersonalizado();
                 } else {
+                    // Light theme: limpa inline para deixar o CSS claro atuar
                     const bgEl = document.querySelector('.animated-bg');
                     if (bgEl) {
                         bgEl.style.background = '';
@@ -2296,12 +2195,7 @@
                 }
 
                 allSlides.push({ type: 'video', html: `<div style="width:100%;height:100%;background:transparent;"></div>`, customLabel: 'Centrobor Esportes' });
-
-                allSlides.push({
-                    type: 'canva',
-                    html: `<iframe src="${CANVA_BASE_URL}" style="width:100%; height:100%; border:none;" allow="fullscreen" allowfullscreen="true" referrerpolicy="no-referrer-when-downgrade" scrolling="no"></iframe><button class="slide-refresh-btn" data-refresh-slide="canva" title="Forçar atualização do RADAR"><i class="fas fa-sync-alt"></i></button>`,
-                    customLabel: 'RADAR CENTROBOR'
-                });
+                allSlides.push({ type: 'canva', html: `<iframe src="${CANVA_BASE_URL}" style="width:100%; height:100%; border:none;" allow="fullscreen"></iframe><button class="slide-refresh-btn" data-refresh-slide="canva" title="Forçar atualização do RADAR"><i class="fas fa-sync-alt"></i></button>`, customLabel: 'RADAR CENTROBOR' });
 
                 const infoCamp = processarCampanha();
                 if (infoCamp) {
