@@ -1331,6 +1331,50 @@
                 grid-template-columns: 1fr;
             }
         }
+    
+        /* ===== MENU MOBILE COMPACTO ===== */
+        @media (max-width: 680px) {
+            .hamburger-menu {
+                width: 270px;
+                max-width: 88vw;
+                padding: 16px 12px 80px;
+            }
+            .hamburger-menu .menu-header {
+                gap: 10px;
+                padding-bottom: 14px;
+                margin-bottom: 10px;
+            }
+            .hamburger-menu .menu-avatar {
+                width: 42px;
+                height: 42px;
+            }
+            .hamburger-menu .menu-section {
+                margin-bottom: 8px;
+            }
+            .hamburger-menu .menu-section-label {
+                margin-bottom: 4px;
+                font-size: 0.6rem;
+            }
+            .hamburger-menu .menu-item {
+                padding: 8px 10px;
+                min-height: 38px;
+                gap: 10px;
+                border-radius: 10px;
+                font-size: 0.8rem;
+            }
+            .hamburger-menu .menu-item i {
+                width: 20px;
+                font-size: 0.9rem;
+            }
+            .hamburger-menu .menu-close-btn {
+                top: 14px;
+                right: 14px;
+                width: 30px;
+                height: 30px;
+                font-size: 0.95rem;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1366,10 +1410,9 @@
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Principal</div>
-            <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
             <button class="menu-item" id="menu-postagens"><i class="fas fa-newspaper"></i> Postagens</button>
-        <!--    <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>  -->
-            <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
+            <button class="menu-item" id="menu-calculadora-correias"><i class="fas fa-ruler-combined"></i> Calculadora Correias</button>
+            <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custo</button>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
@@ -1390,8 +1433,8 @@
     <!-- MOBILE BOTTOM BAR -->
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
-   <!--     <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button> -->
-        <button class="bb-item active" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+        <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custo</span></button>
+        <button class="bb-item" data-nav="calculadora-correias" id="bb-calculadora-correias"><i class="fas fa-ruler-combined"></i><span>Correias</span></button>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
     </div>
 
@@ -1425,7 +1468,8 @@
         <!-- TOOLS GRID -->
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Postagens</div></a>
-    <!--        <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>  -->
+            <a class="tool-card" id="tool-custo" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custo</div></a>
+            <a class="tool-card" id="tool-calculadora-correias" href="https://centrobor.github.io/radarcentrobor/calculadora_correias/"><div class="tool-icon"><i class="fas fa-ruler-combined"></i></div><div class="tool-label">Calculadora Correias</div></a>
         </div>
 
         <!-- FILTRO MENSAL + PDF -->
@@ -1527,7 +1571,7 @@
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
                 metasVendedores: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
-                metasEmpresa: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
+                metasEmpresa: `https://opensheet.elk.sh/${SHEET_ID}/metas_faturamento`,
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 campanhas: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
@@ -1670,10 +1714,13 @@
                 return total;
             }
 
-            function getMetasDimas() {
+            function getMetasDimas(ano, mes) {
                 const row = metasVendRaw.find(m => String(m.id_vendedor) === COD_DIMAS);
                 return {
-                    mensal: cleanNumber(row?.meta_mensal),
+                    // A meta mensal do Dimas é a mesma META MENSAL GERAL
+                    // da aba/endpoint metas_faturamento.
+                    mensal: getMetaEmpresaMes(ano, mes),
+                    // Mantidas as metas semestral e anual específicas do Dimas.
                     semestral: cleanNumber(row?.meta_semestral),
                     anual: cleanNumber(row?.meta_anual)
                 };
@@ -1963,7 +2010,7 @@
 
             // ==================== METAS DIMAS ====================
             function renderMetasDimas(ano, mes) {
-                const metas = getMetasDimas();
+                const metas = getMetasDimas(ano, mes);
                 const fatMes = getFaturamentoTotalMes(ano, mes);
                 const acumuladoAno = getAcumuladoRealEmpresa(ano, mes);
                 const acumuladoSem = getAcumuladoRealSemestre(ano, mes);
@@ -2447,14 +2494,13 @@
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-                document.getElementById('menu-home').addEventListener('click', () => { closeHamburger();
-                    window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
+                
                 document.getElementById('menu-postagens').addEventListener('click', () => { closeHamburger();
                     window.location.href =
                         'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-                // Removido listener para menu-custos (elemento comentado)
-                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger();
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('menu-calculadora-correias').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/calculadora_correias/'; });
+                
                 document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger();
                     abrirNotificacoes(); });
                 document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger();
@@ -2469,12 +2515,13 @@
                     const activeEl = document.getElementById('bb-' + nav);
                     if (activeEl) activeEl.classList.add('active');
                 }
+                
                 document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed');
                     window.location.href =
                         'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-                // Removido listener para bb-custos (elemento comentado)
-                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home');
-                    window.scrollTo({ top: 0, behavior: 'smooth' }); });
+                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                document.getElementById('bb-calculadora-correias').addEventListener('click', () => { setActiveBottomBar('calculadora-correias'); window.location.href = 'https://centrobor.github.io/radarcentrobor/calculadora_correias/'; });
+                
                 document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas');
                     abrirNotificacoes(); });
 
