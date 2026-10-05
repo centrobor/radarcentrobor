@@ -114,7 +114,18 @@
             text-decoration: none; border:none; background:none; font-family: inherit;
         }
         .mobile-bottom-bar .bb-item.active { color: var(--primary); }
-        .mobile-bottom-bar .bb-badge { position: relative; }
+        .mobile-bottom-bar > #dynamic-bottom-menu {
+    display: flex;
+    align-items: stretch;
+    justify-content: flex-start;
+    gap: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    flex: 1;
+}
+.mobile-bottom-bar > #dynamic-bottom-menu::-webkit-scrollbar { display: none; }
+.mobile-bottom-bar > #dynamic-bottom-menu .bb-item { flex: 0 0 auto; }
+.mobile-bottom-bar .bb-badge { position: relative; }
         .mobile-bottom-bar .badge-dot {
             position: absolute; top:-2px; right:-4px; width:9px; height:9px;
             background: var(--danger); border-radius:50%; border:2px solid white;
@@ -293,7 +304,7 @@
             .header, .mobile-topbar, .mobile-bottom-bar, .hamburger-overlay, .hamburger-menu,
             .carousel-section, .carousel-controls, .carousel-indicators, .tools-grid,
             .icon-btn, .btn-pdf, .month-filter, .table-search, .modal, .footer-social,
-            .footer-bottom, .last-update-badge, .logout-btn, .home-btn, .notification-bell,
+            .footer-bottom, .last-update-badge, .logout-btn, .notification-bell,
             .badge, #bb-badge-dot, .btn-mark-all-read, #menu-notif-count, .notif-card .notif-thumb,
             .notif-type, .notif-meta i, .notif-excerpt, .section-title i, .meta-card-header .meta-card-badge,
             .campaign-card::before, .carousel-caption .carousel-meta, .footer .footer-inner .footer-social,
@@ -392,12 +403,7 @@
     </div>
     <div class="menu-section">
         <div class="menu-section-label">Principal</div>
-        <button class="menu-item" id="menu-home"><i class="fas fa-home"></i> Início</button>
-        <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Dashboard</button>
-        <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
-        <!-- Menu Custos de Vendas removido temporariamente
-        <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos de Vendas</button>
-        -->
+        <div id="dynamic-mobile-menu"></div>
     </div>
     <div class="menu-section">
         <div class="menu-section-label">Status</div>
@@ -416,11 +422,7 @@
 </nav>
 
 <div class="mobile-bottom-bar" id="mobile-bottom-bar">
-    <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
-    <!-- Botão Custos de Vendas removido temporariamente
-    <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button>
-    -->
-    <button class="bb-item active" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
+    <div id="dynamic-bottom-menu"></div>
     <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
 </div>
 
@@ -435,7 +437,6 @@
                 <i class="fas fa-sync-alt"></i> <span id="last-update-text">Atualizado em: --</span>
             </span>
             <button class="icon-btn notification-bell" id="notification-bell" title="Notificações"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
-            <button class="icon-btn home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
             <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
         </div>
     </div>
@@ -449,12 +450,7 @@
         <div class="carousel-indicators" id="carousel-indicators"></div>
     </div>
 
-    <div class="tools-grid">
-        <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Feed</div></a>
-        <!-- Card Custos de Vendas removido temporariamente
-        <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos de Vendas</div></a>
-        -->
-    </div>
+    <div class="tools-grid" id="desktop-tools-menu"></div>
 
     <div class="kpi-row" id="kpi-cards"></div>
 
@@ -525,14 +521,132 @@
 <script>
 (function() {
     // ===========================================================================
-    // ⚙️ CONFIGURAÇÃO UNIVERSAL DO VENDEDOR
-    // Altere apenas estas DUAS informações para adaptar a outro vendedor.
-    // O nome exibido (com ou sem acento) será usado em toda a interface.
-    // A busca nas planilhas ignora acentos automaticamente.
+    // ⚙️ CONFIGURAÇÃO CENTRAL DA PÁGINA
     // ===========================================================================
-    const COD_VENDEDOR = "49";             // Código do vendedor (string)
-    const NOME_EXIBICAO = "Matheus Santos";  // Nome que aparecerá na tela, PDF, título, etc.
+    // Tudo que normalmente precisa ser alterado fica concentrado aqui:
+    // • vendedor: código + nome exibido
+    // • planilha: ID usado pelos endpoints OpenSheet
+    // • menu: nome + ícone + links de cada item
+    //
+    // Para adicionar um novo item ao menu, copie um objeto dentro de MENU_ITENS.
+    // "desktop" = link usado nos cards/versão desktop
+    // "mobile"  = link usado no menu mobile
+    // "opensheet" = endpoint OpenSheet relacionado ao item, se existir
+    // "bottom" = mostra também na barra inferior do celular
     // ===========================================================================
+
+    const COD_VENDEDOR = "49";
+    const NOME_EXIBICAO = "Matheus Santos";
+    const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+
+    const MENU_ITENS = [
+        {
+            id: "dashboard",
+            nome: "Dashboard",
+            icon: "fas fa-chart-pie",
+            desktop: "./index.html",
+            mobile: "./index.html",
+            opensheet: "",
+            desktopVisible: false,
+            mobileVisible: true,
+            bottom: true
+        },
+        {
+            id: "feed",
+            nome: "Feed",
+            icon: "fas fa-newspaper",
+            desktop: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html",
+            mobile: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html",
+            opensheet: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
+            desktopVisible: true,
+            mobileVisible: true,
+            bottom: true
+        },
+        {
+            id: "custos-vendas",
+            nome: "Custos de Venda",
+            icon: "fas fa-calculator",
+            desktop: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html",
+            mobile: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html",
+            opensheet: "",
+            desktopVisible: true,
+            mobileVisible: true,
+            bottom: true
+        },
+        {
+            id: "calculadora-correias",
+            nome: "Calculadora Correias",
+            icon: "fas fa-ruler-combined",
+            desktop: "https://centrobor.github.io/CoreCalc/",
+            mobile: "https://centrobor.github.io/CoreCalc/",
+            opensheet: "",
+            desktopVisible: true,
+            mobileVisible: true,
+            bottom: true
+        }
+    ];
+    // ===========================================================================
+
+    function renderizarMenus() {
+        const mobile = document.getElementById('dynamic-mobile-menu');
+        const desktop = document.getElementById('desktop-tools-menu');
+        const bottom = document.getElementById('dynamic-bottom-menu');
+
+        if (mobile) {
+            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
+                <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
+                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                </button>
+            `).join('');
+        }
+
+        if (desktop) {
+            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
+                <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}">
+                    <div class="tool-icon"><i class="${item.icon}"></i></div>
+                    <div class="tool-label">${item.nome}</div>
+                </a>
+            `).join('');
+        }
+
+        if (bottom) {
+            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
+            bottom.innerHTML = bottomItems.map(item => `
+                <button class="bb-item" data-menu-id="${item.id}">
+                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                </button>
+            `).join('');
+        }
+
+        const navegar = (item, fecharMobile = false) => {
+            if (!item || !item.mobile && !item.desktop) return;
+            if (fecharMobile) closeHamburgerMenu();
+            window.location.href = item.mobile || item.desktop;
+        };
+
+        MENU_ITENS.forEach(item => {
+            const mobileBtn = document.getElementById(`menu-${item.id}`);
+            if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
+
+            const bottomBtn = document.querySelector(`#dynamic-bottom-menu [data-menu-id="${item.id}"]`);
+            if (bottomBtn) bottomBtn.addEventListener('click', () => navegar(item, false));
+        });
+
+        if (desktop) {
+            desktop.querySelectorAll('.tool-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
+                    if (item?.desktop) window.location.href = item.desktop;
+                });
+            });
+        }
+    }
+
+    function closeHamburgerMenu() {
+        document.getElementById('hamburger-menu')?.classList.remove('active');
+        document.getElementById('hamburger-overlay')?.classList.remove('active');
+        document.body.style.overflow = '';
+    }
 
     const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
@@ -561,7 +675,6 @@
     }
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
-    const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
     const BASES = {
         meta: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
         metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
@@ -1397,7 +1510,6 @@
         setInterval(()=>{ if(BANNERS.length){ currentCarouselIndex=(currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); } }, 6000);
         document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
         document.getElementById('logout-btn').addEventListener('click', ()=>{ localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
-        document.querySelector('.home-btn').addEventListener('click', ()=>window.location.href='./index.html');
         document.getElementById('detail-modal').addEventListener('click', function(e){ if(e.target===this){ this.classList.remove('active'); modalHistory=[]; window._kpiModalStack=[]; window.fichaPedidoData=null; } });
         document.getElementById('post-modal').addEventListener('click', function(e){ if(e.target===this||e.target.classList.contains('modal-close')) this.classList.remove('active'); });
         document.getElementById('kpi-detail-modal').addEventListener('click', function(e){ if(e.target===this){ this.classList.remove('active'); window._kpiModalStack=[]; ultimoModalKpiHTML=null; window.fichaPedidoData=null; window._kpiDetailRowsGlobal=[]; } });
@@ -1405,15 +1517,9 @@
         const closeHamburger = ()=>{ document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
         document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
         document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
-        document.getElementById('menu-home').addEventListener('click', ()=>{ closeHamburger(); window.location.href='./index.html'; });
-        document.getElementById('menu-feed').addEventListener('click', ()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html'; });
-        // Menu Custos de Vendas comentado para futura implementação:
-        // document.getElementById('menu-custos').addEventListener('click', ()=>{ closeHamburger(); window.location.href='https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html'; });
+        renderizarMenus();
         document.getElementById('menu-notifications-side').addEventListener('click', ()=>{ closeHamburger(); abrirModalNotificacoes(); });
         document.getElementById('menu-logout').addEventListener('click', ()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
-        document.getElementById('bb-feed').addEventListener('click', ()=>{ window.location.href='https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html'; });
-        // Botão inferior Custos de Vendas comentado:
-        // document.getElementById('bb-custos').addEventListener('click', ()=>{ window.location.href='https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html'; });
         document.getElementById('bb-alertas').addEventListener('click', abrirModalNotificacoes);
         document.getElementById('footer-year').textContent = new Date().getFullYear();
     }
