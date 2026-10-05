@@ -1983,7 +1983,6 @@
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Principal</div>
-            <button class="menu-item" id="menu-dashboard"><i class="fas fa-chart-pie"></i> Início</button>
             <button class="menu-item" id="menu-feed"><i class="fas fa-newspaper"></i> Feed</button>
             <button class="menu-item" id="menu-faturamento"><i class="fas fa-chart-line"></i> Faturamento</button>
             <button class="menu-item" id="menu-metas"><i class="fas fa-bullseye"></i> Metas</button>
@@ -1991,6 +1990,7 @@
             <button class="menu-item" id="menu-vendas"><i class="fas fa-tags"></i> Vendas</button>
             <button class="menu-item" id="menu-compras"><i class="fas fa-shopping-cart"></i> Compras</button>
             <button class="menu-item" id="menu-leads"><i class="fas fa-user-plus"></i> Leads</button>
+            <button class="menu-item" id="menu-calculadora-correias"><i class="fas fa-ruler-combined"></i> Calculadora Correias</button>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
@@ -2016,7 +2016,6 @@
         <button class="bb-item" data-nav="metas" id="bb-metas"><i class="fas fa-bullseye"></i><span>Metas</span></button>
         <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custos</span></button>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
-        <button class="bb-item" data-nav="home" id="bb-home"><i class="fas fa-home"></i><span>Início</span></button>
     </div>
 
     <div class="wrapper">
@@ -2040,7 +2039,6 @@
                 <span id="current-time" class="current-time"></span>
                 <div class="user-info">
                     <button class="icon-btn notification-bell" id="notification-bell" title="Notificações"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
-                    <button class="icon-btn home-btn" id="home-btn" title="Página inicial"><i class="fas fa-home"></i></button>
                     <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
                 </div>
             </div>
@@ -2205,6 +2203,78 @@
             }
             localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
+            // ============================================================
+            // CONFIGURAÇÃO CENTRAL — MENU E FERRAMENTAS
+            // Para adicionar uma nova ferramenta, basta criar um novo item
+            // neste bloco. Nome, ícone e links ficam centralizados aqui.
+            // ============================================================
+            const MENU_CONFIG = {
+                feed: {
+                    nome: "Feed",
+                    icon: "fas fa-newspaper",
+                    link: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens",
+                    mobile: true,
+                    desktop: true,
+                    bottom: true
+                },
+                faturamento: {
+                    nome: "Faturamento",
+                    icon: "fas fa-chart-line",
+                    link: "https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento",
+                    mobile: true,
+                    desktop: true,
+                    bottom: true
+                },
+                metas: {
+                    nome: "Metas",
+                    icon: "fas fa-bullseye",
+                    link: "https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial",
+                    mobile: true,
+                    desktop: true,
+                    bottom: true
+                },
+                custos: {
+                    nome: "Custos",
+                    icon: "fas fa-calculator",
+                    link: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question",
+                    mobile: true,
+                    desktop: true,
+                    bottom: true
+                },
+                vendas: {
+                    nome: "Vendas",
+                    icon: "fas fa-tags",
+                    link: "https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas",
+                    mobile: true,
+                    desktop: true,
+                    bottom: false
+                },
+                compras: {
+                    nome: "Compras",
+                    icon: "fas fa-shopping-cart",
+                    link: "https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos",
+                    mobile: true,
+                    desktop: true,
+                    bottom: false
+                },
+                leads: {
+                    nome: "Leads",
+                    icon: "fas fa-user-plus",
+                    link: "https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/leads",
+                    mobile: true,
+                    desktop: true,
+                    bottom: false
+                },
+                calculadoraCorreias: {
+                    nome: "Calculadora Correias",
+                    icon: "fas fa-ruler-combined",
+                    link: "https://centrobor.github.io/CoreCalc/",
+                    mobile: true,
+                    desktop: true,
+                    bottom: false
+                }
+            };
+
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
             const BASES = {
                 cadastro: `https://opensheet.elk.sh/${SHEET_ID}/cadastro`,
@@ -2234,15 +2304,15 @@
                 BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [],
                 campanhasData = [], apresentacoes = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
-            let quickItems = [
-                { titulo: 'Feed', link: 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens', icone: 'fa-newspaper', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Faturamento Diário', link: 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento', icone: 'fa-chart-line', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Metas do Time', link: 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial', icone: 'fa-bullseye', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Custos', link: 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question', icone: 'fa-calculator', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Vendas', link: 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas', icone: 'fas fa-tags', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Compras', link: 'https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos', icone: 'fas fa-shopping-cart', cor: '#1e3a5f', visivel: true },
-                { titulo: 'Leads', link: 'https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/leads', icone: 'fas fa-user-plus', cor: '#1e3a5f', visivel: true }
-            ];
+            let quickItems = Object.entries(MENU_CONFIG)
+                .filter(([key, item]) => item.desktop)
+                .map(([key, item]) => ({
+                    titulo: item.nome,
+                    link: item.link,
+                    icone: item.icon.replace(/^fas\s+/, ''),
+                    cor: '#1e3a5f',
+                    visivel: true
+                }));
             let currentSelectedMonth = '', selectedVendor = 'all', charts = {};
 
             const cleanNumber = v => (v === null || v === undefined || v === '') ? 0 : (typeof v === 'number' ? v : parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0);
@@ -3188,7 +3258,6 @@
                 document.getElementById('refresh-btn').addEventListener('click', fetchAllData);
                 document.getElementById('notification-bell').addEventListener('click', abrirModalNotificacoes);
                 document.getElementById('logout-btn').addEventListener('click', () => { localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
-                document.getElementById('home-btn')?.addEventListener('click', () => { window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
                 document.getElementById('prev-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length; updateCarrossel(); });
                 document.getElementById('next-btn').addEventListener('click', () => { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); });
                 setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); } }, 6000);
@@ -3203,24 +3272,30 @@
                 document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
                 document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
 
-                document.getElementById('menu-dashboard').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
-                document.getElementById('menu-feed').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-                document.getElementById('menu-faturamento').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento'; });
-                document.getElementById('menu-metas').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; });
-                document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
-                document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
-                document.getElementById('menu-compras').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvxz_pedidos/pedidos'; });
-                document.getElementById('menu-leads').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/h6p2w9k4t1y8_leads/leads'; });
+                Object.entries(MENU_CONFIG).forEach(([key, item]) => {
+                    const menuButton = document.getElementById('menu-' + (key === 'calculadoraCorreias' ? 'calculadora-correias' : key));
+                    if (menuButton && item.mobile) {
+                        menuButton.addEventListener('click', () => {
+                            closeHamburger();
+                            window.location.href = item.link;
+                        });
+                    }
+                });
                 document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
                 document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
 
-                setActiveBottomBar('home');
-                document.getElementById('bb-feed').addEventListener('click', () => { setActiveBottomBar('feed'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens'; });
-                document.getElementById('bb-faturamento').addEventListener('click', () => { setActiveBottomBar('faturamento'); window.location.href = 'https://centrobor.github.io/radarcentrobor/67hpvx5_faturamento/faturamento'; });
-                document.getElementById('bb-metas').addEventListener('click', () => { setActiveBottomBar('metas'); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpxzz_metas_comercial/metas_comercial'; });
-                document.getElementById('bb-custos').addEventListener('click', () => { setActiveBottomBar('custos'); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
+                // A página atual já é o Dashboard; não existe mais atalho "Início" redundante.
+                setActiveBottomBar('feed');
+                ['feed', 'faturamento', 'metas', 'custos'].forEach(key => {
+                    const btn = document.getElementById('bb-' + key);
+                    if (btn && MENU_CONFIG[key]) {
+                        btn.addEventListener('click', () => {
+                            setActiveBottomBar(key);
+                            window.location.href = MENU_CONFIG[key].link;
+                        });
+                    }
+                });
                 document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas'); abrirModalNotificacoes(); });
-                document.getElementById('bb-home').addEventListener('click', () => { setActiveBottomBar('home'); window.location.href = 'https://centrobor.github.io/radarcentrobor/'; });
             });
         })();
     </script>
