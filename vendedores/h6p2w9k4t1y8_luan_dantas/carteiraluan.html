@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes, maximum-scale=1.0, viewport-fit=cover">
+    <title>Radar Centrobor – Luan Dantas</title>
+    <link rel="icon" type="image/png" href="img/radar-centrobor-logo_fundo_transparente.png">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg: #f0f4f8;
+            --card-bg: rgba(255, 255, 255, 0.82);
+            --border-light: rgba(255, 255, 255, 0.9);
+            --shadow-sm: 0 8px 20px rgba(0, 20, 40, 0.08);
+            --shadow-md: 0 12px 28px rgba(0, 20, 40, 0.12);
+            --radius-lg: 28px;
+            --radius-md: 20px;
+            --radius-sm: 16px;
+            --blur: blur(16px);
+            --primary: #1e3a5f;
+            --primary-light: #2b4c7a;
+            --primary-soft: #eef3f9;
+            --text-dark: #1a2b3c;
+            --text-soft: #3e4e5e;
+            --text-light: #6b7b8c;
+            --success: #2e7d32;
+            --warning: #ed6c02;
+            --danger: #d32f2f;
+            --info: #0288d1;
+            --line: #e5e7eb;
+            --muted: #5b6472;
+            --purple: #7c3aed;
+            --blue-accent: #2563eb;
+            --footer-bg: #1a2b3c;
+            --footer-text: #cbd5e1;
+            --safe-bottom: env(safe-area-inset-bottom, 8px);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e9ecf2 100%);
+            min-height: 100vh;
+            padding: 24px 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-dark);
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .wrapper { max-width: 1600px; width: 100%; flex: 1; }
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--card-bg); backdrop-filter: var(--blur);
+            border-radius: 80px; padding: 10px 22px; margin-bottom: 24px;
+            border: 1px solid var(--border-light); box-shadow: var(--shadow-sm);
+            position: sticky; top: 16px; z-index: 10; flex-wrap: wrap; gap: 8px;
+        }
+        .user-section { display: flex; align-items: center; gap: 10px; }
+        .user-avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .greeting { font-weight: 600; font-size: 1rem; color: var(--text-dark); white-space: nowrap; }
+        .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .icon-btn { background: none; border: none; color: var(--text-soft); cursor: pointer; font-size: 1.2rem; padding: 6px; border-radius: 50%; transition: 0.2s; position: relative; }
+        .icon-btn:hover { color: var(--primary); background: rgba(30,58,95,0.06); }
+        .logout-btn:hover { color: var(--danger); background: rgba(211,47,47,0.06); }
+        .loading-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255,255,255,0.35); backdrop-filter: blur(6px);
+            z-index: 9999; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-spinner {
+            width: 60px; height: 60px;
+            border: 6px solid rgba(30,58,95,0.2); border-top: 6px solid var(--primary);
+            border-radius: 50%; animation: spin 1s linear infinite;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loading-text { font-weight: 600; font-size: 1.1rem; color: var(--primary); }
+        .kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+        .mini-card-kpi {
+            background: var(--card-bg); backdrop-filter: var(--blur); border-radius: 16px;
+            padding: 14px 10px; text-align: center; border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
+        }
+        .mini-card-kpi .kpi-icon { font-size: 1.4rem; color: var(--primary); opacity: 0.6; margin-bottom: 4px; }
+        .mini-card-kpi .label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin-top: 2px; }
+        .mini-card-kpi .value { font-size: 1.2rem; font-weight: 700; line-height: 1.3; }
+        .value.green { color: var(--success); }
+        .value.blue { color: var(--blue-accent); }
+        .value.purple { color: var(--purple); }
+        .value.orange { color: var(--warning); }
+        .value.red { color: var(--danger); }
+        .card-panel { background: var(--card-bg); backdrop-filter: var(--blur); border-radius: var(--radius-lg); padding: 22px; border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); margin-bottom: 24px; }
+        .section-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 16px; display: flex; align-items: center; gap: 10px; color: var(--text-dark); }
+        .section-title i { color: var(--primary); }
+        .table-wrapper { background: var(--card-bg); backdrop-filter: var(--blur); border-radius: var(--radius-lg); overflow-x: auto; padding: 14px; border: 1px solid var(--border-light); box-shadow: var(--shadow-sm); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.78rem; min-width: 900px; }
+        th { background: rgba(248,250,253,0.95); padding: 10px 8px; font-weight: 700; text-transform: uppercase; border-bottom: 2px solid var(--line); white-space: nowrap; position: sticky; top: 0; z-index: 1; letter-spacing: 0.4px; color: var(--text-soft); cursor: pointer; user-select: none; }
+        th:hover { background: rgba(230, 240, 250, 0.95); color: var(--primary); }
+        th .sort-icon { font-size: 0.6rem; margin-left: 4px; color: var(--muted); }
+        th.sorted { color: var(--primary); background: rgba(220, 235, 250, 0.95); }
+        th.sorted .sort-icon { color: var(--primary); }
+        td { padding: 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+        tr:hover td { background: rgba(200,220,240,0.25); }
+        td.numero { text-align: right; font-variant-numeric: tabular-nums; }
+        td.centro { text-align: center; }
+        .status-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.68rem; font-weight: 700; }
+        .status-ativo { background: #e8f5e9; color: #1b5e20; }
+        .status-inativo { background: #ffebee; color: #b71c1c; }
+        .badge-novo { font-size: 0.6rem; background: #fef3c7; color: #92400e; padding: 2px 6px; border-radius: 8px; margin-left: 4px; }
+        .table-toolbar { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+        .table-toolbar .search-wrap { display: flex; align-items: center; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .table-toolbar .search-wrap input { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line); font-size: 0.8rem; width: 200px; flex: 1; min-width: 120px; }
+        .table-toolbar select { padding: 6px 14px; border-radius: 20px; border: 1px solid var(--line); font-size: 0.8rem; background: white; cursor: pointer; }
+        .table-toolbar .total-badge { background: var(--primary); color: white; padding: 4px 14px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; letter-spacing: 0.3px; }
+        .table-toolbar .count-badge { background: var(--primary-soft); color: var(--primary); padding: 4px 12px; border-radius: 30px; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn { border: none; border-radius: 40px; padding: 8px 18px; font-weight: 600; font-size: 0.78rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s; }
+        .btn-pdf { background: var(--primary); color: white; }
+        .btn-pdf:hover { background: var(--primary-light); transform: translateY(-2px); }
+        .btn-excel { background: var(--success); color: white; }
+        .btn-excel:hover { background: #1b5e20; transform: translateY(-2px); }
+        .btn-reset { background: var(--primary-soft); color: var(--primary); border: 1px solid var(--primary-light); }
+        .btn-reset:hover { background: #dce6f0; }
+        .footer { background: var(--footer-bg); color: var(--footer-text); margin-top: 40px; padding: 28px 20px 20px; border-radius: 32px 32px 0 0; width: 100%; }
+        .footer-inner { max-width: 1600px; margin: 0 auto; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; }
+        .footer-logo-img { width: 150px; height: 100px; object-fit: contain; }
+        .footer-brand-name { font-weight: 800; font-size: 1.1rem; color: white; }
+        .footer-social { display: flex; gap: 14px; }
+        .footer-social a { color: var(--footer-text); font-size: 1.3rem; text-decoration: none; }
+        .footer-bottom { text-align: center; margin-top: 20px; font-size: 0.7rem; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 14px; }
+        .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(6px); z-index: 1000; display: flex; justify-content: center; align-items: center; opacity: 0; visibility: hidden; transition: opacity 0.3s ease, visibility 0.3s ease; }
+        .modal.active { opacity: 1; visibility: visible; }
+        .modal-content { background: white; border-radius: 24px; padding: 24px; max-width: 95%; width: 800px; max-height: 90vh; overflow-y: auto; position: relative; transform: scale(0.9); transition: transform 0.3s ease; }
+        .modal.active .modal-content { transform: scale(1); }
+        .ficha-secao { background: #f8fafc; border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .ficha-secao h4 { font-size: 0.9rem; color: var(--primary); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+        .ficha-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+        @media (max-width:600px) { .ficha-grid { grid-template-columns: 1fr; } }
+        .ficha-campo { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.8rem; }
+        .ficha-campo i { width: 18px; color: var(--primary); text-align: center; }
+        .ficha-campo .campo-label { font-weight: 600; color: var(--muted); min-width: 110px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3px; }
+        .ficha-campo .campo-valor { color: var(--text-dark); word-break: break-word; }
+        @media (max-width: 1000px) {
+            body { padding: 0 0 20px 0; }
+            .wrapper { padding: 0 8px; }
+            .header { display: none !important; }
+            .kpi-row { grid-template-columns: repeat(2,1fr); gap: 8px; }
+            .card-panel { padding: 14px; }
+            .footer { border-radius: 24px 24px 0 0; padding: 20px 16px 30px; }
+            .footer-logo-img { width: 100px; height: 70px; }
+            .footer-social { display: none; }
+            .table-toolbar { flex-direction: column; align-items: stretch; }
+            .btn-group { justify-content: center; }
+        }
+        @media (max-width: 480px) {
+            .kpi-row { grid-template-columns: 1fr 1fr; gap: 6px; }
+            .mini-card-kpi .value { font-size: 1rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="loading-overlay" id="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Consultando dados...</div>
+</div>
+
+<div class="wrapper">
+    <div class="header">
+        <div class="user-section">
+            <img src="img/perfil.png" alt="Perfil" class="user-avatar" onerror="this.style.display='none'">
+            <span class="greeting">Luan Dantas</span>
+        </div>
+        <div class="header-actions">
+            <button class="icon-btn" id="btn-refresh" title="Atualizar"><i class="fas fa-sync-alt"></i></button>
+            <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
+        </div>
+    </div>
+
+    <div class="kpi-row" id="kpi-cards"></div>
+
+    <div class="card-panel">
+        <div class="section-title"><i class="fas fa-address-book"></i> Carteira de Clientes</div>
+        <div class="table-toolbar">
+            <div class="search-wrap">
+                <input type="text" id="global-search" placeholder="🔍 Buscar cliente, cidade, CNPJ...">
+                <select id="filter-status">
+                    <option value="">Todos os status</option>
+                    <option value="ativo">Somente Ativos</option>
+                    <option value="inativo">Somente Inativos</option>
+                </select>
+                <select id="filter-uf">
+                    <option value="">Todas as UFs</option>
+                </select>
+                <select id="filter-cadastro">
+                    <option value="">Cadastro: Todos</option>
+                    <option value="30">Últimos 30 dias</option>
+                    <option value="90">Últimos 90 dias</option>
+                    <option value="180">Últimos 6 meses</option>
+                    <option value="365">Último ano</option>
+                </select>
+            </div>
+            <div class="btn-group">
+                <button class="btn btn-reset" id="btn-reset"><i class="fas fa-undo"></i> Limpar</button>
+                <button class="btn btn-pdf" id="btn-pdf"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn btn-excel" id="btn-excel"><i class="fas fa-file-excel"></i> Excel</button>
+            </div>
+        </div>
+        <div class="table-wrapper" id="tabela-clientes"></div>
+    </div>
+</div>
+
+<footer class="footer">
+    <div class="footer-inner">
+        <div class="footer-logo-section">
+            <img src="img/centrobor-logo-branca.png" alt="Centrobor" class="footer-logo-img" onerror="this.style.display='none'">
+            <div><div class="footer-brand-name">Centrobor</div><div class="footer-tagline">Estamos presentes nas maiores empresas do Brasil.</div></div>
+        </div>
+        <div class="footer-social">
+            <a href="https://www.centrobor.com.br/" target="_blank"><i class="fas fa-globe"></i> Site</a>
+            <a href="https://www.facebook.com/centrobor.correias" target="_blank"><i class="fab fa-facebook-f"></i></a>
+            <a href="https://www.instagram.com/centrobor.correias/" target="_blank"><i class="fab fa-instagram"></i></a>
+        </div>
+    </div>
+    <div class="footer-bottom">&copy; <span id="footer-year"></span> Centrobor. Todos os direitos reservados. | Radar Centrobor – Luan Dantas</div>
+</footer>
+
+<div class="modal" id="detail-modal"><div class="modal-content" id="modal-body"></div></div>
+
+<script>
+(function() {
+    // ===========================================================================
+    // CONFIGURAÇÃO — altere apenas estas duas linhas para adaptar a outro vendedor
+    // ===========================================================================
+    const COD_VENDEDOR = "61";
+    const NOME_VENDEDOR = "Luan Dantas";
+    // ===========================================================================
+    const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+    const BASES = {
+        faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
+        carteira:  `https://opensheet.elk.sh/${SHEET_ID}/carteiraclientes`
+    };
+
+    // ------------------- Helpers -------------------
+    const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cleanNumber = (v) => {
+        if (v === null || v === undefined || v === '') return 0;
+        if (typeof v === 'number') return v;
+        return parseFloat(String(v).replace(/[R\$\s]/g, '').replace(/\./g, '').replace(',', '.')) || 0;
+    };
+    const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
+    const extrairCodigo = (str) => { const m = String(str||'').match(/^(\d+)/); return m ? m[1] : null; };
+    const parseDataBR = (str) => {
+        if (!str) return null;
+        const partes = String(str).split(' ')[0].split('/');
+        if (partes.length===3) {
+            const dia = parseInt(partes[0],10), mes = parseInt(partes[1],10), ano = parseInt(partes[2],10);
+            if (isNaN(dia)||isNaN(mes)||isNaN(ano)) return null;
+            const d = new Date(ano, mes-1, dia);
+            return isNaN(d.getTime()) ? null : d;
+        }
+        return null;
+    };
+    const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '—';
+    const dataParaInput = (d) => d ? `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}` : '';
+
+    // ------------------- Estado -------------------
+    let todosClientes = [];          // todos os clientes da carteira (enriquecidos)
+    let sortState = { column: 'dtCadastroDate', direction: 'desc' };
+
+    const loadingOverlay = document.getElementById('loading-overlay');
+    const mostrarLoading = () => loadingOverlay.classList.remove('hidden');
+    const esconderLoading = () => loadingOverlay.classList.add('hidden');
+
+    async function carregarJSON(url) {
+        const r = await fetch(url);
+        if (!r.ok) throw new Error(`Erro ${r.status}`);
+        return r.json();
+    }
+
+    // ===========================================================================
+    // PROCESSAMENTO
+    // ===========================================================================
+    function processarDados(faturadosRaw, carteiraRaw) {
+        // 1) Filtra faturados do vendedor para saber quanto cada cliente comprou
+        const faturados = faturadosRaw.filter(f => String(f['Cod. Vendedor'] || '').trim() === COD_VENDEDOR);
+
+        // Mapa: nomeUpper -> {total, qtdItens, ultimaCompra, primeiraCompra}
+        const fatMap = new Map();
+        faturados.forEach(f => {
+            const nome = (f['Nome Chave'] || '').trim();
+            if (!nome) return;
+            const key = removeAcentos(nome).toUpperCase();
+            if (!fatMap.has(key)) {
+                fatMap.set(key, { total: 0, qtdItens: 0, ultimaCompra: null, primeiraCompra: null, ultimaDataFaturamento: '' });
+            }
+            const reg = fatMap.get(key);
+            reg.total += cleanNumber(f['Valor Mercadoria']);
+            reg.qtdItens += cleanNumber(f['Quantidade']);
+            const d = parseDataBR(f['Data']);
+            if (d) {
+                if (!reg.ultimaCompra || d > reg.ultimaCompra) { reg.ultimaCompra = d; reg.ultimaDataFaturamento = f['Data']; }
+                if (!reg.primeiraCompra || d < reg.primeiraCompra) reg.primeiraCompra = d;
+            }
+        });
+
+        // 2) Filtra TODOS os clientes da carteira do vendedor
+        //    O campo "Representante" contém algo como "61 - Nome" → extraímos o código
+        const carteira = carteiraRaw.filter(c => {
+            const cod = extrairCodigo(c['Representante']);
+            return cod === COD_VENDEDOR;
+        });
+
+        // 3) Deduplica por Código (a planilha pode ter variações de nome para o mesmo cliente)
+        const dedup = new Map();
+        carteira.forEach(c => {
+            const cod = String(c['Código'] || '').trim();
+            const key = cod || removeAcentos((c['Nome Chave']||c['Nome/Razão Social']||'').toUpperCase());
+            if (!key) return;
+            if (!dedup.has(key)) dedup.set(key, c);
+        });
+
+        // 4) Enriquece cada cliente
+        const hoje = new Date(); hoje.setHours(0,0,0,0);
+        todosClientes = Array.from(dedup.values()).map(c => {
+            const nomeChave = (c['Nome Chave'] || '').trim();
+            const razaoSocial = (c['Nome/Razão Social'] || '').trim();
+            const nomePrincipal = razaoSocial || nomeChave;
+            const keyFat = removeAcentos(nomeChave).toUpperCase();
+            const keyFat2 = removeAcentos(razaoSocial).toUpperCase();
+            const fat = fatMap.get(keyFat) || fatMap.get(keyFat2) || null;
+
+            const dtCad = parseDataBR(c['Dt.Cadastro'] || c['Dt. Cadastro'] || c['Data Cadastro']);
+            const status = (c['ATivo/Inativo'] || '').trim().toLowerCase() === 'ativo' ? 'ativo' : 'inativo';
+
+            return {
+                codigo: c['Código'] || '',
+                nomeChave,
+                razaoSocial,
+                nome: nomePrincipal,
+                cnpj: c['CPF/CGC'] || '',
+                cidade: c['Cidade'] || '—',
+                uf: (c['UF'] || '—').toUpperCase(),
+                ramo: c['Ramo'] || '',
+                status,
+                dtCadastroStr: c['Dt.Cadastro'] || c['Dt. Cadastro'] || c['Data Cadastro'] || '',
+                dtCadastroDate: dtCad || null,
+                telefone: c['Telefone'] || c['Fone'] || '',
+                email: c['E-Mail'] || '',
+                contato: c['Contato'] || '',
+                faturamento: fat ? fat.total : 0,
+                qtdItens: fat ? fat.qtdItens : 0,
+                ultimaCompraDate: fat ? fat.ultimaCompra : null,
+                ultimaCompraStr: fat && fat.ultimaDataFaturamento ? fat.ultimaDataFaturamento : '—',
+                temFaturamento: !!fat && fat.total > 0
+            };
+        });
+
+        // Ordenação padrão: cadastro decrescente (mais recentes primeiro)
+        todosClientes.sort((a,b) => {
+            const ta = a.dtCadastroDate ? a.dtCadastroDate.getTime() : 0;
+            const tb = b.dtCadastroDate ? b.dtCadastroDate.getTime() : 0;
+            return tb - ta;
+        });
+    }
+
+    // ===========================================================================
+    // RENDERIZAÇÃO
+    // ===========================================================================
+    function renderKPIs() {
+        const total = todosClientes.length;
+        const ativos = todosClientes.filter(c => c.status === 'ativo').length;
+        const inativos = todosClientes.filter(c => c.status === 'inativo').length;
+        const comFat = todosClientes.filter(c => c.temFaturamento).length;
+        const fatTotal = todosClientes.reduce((s,c) => s + c.faturamento, 0);
+
+        document.getElementById('kpi-cards').innerHTML = `
+            <div class="mini-card-kpi"><div class="kpi-icon"><i class="fas fa-address-book"></i></div><div class="value blue">${total}</div><div class="label">Total na Carteira</div></div>
+            <div class="mini-card-kpi"><div class="kpi-icon"><i class="fas fa-check-circle"></i></div><div class="value green">${ativos}</div><div class="label">Ativos</div></div>
+            <div class="mini-card-kpi"><div class="kpi-icon"><i class="fas fa-times-circle"></i></div><div class="value red">${inativos}</div><div class="label">Inativos</div></div>
+            <div class="mini-card-kpi"><div class="kpi-icon"><i class="fas fa-shopping-cart"></i></div><div class="value purple">${comFat}</div><div class="label">Já Compraram</div></div>
+            <div class="mini-card-kpi"><div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value orange">${formatarMoeda(fatTotal)}</div><div class="label">Faturamento Total</div></div>
+        `;
+    }
+
+    function getColunas() {
+        return [
+            { key: 'codigo',           label: 'Código',        sortable: true,  type: 'text',   align: '' },
+            { key: 'nome',             label: 'Cliente',       sortable: true,  type: 'text',   align: '' },
+            { key: 'cnpj',             label: 'CNPJ/CPF',      sortable: true,  type: 'text',   align: '' },
+            { key: 'cidade',           label: 'Cidade',        sortable: true,  type: 'text',   align: '' },
+            { key: 'uf',               label: 'UF',            sortable: true,  type: 'text',   align: 'centro' },
+            { key: 'ramo',             label: 'Ramo',          sortable: true,  type: 'text',   align: '' },
+            { key: 'dtCadastroDate',   label: 'Cadastro',      sortable: true,  type: 'date',   align: 'centro' },
+            { key: 'status',           label: 'Status',        sortable: true,  type: 'text',   align: 'centro' },
+            { key: 'faturamento',      label: 'Faturamento',   sortable: true,  type: 'number', align: 'numero' },
+            { key: 'qtdItens',         label: 'Itens',         sortable: true,  type: 'number', align: 'numero' },
+            { key: 'ultimaCompraDate', label: 'Última Compra', sortable: true,  type: 'date',   align: 'centro' },
+        ];
+    }
+
+    function renderTabela() {
+        const search = document.getElementById('global-search').value.toLowerCase().trim();
+        const filterStatus = document.getElementById('filter-status').value;
+        const filterUF = document.getElementById('filter-uf').value;
+        const filterCadastroDias = document.getElementById('filter-cadastro').value;
+
+        let filtered = [...todosClientes];
+
+        if (search) {
+            filtered = filtered.filter(c =>
+                (c.nome || '').toLowerCase().includes(search) ||
+                (c.nomeChave || '').toLowerCase().includes(search) ||
+                (c.razaoSocial || '').toLowerCase().includes(search) ||
+                (c.cidade || '').toLowerCase().includes(search) ||
+                (c.cnpj || '').toLowerCase().replace(/\D/g,'').includes(search.replace(/\D/g,'')) ||
+                (c.codigo || '').toString().toLowerCase().includes(search)
+            );
+        }
+        if (filterStatus) {
+            filtered = filtered.filter(c => c.status === filterStatus);
+        }
+        if (filterUF) {
+            filtered = filtered.filter(c => c.uf === filterUF);
+        }
+        if (filterCadastroDias) {
+            const dias = parseInt(filterCadastroDias,10);
+            const limite = new Date(); limite.setHours(0,0,0,0); limite.setDate(limite.getDate() - dias);
+            filtered = filtered.filter(c => c.dtCadastroDate && c.dtCadastroDate >= limite);
+        }
+
+        // Aplicar ordenação
+        const colDef = getColunas().find(c => c.key === sortState.column);
+        if (colDef) {
+            const dir = sortState.direction === 'asc' ? 1 : -1;
+            filtered.sort((a,b) => {
+                let va = a[sortState.column];
+                let vb = b[sortState.column];
+                if (colDef.type === 'date') {
+                    va = va ? va.getTime() : 0;
+                    vb = vb ? vb.getTime() : 0;
+                    return (va - vb) * dir;
+                }
+                if (colDef.type === 'number') {
+                    return ((va||0) - (vb||0)) * dir;
+                }
+                return String(va||'').localeCompare(String(vb||''), 'pt-BR') * dir;
+            });
+        }
+
+        const totalFat = filtered.reduce((s,c) => s + c.faturamento, 0);
+        const colunas = getColunas();
+
+        let html = `<div class="table-toolbar"><div class="search-wrap">`;
+        html += `<span class="count-badge"><i class="fas fa-users"></i> ${filtered.length} de ${todosClientes.length}</span>`;
+        html += `<span class="total-badge"><i class="fas fa-calculator"></i> Faturamento: ${formatarMoeda(totalFat)}</span>`;
+        html += `</div></div>`;
+
+        html += '<table><thead><tr>';
+        colunas.forEach(col => {
+            const isSorted = sortState.column === col.key;
+            const icon = isSorted ? (sortState.direction === 'asc' ? ' ▲' : ' ▼') : ' ⇅';
+            html += `<th data-column="${col.key}" class="${isSorted?'sorted':''}">${col.label}<span class="sort-icon">${icon}</span></th>`;
+        });
+        html += '</tr></thead><tbody>';
+
+        filtered.forEach(c => {
+            html += `<tr data-codigo="${c.codigo}">`;
+            html += `<td>${c.codigo || '—'}</td>`;
+            html += `<td style="font-weight:600;color:var(--primary);cursor:pointer;" class="cliente-nome" data-codigo="${c.codigo}">${c.nome || '—'}</td>`;
+            html += `<td>${c.cnpj || '—'}</td>`;
+            html += `<td>${c.cidade}</td>`;
+            html += `<td class="centro">${c.uf}</td>`;
+            html += `<td>${c.ramo || '—'}</td>`;
+            html += `<td class="centro">${c.dtCadastroStr || '—'}</td>`;
+            html += `<td class="centro"><span class="status-badge ${c.status==='ativo'?'status-ativo':'status-inativo'}">${c.status==='ativo'?'Ativo':'Inativo'}</span></td>`;
+            html += `<td class="numero" style="font-weight:700;color:${c.faturamento>0?'var(--success)':'var(--muted)'};">${c.faturamento>0?formatarMoeda(c.faturamento):'—'}</td>`;
+            html += `<td class="numero">${c.qtdItens>0?c.qtdItens:'—'}</td>`;
+            html += `<td class="centro">${c.ultimaCompraStr}</td>`;
+            html += '</tr>';
+        });
+
+        if (!filtered.length) {
+            html += '<tr><td colspan="' + colunas.length + '" style="text-align:center;padding:40px;color:var(--muted);">Nenhum cliente encontrado.</td></tr>';
+        }
+        html += '</tbody></table>';
+        document.getElementById('tabela-clientes').innerHTML = html;
+
+        // Listeners de ordenação
+        document.querySelectorAll('#tabela-clientes th[data-column]').forEach(th => {
+            th.addEventListener('click', () => {
+                const col = th.dataset.column;
+                if (sortState.column === col) {
+                    sortState.direction = sortState.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    sortState.column = col;
+                    const colDef = getColunas().find(c => c.key === col);
+                    // Padrão inteligente: text asc, número/data desc
+                    sortState.direction = (colDef && colDef.type === 'text') ? 'asc' : 'desc';
+                }
+                renderTabela();
+            });
+        });
+
+        // Clique no nome do cliente → abre ficha
+        document.querySelectorAll('#tabela-clientes .cliente-nome').forEach(td => {
+            td.addEventListener('click', () => abrirFicha(td.dataset.codigo));
+        });
+    }
+
+    function popularFiltroUF() {
+        const ufs = [...new Set(todosClientes.map(c => c.uf).filter(u => u && u !== '—'))].sort();
+        const select = document.getElementById('filter-uf');
+        select.innerHTML = '<option value="">Todas as UFs</option>';
+        ufs.forEach(uf => select.innerHTML += `<option value="${uf}">${uf}</option>`);
+    }
+
+    // ===========================================================================
+    // FICHA DO CLIENTE
+    // ===========================================================================
+    function abrirFicha(codigo) {
+        const c = todosClientes.find(x => String(x.codigo) === String(codigo));
+        if (!c) return;
+        const body = document.getElementById('modal-body');
+
+        const camposEmpresa = [
+            ['Código', c.codigo], ['Nome Chave', c.nomeChave], ['Razão Social', c.razaoSocial],
+            ['CNPJ/CPF', c.cnpj], ['Ramo', c.ramo], ['Status', c.status === 'ativo' ? 'Ativo' : 'Inativo'],
+            ['Data Cadastro', c.dtCadastroStr]
+        ];
+        const camposEndereco = [
+            ['Cidade', c.cidade], ['UF', c.uf]
+        ];
+        const camposContato = [
+            ['Contato', c.contato], ['Telefone', c.telefone], ['E-mail', c.email]
+        ];
+
+        let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+            <h3 style="color:var(--primary);"><i class="fas fa-id-card"></i> ${c.nome}</h3>
+            <button onclick="document.getElementById('detail-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button>
+        </div>`;
+
+        const renderBloco = (titulo, icone, campos) => {
+            return `<div class="ficha-secao"><h4><i class="fas ${icone}"></i> ${titulo}</h4><div class="ficha-grid">` +
+                campos.map(([k,v]) => `<div class="ficha-campo"><i class="fas fa-angle-right"></i><span class="campo-label">${k}:</span><span class="campo-valor">${v || '—'}</span></div>`).join('') +
+                `</div></div>`;
+        };
+
+        html += renderBloco('Dados da Empresa', 'fa-building', camposEmpresa);
+        html += renderBloco('Endereço', 'fa-map-marker-alt', camposEndereco);
+        html += renderBloco('Contato', 'fa-phone-alt', camposContato);
+
+        // Bloco de faturamento
+        html += `<div class="ficha-secao"><h4><i class="fas fa-chart-line"></i> Faturamento</h4>
+            <div class="ficha-grid">
+                <div class="ficha-campo"><i class="fas fa-dollar-sign"></i><span class="campo-label">Total:</span><span class="campo-valor" style="font-weight:700;color:var(--success);">${formatarMoeda(c.faturamento)}</span></div>
+                <div class="ficha-campo"><i class="fas fa-boxes"></i><span class="campo-label">Itens:</span><span class="campo-valor">${c.qtdItens || '—'}</span></div>
+                <div class="ficha-campo"><i class="fas fa-calendar-check"></i><span class="campo-label">Última Compra:</span><span class="campo-valor">${c.ultimaCompraStr}</span></div>
+            </div>
+        </div>`;
+
+        // Botões de ação
+        const tel = (c.telefone || '').replace(/[^0-9+]/g,'');
+        const email = (c.email || '').split(/[;,\n]/)[0].trim();
+        html += '<div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;">';
+        if (tel && tel.length > 5) html += `<a href="https://wa.me/55${tel}" target="_blank" style="background:#25D366;color:white;padding:10px 20px;border-radius:40px;text-decoration:none;font-weight:600;font-size:0.85rem;"><i class="fab fa-whatsapp"></i> WhatsApp</a>`;
+        if (email && email.includes('@')) html += `<a href="mailto:${email}?subject=Contato%20Centrobor" style="background:var(--primary);color:white;padding:10px 20px;border-radius:40px;text-decoration:none;font-weight:600;font-size:0.85rem;"><i class="fas fa-envelope"></i> E-mail</a>`;
+        html += '</div>';
+
+        body.innerHTML = html;
+        document.getElementById('detail-modal').classList.add('active');
+    }
+
+    // ===========================================================================
+    // EXPORTAÇÃO
+    // ===========================================================================
+    function getDadosFiltrados() {
+        const search = document.getElementById('global-search').value.toLowerCase().trim();
+        const filterStatus = document.getElementById('filter-status').value;
+        const filterUF = document.getElementById('filter-uf').value;
+        const filterCadastroDias = document.getElementById('filter-cadastro').value;
+
+        let filtered = [...todosClientes];
+        if (search) {
+            filtered = filtered.filter(c =>
+                (c.nome || '').toLowerCase().includes(search) ||
+                (c.nomeChave || '').toLowerCase().includes(search) ||
+                (c.razaoSocial || '').toLowerCase().includes(search) ||
+                (c.cidade || '').toLowerCase().includes(search) ||
+                (c.cnpj || '').toLowerCase().replace(/\D/g,'').includes(search.replace(/\D/g,'')) ||
+                (c.codigo || '').toString().toLowerCase().includes(search)
+            );
+        }
+        if (filterStatus) filtered = filtered.filter(c => c.status === filterStatus);
+        if (filterUF) filtered = filtered.filter(c => c.uf === filterUF);
+        if (filterCadastroDias) {
+            const dias = parseInt(filterCadastroDias,10);
+            const limite = new Date(); limite.setHours(0,0,0,0); limite.setDate(limite.getDate() - dias);
+            filtered = filtered.filter(c => c.dtCadastroDate && c.dtCadastroDate >= limite);
+        }
+
+        const colDef = getColunas().find(c => c.key === sortState.column);
+        if (colDef) {
+            const dir = sortState.direction === 'asc' ? 1 : -1;
+            filtered.sort((a,b) => {
+                let va = a[sortState.column], vb = b[sortState.column];
+                if (colDef.type === 'date') {
+                    va = va ? va.getTime() : 0; vb = vb ? vb.getTime() : 0;
+                    return (va - vb) * dir;
+                }
+                if (colDef.type === 'number') return ((va||0) - (vb||0)) * dir;
+                return String(va||'').localeCompare(String(vb||''), 'pt-BR') * dir;
+            });
+        }
+        return filtered;
+    }
+
+    function exportarPDF() {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+        const dados = getDadosFiltrados();
+
+        doc.setFontSize(16);
+        doc.setTextColor(30, 58, 95);
+        doc.text('Radar Centrobor – Luan Dantas', 14, 15);
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(`Carteira de Clientes • Gerado em ${new Date().toLocaleString('pt-BR')}`, 14, 22);
+        doc.setFontSize(11);
+        doc.setTextColor(46, 125, 50);
+        const totalFat = dados.reduce((s,c) => s + c.faturamento, 0);
+        doc.text(`Clientes: ${dados.length} | Faturamento acumulado: ${formatarMoeda(totalFat)}`, 14, 30);
+
+        const body = dados.map(c => [
+            c.codigo, c.nome, c.cnpj, c.cidade, c.uf, c.ramo || '',
+            c.dtCadastroStr || '', c.status === 'ativo' ? 'Ativo' : 'Inativo',
+            c.faturamento > 0 ? formatarMoeda(c.faturamento) : '—',
+            c.qtdItens > 0 ? String(c.qtdItens) : '—',
+            c.ultimaCompraStr || '—'
+        ]);
+
+        doc.autoTable({
+            startY: 36,
+            head: [['Código','Cliente','CNPJ/CPF','Cidade','UF','Ramo','Cadastro','Status','Faturamento','Itens','Últ. Compra']],
+            body: body,
+            styles: { fontSize: 6.5, cellPadding: 1.2 },
+            headStyles: { fillColor: [30, 58, 95], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 247, 250] },
+            columnStyles: {
+                0: { cellWidth: 14 },
+                1: { cellWidth: 55 },
+                2: { cellWidth: 28 },
+                3: { cellWidth: 28 },
+                4: { cellWidth: 10, halign: 'center' },
+                5: { cellWidth: 24 },
+                6: { cellWidth: 18, halign: 'center' },
+                7: { cellWidth: 15, halign: 'center' },
+                8: { cellWidth: 26, halign: 'right', fontStyle: 'bold' },
+                9: { cellWidth: 12, halign: 'right' },
+                10: { cellWidth: 20, halign: 'center' }
+            }
+        });
+
+        doc.save(`Carteira_Clientes_Luan_Dantas_${new Date().toISOString().slice(0,10)}.pdf`);
+    }
+
+    function exportarExcel() {
+        const dados = getDadosFiltrados();
+        const totalFat = dados.reduce((s,c) => s + c.faturamento, 0);
+
+        const wsData = [
+            ['Radar Centrobor – Luan Dantas'],
+            [`Carteira de Clientes • Gerado em ${new Date().toLocaleString('pt-BR')}`],
+            [`Clientes: ${dados.length} | Faturamento acumulado: ${formatarMoeda(totalFat)}`],
+            [],
+            ['Código','Nome Chave','Razão Social','CNPJ/CPF','Cidade','UF','Ramo','Cadastro','Status','Faturamento (R$)','Itens','Última Compra','Telefone','E-mail','Contato']
+        ];
+
+        dados.forEach(c => {
+            wsData.push([
+                c.codigo, c.nomeChave, c.razaoSocial, c.cnpj, c.cidade, c.uf, c.ramo,
+                c.dtCadastroStr, c.status === 'ativo' ? 'Ativo' : 'Inativo',
+                c.faturamento, c.qtdItens, c.ultimaCompraStr,
+                c.telefone, c.email, c.contato
+            ]);
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        ws['!cols'] = [
+            { wch: 10 }, { wch: 35 }, { wch: 35 }, { wch: 20 }, { wch: 18 }, { wch: 6 },
+            { wch: 20 }, { wch: 12 }, { wch: 10 }, { wch: 16 }, { wch: 8 }, { wch: 13 },
+            { wch: 18 }, { wch: 28 }, { wch: 18 }
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Carteira');
+        XLSX.writeFile(wb, `Carteira_Clientes_Luan_Dantas_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
+
+    // ===========================================================================
+    // INIT
+    // ===========================================================================
+    async function init() {
+        mostrarLoading();
+        try {
+            const [faturadosRaw, carteiraRaw] = await Promise.all([
+                carregarJSON(BASES.faturados),
+                carregarJSON(BASES.carteira)
+            ]);
+
+            processarDados(faturadosRaw, carteiraRaw);
+            renderKPIs();
+            popularFiltroUF();
+            renderTabela();
+            esconderLoading();
+        } catch (e) {
+            console.error(e);
+            document.querySelector('.loading-text').textContent = 'Erro ao carregar. Tentando novamente...';
+            setTimeout(init, 3000);
+        }
+
+        document.getElementById('btn-refresh').addEventListener('click', () => {
+            sortState = { column: 'dtCadastroDate', direction: 'desc' };
+            init();
+        });
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('radar_usuario');
+            window.location.href = '../../index.html?reason=logged_out';
+        });
+        document.getElementById('global-search').addEventListener('input', renderTabela);
+        document.getElementById('filter-status').addEventListener('change', renderTabela);
+        document.getElementById('filter-uf').addEventListener('change', renderTabela);
+        document.getElementById('filter-cadastro').addEventListener('change', renderTabela);
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            document.getElementById('global-search').value = '';
+            document.getElementById('filter-status').value = '';
+            document.getElementById('filter-uf').value = '';
+            document.getElementById('filter-cadastro').value = '';
+            sortState = { column: 'dtCadastroDate', direction: 'desc' };
+            renderTabela();
+        });
+        document.getElementById('btn-pdf').addEventListener('click', exportarPDF);
+        document.getElementById('btn-excel').addEventListener('click', exportarExcel);
+        document.getElementById('detail-modal').addEventListener('click', function(e) {
+            if (e.target === this) this.classList.remove('active');
+        });
+        document.getElementById('footer-year').textContent = new Date().getFullYear();
+    }
+
+    init();
+})();
+</script>
+</body>
+</html>
