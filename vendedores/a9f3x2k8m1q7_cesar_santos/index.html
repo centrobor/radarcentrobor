@@ -1442,35 +1442,48 @@
         const carteiraMap = new Map();
         const carteiraByCodigo = new Map();
 
+        /*
+         * CONSOLIDAÇÃO POR CNPJ
+         *
+         * O mesmo cliente pode aparecer várias vezes na carteira com nomes
+         * diferentes, mas com o mesmo CNPJ. Nesse caso ele passa a ser UM
+         * único cliente/filial no Farol. Todos os nomes encontrados ficam
+         * registrados como aliases para que uma compra lançada com qualquer
+         * uma das versões do nome atualize o mesmo CNPJ.
+         */
+        const clientePorCnpj = new Map();
+        const cnpjPorNome = new Map();
+        const clientesSemCnpj = [];
+        const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
+
         /* carteiraFull também já contém somente a carteira deste vendedor. */
         carteiraFull.forEach(cli => {
             const nomeChave = (cli['Nome Chave'] || '').trim();
-            const nomeUpper = removeAcentos(nomeChave).toUpperCase();
-
-            if (nomeUpper && !carteiraMap.has(nomeUpper)) {
-                carteiraMap.set(nomeUpper, {
-                    ...cli,
-                    nome: nomeChave,
-                    cidade: cli['Cidade'] || '',
-                    uf: cli['UF'] || '',
-                    ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                    cadastrado: true
-                });
-            }
-
             const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
-            const razaoUpper = removeAcentos(razaoSocial).toUpperCase();
+            const nomePrincipal = nomeChave || razaoSocial;
+            if (!nomePrincipal) return;
 
-            if (razaoUpper && razaoUpper !== nomeUpper && !carteiraMap.has(razaoUpper)) {
-                carteiraMap.set(razaoUpper, {
-                    ...cli,
-                    nome: razaoSocial,
-                    cidade: cli['Cidade'] || '',
-                    uf: cli['UF'] || '',
-                    ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                    cadastrado: true
-                });
-            }
+            const nomeUpper = removeAcentos(nomeChave).toUpperCase();
+            const razaoUpper = removeAcentos(razaoSocial).toUpperCase();
+            const cnpj = normalizarCnpj(cli['CPF/CGC']);
+
+            /* Mantém o mapa antigo disponível para outras partes da página. */
+            [
+                [nomeUpper, nomeChave],
+                [razaoUpper, razaoSocial]
+            ].forEach(([chave, nome]) => {
+                if (!chave) return;
+                if (!carteiraMap.has(chave)) {
+                    carteiraMap.set(chave, {
+                        ...cli,
+                        nome: nome || nomePrincipal,
+                        cidade: cli['Cidade'] || '',
+                        uf: cli['UF'] || '',
+                        ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+                        cadastrado: true
+                    });
+                }
+            });
 
             const codigo = String(cli['Código'] || '').trim();
             if (codigo && !carteiraByCodigo.has(codigo)) {
@@ -1484,12 +1497,64 @@
                     cadastrado: true
                 });
             }
+
+            if (!cnpj) {
+                clientesSemCnpj.push(cli);
+                return;
+            }
+
+            if (!clientePorCnpj.has(cnpj)) {
+                clientePorCnpj.set(cnpj, {
+                    registro: { ...cli },
+                    aliases: new Set(),
+                    registros: []
+                });
+            }
+
+            const cliente = clientePorCnpj.get(cnpj);
+            cliente.aliases.add(nomeChave);
+            cliente.aliases.add(razaoSocial);
+            cliente.registros.push(cli);
+
+            /* Completa campos vazios do primeiro cadastro com outra duplicidade. */
+            Object.keys(cli).forEach(campo => {
+                if (!cliente.registro[campo] && cli[campo]) {
+                    cliente.registro[campo] = cli[campo];
+                }
+            });
+
+            [nomeChave, razaoSocial].forEach(n => {
+                const k = removeAcentos(n).toUpperCase();
+                if (k) cnpjPorNome.set(k, cnpj);
+            });
         });
+
+        /* Nomes sem CNPJ continuam independentes. */
+        clientesSemCnpj.forEach(cli => {
+            [cli['Nome Chave'], cli['Nome/Razão Social']].forEach(n => {
+                const k = removeAcentos(n).toUpperCase();
+                if (k) cnpjPorNome.set(k, null);
+            });
+        });
+
+        const clientesConsolidados = [
+            ...Array.from(clientePorCnpj.values()).map(item => ({
+                ...item.registro,
+                __cnpj: normalizarCnpj(item.registro['CPF/CGC']),
+                __aliases: Array.from(item.aliases).filter(Boolean),
+                __registros: item.registros
+            })),
+            ...clientesSemCnpj.map(cli => ({
+                ...cli,
+                __cnpj: '',
+                __aliases: [cli['Nome Chave'], cli['Nome/Razão Social']].filter(Boolean),
+                __registros: [cli]
+            }))
+        ];
 
         carteiraMapGlobal = carteiraMap;
 
-        /* Clientes que ainda não estão na carteira, mas tiveram interação
-           recente com ESTE vendedor, continuam aparecendo como atribuídos/novos. */
+        /* Clientes fora da carteira que tiveram interação recente com este vendedor. */
         const umAnoAtras = new Date(hojeRef);
         umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
 
@@ -1504,34 +1569,69 @@
             });
         });
 
-        const clientesStatus = Array.from(carteiraMap, ([nomeUpper, dados]) => {
-            const ultima = interacoesVendedor.get(nomeUpper) || null;
+        /*
+         * Interação por nome e por CNPJ. Se uma compra estiver registrada com
+         * qualquer alias do mesmo CNPJ, ela atualiza o cliente consolidado.
+         */
+        const interPorCnpj = new Map();
+        const registrarInteracaoCnpj = (nome, data) => {
+            if (!nome || !data) return;
+            const k = removeAcentos(nome).toUpperCase().trim();
+            if (!k) return;
+            const cnpj = cnpjPorNome.get(k);
+            if (!cnpj) return;
+            if (!interPorCnpj.has(cnpj) || data > interPorCnpj.get(cnpj)) {
+                interPorCnpj.set(cnpj, data);
+            }
+        };
+
+        aprovFull.forEach(item => registrarInteracaoCnpj(item['Cliente'], parseDataBR(item['Data'])));
+        fatFull.forEach(item => registrarInteracaoCnpj(item['Nome Chave'], parseDataBR(item['Data'])));
+
+        const clientesStatus = clientesConsolidados.map(dados => {
+            const aliases = dados.__aliases || [];
+            const datasAliases = aliases
+                .map(alias => interacoesVendedor.get(removeAcentos(alias).toUpperCase()))
+                .filter(Boolean);
+
+            const ultimaPorAlias = datasAliases.length
+                ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime())))
+                : null;
+
+            const ultimaPorCnpj = dados.__cnpj
+                ? (interPorCnpj.get(dados.__cnpj) || null)
+                : null;
+
+            const ultima = ultimaPorCnpj || ultimaPorAlias || null;
+            const dias = ultima
+                ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
+                : Infinity;
+
             let status = 'red';
             let ultimaStr = 'Sem interação';
-
             if (ultima) {
-                const dias = Math.floor((today - ultima) / (1000 * 60 * 60 * 24));
                 ultimaStr = formatarData(ultima);
                 if (dias <= 30) status = 'green';
                 else if (dias < 180) status = 'yellow';
             }
 
-            const dias = ultima
-                ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
-                : Infinity;
+            const nomeChave = (dados['Nome Chave'] || dados['Nome/Razão Social'] || '').trim();
+            const nomeUpper = removeAcentos(nomeChave).toUpperCase();
 
             return {
-                nome: dados.nome || nomeUpper,
+                nome: nomeChave,
                 status,
                 ultima: ultimaStr,
                 ultimaInteracao: ultima,
                 dias,
-                cidade: dados.cidade,
-                uf: dados.uf,
-                ativo: dados.ativo,
-                cadastrado: dados.cadastrado,
+                cidade: dados['Cidade'] || '',
+                uf: dados['UF'] || '',
+                ativo: String(dados['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
+                cadastrado: true,
                 original: dados,
-                nomeUpper
+                nomeUpper,
+                cnpj: dados.__cnpj || '',
+                aliases
             };
         });
 
