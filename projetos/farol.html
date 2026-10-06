@@ -1,0 +1,1468 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Farol de Clientes - Multi Vendedor</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+:root{
+  --primary:#1e3a5f; --primary-light:#2b4c7a; --primary-soft:#eef3f9;
+  --bg:#f0f4f8; --card-bg:rgba(255,255,255,.9);
+  --text-dark:#1a2b3c; --text-soft:#3e4e5e; --muted:#5b6472;
+  --success:#2e7d32; --warning:#ed6c02; --danger:#d32f2f;
+  --green:#e8f5e9; --yellow:#fff8e1; --red:#ffebee;
+  --line:#e5e7eb; --radius:20px; --shadow:0 8px 24px rgba(0,20,40,.08);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  font-family:'Inter',system-ui,-apple-system,sans-serif;
+  background:linear-gradient(135deg,#f5f7fa 0%,#e9ecf2 100%);
+  min-height:100vh; padding:20px; color:var(--text-dark);
+  -webkit-font-smoothing:antialiased;
+}
+.wrapper{max-width:1400px;margin:0 auto;}
+
+/* ---------- HEADER ---------- */
+.page-header{
+  background:var(--card-bg); border-radius:24px; padding:20px 24px;
+  margin-bottom:20px; box-shadow:var(--shadow);
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:16px; position:sticky; top:10px; z-index:50;
+  backdrop-filter:blur(14px);
+}
+.page-header h1{
+  font-size:1.4rem; color:var(--primary);
+  display:flex; align-items:center; gap:12px;
+}
+.page-header h1 i{font-size:1.5rem;}
+.subtitle{font-size:.75rem;color:var(--muted);margin-top:2px;}
+
+/* ---------- FILTROS ---------- */
+.filters{display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;}
+.filter-group{display:flex;flex-direction:column;gap:6px;}
+.filter-group label{
+  font-size:.65rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.5px; color:var(--muted);
+}
+.filter-group select, .filter-group input{
+  padding:10px 14px; border-radius:14px; border:1px solid var(--line);
+  background:white; font-size:.85rem; font-family:inherit;
+  color:var(--text-dark); min-width:200px; cursor:pointer;
+}
+.filter-group select:focus, .filter-group input:focus{
+  outline:none; border-color:var(--primary);
+}
+
+/* ---------- MÉTRICAS ---------- */
+.metrics{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px; margin-bottom:22px;
+}
+.metric{
+  background:var(--card-bg); border-radius:18px; padding:16px;
+  box-shadow:var(--shadow); text-align:center; border-left:5px solid var(--line);
+}
+.metric.green{border-left-color:var(--success);}
+.metric.yellow{border-left-color:var(--warning);}
+.metric.red{border-left-color:var(--danger);}
+.metric.blue{border-left-color:var(--primary);}
+.metric .value{font-size:1.6rem;font-weight:800;line-height:1.2;}
+.metric .label{
+  font-size:.65rem; font-weight:700; text-transform:uppercase;
+  letter-spacing:.5px; color:var(--muted); margin-top:4px;
+}
+.metric.green .value{color:var(--success);}
+.metric.yellow .value{color:var(--warning);}
+.metric.red .value{color:var(--danger);}
+.metric.blue .value{color:var(--primary);}
+
+/* ---------- TOOLBAR ---------- */
+.toolbar{
+  display:flex; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; gap:12px; margin-bottom:16px;
+}
+.toolbar-left{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.btn{
+  padding:9px 18px; border-radius:30px; border:none; cursor:pointer;
+  font-weight:600; font-size:.78rem; font-family:inherit;
+  display:inline-flex; align-items:center; gap:6px; transition:.2s;
+}
+.btn-primary{background:var(--primary);color:white;}
+.btn-primary:hover{background:var(--primary-light);transform:translateY(-1px);}
+.btn-light{background:white;color:var(--text-dark);border:1px solid var(--line);}
+.btn-light:hover{background:var(--primary-soft);}
+.btn-success{background:var(--success);color:white;}
+.btn-success:hover{background:#1b5e20;transform:translateY(-1px);}
+.legend{
+  display:flex; gap:14px; flex-wrap:wrap;
+  font-size:.72rem; color:var(--muted); align-items:center;
+}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dot.green{background:var(--success);}
+.dot.yellow{background:var(--warning);}
+.dot.red{background:var(--danger);}
+
+/* ---------- GRUPO CARD ---------- */
+.group-card{
+  background:var(--card-bg); border-radius:var(--radius);
+  box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden;
+  border-left:6px solid var(--line); transition:.2s;
+}
+.group-card.green{border-left-color:var(--success);}
+.group-card.yellow{border-left-color:var(--warning);}
+.group-card.red{border-left-color:var(--danger);}
+.group-header{
+  padding:16px 20px; cursor:pointer; user-select:none;
+  display:flex; justify-content:space-between; align-items:center;
+  gap:16px; flex-wrap:wrap; transition:.15s;
+}
+.group-header:hover{background:var(--primary-soft);}
+.group-title{
+  display:flex; align-items:center; gap:14px; flex:1; min-width:200px;
+}
+.group-title h3{
+  font-size:1.05rem; font-weight:700; color:var(--text-dark);
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+}
+.group-status{
+  padding:4px 12px; border-radius:20px; font-size:.65rem;
+  font-weight:800; text-transform:uppercase; letter-spacing:.5px;
+  display:inline-flex; align-items:center; gap:5px;
+}
+.group-status.green{background:var(--green);color:var(--success);}
+.group-status.yellow{background:var(--yellow);color:var(--warning);}
+.group-status.red{background:var(--red);color:var(--danger);}
+.group-meta{
+  display:flex; gap:16px; flex-wrap:wrap; font-size:.75rem;
+  color:var(--muted); align-items:center;
+}
+.group-meta strong{color:var(--text-dark);font-weight:700;}
+.group-toggle{
+  background:none; border:none; font-size:1rem; color:var(--primary);
+  cursor:pointer; transition:.3s; padding:6px;
+}
+.group-card.expanded .group-toggle{transform:rotate(180deg);}
+.group-body{
+  display:none; padding:0 20px 16px; border-top:1px dashed var(--line);
+  background:rgba(248,250,252,.5);
+}
+.group-card.expanded .group-body{display:block;}
+
+/* ---------- TABELA FILIAIS ---------- */
+.filial-table{width:100%; border-collapse:collapse; margin-top:12px; font-size:.78rem;}
+.filial-table th{
+  text-align:left; padding:8px 10px; font-size:.65rem;
+  font-weight:700; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--muted); border-bottom:1px solid var(--line);
+}
+.filial-table td{padding:9px 10px; border-bottom:1px solid #f1f5f9;}
+.filial-table tr:last-child td{border-bottom:none;}
+.filial-table tbody tr{cursor:pointer;}
+.filial-table tbody tr:hover td{background:rgba(30,58,95,0.08) !important;}
+.filial-row-green td{background:var(--green) !important;}
+.filial-row-yellow td{background:var(--yellow) !important;}
+.filial-row-red td{background:var(--red) !important;}
+.filial-badge{
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:14px; font-size:.65rem;
+  font-weight:700; text-transform:uppercase; letter-spacing:.3px;
+}
+.filial-badge.green{background:var(--success);color:white;}
+.filial-badge.yellow{background:var(--warning);color:white;}
+.filial-badge.red{background:var(--danger);color:white;}
+.filial-nome{font-weight:600;color:var(--text-dark);display:flex;align-items:center;gap:6px;}
+.filial-nome i{color:var(--primary);font-size:.7rem;opacity:.6;}
+.filial-cidade{color:var(--muted);font-size:.72rem;}
+.filial-cnpj{color:var(--muted);font-size:.7rem;font-family:monospace;}
+
+/* ---------- MODAL ---------- */
+.modal{
+  position:fixed; inset:0; background:rgba(0,0,0,.55);
+  backdrop-filter:blur(6px); z-index:1000;
+  display:flex; justify-content:center; align-items:center;
+  opacity:0; visibility:hidden; transition:opacity .3s, visibility .3s;
+  padding:20px;
+}
+.modal.active{opacity:1;visibility:visible;}
+.modal-content{
+  background:white; border-radius:24px; padding:26px;
+  max-width:920px; width:100%; max-height:90vh; overflow-y:auto;
+  transform:scale(.95); transition:transform .3s;
+  box-shadow:0 20px 60px rgba(0,0,0,.25);
+}
+.modal.active .modal-content{transform:scale(1);}
+.modal-header{
+  display:flex; justify-content:space-between; align-items:center;
+  margin-bottom:20px; gap:14px; flex-wrap:wrap;
+}
+.modal-header h3{
+  font-size:1.15rem; color:var(--text-dark);
+  display:flex; align-items:center; gap:10px;
+}
+.modal-close{
+  background:rgba(0,0,0,.05); border:none; width:36px; height:36px;
+  border-radius:50%; cursor:pointer; font-size:1.1rem; color:var(--muted);
+  transition:.2s; display:flex; align-items:center; justify-content:center;
+}
+.modal-close:hover{background:var(--danger);color:white;}
+
+/* Ficha cadastral */
+.ficha-status-bar{
+  display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px;
+  padding:12px 16px; border-radius:14px; background:var(--primary-soft);
+}
+.ficha-status-bar .pill{
+  padding:5px 14px; border-radius:20px; font-size:.7rem;
+  font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+}
+.pill-green{background:var(--success);color:white;}
+.pill-yellow{background:var(--warning);color:white;}
+.pill-red{background:var(--danger);color:white;}
+.pill-neutral{background:white;color:var(--text-dark);border:1px solid var(--line);}
+
+.ficha-secao{
+  background:#f8fafc; border-radius:16px; padding:16px;
+  margin-bottom:16px; border:1px solid #e2e8f0;
+}
+.ficha-secao h4{
+  font-size:.9rem; color:var(--primary); margin-bottom:12px;
+  display:flex; align-items:center; gap:8px;
+  text-transform:uppercase; letter-spacing:.5px;
+}
+.ficha-grid{display:grid; grid-template-columns:1fr 1fr; gap:6px 20px;}
+@media (max-width:600px){ .ficha-grid{grid-template-columns:1fr;} }
+.ficha-campo{
+  display:flex; align-items:center; gap:8px; padding:6px 0;
+  border-bottom:1px solid #f1f5f9; font-size:.8rem;
+}
+.ficha-campo:last-child{border-bottom:none;}
+.ficha-campo i{width:18px; color:var(--primary); text-align:center; font-size:.85rem;}
+.ficha-campo .campo-label{
+  font-weight:700; color:var(--muted); min-width:120px;
+  font-size:.68rem; text-transform:uppercase; letter-spacing:.3px;
+}
+.ficha-campo .campo-valor{
+  color:var(--text-dark); word-break:break-word; font-weight:500; flex:1;
+}
+.ficha-actions{
+  display:flex; gap:8px; flex-wrap:wrap; margin:16px 0;
+}
+.ficha-actions a, .ficha-actions button{
+  padding:10px 20px; border-radius:40px; border:none;
+  text-decoration:none; font-weight:700; font-size:.8rem;
+  cursor:pointer; font-family:inherit;
+  display:inline-flex; align-items:center; gap:6px;
+  transition:.2s;
+}
+.ficha-actions .btn-wa{background:#25D366;color:white;}
+.ficha-actions .btn-wa:hover{background:#1ebe5a;}
+.ficha-actions .btn-mail{background:var(--primary);color:white;}
+.ficha-actions .btn-mail:hover{background:var(--primary-light);}
+.ficha-actions .btn-copy{
+  background:var(--primary);color:white;
+}
+.ficha-actions .btn-copy:hover{background:var(--primary-light);}
+
+/* Tabela extra dentro do modal (pedidos relacionados) */
+.modal table.ficha-table{
+  width:100%; border-collapse:collapse; font-size:.75rem;
+  margin-top:8px;
+}
+.modal table.ficha-table th{
+  text-align:left; padding:8px; font-size:.65rem;
+  text-transform:uppercase; letter-spacing:.4px;
+  color:var(--muted); border-bottom:1px solid var(--line);
+}
+.modal table.ficha-table td{
+  padding:8px; border-bottom:1px solid #f1f5f9;
+}
+
+/* ---------- ESTADOS ---------- */
+.empty{
+  padding:60px 20px; text-align:center; color:var(--muted);
+  background:var(--card-bg); border-radius:var(--radius); box-shadow:var(--shadow);
+}
+.empty i{font-size:3rem; opacity:.4; margin-bottom:12px; display:block;}
+.loading{
+  position:fixed; inset:0; background:rgba(255,255,255,.6);
+  backdrop-filter:blur(6px); display:none; align-items:center;
+  justify-content:center; flex-direction:column; gap:16px; z-index:9999;
+}
+.loading.active{display:flex;}
+.spinner{
+  width:56px; height:56px; border:5px solid rgba(30,58,95,.15);
+  border-top-color:var(--primary); border-radius:50%;
+  animation:spin .9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.toast{
+  position:fixed; bottom:30px; left:50%; transform:translateX(-50%);
+  background:var(--success); color:white; padding:12px 24px;
+  border-radius:40px; font-weight:600; z-index:10000;
+  animation:fadeInOut 2.5s forwards; font-size:.85rem;
+}
+@keyframes fadeInOut{
+  0%{opacity:0;transform:translateX(-50%) translateY(20px);}
+  15%{opacity:1;transform:translateX(-50%) translateY(0);}
+  85%{opacity:1;}
+  100%{opacity:0;transform:translateX(-50%) translateY(-20px);}
+}
+
+@media (max-width:768px){
+  body{padding:12px;}
+  .page-header{padding:14px 16px;}
+  .page-header h1{font-size:1.1rem;}
+  .filter-group select,.filter-group input{min-width:140px; font-size:.8rem;}
+  .metric .value{font-size:1.3rem;}
+  .group-header{padding:12px 14px;}
+  .group-title h3{font-size:.9rem;}
+  .group-meta{font-size:.68rem; gap:10px;}
+  .filial-table th:nth-child(3),
+  .filial-table td:nth-child(3){display:none;}
+  .modal{padding:10px;}
+  .modal-content{padding:18px;border-radius:18px;}
+}
+</style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+  <div style="color:var(--primary);font-weight:600;">Consultando dados...</div>
+</div>
+
+<div class="wrapper">
+
+  <div class="page-header">
+    <div>
+      <h1><i class="fas fa-traffic-light"></i> Farol de Clientes</h1>
+      <div class="subtitle">Análise consolidada por grupo empresarial · Centrobor</div>
+    </div>
+    <div class="filters">
+      <div class="filter-group">
+        <label for="sel-vendedor"><i class="fas fa-user-tie"></i> Vendedor</label>
+        <select id="sel-vendedor">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="sel-agrupamento"><i class="fas fa-layer-group"></i> Agrupar por</label>
+        <select id="sel-agrupamento">
+          <option value="1">1ª palavra (Continental Bahia → CONTINENTAL)</option>
+          <option value="2">2 primeiras palavras</option>
+          <option value="0">Sem agrupamento (cada CNPJ)</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="sel-status"><i class="fas fa-traffic-light"></i> Filtrar por Farol</label>
+        <select id="sel-status">
+          <option value="all">Todos os clientes</option>
+          <option value="green">🟢 Somente Ativos</option>
+          <option value="yellow">🟡 Somente Esfriando</option>
+          <option value="red">🔴 Somente Inativos</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label for="sel-ordem"><i class="fas fa-sort-amount-down"></i> Ordenar por</label>
+        <select id="sel-ordem">
+          <option value="recent">Mais recente → mais antigo</option>
+          <option value="old">Mais antigo → mais recente</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <button class="btn btn-success" id="btn-relatorio">
+        <i class="fas fa-file-alt"></i> Gerar Relatório
+      </button>
+      <button class="btn btn-primary" id="btn-csv">
+        <i class="fas fa-file-excel"></i> Exportar CSV
+      </button>
+      <button class="btn btn-primary" id="btn-copiar">
+        <i class="fas fa-copy"></i> Copiar
+      </button>
+      <button class="btn btn-light" id="btn-recolher-tudo">
+        <i class="fas fa-compress-alt"></i> Recolher
+      </button>
+      <button class="btn btn-light" id="btn-expandir-tudo">
+        <i class="fas fa-expand-alt"></i> Expandir
+      </button>
+    </div>
+    <div class="legend">
+      <span><span class="dot green"></span> Verde: ≤30 dias</span>
+      <span><span class="dot yellow"></span> Amarelo: 31-179 dias</span>
+      <span><span class="dot red"></span> Vermelho: 180 dias ou mais ou sem interação</span>
+      <span style="color:var(--primary);font-weight:600;">💡 Clique numa linha para ver a ficha completa</span>
+    </div>
+  </div>
+
+  <div id="resultados"></div>
+
+</div>
+
+<!-- ================= MODAL FICHA CADASTRAL ================= -->
+<div class="modal" id="ficha-modal">
+  <div class="modal-content" id="ficha-modal-body"></div>
+</div>
+
+<script>
+/* =====================================================================
+   CONFIGURAÇÃO
+   ===================================================================== */
+const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+const BASES = {
+  meta:       `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+  aprovados:  `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
+  faturados:  `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
+  carteira:   `https://opensheet.elk.sh/${SHEET_ID}/carteiraclientes`
+};
+
+const DIAS_VERDE  = 30;
+const DIAS_AMARELO = 179;
+
+const PREFIXOS_IGNORADOS = new Set([
+  'GRUPO','CIA','COMPANHIA','EMPRESA','HOLDING','ORGANIZACAO','ORGANIZACOES'
+]);
+
+const SUFIXOS_REMOVER = [
+  'LTDA','SA','S/A','ME','EPP','EIRELI','S/A.','S.A','S.A.','- ME','- EPP','- LTDA'
+];
+
+/* =====================================================================
+   HELPERS
+   ===================================================================== */
+const normalizarNome = (s) => String(s||'')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .toUpperCase()
+  .replace(/[.,;:!?()\[\]{}"']/g,' ')
+  .replace(/\s+/g,' ')
+  .trim();
+
+const removeAcentos = (s) => String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
+const extrairCodigo = (s) => {
+  const m = String(s||'').match(/^(\d+)/);
+  return m ? m[1] : null;
+};
+
+const parseDataBR = (s) => {
+  if (!s) return null;
+  const partes = String(s).split(' ')[0].split('/');
+  if (partes.length !== 3) return null;
+  const d = new Date(partes[2], partes[1]-1, partes[0]);
+  return isNaN(d.getTime()) ? null : d;
+};
+
+const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '—';
+
+const diasDesde = (d) => {
+  if (!d) return Infinity;
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const dd = new Date(d); dd.setHours(0,0,0,0);
+  return Math.floor((hoje - dd) / (1000*60*60*24));
+};
+
+const carregarJSON = async (url) => {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} em ${url}`);
+  return r.json();
+};
+
+/* =====================================================================
+   AGRUPAMENTO
+   ===================================================================== */
+function extrairPalavrasChave(nome) {
+  let n = normalizarNome(nome);
+  for (const suf of SUFIXOS_REMOVER) {
+    const re = new RegExp('\\s+' + suf.replace(/[\/\-.]/g,'\\$&') + '$');
+    n = n.replace(re,'');
+  }
+  let palavras = n.split(' ').filter(p => p.length > 0);
+  while (palavras.length > 1 && PREFIXOS_IGNORADOS.has(palavras[0])) {
+    palavras.shift();
+  }
+  return palavras;
+}
+
+function gerarChaveGrupo(nome, numPalavras) {
+  const norm = normalizarNome(nome);
+  if (numPalavras === 0) return norm;
+  const palavras = extrairPalavrasChave(nome);
+  if (!palavras.length) return norm;
+  return palavras.slice(0, numPalavras).join(' ');
+}
+
+/* =====================================================================
+   VENDEDORES
+   ===================================================================== */
+function extrairVendedores(carteiraRaw, metaRaw) {
+  const map = new Map();
+  carteiraRaw.forEach(c => {
+    const rep = String(c['Representante'] || '').trim();
+    if (!rep) return;
+    const cod = extrairCodigo(rep);
+    if (!cod) return;
+    if (!map.has(cod)) {
+      const nome = rep.replace(/^\d+\s*[-–—]?\s*/,'').trim();
+      map.set(cod, nome || `Vendedor ${cod}`);
+    }
+  });
+  (metaRaw || []).forEach(m => {
+    const cod = String(m.id_vendedor || '').trim();
+    if (cod && !map.has(cod)) map.set(cod, `Vendedor ${cod}`);
+  });
+  return Array.from(map, ([codigo, nome]) => ({ codigo, nome }))
+    .sort((a,b) => a.nome.localeCompare(b.nome));
+}
+
+/* =====================================================================
+   FAROL
+   ===================================================================== */
+function calcularStatus(dias) {
+  if (dias === Infinity) return 'red';
+  if (dias <= DIAS_VERDE) return 'green';
+  if (dias <= DIAS_AMARELO) return 'yellow';
+  return 'red';
+}
+
+function labelStatus(status) {
+  return status === 'green' ? '🟢 Ativo'
+       : status === 'yellow' ? '🟡 Esfriando'
+       : '🔴 Inativo';
+}
+
+function construirFarol(codigo, numPalavras, dados) {
+  const { carteiraRaw, aprovRaw, fatRaw, vendedores } = dados;
+  const vendedor = vendedores.find(v => v.codigo === codigo);
+  const nomeVendedor = vendedor ? vendedor.nome : '';
+
+  const meusClientesRaw = carteiraRaw.filter(c =>
+    extrairCodigo(c['Representante']) === codigo
+  );
+
+  const meusAprov = aprovRaw.filter(a => {
+    const v = normalizarNome(a['Vendedor']||'');
+    const alvo = normalizarNome(nomeVendedor);
+    return v && alvo && (v === alvo || v.includes(alvo) || alvo.includes(v));
+  });
+  const meusFat = fatRaw.filter(f =>
+    String(f['Cod. Vendedor']||'').trim() === codigo
+  );
+
+  /*
+   * CONSOLIDAÇÃO POR CNPJ
+   * Se o mesmo CNPJ aparecer mais de uma vez na carteira, mesmo com nomes
+   * diferentes, ele passa a ser UM único cliente. Todos os nomes encontrados
+   * para aquele CNPJ são mantidos como aliases para localizar interações.
+   */
+  const clientePorCnpj = new Map();
+  const cnpjPorNome = new Map();
+  const clientesSemCnpj = [];
+
+  const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
+
+  meusClientesRaw.forEach(c => {
+    const nome = (c['Nome Chave'] || c['Nome/Razão Social'] || '').trim();
+    if (!nome) return;
+
+    const cnpj = normalizarCnpj(c['CPF/CGC']);
+
+    if (!cnpj) {
+      clientesSemCnpj.push(c);
+      return;
+    }
+
+    if (!clientePorCnpj.has(cnpj)) {
+      clientePorCnpj.set(cnpj, {
+        registro: { ...c },
+        aliases: new Set(),
+        registros: []
+      });
+    }
+
+    const cliente = clientePorCnpj.get(cnpj);
+    cliente.aliases.add(nome);
+    cliente.aliases.add(c['Nome Chave'] || '');
+    cliente.aliases.add(c['Nome/Razão Social'] || '');
+    cliente.registros.push(c);
+
+    // Completa campos vazios do primeiro cadastro usando as demais duplicidades.
+    Object.keys(c).forEach(campo => {
+      if (!cliente.registro[campo] && c[campo]) cliente.registro[campo] = c[campo];
+    });
+
+    [c['Nome Chave'], c['Nome/Razão Social']].forEach(n => {
+      const k = normalizarNome(n);
+      if (k) cnpjPorNome.set(k, cnpj);
+    });
+  });
+
+  // Nomes de clientes sem CNPJ continuam funcionando como antes.
+  clientesSemCnpj.forEach(c => {
+    cnpjPorNome.set(normalizarNome(c['Nome Chave'] || c['Nome/Razão Social'] || ''), null);
+  });
+
+  const clientesConsolidados = [
+    ...Array.from(clientePorCnpj.values()).map(item => {
+      const r = item.registro;
+      // Escolhe como nome principal o cadastro mais recentemente interagido
+      // posteriormente; inicialmente usamos o primeiro cadastro disponível.
+      return {
+        ...r,
+        __cnpj: normalizarCnpj(r['CPF/CGC']),
+        __aliases: Array.from(item.aliases).filter(Boolean),
+        __registros: item.registros
+      };
+    }),
+    ...clientesSemCnpj.map(c => ({
+      ...c,
+      __cnpj: '',
+      __aliases: [c['Nome Chave'], c['Nome/Razão Social']].filter(Boolean),
+      __registros: [c]
+    }))
+  ];
+
+  const interPorNome = new Map();
+  const interPorCnpj = new Map();
+
+  const registrarInteracao = (nome, data) => {
+    if (!nome || !data) return;
+    const k = normalizarNome(nome);
+    if (!k) return;
+
+    if (!interPorNome.has(k) || data > interPorNome.get(k)) {
+      interPorNome.set(k, data);
+    }
+
+    const cnpj = cnpjPorNome.get(k);
+    if (cnpj) {
+      if (!interPorCnpj.has(cnpj) || data > interPorCnpj.get(cnpj)) {
+        interPorCnpj.set(cnpj, data);
+      }
+    }
+  };
+
+  meusAprov.forEach(a => registrarInteracao(a['Cliente'], parseDataBR(a['Data'])));
+  meusFat.forEach(f => registrarInteracao(f['Nome Chave'], parseDataBR(f['Data'])));
+
+  const interPorGrupo = new Map();
+  const registrarGrupo = (nome, data) => {
+    if (!nome || !data) return;
+    const k = gerarChaveGrupo(nome, numPalavras);
+    if (!interPorGrupo.has(k) || data > interPorGrupo.get(k)) {
+      interPorGrupo.set(k, data);
+    }
+  };
+  meusAprov.forEach(a => registrarGrupo(a['Cliente'], parseDataBR(a['Data'])));
+  meusFat.forEach(f => registrarGrupo(f['Nome Chave'], parseDataBR(f['Data'])));
+
+  /*
+   * Primeiro consolida por CNPJ. Isso impede que dois cadastros com o mesmo
+   * CNPJ apareçam como duas filiais/clientes diferentes.
+   */
+  const grupos = new Map();
+  clientesConsolidados.forEach(c => {
+    const nome = (c['Nome Chave'] || c['Nome/Razão Social'] || '').trim();
+    if (!nome) return;
+
+    // Para CNPJ duplicado, a última interação entre todos os aliases define
+    // o status do cliente consolidado.
+    const ultimaCnpj = c.__cnpj ? (interPorCnpj.get(c.__cnpj) || null) : null;
+    const datasAliases = (c.__aliases || [])
+      .map(alias => interPorNome.get(normalizarNome(alias)))
+      .filter(Boolean);
+    const ultimaAlias = datasAliases.length
+      ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime())))
+      : null;
+    const ultima = ultimaCnpj || ultimaAlias || null;
+
+    const dias = diasDesde(ultima);
+    const status = calcularStatus(dias);
+
+    // Se houver interação recente em qualquer nome duplicado, esse CNPJ
+    // assume automaticamente o status correspondente à interação mais recente.
+    c.__ultimaInteracao = ultima;
+    c.__dias = dias;
+    c.__status = status;
+
+    const chave = gerarChaveGrupo(nome, numPalavras);
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(c);
+  });
+
+  const resultado = [];
+  grupos.forEach((filiais, chave) => {
+    const datasGrupo = filiais.map(f => f.__ultimaInteracao).filter(Boolean);
+    const ultimaGrupo = datasGrupo.length
+      ? new Date(Math.max(...datasGrupo.map(d => new Date(d).getTime())))
+      : (interPorGrupo.get(chave) || null);
+    const diasGrupo = diasDesde(ultimaGrupo);
+    const statusGrupo = calcularStatus(diasGrupo);
+
+    const filiaisDetalhadas = filiais.map(f => {
+      const nomeF = (f['Nome Chave'] || f['Nome/Razão Social'] || '').trim();
+      return {
+        nome: nomeF,
+        cidade: f['Cidade'] || '',
+        uf: f['UF'] || '',
+        cnpj: f['CPF/CGC'] || '',
+        codigo: f['Código'] || '',
+        ativoCadastro: String(f['ATivo/Inativo']||'').toLowerCase() === 'ativo',
+        ultimaInteracao: f.__ultimaInteracao || null,
+        dias: f.__dias,
+        status: f.__status,
+        aliases: f.__aliases || [],
+        registroCompleto: f
+      };
+    });
+
+    filiaisDetalhadas.sort((a,b) => {
+      const da = a.dias === Infinity ? -Infinity : -a.dias;
+      const db = b.dias === Infinity ? -Infinity : -b.dias;
+      return db - da;
+    });
+
+    const contagem = { green:0, yellow:0, red:0 };
+    filiaisDetalhadas.forEach(f => contagem[f.status]++);
+
+    resultado.push({
+      chave,
+      nomeExibicao: filiais[0]['Nome Chave'] || filiais[0]['Nome/Razão Social'] || chave,
+      status: statusGrupo,
+      ultimaInteracao: ultimaGrupo,
+      dias: diasGrupo,
+      filiais: filiaisDetalhadas,
+      contagem,
+      total: filiaisDetalhadas.length
+    });
+  });
+
+  const ordem = { red: 0, yellow: 1, green: 2 };
+  resultado.sort((a,b) => {
+    if (ordem[a.status] !== ordem[b.status]) return ordem[a.status] - ordem[b.status];
+    const dA = a.dias === Infinity ? 1e9 : a.dias;
+    const dB = b.dias === Infinity ? 1e9 : b.dias;
+    if (dA !== dB) return dB - dA;
+    return a.chave.localeCompare(b.chave);
+  });
+
+  return resultado;
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+function renderMetricas(grupos) {
+  const cont = { green:0, yellow:0, red:0 };
+  let totalFiliais = 0;
+  grupos.forEach(g => { cont[g.status]++; totalFiliais += g.total; });
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="metric blue"><div class="value">${grupos.length}</div><div class="label">Grupos</div></div>
+    <div class="metric blue"><div class="value">${totalFiliais}</div><div class="label">Filiais / CNPJs</div></div>
+    <div class="metric green"><div class="value">${cont.green}</div><div class="label">🟢 Grupos Ativos</div></div>
+    <div class="metric yellow"><div class="value">${cont.yellow}</div><div class="label">🟡 Esfriando</div></div>
+    <div class="metric red"><div class="value">${cont.red}</div><div class="label">🔴 Inativos</div></div>
+  `;
+}
+
+function renderGrupos(grupos) {
+  const container = document.getElementById('resultados');
+
+  if (!grupos.length) {
+    container.innerHTML = `<div class="empty"><i class="fas fa-search"></i><p>Nenhum cliente encontrado para este vendedor.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = grupos.map((g, idx) => {
+    const icone = g.status === 'green' ? 'fa-check-circle'
+               : g.status === 'yellow' ? 'fa-exclamation-circle'
+               : 'fa-times-circle';
+
+    const textoUltima = g.ultimaInteracao
+      ? `Última compra: <strong>${formatarData(g.ultimaInteracao)}</strong> (${g.dias} dias)`
+      : `<strong style="color:var(--danger)">Sem interação registrada</strong>`;
+
+    const cont = g.contagem;
+    const resumo = `
+      <span title="Verdes">🟢 ${cont.green}</span>
+      <span title="Amarelos">🟡 ${cont.yellow}</span>
+      <span title="Vermelhos">🔴 ${cont.red}</span>
+    `;
+
+    const filiaisHtml = g.filiais.map((f, fidx) => {
+      const classe = `filial-row-${f.status}`;
+      const badge = `<span class="filial-badge ${f.status}">
+        <i class="fas ${f.status==='green'?'fa-check':f.status==='yellow'?'fa-clock':'fa-times'}"></i>
+        ${f.status==='green'?'Ativo':f.status==='yellow'?'Esfriando':'Inativo'}
+      </span>`;
+      const ultima = f.ultimaInteracao
+        ? `${formatarData(f.ultimaInteracao)} <small style="color:var(--muted)">(${f.dias}d)</small>`
+        : '<em style="color:var(--danger)">sem interação</em>';
+      const cadastro = f.ativoCadastro
+        ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
+        : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
+      return `
+        <tr class="${classe}" data-grupo="${idx}" data-filial="${fidx}" title="Clique para ver a ficha completa">
+          <td>
+            <div class="filial-nome"><i class="fas fa-id-card"></i>${f.nome}</div>
+            ${f.cnpj ? `<div class="filial-cnpj">${f.cnpj}</div>` : ''}
+          </td>
+          <td class="filial-cidade">${f.cidade||'—'}${f.uf?'/'+f.uf:''}</td>
+          <td>${cadastro}</td>
+          <td>${ultima}</td>
+          <td>${badge}</td>
+        </tr>`;
+    }).join('');
+
+    return `
+      <div class="group-card ${g.status} expanded" data-idx="${idx}">
+        <div class="group-header" onclick="toggleGrupo(this)">
+          <div class="group-title">
+            <i class="fas ${icone}" style="font-size:1.4rem;color:var(--${g.status==='green'?'success':g.status==='yellow'?'warning':'danger'})"></i>
+            <h3>
+              ${g.chave}
+              <span class="group-status ${g.status}">${labelStatus(g.status)}</span>
+              ${g.total > 1 ? `<span style="font-size:.7rem;background:var(--primary-soft);color:var(--primary);padding:3px 10px;border-radius:14px;font-weight:700;">${g.total} filiais</span>` : ''}
+            </h3>
+          </div>
+          <div class="group-meta">
+            <span>${textoUltima}</span>
+            <span style="font-size:.85rem;letter-spacing:2px;">${resumo}</span>
+            <button class="group-toggle"><i class="fas fa-chevron-down"></i></button>
+          </div>
+        </div>
+        <div class="group-body">
+          <table class="filial-table">
+            <thead><tr>
+              <th>Filial / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th>
+            </tr></thead>
+            <tbody>${filiaisHtml}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+window.toggleGrupo = function(headerEl) {
+  headerEl.closest('.group-card').classList.toggle('expanded');
+};
+
+/* =====================================================================
+   FICHA CADASTRAL (MODAL)
+   ===================================================================== */
+function abrirFichaCadastral(filial, grupo) {
+  const c = filial.registroCompleto;
+  const modal = document.getElementById('ficha-modal');
+  const body = document.getElementById('ficha-modal-body');
+
+  /* --- Cabeçalho --- */
+  let html = `
+    <div class="modal-header">
+      <h3><i class="fas fa-id-card"></i> ${c['Nome/Razão Social'] || c['Nome Chave'] || filial.nome}</h3>
+      <button class="modal-close" onclick="fecharFicha()" title="Fechar"><i class="fas fa-times"></i></button>
+    </div>
+  `;
+
+  /* --- Barra de status --- */
+  const badgeFarol = filial.status === 'green' ? 'Ativo' : filial.status === 'yellow' ? 'Esfriando' : 'Inativo';
+  const classeFarol = `pill-${filial.status}`;
+  const ultimaTxt = filial.ultimaInteracao
+    ? `Última compra: ${formatarData(filial.ultimaInteracao)} (${filial.dias} dias)`
+    : 'Sem interação registrada';
+  const cadastroStatus = filial.ativoCadastro
+    ? '<span class="pill pill-neutral">✔ Cadastro Ativo</span>'
+    : '<span class="pill pill-neutral">✖ Cadastro Inativo</span>';
+
+  html += `
+    <div class="ficha-status-bar">
+      <span class="pill ${classeFarol}">${badgeFarol}</span>
+      ${cadastroStatus}
+      <span class="pill pill-neutral">🏢 Grupo: ${grupo.chave}</span>
+      <span class="pill pill-neutral">📅 ${ultimaTxt}</span>
+    </div>
+  `;
+
+  /* --- Dados da Empresa --- */
+  const camposEmpresa = [
+    ['Código','fa-hashtag'],
+    ['Nome Chave','fa-tag'],
+    ['Nome/Razão Social','fa-file-signature'],
+    ['Física/Juridica','fa-venus-mars'],
+    ['CPF/CGC','fa-id-card'],
+    ['RG/IE','fa-passport'],
+    ['Ramo','fa-industry'],
+    ['Dt.Cadastro','fa-calendar-check'],
+    ['ATivo/Inativo','fa-check-circle'],
+    ['Transportadora','fa-truck'],
+    ['Limite de Crédito','fa-dollar-sign'],
+    ['Representante','fa-user-tie']
+  ];
+  html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">`;
+  camposEmpresa.forEach(([campo, icone]) => {
+    html += `<div class="ficha-campo">
+      <i class="fas ${icone}"></i>
+      <span class="campo-label">${campo}:</span>
+      <span class="campo-valor">${c[campo] || '—'}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  /* --- Endereço --- */
+  const camposEndereco = [
+    ['Endereço','fa-road'],
+    ['Número','fa-home'],
+    ['Complemento','fa-plus-circle'],
+    ['Bairro','fa-map'],
+    ['Cidade','fa-city'],
+    ['UF','fa-map-pin'],
+    ['País','fa-globe-americas'],
+    ['CEP','fa-mail-bulk']
+  ];
+  html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">`;
+  camposEndereco.forEach(([campo, icone]) => {
+    html += `<div class="ficha-campo">
+      <i class="fas ${icone}"></i>
+      <span class="campo-label">${campo}:</span>
+      <span class="campo-valor">${c[campo] || '—'}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  /* --- Contato --- */
+  const camposContato = [
+    ['Telefone','fa-phone'],
+    ['Fax','fa-fax'],
+    ['Contato','fa-user'],
+    ['Departamento','fa-building'],
+    ['Cargo','fa-briefcase'],
+    ['Dt. Aniversário','fa-calendar-day'],
+    ['Fone','fa-phone-volume'],
+    ['E-Mail','fa-envelope']
+  ];
+  html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">`;
+  camposContato.forEach(([campo, icone]) => {
+    html += `<div class="ficha-campo">
+      <i class="fas ${icone}"></i>
+      <span class="campo-label">${campo}:</span>
+      <span class="campo-valor">${c[campo] || '—'}</span>
+    </div>`;
+  });
+  html += `</div></div>`;
+
+  /* --- Botões de ação --- */
+  const telefone = String(c['Telefone'] || c['Fone'] || '').replace(/[^0-9+]/g,'');
+  const email = String(c['E-Mail'] || '').split(/[;,\n]/)[0].trim();
+
+  html += `<div class="ficha-actions">`;
+  if (telefone && telefone.length > 5) {
+    html += `<a class="btn-wa" href="https://wa.me/55${telefone}" target="_blank">
+      <i class="fab fa-whatsapp"></i> WhatsApp
+    </a>`;
+  }
+  if (email && email.includes('@')) {
+    html += `<a class="btn-mail" href="mailto:${email}?subject=Contato%20Centrobor" target="_blank">
+      <i class="fas fa-envelope"></i> E-mail
+    </a>`;
+  }
+  html += `<button class="btn-copy" onclick="copiarDadosFicha()">
+    <i class="fas fa-copy"></i> Copiar Dados
+  </button>`;
+  html += `</div>`;
+
+  /* --- Empresas relacionadas (do mesmo grupo) --- */
+  const outrasFiliais = grupo.filiais.filter(f => f.nome !== filial.nome);
+  if (outrasFiliais.length) {
+    html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras filiais do grupo "${grupo.chave}" (${outrasFiliais.length})</h4>`;
+    html += `<table class="ficha-table"><thead><tr>
+      <th>Filial</th><th>Cidade/UF</th><th>Última Interação</th><th>Farol</th>
+    </tr></thead><tbody>`;
+    outrasFiliais.forEach(f => {
+      const badge = f.status === 'green' ? '🟢 Ativo'
+                  : f.status === 'yellow' ? '🟡 Esfriando'
+                  : '🔴 Inativo';
+      html += `<tr>
+        <td><strong>${f.nome}</strong></td>
+        <td>${f.cidade||'—'}${f.uf?'/'+f.uf:''}</td>
+        <td>${f.ultimaInteracao ? formatarData(f.ultimaInteracao)+' ('+f.dias+'d)' : 'sem interação'}</td>
+        <td>${badge}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div>`;
+  }
+
+  body.innerHTML = html;
+  modal.classList.add('active');
+
+  // Guarda para o botão copiar
+  window._fichaAtual = { cliente: c, filial, grupo };
+}
+
+window.fecharFicha = function() {
+  document.getElementById('ficha-modal').classList.remove('active');
+  window._fichaAtual = null;
+};
+
+window.copiarDadosFicha = function() {
+  const ctx = window._fichaAtual;
+  if (!ctx) return;
+  const c = ctx.cliente;
+  let txt = `FICHA CADASTRAL\n\n`;
+  txt += `═══ DADOS DA EMPRESA ═══\n`;
+  txt += `Código: ${c['Código']||'—'}\n`;
+  txt += `Nome Chave: ${c['Nome Chave']||'—'}\n`;
+  txt += `Razão Social: ${c['Nome/Razão Social']||'—'}\n`;
+  txt += `CNPJ/CPF: ${c['CPF/CGC']||'—'}\n`;
+  txt += `RG/IE: ${c['RG/IE']||'—'}\n`;
+  txt += `Ramo: ${c['Ramo']||'—'}\n`;
+  txt += `Cadastro: ${c['Dt.Cadastro']||'—'}\n`;
+  txt += `Status: ${c['ATivo/Inativo']||'—'}\n`;
+  txt += `Transportadora: ${c['Transportadora']||'—'}\n`;
+  txt += `Limite de Crédito: ${c['Limite de Crédito']||'—'}\n`;
+  txt += `Representante: ${c['Representante']||'—'}\n\n`;
+  txt += `═══ ENDEREÇO ═══\n`;
+  txt += `${c['Endereço']||'—'}, ${c['Número']||'—'}\n`;
+  txt += `${c['Complemento']||''} ${c['Bairro']||''}\n`;
+  txt += `${c['Cidade']||'—'}/${c['UF']||'—'} · CEP ${c['CEP']||'—'}\n`;
+  txt += `${c['País']||''}\n\n`;
+  txt += `═══ CONTATO ═══\n`;
+  txt += `Telefone: ${c['Telefone']||c['Fone']||'—'}\n`;
+  txt += `Fax: ${c['Fax']||'—'}\n`;
+  txt += `Contato: ${c['Contato']||'—'}\n`;
+  txt += `Departamento: ${c['Departamento']||'—'}\n`;
+  txt += `Cargo: ${c['Cargo']||'—'}\n`;
+  txt += `E-mail: ${c['E-Mail']||'—'}\n\n`;
+  txt += `═══ FAROL ═══\n`;
+  txt += `Grupo: ${ctx.grupo.chave}\n`;
+  txt += `Status: ${labelStatus(ctx.filial.status)}\n`;
+  txt += `Última compra: ${ctx.filial.ultimaInteracao ? formatarData(ctx.filial.ultimaInteracao) : 'NUNCA'}\n`;
+
+  navigator.clipboard.writeText(txt).then(() => {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = '✅ Ficha copiada!';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  }).catch(() => alert('Erro ao copiar.'));
+};
+
+/* =====================================================================
+   AÇÕES
+   ===================================================================== */
+function expandirTudo() {
+  document.querySelectorAll('.group-card').forEach(c => c.classList.add('expanded'));
+}
+function recolherTudo() {
+  document.querySelectorAll('.group-card').forEach(c => c.classList.remove('expanded'));
+}
+
+function obterStatusFiltro() {
+  return document.getElementById('sel-status')?.value || 'all';
+}
+
+function obterStatusFiltroLabel(statusFiltro = obterStatusFiltro()) {
+  return statusFiltro === 'green' ? 'Somente Ativos'
+       : statusFiltro === 'yellow' ? 'Somente Esfriando'
+       : statusFiltro === 'red' ? 'Somente Inativos'
+       : 'Todos os clientes';
+}
+
+function obterOrdem() {
+  return document.getElementById('sel-ordem')?.value || 'recent';
+}
+
+function filtrarEOrdenarGrupos(grupos) {
+  const statusFiltro = obterStatusFiltro();
+  const ordem = obterOrdem();
+
+  let resultado = grupos.map(g => {
+    let filiais = statusFiltro === 'all'
+      ? [...g.filiais]
+      : g.filiais.filter(f => f.status === statusFiltro);
+
+    if (!filiais.length) return null;
+
+    const contagem = { green:0, yellow:0, red:0 };
+    filiais.forEach(f => contagem[f.status]++);
+
+    // Quando filtramos, o grupo passa a representar apenas os clientes visíveis.
+    // A última interação usada para ordenar também considera somente essas filiais.
+    const datas = filiais.filter(f => f.ultimaInteracao).map(f => f.ultimaInteracao);
+    const ultimaInteracao = datas.length ? new Date(Math.max(...datas.map(d => new Date(d).getTime()))) : null;
+    const dias = diasDesde(ultimaInteracao);
+    const status = statusFiltro === 'all' ? g.status : statusFiltro;
+
+    return { ...g, filiais, contagem, total: filiais.length, ultimaInteracao, dias, status };
+  }).filter(Boolean);
+
+  resultado.sort((a,b) => {
+    const ta = a.ultimaInteracao ? new Date(a.ultimaInteracao).getTime() : -Infinity;
+    const tb = b.ultimaInteracao ? new Date(b.ultimaInteracao).getTime() : -Infinity;
+    if (ta !== tb) return ordem === 'recent' ? tb - ta : ta - tb;
+    return a.chave.localeCompare(b.chave);
+  });
+
+  return resultado;
+}
+
+function infoCabecalho() {
+  const sel = document.getElementById('sel-vendedor');
+  const nomeVend = sel.options[sel.selectedIndex]?.textContent || '—';
+  const numPalavras = parseInt(document.getElementById('sel-agrupamento').value);
+  const modo = numPalavras === 0 ? 'Sem agrupamento'
+             : numPalavras === 1 ? 'Agrupado por 1ª palavra'
+             : 'Agrupado por 2 primeiras palavras';
+  const statusFiltro = obterStatusFiltro();
+  const statusFiltroLabel = obterStatusFiltroLabel(statusFiltro);
+  const ordem = obterOrdem();
+  const ordemLabel = ordem === 'recent' ? 'Mais recente → mais antigo' : 'Mais antigo → mais recente';
+  return { nomeVend, modo, statusFiltro, statusFiltroLabel, ordem, ordemLabel };
+}
+
+/* ---------- RELATÓRIO ---------- */
+
+function gerarRelatorio() {
+  const grupos = window._ultimoResultado || [];
+  if (!grupos.length) { alert('Nenhum cliente encontrado para os filtros selecionados.'); return; }
+
+  const { nomeVend, modo, statusFiltroLabel, ordemLabel } = infoCabecalho();
+
+  const dataGeracao = new Date().toLocaleString('pt-BR');
+  const cont = { green:0, yellow:0, red:0 };
+  let totalFiliais = 0;
+  grupos.forEach(g => { cont[g.status]++; totalFiliais += g.total; });
+
+  const gruposHtml = grupos.map(g => {
+    const filiais = g.filiais.map(f => {
+      const ultima = f.ultimaInteracao
+        ? `${formatarData(f.ultimaInteracao)} (${f.dias}d)`
+        : 'sem interação';
+      const label = f.status === 'green' ? 'Ativo'
+                  : f.status === 'yellow' ? 'Esfriando'
+                  : 'Inativo';
+      return `
+        <tr class="row-${f.status}">
+          <td><strong>${f.nome}</strong>${f.cnpj?`<br><span class="cnpj">${f.cnpj}</span>`:''}</td>
+          <td>${f.cidade||'—'}${f.uf?'/'+f.uf:''}</td>
+          <td style="text-align:center;">${f.ativoCadastro?'✔':'✖'}</td>
+          <td>${ultima}</td>
+          <td><span class="badge ${f.status}">${label}</span></td>
+        </tr>`;
+    }).join('');
+
+    const textoUltima = g.ultimaInteracao
+      ? `Última compra do grupo: <strong>${formatarData(g.ultimaInteracao)}</strong> (${g.dias} dias)`
+      : `<strong style="color:#c62828">Sem interação registrada</strong>`;
+
+    return `
+      <section class="grupo ${g.status}">
+        <header>
+          <h2>
+            ${g.chave}
+            <span class="badge ${g.status}">${labelStatus(g.status)}</span>
+            ${g.total > 1 ? `<span class="mini-badge">${g.total} filiais</span>` : ''}
+          </h2>
+          <div class="grupo-meta">
+            ${textoUltima} &nbsp;|&nbsp;
+            🟢 ${g.contagem.green} &nbsp; 🟡 ${g.contagem.yellow} &nbsp; 🔴 ${g.contagem.red}
+          </div>
+        </header>
+        <table>
+          <thead><tr>
+            <th>Filial / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th>
+          </tr></thead>
+          <tbody>${filiais}</tbody>
+        </table>
+      </section>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório Farol de Clientes - ${nomeVend}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:#1a2b3c;padding:32px;background:#fff;}
+h1{color:#1e3a5f;font-size:1.6rem;display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.sub{color:#5b6472;font-size:.8rem;margin-bottom:6px;}
+.header{border-bottom:3px solid #1e3a5f;padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:12px;}
+.header-info{font-size:.78rem;color:#3e4e5e;line-height:1.6;text-align:right;}
+.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:24px;}
+.metric{background:#f5f7fa;border-radius:12px;padding:12px;text-align:center;border-left:4px solid #1e3a5f;}
+.metric.green{border-left-color:#2e7d32;background:#e8f5e9;}
+.metric.yellow{border-left-color:#ed6c02;background:#fff8e1;}
+.metric.red{border-left-color:#d32f2f;background:#ffebee;}
+.metric .v{font-size:1.4rem;font-weight:800;line-height:1.1;}
+.metric .l{font-size:.62rem;text-transform:uppercase;letter-spacing:.5px;color:#5b6472;font-weight:700;margin-top:4px;}
+.metric.green .v{color:#2e7d32;}.metric.yellow .v{color:#ed6c02;}.metric.red .v{color:#d32f2f;}
+.grupo{border:1px solid #e5e7eb;border-radius:12px;margin-bottom:14px;overflow:hidden;page-break-inside:avoid;break-inside:avoid;}
+.grupo.green{border-left:5px solid #2e7d32;}
+.grupo.yellow{border-left:5px solid #ed6c02;}
+.grupo.red{border-left:5px solid #d32f2f;}
+.grupo header{padding:12px 16px;background:#f8fafc;border-bottom:1px solid #e5e7eb;}
+.grupo h2{font-size:1rem;color:#1a2b3c;display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.grupo-meta{font-size:.75rem;color:#5b6472;margin-top:5px;}
+.mini-badge{background:#eef3f9;color:#1e3a5f;font-size:.65rem;padding:2px 10px;border-radius:12px;font-weight:700;}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.65rem;font-weight:800;text-transform:uppercase;letter-spacing:.3px;}
+.badge.green{background:#2e7d32;color:#fff;}
+.badge.yellow{background:#ed6c02;color:#fff;}
+.badge.red{background:#d32f2f;color:#fff;}
+table{width:100%;border-collapse:collapse;font-size:.78rem;}
+th{text-align:left;padding:8px 12px;font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:#5b6472;border-bottom:1px solid #e5e7eb;background:#fff;}
+td{padding:9px 12px;border-bottom:1px solid #f1f5f9;}
+tr:last-child td{border-bottom:none;}
+.row-green td{background:#e8f5e9;}
+.row-yellow td{background:#fff8e1;}
+.row-red td{background:#ffebee;}
+.cnpj{color:#5b6472;font-size:.7rem;font-family:monospace;}
+.footer{margin-top:30px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:.7rem;color:#5b6472;text-align:center;}
+.toolbar-print{position:fixed;top:14px;right:14px;display:flex;gap:8px;z-index:100;}
+.toolbar-print button{padding:10px 18px;border-radius:24px;border:none;cursor:pointer;font-weight:700;font-size:.8rem;font-family:inherit;background:#1e3a5f;color:white;box-shadow:0 4px 12px rgba(0,0,0,.15);}
+.toolbar-print button.alt{background:#5b6472;}
+@media print{
+  body{padding:12px;}
+  .toolbar-print{display:none !important;}
+  .grupo{page-break-inside:avoid;}
+  h1{font-size:1.2rem;}
+}
+@page{margin:12mm;}
+</style>
+</head>
+<body>
+  <div class="toolbar-print">
+    <button onclick="window.print()">🖨 Imprimir / Salvar PDF</button>
+    <button class="alt" onclick="window.close()">Fechar</button>
+  </div>
+
+  <div class="header">
+    <div>
+      <h1>🚦 Farol de Clientes</h1>
+      <div class="sub">Centrobor · Análise Consolidada por Grupo Empresarial</div>
+    </div>
+    <div class="header-info">
+      <div><strong>Vendedor:</strong> ${nomeVend}</div>
+      <div><strong>Modo:</strong> ${modo}</div>
+      <div><strong>Filtro do Farol:</strong> ${statusFiltroLabel}</div>
+      <div><strong>Gerado em:</strong> ${dataGeracao}</div>
+    </div>
+  </div>
+
+  <div class="metrics">
+    <div class="metric"><div class="v">${grupos.length}</div><div class="l">Grupos</div></div>
+    <div class="metric"><div class="v">${totalFiliais}</div><div class="l">Filiais/CNPJs</div></div>
+    <div class="metric green"><div class="v">${cont.green}</div><div class="l">🟢 Ativos</div></div>
+    <div class="metric yellow"><div class="v">${cont.yellow}</div><div class="l">🟡 Esfriando</div></div>
+    <div class="metric red"><div class="v">${cont.red}</div><div class="l">🔴 Inativos</div></div>
+  </div>
+
+  ${gruposHtml}
+
+  <div class="footer">
+    Radar Centrobor · Relatório gerado automaticamente em ${dataGeracao}
+  </div>
+</body>
+</html>`;
+
+  const win = window.open('', '_blank');
+  if (!win) { alert('Permita pop-ups para gerar o relatório.'); return; }
+  win.document.write(html);
+  win.document.close();
+}
+
+/* ---------- CSV ---------- */
+function exportarCSV() {
+  const grupos = window._ultimoResultado || [];
+  if (!grupos.length) { alert('Nada para exportar.'); return; }
+
+  const linhas = [['Grupo','Status Grupo','Última Compra Grupo','Filial','Cidade','UF','CNPJ','Cadastro','Última Interação Filial','Dias','Farol Filial']];
+
+  grupos.forEach(g => {
+    g.filiais.forEach(f => {
+      linhas.push([
+        g.chave,
+        labelStatus(g.status),
+        g.ultimaInteracao ? formatarData(g.ultimaInteracao) : 'NUNCA',
+        f.nome,
+        f.cidade || '',
+        f.uf || '',
+        f.cnpj || '',
+        f.ativoCadastro ? 'Ativo' : 'Inativo',
+        f.ultimaInteracao ? formatarData(f.ultimaInteracao) : 'NUNCA',
+        f.dias === Infinity ? '' : f.dias,
+        labelStatus(f.status)
+      ]);
+    });
+  });
+
+  const csv = linhas.map(l => l.map(v => `"${String(v).replace(/"/g,'""')}"`).join(';')).join('\n');
+  const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const { nomeVend } = infoCabecalho();
+  a.href = url;
+  a.download = `farol_clientes_${nomeVend.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = '✅ CSV exportado!';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2500);
+}
+
+/* ---------- COPIAR TEXTO ---------- */
+function copiarRelatorio() {
+  const grupos = window._ultimoResultado || [];
+  if (!grupos.length) return;
+  const { nomeVend } = infoCabecalho();
+
+  let txt = `FAROL DE CLIENTES\nVendedor: ${nomeVend}\nGerado em: ${new Date().toLocaleString('pt-BR')}\n${'='.repeat(60)}\n\n`;
+  grupos.forEach(g => {
+    txt += `GRUPO: ${g.chave}  [${labelStatus(g.status)}]\n`;
+    txt += `  Filiais: ${g.total} (🟢${g.contagem.green} 🟡${g.contagem.yellow} 🔴${g.contagem.red})\n`;
+    txt += `  Última compra do grupo: ${g.ultimaInteracao ? formatarData(g.ultimaInteracao) : 'NUNCA'}\n`;
+    g.filiais.forEach(f => {
+      txt += `    • ${f.nome} (${f.cidade||'—'}/${f.uf||'—'}) — ${f.ultimaInteracao ? formatarData(f.ultimaInteracao) : 'sem interação'} [${labelStatus(f.status)}]\n`;
+    });
+    txt += '\n';
+  });
+
+  navigator.clipboard.writeText(txt).then(() => {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = '✅ Relatório copiado!';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 2500);
+  }).catch(() => alert('Erro ao copiar.'));
+}
+
+/* =====================================================================
+   INIT
+   ===================================================================== */
+let DADOS_GLOBAIS = null;
+
+async function carregarTudo() {
+  document.getElementById('loading').classList.add('active');
+  try {
+    const [metaRaw, aprovRaw, fatRaw, carteiraRaw] = await Promise.all([
+      carregarJSON(BASES.meta),
+      carregarJSON(BASES.aprovados),
+      carregarJSON(BASES.faturados),
+      carregarJSON(BASES.carteira)
+    ]);
+
+    const vendedores = extrairVendedores(carteiraRaw, metaRaw);
+    DADOS_GLOBAIS = { metaRaw, aprovRaw, fatRaw, carteiraRaw, vendedores };
+
+    const sel = document.getElementById('sel-vendedor');
+    sel.innerHTML = '<option value="">— Selecione um vendedor —</option>' +
+      vendedores.map(v => `<option value="${v.codigo}">${v.codigo} — ${v.nome}</option>`).join('');
+
+    if (vendedores.length === 1) {
+      sel.value = vendedores[0].codigo;
+      processar();
+    } else {
+      document.getElementById('resultados').innerHTML = `
+        <div class="empty">
+          <i class="fas fa-user-tie"></i>
+          <p>Selecione um vendedor acima para visualizar o farol de clientes.</p>
+        </div>`;
+    }
+  } catch (err) {
+    console.error(err);
+    document.getElementById('resultados').innerHTML = `
+      <div class="empty">
+        <i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>
+        <p>Falha ao carregar dados. Tente recarregar a página.</p>
+        <button class="btn btn-primary" style="margin-top:16px" onclick="location.reload()">Tentar novamente</button>
+      </div>`;
+  } finally {
+    document.getElementById('loading').classList.remove('active');
+  }
+}
+
+function processar() {
+  const codigo = document.getElementById('sel-vendedor').value;
+  const numPalavras = parseInt(document.getElementById('sel-agrupamento').value);
+
+  if (!codigo) {
+    document.getElementById('metrics').innerHTML = '';
+    document.getElementById('resultados').innerHTML = `
+      <div class="empty">
+        <i class="fas fa-user-tie"></i>
+        <p>Selecione um vendedor acima para visualizar o farol de clientes.</p>
+      </div>`;
+    return;
+  }
+
+  // Mantém o conjunto completo separado do conjunto atualmente exibido.
+  const gruposTodos = construirFarol(codigo, numPalavras, DADOS_GLOBAIS);
+  window._todosGrupos = gruposTodos;
+  const grupos = filtrarEOrdenarGrupos(gruposTodos);
+  window._ultimoResultado = grupos;
+
+  renderMetricas(grupos);
+  renderGrupos(grupos);
+  vincularCliquesFilial();
+}
+
+/* =====================================================================
+   DELEGAÇÃO DE CLIQUE NAS LINHAS DE FILIAL
+   ===================================================================== */
+function vincularCliquesFilial() {
+  const container = document.getElementById('resultados');
+  container.addEventListener('click', function(e) {
+    const tr = e.target.closest('tr[data-grupo][data-filial]');
+    if (!tr) return;
+    // Ignora cliques no header (que tem toggle próprio)
+    if (e.target.closest('.group-header')) return;
+
+    const idxGrupo = parseInt(tr.dataset.grupo);
+    const idxFilial = parseInt(tr.dataset.filial);
+    const grupo = window._ultimoResultado[idxGrupo];
+    if (!grupo) return;
+    const filial = grupo.filiais[idxFilial];
+    if (!filial) return;
+
+    abrirFichaCadastral(filial, grupo);
+  });
+}
+
+/* EVENTOS */
+document.getElementById('sel-vendedor').addEventListener('change', processar);
+document.getElementById('sel-agrupamento').addEventListener('change', () => {
+  if (document.getElementById('sel-vendedor').value) processar();
+});
+document.getElementById('sel-status').addEventListener('change', () => {
+  if (document.getElementById('sel-vendedor').value) processar();
+});
+document.getElementById('sel-ordem').addEventListener('change', () => {
+  if (document.getElementById('sel-vendedor').value) processar();
+});
+document.getElementById('btn-expandir-tudo').addEventListener('click', expandirTudo);
+document.getElementById('btn-recolher-tudo').addEventListener('click', recolherTudo);
+document.getElementById('btn-relatorio').addEventListener('click', gerarRelatorio);
+document.getElementById('btn-csv').addEventListener('click', exportarCSV);
+document.getElementById('btn-copiar').addEventListener('click', copiarRelatorio);
+
+/* Fecha modal ao clicar fora ou pressionar Esc */
+document.getElementById('ficha-modal').addEventListener('click', function(e) {
+  if (e.target === this) fecharFicha();
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') fecharFicha();
+});
+
+carregarTudo();
+</script>
+</body>
+</html>
