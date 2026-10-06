@@ -1036,17 +1036,19 @@ function abrirFichaCadastral(filial, grupo, destino = {}) {
   html += `</div>`;
 
   /* --- Empresas relacionadas (do mesmo grupo) --- */
-  const outrasFiliais = grupo.filiais.filter(f => f.nome !== filial.nome);
+  const outrasFiliais = grupo.filiais.filter(f => f !== filial);
   if (outrasFiliais.length) {
     html += `<div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Outras filiais do grupo "${grupo.chave}" (${outrasFiliais.length})</h4>`;
+    html += `<div class="camp-subtitle" style="margin-bottom:8px">Clique em qualquer filial para abrir a ficha dela sobre esta.</div>`;
     html += `<table class="ficha-table"><thead><tr>
-      <th>Filial</th><th>Cidade/UF</th><th>Última Interação</th><th>Farol</th>
+      <th>Filial / CNPJ</th><th>Cidade/UF</th><th>Última Interação</th><th>Farol</th>
     </tr></thead><tbody>`;
     outrasFiliais.forEach(f => {
       const badge = f.status === 'green' ? '🟢 Ativo'
                   : f.status === 'yellow' ? '🟡 Esfriando'
                   : '🔴 Inativo';
-      html += `<tr data-ficha-relacionada="${outrasFiliais.indexOf(f)}" title="Clique para abrir esta filial por cima da ficha atual">
+      const key = String(f.cnpj || f.registroCompleto?.['CPF/CGC'] || f.codigo || f.nome).replace(/[^0-9A-Za-z]/g,'');
+      html += `<tr data-ficha-relacionada="${key}" title="Clique para abrir esta filial por cima da ficha atual">
         <td><strong>${f.nome}</strong>${f.cnpj ? `<br><small>${f.cnpj}</small>` : ''}</td>
         <td>${f.cidade||'—'}${f.uf?'/'+f.uf:''}</td>
         <td>${f.ultimaInteracao ? formatarData(f.ultimaInteracao)+' ('+f.dias+'d)' : 'sem interação'}</td>
@@ -1405,21 +1407,35 @@ function copiarRelatorio() {
 
 
 function abrirFichaSobreposta(filial, grupo){
-  window._fichaPrincipalAntesSobreposta = window._fichaAtual;
-  let modal=document.getElementById('ficha-modal-overlay');
-  if(!modal){ modal=document.createElement('div'); modal.className='modal'; modal.id='ficha-modal-overlay'; modal.innerHTML='<div class="modal-content" id="ficha-modal-overlay-body"></div>'; document.body.appendChild(modal); modal.addEventListener('click',e=>{if(e.target===modal)fecharFichaSobreposta();}); }
-  abrirFichaCadastral(filial,grupo,{modalId:'ficha-modal-overlay',bodyId:'ficha-modal-overlay-body',fecharFn:'fecharFichaSobreposta'});
+  const depth=(document.querySelectorAll('[id^="ficha-modal-overlay-"]').length||0)+1;
+  const id=`ficha-modal-overlay-${Date.now()}-${depth}`;
+  const modal=document.createElement('div');
+  modal.className='modal'; modal.id=id;
+  modal.style.zIndex=1200+depth*20;
+  modal.innerHTML='<div class="modal-content" id="'+id+'-body"></div>';
+  document.body.appendChild(modal);
+  modal.addEventListener('click',e=>{
+    if(e.target===modal){ modal.remove(); return; }
+    const tr=e.target.closest('tr[data-ficha-relacionada]');
+    if(!tr) return;
+    const key=tr.dataset.fichaRelacionada;
+    const fil=(grupo?.filiais||[]).find(x=>String(x.cnpj||x.registroCompleto?.['CPF/CGC']||x.codigo||x.nome).replace(/[^0-9A-Za-z]/g,'')===key);
+    if(fil) abrirFichaSobreposta(fil,grupo);
+  });
+  abrirFichaCadastral(filial,grupo,{modalId:id,bodyId:id+'-body',fecharFn:`fecharFichaSobreposta('${id}')`});
   modal.classList.add('active');
-  window._fichaSobreposta={filial,grupo};
 }
-window.fecharFichaSobreposta=function(){const m=document.getElementById('ficha-modal-overlay');if(m)m.classList.remove('active');window._fichaSobreposta=null;if(window._fichaPrincipalAntesSobreposta)window._fichaAtual=window._fichaPrincipalAntesSobreposta;};
+window.fecharFichaSobreposta=function(id){
+  if(id){ document.getElementById(id)?.remove(); return; }
+  const overlays=[...document.querySelectorAll('[id^="ficha-modal-overlay-"]')];
+  overlays.pop()?.remove();
+};
 
 /* =====================================================================
    CAMPANHA DE CLIENTES INATIVOS
    ===================================================================== */
 const CAMP_CONFIG_KEY = 'centrobor_campanha_config_v2';
 const CAMP_MANUAL_KEY = 'centrobor_campanha_vendas_manuais_v2';
-const CAMP_DATA_CACHE_KEY = 'centrobor_campanha_dados_v2';
 let CAMP_RESULTADO = [];
 let CAMP_CONFIG = { data:'', vendedor:'', status:'all' };
 
@@ -1427,9 +1443,6 @@ function campHojeISO(){ const d=new Date(); return `${d.getFullYear()}-${String(
 function campDateISOtoDate(v){ if(!v)return null; const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
 function campNorm(v){ return normalizarNome(v).replace(/\s+/g,' ').trim(); }
 function campDataCfg(){ try{return JSON.parse(localStorage.getItem(CAMP_CONFIG_KEY)||'{}')}catch{return {}} }
-function campDadosCache(){ try{ const x=JSON.parse(localStorage.getItem(CAMP_DATA_CACHE_KEY)||'[]'); return Array.isArray(x)?x:[]; }catch{return []} }
-function campSalvarDadosCache(rows){ try{ if(Array.isArray(rows)&&rows.length) localStorage.setItem(CAMP_DATA_CACHE_KEY,JSON.stringify(rows)); }catch(e){ console.warn('Não foi possível salvar cache da campanha',e); } }
-function campFonteDados(){ const atual=DADOS_GLOBAIS?.campanhaRaw; return Array.isArray(atual)&&atual.length ? atual : campDadosCache(); }
 function campSalvarConfig(){ localStorage.setItem(CAMP_CONFIG_KEY, JSON.stringify(CAMP_CONFIG)); }
 function campManuais(){ try{return JSON.parse(localStorage.getItem(CAMP_MANUAL_KEY)||'{}')}catch{return {}} }
 function campSalvarManual(ctx){ const all=campManuais(); const k=`${ctx.codigo}|${campNorm(ctx.cliente)}|${CAMP_CONFIG.data}`; all[k]=ctx.manual; localStorage.setItem(CAMP_MANUAL_KEY,JSON.stringify(all)); }
@@ -1457,17 +1470,18 @@ function campInteracoesFilial(filial,codigo,nome,ateData){
   const fat=DADOS_GLOBAIS.fatRaw.filter(f=>campVendedorFat(f,codigo,nome));
   const datas=[];
   aprov.forEach(a=>{const d=campDataCampo(a);if(d&&d<=ateData){const n=campNorm(a.Cliente);if(aliases.has(n)||n===campNorm(filial.nome))datas.push({d,tipo:'aprovado',r:a});}});
-  fat.forEach(f=>{const d=campDataCampo(f);if(d&&d<=ateData){const n=campNorm(f['Nome Chave']||f.Empresa);if(aliases.has(n)||n===campNorm(filial.nome))datas.push({d,tipo:'faturado',r:f});}});
+  fat.forEach(f=>{const d=campDataCampo(f);if(d&&d<=ateData){const n=campNorm(f['Nome Chave']||f.Empresa);const fc=String(f['CPF/CGC']||f['CNPJ']||f['CNPJ/CPF']||'').replace(/\D/g,'');if(aliases.has(n)||n===campNorm(filial.nome)||(cnpj&&fc&&cnpj===fc))datas.push({d,tipo:'faturado',r:f});}});
   datas.sort((a,b)=>b.d-a.d);
   return datas;
 }
 function campFaturamento(filial,codigo,nome,de){
   const inicio=de; const fim=null;
   const aliases=new Set([filial.nome,filial.registroCompleto?.['Nome Chave'],filial.registroCompleto?.['Nome/Razão Social'],...(filial.aliases||[])] .filter(Boolean).map(campNorm));
+  const cnpj=String(filial.cnpj||filial.registroCompleto?.['CPF/CGC']||'').replace(/\D/g,'');
   const fat=DADOS_GLOBAIS.fatRaw.filter(f=>campVendedorFat(f,codigo,nome));
   const aprov=DADOS_GLOBAIS.aprovRaw.filter(a=>campVendedorAprov(a,codigo,nome));
   let faturado=0,qFat=0,ultimaFat=null,aprovado=0,qAprov=0,ultimaAprov=null;
-  const matchNome=(r)=>aliases.has(campNorm(r?.['Nome Chave']||r?.['Empresa']||r?.['Cliente']));
+  const matchNome=(r)=>{const n=campNorm(r?.['Nome Chave']||r?.['Empresa']||r?.['Cliente']);const fc=String(r?.['CPF/CGC']||r?.['CNPJ']||r?.['CNPJ/CPF']||'').replace(/\D/g,'');return aliases.has(n)||(cnpj&&fc&&cnpj===fc);};
   fat.forEach(f=>{const d=campDataCampo(f);if(d&&d>=inicio&&matchNome(f)){qFat++; faturado+=campValor(f['Valor']||f['Valor Total']||f['Total']||f['Vlr. Total']);if(!ultimaFat||d>ultimaFat)ultimaFat=d;}});
   aprov.forEach(a=>{const d=campDataCampo(a);if(d&&d>=inicio&&campNorm(a.Cliente) && aliases.has(campNorm(a.Cliente))){qAprov++;aprovado+=campValor(a['Valor']||a['Valor Total']||a['Total']||a['Vlr. Total']);if(!ultimaAprov||d>ultimaAprov)ultimaAprov=d;}});
   return {faturado,qFat,ultimaFat,aprovado,qAprov,ultimaAprov};
@@ -1497,38 +1511,97 @@ function campMatchGrupo(indicado,grupo){
   return toks.length>0 && toks.every(t=>joined.includes(t));
 }
 function campHistoricoGrupo(grupo,codigo,nome,data){
-  const d=data; const filiais=grupo.filiais.map(f=>{
-    const inter=campInteracoesFilial(f,codigo,nome,d); const ultima=inter[0]?.d||null; const dias=ultima?Math.floor((d-ultima)/(86400000)):Infinity; return {...f,campanhaUltima:ultima,campanhaDias:dias,campanhaStatus:calcularStatus(dias)};
+  const d=data;
+  const filiais=grupo.filiais.map(f=>{
+    const inter=campInteracoesFilial(f,codigo,nome,d);
+    const ultima=inter[0]?.d||null;
+    const dias=ultima?Math.floor((d-ultima)/(86400000)):Infinity;
+    return {...f,campanhaUltima:ultima,campanhaDias:dias,campanhaStatus:calcularStatus(dias)};
   });
   const ultima=filiais.map(f=>f.campanhaUltima).filter(Boolean).sort((a,b)=>b-a)[0]||null;
   const dias=ultima?Math.floor((d-ultima)/(86400000)):Infinity;
   return {...grupo,filiais,status:calcularStatus(dias),ultimaInteracao:ultima,dias};
 }
+function campUltimaVendaFilial(filial,codigo,nome){
+  const aliases=new Set([filial.nome,filial.registroCompleto?.['Nome Chave'],filial.registroCompleto?.['Nome/Razão Social'],...(filial.aliases||[])]
+    .filter(Boolean).map(campNorm));
+  const cnpj=String(filial.cnpj||filial.registroCompleto?.['CPF/CGC']||'').replace(/\D/g,'');
+  let ultima=null, valor=0;
+  DADOS_GLOBAIS.fatRaw.filter(f=>campVendedorFat(f,codigo,nome)).forEach(f=>{
+    const n=campNorm(f['Nome Chave']||f.Empresa||f.Cliente);
+    const fc=String(f['CPF/CGC']||f['CNPJ']||f['CNPJ/CPF']||'').replace(/\D/g,'');
+    if(!(aliases.has(n)||(cnpj&&fc&&cnpj===fc))) return;
+    const d=campDataCampo(f); if(!d) return;
+    if(!ultima || d>ultima){ultima=d; valor=campValor(f['Valor']||f['Valor Total']||f['Total']||f['Vlr. Total']);}
+  });
+  return {data:ultima,valor};
+}
+function campResumoFilial(filial,codigo,nome,de){
+  const x=campFaturamento(filial,codigo,nome,de);
+  const hist=campUltimaVendaFilial(filial,codigo,nome);
+  return {...x,ultimaVenda:hist.data,valorUltimaVenda:hist.valor};
+}
+function campMatchGrupo(indicado,grupo){
+  const x=campNorm(indicado); if(!x)return false;
+  const nomes=[];
+  grupo.filiais.forEach(f=>{
+    nomes.push(campNorm(f.nome),campNorm(f.registroCompleto?.['Nome Chave']),campNorm(f.registroCompleto?.['Nome/Razão Social']),...(f.aliases||[]).map(campNorm));
+  });
+  if(nomes.some(n=>n===x))return true;
+  const k=campNorm(grupo.chave);
+  const k1=campNorm(gerarChaveGrupo(indicado,1));
+  const k2=campNorm(gerarChaveGrupo(indicado,2));
+  if(k===k1||k===k2||k===x)return true;
+  if(x.length>=5 && (k.startsWith(x+' ')||x.startsWith(k+' ')||k.includes(x)||x.includes(k)))return true;
+  const toks=x.split(' ').filter(t=>t.length>=4); const joined=nomes.join(' ');
+  return toks.length>0 && toks.every(t=>joined.includes(t));
+}
 function campanhaSelecionados(){
-  const rows=campFonteDados(); const out=[];
-  rows.forEach(r=>{const codigo=String(r.vendedor_cod||r['Vendedor Cod']||r.codigo||'').trim();const vendedor=r.vendedor_nome||r['Vendedor Nome']||campNomeVendedor(codigo); if(!codigo)return; for(let i=1;i<=50;i++){const cliente=String(r[`Cliente ${i}`]||'').trim();if(cliente)out.push({codigo,vendedor,cliente,ordem:i});}}); return out;
+  const rows=DADOS_GLOBAIS.campanhaRaw||[]; const out=[];
+  rows.forEach(r=>{
+    const codigo=String(r.vendedor_cod||r['Vendedor Cod']||r.codigo||'').trim();
+    const vendedor=r.vendedor_nome||r['Vendedor Nome']||campNomeVendedor(codigo);
+    if(!codigo)return;
+    for(let i=1;i<=50;i++){const cliente=String(r[`Cliente ${i}`]||'').trim();if(cliente)out.push({codigo,vendedor,cliente,ordem:i});}
+  });
+  return out;
 }
 function construirCampanha(){
   const data=campDateISOtoDate(CAMP_CONFIG.data)||new Date(); data.setHours(0,0,0,0);
-  const base=new Map();
+  const out=[];
   campanhaSelecionados().forEach(sel=>{
-    const gruposAtuais=construirFarol(sel.codigo,1,DADOS_GLOBAIS); const grupo=gruposAtuais.find(g=>campMatchGrupo(sel.cliente,g));
+    const gruposAtuais=construirFarol(sel.codigo,1,DADOS_GLOBAIS);
+    const grupo=gruposAtuais.find(g=>campMatchGrupo(sel.cliente,g));
     const snapshot=grupo?campHistoricoGrupo(grupo,sel.codigo,sel.vendedor,data):null;
     const inativos=snapshot?.filiais.filter(f=>f.campanhaStatus==='red')||[];
-    const encontrado=!!snapshot; const elegivel=inativos.length>0;
+    const encontrado=!!snapshot;
+    const elegivel=inativos.length>0;
+    /* A filial exibida como principal é SEMPRE a inativa com interação mais recente na data da campanha. */
     const principal=inativos.slice().sort((a,b)=>{
-      const ta=a.campanhaUltima?new Date(a.campanhaUltima).getTime():-Infinity;
-      const tb=b.campanhaUltima?new Date(b.campanhaUltima).getTime():-Infinity;
-      return tb-ta;
-    })[0]||snapshot?.filiais[0]||null;
+      const da=a.campanhaUltima?new Date(a.campanhaUltima).getTime():-Infinity;
+      const db=b.campanhaUltima?new Date(b.campanhaUltima).getTime():-Infinity;
+      return db-da;
+    })[0] || snapshot?.filiais[0] || null;
     const fat=snapshot?campFaturamentoGrupo(snapshot,sel.codigo,sel.vendedor,data):{faturado:0,qFat:0,ultimaFat:null,aprovado:0,qAprov:0,ultimaAprov:null};
-    const manual=campManual(sel); const fatTotal=fat.faturado+(manual.houve?Number(manual.valor||0):0); const qFat=fat.qFat+(manual.houve?1:0); const ultimaFat=manual.houve&&manual.data ? new Date(manual.data+'T00:00:00') : fat.ultimaFat; const temAprov=fat.qAprov>0;
+    const manual=campManual(sel);
+    const manualData=manual.houve&&manual.data?new Date(manual.data+'T00:00:00'):null;
+    const manualVal=(manual.houve&&manualData&&manualData>=data)?Number(manual.valor||0):0;
+    const manualConta=manualVal>0;
+    const fatTotal=fat.faturado+manualVal;
+    const qFat=fat.qFat+(manualConta?1:0);
+    const datasFat=[fat.ultimaFat, manualConta?manualData:null].filter(Boolean);
+    const ultimaFat=datasFat.length?new Date(Math.max(...datasFat.map(d=>new Date(d).getTime()))):null;
+    const temAprov=fat.qAprov>0;
     let status='inconsistente'; if(elegivel) status=fatTotal>0?'faturado':temAprov?'aprovado':'semvenda';
-    out.push({id:`${sel.codigo}|${campNorm(sel.cliente)}`,codigo:sel.codigo,vendedor:sel.vendedor,cliente:sel.cliente,grupo:snapshot,grupoAtual:grupo, encontrado,elegivel,inativos,principal,fat,qFat,fatTotal,temAprov,status,manual,ultimaFat});
+    const filialResumo=(snapshot?.filiais||[]).map(f=>({...f,campResumo:campResumoFilial(f,sel.codigo,sel.vendedor,data)}));
+    const vendasHistoricas=filialResumo.map(x=>x.campResumo?.ultimaVenda).filter(Boolean).sort((a,b)=>b-a);
+    const ultimaVendaGrupo=vendasHistoricas[0]||null;
+    out.push({id:`${sel.codigo}|${campNorm(sel.cliente)}`,codigo:sel.codigo,vendedor:sel.vendedor,cliente:sel.cliente,grupo:snapshot,grupoAtual:grupo,encontrado,elegivel,inativos,principal,fat,qFat,fatTotal,temAprov,status,manual,ultimaFat,ultimaVendaGrupo,filialResumo});
   });
   return out;
 }
 function campanhaStatusLabel(s){return s==='faturado'?'🟢 Faturado':s==='aprovado'?'🟡 Aprovado / não faturado':s==='semvenda'?'🔵 Sem venda':'⚠️ Inconsistente';}
+function campanhaClasse(s){return s==='faturado'?'ok':s==='aprovado'?'warn':s==='semvenda'?'info':'bad';}
 function renderCampanha(){
   if(!DADOS_GLOBAIS)return;
   CAMP_CONFIG.data=document.getElementById('camp-data').value||campHojeISO();
@@ -1536,62 +1609,123 @@ function renderCampanha(){
   CAMP_CONFIG.status=document.getElementById('camp-status').value;
   campSalvarConfig();
   const all=construirCampanha();
-  CAMP_RESULTADO=all.filter(r=>(!CAMP_CONFIG.vendedor||r.codigo===CAMP_CONFIG.vendedor)&& (CAMP_CONFIG.status==='all'||CAMP_CONFIG.status==='elegivel' ? (CAMP_CONFIG.status==='elegivel'?r.elegivel:true) : r.status===CAMP_CONFIG.status));
-  const vis=CAMP_RESULTADO; const eleg=all.filter(r=>r.elegivel); const fatur=all.filter(r=>r.status==='faturado'); const incons=all.filter(r=>r.status==='inconsistente'); const aprov=all.filter(r=>r.status==='aprovado');
-  document.getElementById('camp-kpis').innerHTML=`<div class="camp-kpi"><div class="n">${all.length}</div><div class="l">Clientes indicados</div></div><div class="camp-kpi"><div class="n">${eleg.length}</div><div class="l">Elegíveis na data</div></div><div class="camp-kpi"><div class="n">${fatur.length}</div><div class="l">Faturaram</div></div><div class="camp-kpi"><div class="n">${aprov.length}</div><div class="l">Aprovados</div></div><div class="camp-kpi"><div class="n">${incons.length}</div><div class="l">Inconsistentes</div></div>`;
-  const sellers=[...new Map(all.map(r=>[r.codigo,r])).values()]; document.getElementById('camp-vendedor-resumo').innerHTML=`<div class="camp-card" style="margin-bottom:14px"><div class="camp-vendedor-box"><div><strong>Controle por vendedor</strong><div class="camp-subtitle">Selecione um vendedor na tabela para exportar/copiar somente o controle dele.</div></div>${sellers.map(r=>`<button class="btn btn-light" onclick="selecionarCampVendedor('${r.codigo}')">${r.vendedor}</button>`).join('')}</div></div>`;
-  if(!vis.length){
-    const temCampanha=campanhaSelecionados().length>0;
-    document.getElementById('camp-tabela').innerHTML=temCampanha
-      ? '<div class="camp-empty">Nenhum cliente encontrado para os filtros atuais.</div>'
-      : '<div class="camp-empty"><strong>Planilha da campanha sem clientes carregados.</strong><br><small>Verifique a aba campanha_clientes_inativos no OpenSheet. O Farol principal continua funcionando normalmente.</small></div>';
-    return;
-  }
-  document.getElementById('camp-tabela').innerHTML=`<table class="camp-table"><thead><tr><th>Vendedor</th><th>Cliente indicado</th><th>Empresa / CNPJ inativo</th><th>Campanha</th><th>Faturado desde campanha</th><th>Último faturamento</th><th>Aprovado</th><th>Qtd. Fat.</th><th>Qtd. Aprov.</th></tr></thead><tbody>${vis.map((r,i)=>`<tr data-camp-idx="${i}" onclick="abrirCampDetalhe(${i})"><td><strong>${r.vendedor}</strong><br><small>${r.codigo}</small></td><td><strong>${r.cliente}</strong></td><td>${r.principal?.nome||'Não localizado'}<br><small>${r.inativos.map(f=>f.cnpj||f.registroCompleto?.['CPF/CGC']||'').filter(Boolean).join(' • ')||'—'}</small></td><td><span class="camp-status ${r.status==='faturado'?'ok':r.status==='aprovado'?'warn':r.status==='semvenda'?'info':'bad'}">${campanhaStatusLabel(r.status)}</span></td><td>${campMoeda(r.fatTotal)}</td><td>${r.ultimaFat?formatarData(r.ultimaFat):'—'}</td><td>${campMoeda(r.fat.aprovado)}</td><td>${r.qFat}</td><td>${r.fat.qAprov}</td></tr>`).join('')}</tbody></table>`;
+  CAMP_RESULTADO=all.filter(r=>(!CAMP_CONFIG.vendedor||r.codigo===CAMP_CONFIG.vendedor) &&
+    (CAMP_CONFIG.status==='all'||CAMP_CONFIG.status==='elegivel'? (CAMP_CONFIG.status==='elegivel'?r.elegivel:true):r.status===CAMP_CONFIG.status));
+  const eleg=all.filter(r=>r.elegivel), fatur=all.filter(r=>r.status==='faturado'), incons=all.filter(r=>r.status==='inconsistente'), aprov=all.filter(r=>r.status==='aprovado');
+  const totalFat=all.reduce((s,r)=>s+r.fatTotal,0);
+  document.getElementById('camp-kpis').innerHTML=`
+    <div class="camp-kpi"><div class="n">${all.length}</div><div class="l">Clientes indicados</div></div>
+    <div class="camp-kpi"><div class="n">${eleg.length}</div><div class="l">Elegíveis na data</div></div>
+    <div class="camp-kpi"><div class="n">${fatur.length}</div><div class="l">Faturaram</div></div>
+    <div class="camp-kpi"><div class="n">${aprov.length}</div><div class="l">Aprovados</div></div>
+    <div class="camp-kpi"><div class="n">${incons.length}</div><div class="l">Inconsistentes</div></div>
+    <div class="camp-kpi"><div class="n">${campMoeda(totalFat)}</div><div class="l">Faturamento desde a campanha</div></div>`;
+  const sellers=[...new Map(all.map(r=>[r.codigo,r])).values()];
+  document.getElementById('camp-vendedor-resumo').innerHTML=`<div class="camp-card" style="margin-bottom:14px"><div class="camp-vendedor-box"><div><strong>Controle por vendedor</strong><div class="camp-subtitle">Escolha um vendedor para deixar a tabela enxuta e exportar/copiar somente o controle dele.</div></div>${sellers.map(r=>`<button class="btn btn-light" onclick="selecionarCampVendedor('${r.codigo}')">${r.vendedor}</button>`).join('')}</div></div>`;
+  if(!CAMP_RESULTADO.length){document.getElementById('camp-tabela').innerHTML='<div class="camp-empty">Nenhum cliente encontrado para os filtros atuais.</div>';return;}
+  document.getElementById('camp-tabela').innerHTML=`<table class="camp-table"><thead><tr>
+    <th>Vendedor</th><th>Cliente indicado</th><th>Grupo / inativas</th><th>Campanha</th><th>Faturado desde campanha</th><th>Último faturamento</th><th>Última venda histórica</th><th>Aprovado</th><th>Qtd. Fat.</th><th>Qtd. Aprov.</th>
+  </tr></thead><tbody>${CAMP_RESULTADO.map((r,i)=>`<tr data-camp-idx="${i}" onclick="abrirCampDetalhe(${i})" title="Clique para abrir o detalhamento completo">
+    <td><strong>${r.vendedor}</strong><br><small>${r.codigo}</small></td>
+    <td><strong>${r.cliente}</strong></td>
+    <td>${r.principal?.nome||'Não localizado'}<br><small>${r.inativos.map(f=>f.cnpj||f.registroCompleto?.['CPF/CGC']||'').filter(Boolean).join(' • ')||'—'}${r.inativos.length>1?`<br><span class="camp-subtitle">${r.inativos.length} filiais inativas</span>`:''}</small></td>
+    <td><span class="camp-status ${campanhaClasse(r.status)}">${campanhaStatusLabel(r.status)}</span></td>
+    <td><strong>${campMoeda(r.fatTotal)}</strong></td>
+    <td>${r.ultimaFat?formatarData(r.ultimaFat):'—'}</td>
+    <td>${r.ultimaVendaGrupo?formatarData(r.ultimaVendaGrupo):'—'}</td>
+    <td>${campMoeda(r.fat.aprovado)}</td><td>${r.qFat}</td><td>${r.fat.qAprov}</td>
+  </tr>`).join('')}</tbody></table>`;
 }
-function selecionarCampVendedor(codigo){document.getElementById('camp-vendedor').value=codigo; CAMP_CONFIG.vendedor=codigo; campSalvarConfig(); renderCampanha();}
-function abrirCampDetalhe(i){const r=CAMP_RESULTADO[i];if(!r)return; if(!r.principal){alert('Cliente indicado não localizado no cadastro deste vendedor.');return;} const grupo=r.grupo||r.grupoAtual; const f={...r.principal,status:r.principal.campanhaStatus||r.principal.status,ultimaInteracao:r.principal.campanhaUltima||r.principal.ultimaInteracao,dias:r.principal.campanhaDias??r.principal.dias}; const g={...grupo,filiais:grupo.filiais.map(x=>({...x,status:x.campanhaStatus||x.status,ultimaInteracao:x.campanhaUltima||x.ultimaInteracao,dias:x.campanhaDias??x.dias}))}; abrirFichaCadastral(f,g); const body=document.getElementById('ficha-modal-body'); const extra=document.createElement('div'); extra.className='camp-modal-extra'; extra.innerHTML=`<div class="ficha-secao"><h4><i class="fas fa-bullseye"></i> Controle da campanha — ${CAMP_CONFIG.data.split('-').reverse().join('/')}</h4><div class="ficha-grid"><div class="ficha-campo"><span class="campo-label">Faturado desde a campanha:</span><span class="campo-valor">${campMoeda(r.fatTotal)}</span></div><div class="ficha-campo"><span class="campo-label">Último faturamento:</span><span class="campo-valor">${r.ultimaFat?formatarData(r.ultimaFat):'—'}</span></div><div class="ficha-campo"><span class="campo-label">Aprovado:</span><span class="campo-valor">${campMoeda(r.fat.aprovado)}</span></div><div class="ficha-campo"><span class="campo-label">Status:</span><span class="campo-valor">${campanhaStatusLabel(r.status)}</span></div></div><div class="camp-edit"><div><label><input type="checkbox" id="camp-manual-houve" ${r.manual.houve?'checked':''}> Venda manual</label></div><div><label>Valor</label><input id="camp-manual-valor" inputmode="decimal" value="${r.manual.valor||''}"></div><div><label>Data</label><input id="camp-manual-data" type="date" value="${r.manual.data||CAMP_CONFIG.data}"></div><button class="btn btn-success" onclick="salvarManualCamp('${r.codigo}',${JSON.stringify(r.cliente).replace(/"/g,'&quot;')})">Salvar</button></div></div>`; body.appendChild(extra);}
-function salvarManualCamp(codigo,cliente){const manual={houve:document.getElementById('camp-manual-houve').checked,valor:campValor(document.getElementById('camp-manual-valor').value),data:document.getElementById('camp-manual-data').value};campSalvarManual({codigo,cliente,manual});fecharFicha();renderCampanha();}
+function selecionarCampVendedor(codigo){document.getElementById('camp-vendedor').value=codigo;CAMP_CONFIG.vendedor=codigo;campSalvarConfig();renderCampanha();}
+function abrirCampDetalhe(i){
+  const r=CAMP_RESULTADO[i]; if(!r)return;
+  if(!r.principal){alert('Cliente indicado não localizado no cadastro deste vendedor.');return;}
+  const grupo=r.grupo||r.grupoAtual;
+  const f={...r.principal,status:r.principal.campanhaStatus||r.principal.status,ultimaInteracao:r.principal.campanhaUltima||r.principal.ultimaInteracao,dias:r.principal.campanhaDias??r.principal.dias};
+  const g={...grupo,filiais:grupo.filiais.map(x=>({...x,status:x.campanhaStatus||x.status,ultimaInteracao:x.campanhaUltima||x.ultimaInteracao,dias:x.campanhaDias??x.dias}))};
+  abrirFichaCadastral(f,g);
+  const body=document.getElementById('ficha-modal-body');
+  const dataTxt=CAMP_CONFIG.data.split('-').reverse().join('/');
+  const inativosCnpjs=r.inativos.map(x=>x.cnpj||x.registroCompleto?.['CPF/CGC']).filter(Boolean).join(' • ')||'—';
+  const resumoFiliais=(r.filialResumo||[]).slice().sort((a,b)=>{
+    const rank={red:0,yellow:1,green:2}; return (rank[a.campanhaStatus]??9)-(rank[b.campanhaStatus]??9);
+  });
+  const extra=document.createElement('div'); extra.className='camp-modal-extra';
+  extra.innerHTML=`
+    <div class="ficha-secao"><h4><i class="fas fa-bullseye"></i> Controle da campanha — ${dataTxt}</h4>
+      <div class="ficha-grid">
+        <div class="ficha-campo"><span class="campo-label">Elegível na fotografia:</span><span class="campo-valor">${r.elegivel?'✅ SIM':'⚠️ NÃO'}</span></div>
+        <div class="ficha-campo"><span class="campo-label">CNPJ(s) inativo(s):</span><span class="campo-valor">${inativosCnpjs}</span></div>
+        <div class="ficha-campo"><span class="campo-label">Faturado desde a campanha:</span><span class="campo-valor">${campMoeda(r.fatTotal)}</span></div>
+        <div class="ficha-campo"><span class="campo-label">Último faturamento desde campanha:</span><span class="campo-valor">${r.ultimaFat?formatarData(r.ultimaFat):'—'}</span></div>
+        <div class="ficha-campo"><span class="campo-label">Última venda histórica:</span><span class="campo-valor">${r.ultimaVendaGrupo?formatarData(r.ultimaVendaGrupo):'—'}</span></div>
+        <div class="ficha-campo"><span class="campo-label">Aprovado desde a campanha:</span><span class="campo-valor">${campMoeda(r.fat.aprovado)}</span></div>
+        <div class="ficha-campo"><span class="campo-label">Status:</span><span class="campo-valor">${campanhaStatusLabel(r.status)}</span></div>
+      </div>
+      <div class="camp-edit">
+        <div><label><input type="checkbox" id="camp-manual-houve" ${r.manual.houve?'checked':''}> Venda manual</label></div>
+        <div><label>Valor</label><input id="camp-manual-valor" inputmode="decimal" value="${r.manual.valor||''}"></div>
+        <div><label>Data</label><input id="camp-manual-data" type="date" value="${r.manual.data||CAMP_CONFIG.data}"></div>
+        <button class="btn btn-success" onclick="salvarManualCamp('${r.codigo}',${JSON.stringify(r.cliente).replace(/"/g,'&quot;')})">Salvar</button>
+      </div>
+    </div>
+    <div class="ficha-secao"><h4><i class="fas fa-sitemap"></i> Todas as filiais do grupo</h4>
+      <div class="camp-subtitle">As inativas são as que tornam o cliente elegível. As ativas e esfriando também aparecem para mostrar o grupo completo. Clique em uma filial para abrir a ficha dela por cima.</div>
+      <table class="camp-mini-table"><thead><tr><th>Filial</th><th>CNPJ</th><th>Farol campanha</th><th>Farol atual</th><th>Última venda</th><th>Fat. desde campanha</th></tr></thead><tbody>
+      ${resumoFiliais.map((x,idx)=>{const resumo=x.campResumo||{};const cur=x.status==='green'?'🟢 Ativo':x.status==='yellow'?'🟡 Esfriando':'🔴 Inativo';const key=String(x.cnpj||x.registroCompleto?.['CPF/CGC']||x.codigo||x.nome).replace(/[^0-9A-Za-z]/g,'');return `<tr data-camp-filial="${key}" onclick="abrirCampFilialSobreposta('${key}')"><td><strong>${x.nome}</strong><br><small>${x.cidade||'—'}${x.uf?'/'+x.uf:''}</small></td><td>${x.cnpj||x.registroCompleto?.['CPF/CGC']||'—'}</td><td>${labelStatus(x.campanhaStatus)}</td><td>${cur}</td><td>${resumo.ultimaVenda?formatarData(resumo.ultimaVenda):'—'}</td><td>${campMoeda(resumo.faturado||0)}</td></tr>`}).join('')}
+      </tbody></table>
+    </div>`;
+  body.appendChild(extra);
+  window._campDetalheAtual={r,grupo:g};
+}
+function abrirCampFilialSobreposta(key){
+  const ctx=window._campDetalheAtual; if(!ctx?.grupo)return;
+  const fil=ctx.grupo.filiais.find(x=>String(x.cnpj||x.registroCompleto?.['CPF/CGC']||x.codigo||x.nome).replace(/[^0-9A-Za-z]/g,'')===key);
+  if(fil) abrirFichaSobreposta(fil,ctx.grupo);
+}
+function salvarManualCamp(codigo,cliente){
+  const manual={houve:document.getElementById('camp-manual-houve').checked,valor:campValor(document.getElementById('camp-manual-valor').value),data:document.getElementById('camp-manual-data').value};
+  campSalvarManual({codigo,cliente,manual}); fecharFicha(); renderCampanha();
+}
 function campanhaLinhas(tipo){
   const arr=CAMP_RESULTADO;
   if(tipo==='simples') return arr.map(r=>{
     const inativos=r.inativos.map(f=>f.cnpj||f.registroCompleto?.['CPF/CGC']).filter(Boolean).join(' | ');
-    return [r.vendedor,r.codigo,r.cliente,r.elegivel?'SIM':'NÃO',inativos,r.status==='faturado'?'SIM':'NÃO',r.fatTotal,r.ultimaFat?formatarData(r.ultimaFat):'',r.fat.aprovado,r.qFat];
+    return [r.vendedor,r.codigo,r.cliente,r.elegivel?'SIM':'NÃO',inativos,r.status==='faturado'?'SIM':'NÃO',r.fatTotal,r.ultimaFat?formatarData(r.ultimaFat):'',r.ultimaVendaGrupo?formatarData(r.ultimaVendaGrupo):'',r.fat.aprovado,r.qFat,r.fat.qAprov];
   });
   const out=[];
   arr.forEach(r=>{
-    const todas=r.grupo?.filiais||[];
-    todas.forEach(f=>{
-      const current=r.grupoAtual?.filiais?.find(x=>String(x.cnpj||x.registroCompleto?.['CPF/CGC']).replace(/\D/g,'')===String(f.cnpj||f.registroCompleto?.['CPF/CGC']).replace(/\D/g,''))||null;
-      const venda=campFaturamento(f,r.codigo,r.vendedor,CAMP_CONFIG.data?campDateISOtoDate(CAMP_CONFIG.data):new Date());
+    (r.filialResumo||[]).forEach(f=>{
+      const resumo=f.campResumo||{};
+      const c=f.registroCompleto||{};
       out.push([
         r.vendedor,r.codigo,r.cliente,r.elegivel?'SIM':'NÃO',
-        f.nome,f.cnpj||f.registroCompleto?.['CPF/CGC']||'',f.cidade||'',f.uf||'',
-        labelStatus(f.campanhaStatus),f.campanhaUltima?formatarData(f.campanhaUltima):'NUNCA',
-        current?labelStatus(current.status):'—',current?.ultimaInteracao?formatarData(current.ultimaInteracao):'—',
-        r.status,campMoeda(venda.aprovado),venda.qAprov,campMoeda(venda.faturado),venda.qFat,venda.ultimaFat?formatarData(venda.ultimaFat):''
+        f.nome,f.cnpj||c['CPF/CGC']||'',c['Código']||f.codigo||'',c['Nome Chave']||'',c['Nome/Razão Social']||'',
+        c['Física/Juridica']||'',c['RG/IE']||'',c['Ramo']||'',c['Dt.Cadastro']||'',c['ATivo/Inativo']||'',
+        c['Transportadora']||'',c['Limite de Crédito']||'',c['Representante']||'',
+        c['Endereço']||'',c['Número']||'',c['Complemento']||'',c['Bairro']||'',c['Cidade']||f.cidade||'',c['UF']||f.uf||'',c['País']||'',c['CEP']||'',
+        c['Telefone']||'',c['Fax']||'',c['Contato']||'',c['Departamento']||'',c['Cargo']||'',c['Fone']||'',c['E-Mail']||'',
+        labelStatus(f.campanhaStatus),f.campanhaUltima?formatarData(f.campanhaUltima):'NUNCA',labelStatus(f.status),f.ultimaInteracao?formatarData(f.ultimaInteracao):'—',
+        r.status,campMoeda(resumo.aprovado),resumo.qAprov,campMoeda(resumo.faturado),resumo.qFat,resumo.ultimaFat?formatarData(resumo.ultimaFat):'',
+        resumo.ultimaVenda?formatarData(resumo.ultimaVenda):'',campMoeda(resumo.valorUltimaVenda||0)
       ]);
     });
   });
   return out;
 }
 function baixarXls(nome,headers,rows){const html=`<html><head><meta charset="UTF-8"></head><body><table border="1"><thead><tr>${headers.map(h=>`<th>${String(h).replace(/&/g,'&amp;').replace(/</g,'&lt;')}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(v=>`<td>${String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;')}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nome;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500);}
-function exportarCampanhaSimplesExcel(){const h=['Vendedor','Código','Cliente indicado','Elegível na campanha','CNPJ(s) inativos','Faturou após campanha?','Faturado desde campanha','Último faturamento','Aprovado','Qtd faturamentos'];baixarXls(`controle_campanha_${CAMP_CONFIG.data}.xls`,h,campanhaLinhas('simples'));}
-function exportarCampanhaDetalhadaExcel(){const h=['Vendedor','Código','Cliente indicado','Elegível','Filial','CNPJ','Cidade','UF','Farol na campanha','Última interação na campanha','Farol atual','Última interação atual','Status campanha','Aprovado','Qtd aprovados','Faturado desde campanha','Qtd faturamentos','Último faturamento'];baixarXls(`campanha_detalhada_${CAMP_CONFIG.data}.xls`,h,campanhaLinhas('detalhada'));}
-function copiarCampanhaEmail(){const rows=campanhaLinhas('simples');const nome=CAMP_CONFIG.vendedor?campNomeVendedor(CAMP_CONFIG.vendedor):'Campanha';const table=`<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial;font-size:12px"><thead><tr>${['Cliente','Elegível','Faturou após campanha?','Valor faturado','Último faturamento','Aprovado'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.filter(r=>!CAMP_CONFIG.vendedor||r[1]===CAMP_CONFIG.vendedor).map(r=>`<tr><td>${r[2]}</td><td>${r[3]}</td><td>${r[5]}</td><td>${campMoeda(r[6])}</td><td>${r[7]}</td><td>${campMoeda(r[8])}</td></tr>`).join('')}</tbody></table>`; const html=`<div><strong>Controle da Campanha de Clientes Inativos — ${nome}</strong><br>Data da campanha: ${CAMP_CONFIG.data.split('-').reverse().join('/')}<br><br>${table}</div>`; if(navigator.clipboard?.write){navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([rows.map(r=>r.join('\t')).join('\n')],{type:'text/plain'})})]).then(()=>alert('Tabela formatada copiada. Agora é só colar no e-mail.')).catch(()=>navigator.clipboard.writeText(table));}else navigator.clipboard.writeText(table);}
-function ativarAbaPrincipal(aba){const far=document.getElementById('farol-view'),cam=document.getElementById('campanha-view');document.getElementById('tab-farol').classList.toggle('active',aba==='farol');document.getElementById('tab-campanha').classList.toggle('active',aba==='campanha');far.classList.toggle('farol-view-hidden',aba!=='farol');cam.classList.toggle('active',aba==='campanha');if(aba==='campanha')renderCampanha();}
-function inicializarCampanha(){
-  const cfg=campDataCfg();
-  const participantes=campanhaSelecionados().reduce((a,r)=>{if(!a.some(x=>x.codigo===r.codigo))a.push(r);return a},[]);
-  const vendedorSalvo=String(cfg.vendedor||'');
-  const vendedorValido=!vendedorSalvo || participantes.some(x=>x.codigo===vendedorSalvo);
-  CAMP_CONFIG={data:cfg.data||campHojeISO(),vendedor:vendedorValido?vendedorSalvo:'',status:['all','faturado','aprovado','semvenda','inconsistente','elegivel'].includes(cfg.status)?cfg.status:'all'};
-  document.getElementById('camp-data').value=CAMP_CONFIG.data;
-  document.getElementById('camp-vendedor').innerHTML='<option value="">Todos os participantes</option>'+participantes.map(r=>`<option value="${r.codigo}">${r.codigo} — ${r.vendedor}</option>`).join('');
-  document.getElementById('camp-vendedor').value=CAMP_CONFIG.vendedor;
-  document.getElementById('camp-status').value=CAMP_CONFIG.status;
-  campSalvarConfig();
+function exportarCampanhaSimplesExcel(){const h=['Vendedor','Código','Cliente indicado','Elegível na campanha','CNPJ(s) inativos','Faturou após campanha?','Faturado desde campanha','Último faturamento desde campanha','Última venda histórica','Aprovado','Qtd. faturamentos','Qtd. aprovados'];baixarXls(`controle_campanha_${CAMP_CONFIG.data}.xls`,h,campanhaLinhas('simples'));}
+function exportarCampanhaDetalhadaExcel(){const h=['Vendedor','Código vendedor','Cliente indicado','Elegível','Filial','CNPJ','Código cadastro','Nome Chave','Nome/Razão Social','Física/Juridica','RG/IE','Ramo','Dt.Cadastro','Ativo/Inativo cadastro','Transportadora','Limite de Crédito','Representante','Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP','Telefone','Fax','Contato','Departamento','Cargo','Fone','E-Mail','Farol na campanha','Última interação na campanha','Farol atual','Última interação atual','Status campanha','Aprovado desde campanha','Qtd aprovados','Faturado desde campanha','Qtd faturamentos','Último faturamento desde campanha','Última venda histórica','Valor última venda'];baixarXls(`campanha_detalhada_${CAMP_CONFIG.data}.xls`,h,campanhaLinhas('detalhada'));}
+function copiarCampanhaEmail(){
+  const rows=campanhaLinhas('simples').filter(r=>!CAMP_CONFIG.vendedor||r[1]===CAMP_CONFIG.vendedor);
+  const nome=CAMP_CONFIG.vendedor?campNomeVendedor(CAMP_CONFIG.vendedor):'Campanha';
+  const table=`<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial;font-size:12px"><thead><tr>${['Cliente','Elegível','Faturou após campanha?','Valor faturado','Último faturamento','Aprovado'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr><td>${r[2]}</td><td>${r[3]}</td><td>${r[5]}</td><td>${campMoeda(r[6])}</td><td>${r[7]||'—'}</td><td>${campMoeda(r[9])}</td></tr>`).join('')}</tbody></table>`;
+  const html=`<div><strong>Controle da Campanha de Clientes Inativos — ${nome}</strong><br>Data da campanha: ${CAMP_CONFIG.data.split('-').reverse().join('/')}<br><br>${table}</div>`;
+  if(navigator.clipboard?.write){navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([rows.map(r=>r.join('\t')).join('\n')],{type:'text/plain'})})]).then(()=>alert('Tabela formatada copiada. Agora é só colar no e-mail.')).catch(()=>navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n')));}else navigator.clipboard.writeText(rows.map(r=>r.join('\t')).join('\n'));
 }
+
+function ativarAbaPrincipal(aba){const far=document.getElementById('farol-view'),cam=document.getElementById('campanha-view');document.getElementById('tab-farol').classList.toggle('active',aba==='farol');document.getElementById('tab-campanha').classList.toggle('active',aba==='campanha');far.classList.toggle('farol-view-hidden',aba!=='farol');cam.classList.toggle('active',aba==='campanha');if(aba==='campanha')renderCampanha();}
+function inicializarCampanha(){const cfg=campDataCfg();CAMP_CONFIG={data:cfg.data||campHojeISO(),vendedor:cfg.vendedor||'',status:cfg.status||'all'};document.getElementById('camp-data').value=CAMP_CONFIG.data;document.getElementById('camp-vendedor').innerHTML='<option value="">Todos os participantes</option>'+campanhaSelecionados().reduce((a,r)=>{if(!a.some(x=>x.codigo===r.codigo))a.push(r);return a},[]).map(r=>`<option value="${r.codigo}">${r.codigo} — ${r.vendedor}</option>`).join('');document.getElementById('camp-vendedor').value=CAMP_CONFIG.vendedor;document.getElementById('camp-status').value=CAMP_CONFIG.status;}
 function carregarCampanha(){renderCampanha();}
 
 /* =====================================================================
@@ -1602,24 +1736,13 @@ let DADOS_GLOBAIS = null;
 async function carregarTudo() {
   document.getElementById('loading').classList.add('active');
   try {
-    // Os dados do Farol são obrigatórios. A planilha da campanha é complementar:
-    // se ela estiver indisponível, o Farol continua funcionando normalmente.
-    const [metaRaw, aprovRaw, fatRaw, carteiraRaw] = await Promise.all([
+    const [metaRaw, aprovRaw, fatRaw, carteiraRaw, campanhaRaw] = await Promise.all([
       carregarJSON(BASES.meta),
       carregarJSON(BASES.aprovados),
       carregarJSON(BASES.faturados),
-      carregarJSON(BASES.carteira)
+      carregarJSON(BASES.carteira),
+      carregarJSON(BASES.campanha)
     ]);
-
-    let campanhaRaw = [];
-    try {
-      campanhaRaw = await carregarJSON(BASES.campanha);
-      if(Array.isArray(campanhaRaw) && campanhaRaw.length) campSalvarDadosCache(campanhaRaw);
-      else campanhaRaw = campDadosCache();
-    } catch (campErr) {
-      console.warn('Planilha da campanha indisponível; usando última leitura válida.', campErr);
-      campanhaRaw = campDadosCache();
-    }
 
     const vendedores = extrairVendedores(carteiraRaw, metaRaw);
     DADOS_GLOBAIS = { metaRaw, aprovRaw, fatRaw, carteiraRaw, campanhaRaw, vendedores };
@@ -1726,7 +1849,7 @@ document.getElementById('ficha-modal').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') fecharFicha();
 });
-document.getElementById('ficha-modal').addEventListener('click', function(e){ const tr=e.target.closest('tr[data-ficha-relacionada]'); if(!tr || !window._fichaAtual) return; e.stopPropagation(); const idx=Number(tr.dataset.fichaRelacionada); const g=window._fichaAtual.grupo; const fil=g?.filiais?.[idx]; if(fil) abrirFichaSobreposta(fil,g); });
+document.getElementById('ficha-modal').addEventListener('click', function(e){ const tr=e.target.closest('tr[data-ficha-relacionada]'); if(!tr || !window._fichaAtual) return; e.stopPropagation(); const key=tr.dataset.fichaRelacionada; const g=window._fichaAtual.grupo; const fil=(g?.filiais||[]).find(x=>String(x.cnpj||x.registroCompleto?.['CPF/CGC']||x.codigo||x.nome).replace(/[^0-9A-Za-z]/g,'')===key); if(fil) abrirFichaSobreposta(fil,g); });
 
 carregarTudo();
 </script>
