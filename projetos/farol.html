@@ -1523,7 +1523,28 @@ function campanhaSelecionados(){
   });
   return out;
 }
-function chaveCampanha(s){return normalizarNome(s).replace(/\b(LTDA|S A|SA|EIRELI|EPP|ME)\b/g,'').replace(/\s+/g,' ').trim();}
+function chaveCampanha(s){
+  // Chave empresarial mais tolerante: remove acentos, pontuação e sufixos
+  // societários comuns para que "EMPRESA S/A", "EMPRESA SA" e "EMPRESA LTDA"
+  // sejam tratados como o mesmo cadastro.
+  let n=normalizarNome(s)
+    .replace(/\b(S[\s\/]*A|S[\.]?A[\.]?|LTDA|LIMITADA|EIRELI|EPP|ME|MEI|CIA|COMPANHIA)\b/g,' ')
+    .replace(/[^A-Z0-9\s]/g,' ')
+    .replace(/\s+/g,' ').trim();
+  return n;
+}
+function nomesCampanhaEquivalentes(a,b){
+  const x=chaveCampanha(a), y=chaveCampanha(b);
+  if(!x||!y)return false;
+  if(x===y)return true;
+  // Permite diferenças de razão social que preservam o nome comercial.
+  const px=x.split(' ').filter(Boolean), py=y.split(' ').filter(Boolean);
+  const menor=px.length<=py.length?px:py, maior=px.length<=py.length?py:px;
+  if(menor.length>=1 && menor.every(t=>maior.includes(t))) return true;
+  if(x.length>=6 && y.includes(x)) return true;
+  if(y.length>=6 && x.includes(y)) return true;
+  return false;
+}
 function dataCampanha(){
   const el=document.getElementById('campanha-data');
   const v=el?.value;
@@ -1538,16 +1559,24 @@ function dataCampanhaISO(){
 function grupoCampanhaCorrespondente(grupos, nomeSelecionado){
   const alvo=chaveCampanha(nomeSelecionado);
   if(!alvo)return null;
-  return grupos.find(g=>{
+  // 1) Primeiro tenta equivalência forte por nome/alias.
+  let encontrado=grupos.find(g=>{
     const nomes=[g.chave,g.nomeExibicao];
     g.filiais.forEach(f=>{ nomes.push(f.nome,...(f.aliases||[])); });
-    return nomes.filter(Boolean).some(n=>chaveCampanha(n)===alvo);
-  }) || null;
+    return nomes.filter(Boolean).some(n=>nomesCampanhaEquivalentes(n,nomeSelecionado));
+  });
+  if(encontrado)return encontrado;
+
+  // 2) Último recurso: procura uma filial do grupo cujo nome contenha o
+  // nome indicado (ou vice-versa). Isso cobre razão social x nome comercial.
+  return grupos.find(g=>g.filiais.some(f=>{
+    const nomes=[f.nome,...(f.aliases||[])].filter(Boolean);
+    return nomes.some(n=>nomesCampanhaEquivalentes(n,nomeSelecionado));
+  })) || null;
 }
 function filialCorrespondente(grupo,nomeSelecionado){
   if(!grupo)return null;
-  const alvo=chaveCampanha(nomeSelecionado);
-  return grupo.filiais.find(f=>[f.nome,...(f.aliases||[])].filter(Boolean).some(n=>chaveCampanha(n)===alvo)) || null;
+  return grupo.filiais.find(f=>[f.nome,...(f.aliases||[])].filter(Boolean).some(n=>nomesCampanhaEquivalentes(n,nomeSelecionado))) || null;
 }
 function montarCadastroCampanha(){
   const ref=dataCampanha();
