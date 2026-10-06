@@ -1419,6 +1419,7 @@ window.fecharFichaSobreposta=function(){const m=document.getElementById('ficha-m
    ===================================================================== */
 const CAMP_CONFIG_KEY = 'centrobor_campanha_config_v2';
 const CAMP_MANUAL_KEY = 'centrobor_campanha_vendas_manuais_v2';
+const CAMP_DATA_CACHE_KEY = 'centrobor_campanha_dados_v2';
 let CAMP_RESULTADO = [];
 let CAMP_CONFIG = { data:'', vendedor:'', status:'all' };
 
@@ -1426,6 +1427,9 @@ function campHojeISO(){ const d=new Date(); return `${d.getFullYear()}-${String(
 function campDateISOtoDate(v){ if(!v)return null; const [y,m,d]=v.split('-').map(Number); return new Date(y,m-1,d); }
 function campNorm(v){ return normalizarNome(v).replace(/\s+/g,' ').trim(); }
 function campDataCfg(){ try{return JSON.parse(localStorage.getItem(CAMP_CONFIG_KEY)||'{}')}catch{return {}} }
+function campDadosCache(){ try{ const x=JSON.parse(localStorage.getItem(CAMP_DATA_CACHE_KEY)||'[]'); return Array.isArray(x)?x:[]; }catch{return []} }
+function campSalvarDadosCache(rows){ try{ if(Array.isArray(rows)&&rows.length) localStorage.setItem(CAMP_DATA_CACHE_KEY,JSON.stringify(rows)); }catch(e){ console.warn('Não foi possível salvar cache da campanha',e); } }
+function campFonteDados(){ const atual=DADOS_GLOBAIS?.campanhaRaw; return Array.isArray(atual)&&atual.length ? atual : campDadosCache(); }
 function campSalvarConfig(){ localStorage.setItem(CAMP_CONFIG_KEY, JSON.stringify(CAMP_CONFIG)); }
 function campManuais(){ try{return JSON.parse(localStorage.getItem(CAMP_MANUAL_KEY)||'{}')}catch{return {}} }
 function campSalvarManual(ctx){ const all=campManuais(); const k=`${ctx.codigo}|${campNorm(ctx.cliente)}|${CAMP_CONFIG.data}`; all[k]=ctx.manual; localStorage.setItem(CAMP_MANUAL_KEY,JSON.stringify(all)); }
@@ -1501,7 +1505,7 @@ function campHistoricoGrupo(grupo,codigo,nome,data){
   return {...grupo,filiais,status:calcularStatus(dias),ultimaInteracao:ultima,dias};
 }
 function campanhaSelecionados(){
-  const rows=DADOS_GLOBAIS?.campanhaRaw||[]; const out=[];
+  const rows=campFonteDados(); const out=[];
   rows.forEach(r=>{const codigo=String(r.vendedor_cod||r['Vendedor Cod']||r.codigo||'').trim();const vendedor=r.vendedor_nome||r['Vendedor Nome']||campNomeVendedor(codigo); if(!codigo)return; for(let i=1;i<=50;i++){const cliente=String(r[`Cliente ${i}`]||'').trim();if(cliente)out.push({codigo,vendedor,cliente,ordem:i});}}); return out;
 }
 function construirCampanha(){
@@ -1526,9 +1530,14 @@ function construirCampanha(){
 }
 function campanhaStatusLabel(s){return s==='faturado'?'🟢 Faturado':s==='aprovado'?'🟡 Aprovado / não faturado':s==='semvenda'?'🔵 Sem venda':'⚠️ Inconsistente';}
 function renderCampanha(){
-  if(!DADOS_GLOBAIS)return; CAMP_CONFIG.data=document.getElementById('camp-data').value||campHojeISO(); CAMP_CONFIG.vendedor=document.getElementById('camp-vendedor').value; CAMP_CONFIG.status=document.getElementById('camp-status').value; campSalvarConfig();
-  CAMP_RESULTADO=construirCampanha().filter(r=>(!CAMP_CONFIG.vendedor||r.codigo===CAMP_CONFIG.vendedor)&& (CAMP_CONFIG.status==='all'||CAMP_CONFIG.status==='elegivel'? (CAMP_CONFIG.status==='elegivel'?r.elegivel:true):r.status===CAMP_CONFIG.status));
-  const all=construirCampanha(); const vis=CAMP_RESULTADO; const eleg=all.filter(r=>r.elegivel); const fatur=all.filter(r=>r.status==='faturado'); const incons=all.filter(r=>r.status==='inconsistente'); const aprov=all.filter(r=>r.status==='aprovado');
+  if(!DADOS_GLOBAIS)return;
+  CAMP_CONFIG.data=document.getElementById('camp-data').value||campHojeISO();
+  CAMP_CONFIG.vendedor=document.getElementById('camp-vendedor').value;
+  CAMP_CONFIG.status=document.getElementById('camp-status').value;
+  campSalvarConfig();
+  const all=construirCampanha();
+  CAMP_RESULTADO=all.filter(r=>(!CAMP_CONFIG.vendedor||r.codigo===CAMP_CONFIG.vendedor)&& (CAMP_CONFIG.status==='all'||CAMP_CONFIG.status==='elegivel' ? (CAMP_CONFIG.status==='elegivel'?r.elegivel:true) : r.status===CAMP_CONFIG.status));
+  const vis=CAMP_RESULTADO; const eleg=all.filter(r=>r.elegivel); const fatur=all.filter(r=>r.status==='faturado'); const incons=all.filter(r=>r.status==='inconsistente'); const aprov=all.filter(r=>r.status==='aprovado');
   document.getElementById('camp-kpis').innerHTML=`<div class="camp-kpi"><div class="n">${all.length}</div><div class="l">Clientes indicados</div></div><div class="camp-kpi"><div class="n">${eleg.length}</div><div class="l">Elegíveis na data</div></div><div class="camp-kpi"><div class="n">${fatur.length}</div><div class="l">Faturaram</div></div><div class="camp-kpi"><div class="n">${aprov.length}</div><div class="l">Aprovados</div></div><div class="camp-kpi"><div class="n">${incons.length}</div><div class="l">Inconsistentes</div></div>`;
   const sellers=[...new Map(all.map(r=>[r.codigo,r])).values()]; document.getElementById('camp-vendedor-resumo').innerHTML=`<div class="camp-card" style="margin-bottom:14px"><div class="camp-vendedor-box"><div><strong>Controle por vendedor</strong><div class="camp-subtitle">Selecione um vendedor na tabela para exportar/copiar somente o controle dele.</div></div>${sellers.map(r=>`<button class="btn btn-light" onclick="selecionarCampVendedor('${r.codigo}')">${r.vendedor}</button>`).join('')}</div></div>`;
   if(!vis.length){
@@ -1571,7 +1580,18 @@ function exportarCampanhaSimplesExcel(){const h=['Vendedor','Código','Cliente i
 function exportarCampanhaDetalhadaExcel(){const h=['Vendedor','Código','Cliente indicado','Elegível','Filial','CNPJ','Cidade','UF','Farol na campanha','Última interação na campanha','Farol atual','Última interação atual','Status campanha','Aprovado','Qtd aprovados','Faturado desde campanha','Qtd faturamentos','Último faturamento'];baixarXls(`campanha_detalhada_${CAMP_CONFIG.data}.xls`,h,campanhaLinhas('detalhada'));}
 function copiarCampanhaEmail(){const rows=campanhaLinhas('simples');const nome=CAMP_CONFIG.vendedor?campNomeVendedor(CAMP_CONFIG.vendedor):'Campanha';const table=`<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial;font-size:12px"><thead><tr>${['Cliente','Elegível','Faturou após campanha?','Valor faturado','Último faturamento','Aprovado'].map(h=>`<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.filter(r=>!CAMP_CONFIG.vendedor||r[1]===CAMP_CONFIG.vendedor).map(r=>`<tr><td>${r[2]}</td><td>${r[3]}</td><td>${r[5]}</td><td>${campMoeda(r[6])}</td><td>${r[7]}</td><td>${campMoeda(r[8])}</td></tr>`).join('')}</tbody></table>`; const html=`<div><strong>Controle da Campanha de Clientes Inativos — ${nome}</strong><br>Data da campanha: ${CAMP_CONFIG.data.split('-').reverse().join('/')}<br><br>${table}</div>`; if(navigator.clipboard?.write){navigator.clipboard.write([new ClipboardItem({'text/html':new Blob([html],{type:'text/html'}),'text/plain':new Blob([rows.map(r=>r.join('\t')).join('\n')],{type:'text/plain'})})]).then(()=>alert('Tabela formatada copiada. Agora é só colar no e-mail.')).catch(()=>navigator.clipboard.writeText(table));}else navigator.clipboard.writeText(table);}
 function ativarAbaPrincipal(aba){const far=document.getElementById('farol-view'),cam=document.getElementById('campanha-view');document.getElementById('tab-farol').classList.toggle('active',aba==='farol');document.getElementById('tab-campanha').classList.toggle('active',aba==='campanha');far.classList.toggle('farol-view-hidden',aba!=='farol');cam.classList.toggle('active',aba==='campanha');if(aba==='campanha')renderCampanha();}
-function inicializarCampanha(){const cfg=campDataCfg();CAMP_CONFIG={data:cfg.data||campHojeISO(),vendedor:cfg.vendedor||'',status:cfg.status||'all'};document.getElementById('camp-data').value=CAMP_CONFIG.data;document.getElementById('camp-vendedor').innerHTML='<option value="">Todos os participantes</option>'+campanhaSelecionados().reduce((a,r)=>{if(!a.some(x=>x.codigo===r.codigo))a.push(r);return a},[]).map(r=>`<option value="${r.codigo}">${r.codigo} — ${r.vendedor}</option>`).join('');document.getElementById('camp-vendedor').value=CAMP_CONFIG.vendedor;document.getElementById('camp-status').value=CAMP_CONFIG.status;}
+function inicializarCampanha(){
+  const cfg=campDataCfg();
+  const participantes=campanhaSelecionados().reduce((a,r)=>{if(!a.some(x=>x.codigo===r.codigo))a.push(r);return a},[]);
+  const vendedorSalvo=String(cfg.vendedor||'');
+  const vendedorValido=!vendedorSalvo || participantes.some(x=>x.codigo===vendedorSalvo);
+  CAMP_CONFIG={data:cfg.data||campHojeISO(),vendedor:vendedorValido?vendedorSalvo:'',status:['all','faturado','aprovado','semvenda','inconsistente','elegivel'].includes(cfg.status)?cfg.status:'all'};
+  document.getElementById('camp-data').value=CAMP_CONFIG.data;
+  document.getElementById('camp-vendedor').innerHTML='<option value="">Todos os participantes</option>'+participantes.map(r=>`<option value="${r.codigo}">${r.codigo} — ${r.vendedor}</option>`).join('');
+  document.getElementById('camp-vendedor').value=CAMP_CONFIG.vendedor;
+  document.getElementById('camp-status').value=CAMP_CONFIG.status;
+  campSalvarConfig();
+}
 function carregarCampanha(){renderCampanha();}
 
 /* =====================================================================
@@ -1594,9 +1614,11 @@ async function carregarTudo() {
     let campanhaRaw = [];
     try {
       campanhaRaw = await carregarJSON(BASES.campanha);
+      if(Array.isArray(campanhaRaw) && campanhaRaw.length) campSalvarDadosCache(campanhaRaw);
+      else campanhaRaw = campDadosCache();
     } catch (campErr) {
-      console.warn('Planilha da campanha indisponível; Farol continuará funcionando.', campErr);
-      campanhaRaw = [];
+      console.warn('Planilha da campanha indisponível; usando última leitura válida.', campErr);
+      campanhaRaw = campDadosCache();
     }
 
     const vendedores = extrairVendedores(carteiraRaw, metaRaw);
