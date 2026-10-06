@@ -1559,10 +1559,16 @@
                 ? Math.floor((today - ultimaGrupo) / (1000 * 60 * 60 * 24))
                 : Infinity;
 
-            /* O status do grupo acompanha a pior situação, como no Farol. */
+            /*
+             * No modo POR GRUPOS, o Farol do grupo representa a empresa como um todo:
+             * vale sempre a compra/interação mais recente de qualquer filial.
+             * Ex.: SAINT-GOBAIN Pará comprou há 6 meses, mas SAINT-GOBAIN Belém
+             * comprou este mês -> o grupo SAINT-GOBAIN fica 🟢 ATIVO.
+             * As filiais continuam mantendo seu Farol individual na tabela interna.
+             */
             const statusGrupo =
-                contagem.red > 0 ? 'red' :
-                contagem.yellow > 0 ? 'yellow' : 'green';
+                diasGrupo <= 30 ? 'green' :
+                diasGrupo < 180 ? 'yellow' : 'red';
 
             clientes.sort((a, b) => {
                 const ordemStatus = { green: 0, yellow: 1, red: 2 };
