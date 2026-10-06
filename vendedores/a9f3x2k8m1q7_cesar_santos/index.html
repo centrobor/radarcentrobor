@@ -1535,13 +1535,52 @@
             };
         });
 
-        /* Agrupa pelo mesmo critério visual do Farol: primeira palavra do nome. */
+        /*
+         * AGRUPAMENTO INTELIGENTE DE GRUPOS EMPRESARIAIS
+         *
+         * A ideia é reconhecer a marca mesmo quando ela aparece escrita de
+         * formas diferentes nas filiais:
+         *   SAINT-GOBAIN
+         *   SAINT GOBAIN BELÉM
+         *   SAINT-GOBAIN-VINHEDO
+         *   SAINT
+         *
+         * Todas passam a compartilhar a raiz SAINT. O hífen deixa de ser
+         * considerado parte da palavra, evitando que cada filial vire um
+         * grupo diferente.
+         *
+         * Para não perder o comportamento antigo, nomes que não tenham uma
+         * regra especial continuam agrupados pela primeira palavra.
+         */
+        function chaveGrupoInteligente(nome) {
+            const texto = String(nome || '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toUpperCase()
+                .replace(/[\-_/.,;:()]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            if (!texto) return 'SEM NOME';
+
+            const palavras = texto.split(' ').filter(Boolean);
+            const primeira = palavras[0];
+
+            // Marcas compostas conhecidas: qualquer variação da raiz é
+            // consolidada no mesmo grupo.
+            const marcasCompostas = {
+                'SAINT': 'SAINT-GOBAIN'
+            };
+
+            if (marcasCompostas[primeira]) return marcasCompostas[primeira];
+
+            return primeira;
+        }
+
         const gruposFarol = new Map();
 
         clientesStatus.forEach(c => {
-            const palavras = String(c.nome || '').trim().split(/\s+/).filter(Boolean);
-            const chave = (palavras[0] || c.nome || 'SEM NOME').toUpperCase();
-
+            const chave = chaveGrupoInteligente(c.nome);
             if (!gruposFarol.has(chave)) gruposFarol.set(chave, []);
             gruposFarol.get(chave).push(c);
         });
@@ -1566,6 +1605,8 @@
              * comprou este mês -> o grupo SAINT-GOBAIN fica 🟢 ATIVO.
              * As filiais continuam mantendo seu Farol individual na tabela interna.
              */
+            // Régua do Farol: até 30 dias = Ativo; 31 a 179 = Esfriando;
+            // 180 dias ou mais (6 meses) = Inativo.
             const statusGrupo =
                 diasGrupo <= 30 ? 'green' :
                 diasGrupo < 180 ? 'yellow' : 'red';
