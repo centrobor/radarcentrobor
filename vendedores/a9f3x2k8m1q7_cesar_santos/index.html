@@ -330,6 +330,20 @@
         .farol-status-badge.yellow { background:var(--warning); color:white; }
         .farol-status-badge.red { background:var(--danger); color:white; }
 
+        .carteira-preferencia { display:flex; align-items:center; gap:6px; }
+        .carteira-preferencia label { font-size:.65rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.4px; white-space:nowrap; }
+        .farol-select { padding:7px 11px; border:1px solid var(--line); border-radius:14px; background:#fff; color:var(--text-dark); font:600 .72rem Inter,system-ui,sans-serif; cursor:pointer; }
+        .farol-select:focus { outline:none; border-color:var(--primary); }
+        .carteira-antiga-table { width:100%; border-collapse:collapse; font-size:.78rem; }
+        .carteira-antiga-table th { text-align:left; padding:9px 10px; font-size:.65rem; text-transform:uppercase; color:var(--muted); border-bottom:2px solid var(--line); }
+        .carteira-antiga-table td { padding:9px 10px; border-bottom:1px solid var(--line); }
+        .carteira-antiga-table tbody tr { cursor:pointer; }
+        .carteira-antiga-table tbody tr:hover td { background:rgba(30,58,95,.06) !important; }
+        .carteira-antiga-table .carteira-row-green td { background:var(--cotacao-green) !important; }
+        .carteira-antiga-table .carteira-row-yellow td { background:var(--cotacao-yellow) !important; }
+        .carteira-antiga-table .carteira-row-red td { background:var(--cotacao-red) !important; }
+        @media (max-width:768px) { .carteira-preferencia { width:100%; justify-content:space-between; } .farol-select { flex:1; } }
+
         @media print {
             .carteira-farol-toolbar { display:none !important; }
             .carteira-farol-group { page-break-inside:avoid; break-inside:avoid; box-shadow:none !important; }
@@ -594,6 +608,20 @@
         <div id="semaphore-summary"></div>
         <div class="carteira-farol-toolbar">
             <div class="carteira-farol-actions">
+                <div class="carteira-preferencia">
+                    <label for="carteira-modo-exibicao"><i class="fas fa-layer-group"></i> Exibição</label>
+                    <select id="carteira-modo-exibicao" class="farol-select">
+                        <option value="grupos">Por grupos de clientes</option>
+                        <option value="filiais">Por filiais (tabela)</option>
+                    </select>
+                </div>
+                <div class="carteira-preferencia">
+                    <label for="carteira-ordem"><i class="fas fa-sort-amount-down"></i> Ordenação</label>
+                    <select id="carteira-ordem" class="farol-select">
+                        <option value="ativos">Mais ativos primeiro</option>
+                        <option value="inativos">Mais inativos primeiro</option>
+                    </select>
+                </div>
                 <button class="farol-btn" id="btn-carteira-recolher"><i class="fas fa-compress-alt"></i> Recolher</button>
                 <button class="farol-btn" id="btn-carteira-expandir"><i class="fas fa-expand-alt"></i> Expandir</button>
             </div>
@@ -1600,6 +1628,38 @@
         window._carteiraFarolGrupos = gruposCarteira;
 
         const STORAGE_KEY = `radar_carteira_farol_expandido_${codVendedor}`;
+        const VIEW_STORAGE_KEY = `radar_carteira_farol_preferencias_${codVendedor}`;
+        const DEFAULT_VIEW_PREFS = { modo: 'grupos', ordem: 'ativos' };
+
+        function carregarPreferenciasCarteira() {
+            try {
+                const raw = localStorage.getItem(VIEW_STORAGE_KEY);
+                return { ...DEFAULT_VIEW_PREFS, ...(raw ? JSON.parse(raw) : {}) };
+            } catch (_) { return { ...DEFAULT_VIEW_PREFS }; }
+        }
+        function salvarPreferenciasCarteira(prefs) {
+            localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(prefs));
+        }
+        function ordenarClientes(clientes, ordem) {
+            const peso = ordem === 'inativos' ? { red:0, yellow:1, green:2 } : { green:0, yellow:1, red:2 };
+            return [...clientes].sort((a,b) => {
+                if (peso[a.status] !== peso[b.status]) return peso[a.status] - peso[b.status];
+                const da = a.dias === Infinity ? 1e9 : a.dias;
+                const db = b.dias === Infinity ? 1e9 : b.dias;
+                if (da !== db) return ordem === 'inativos' ? db - da : da - db;
+                return a.nome.localeCompare(b.nome);
+            });
+        }
+        function ordenarGrupos(grupos, ordem) {
+            const peso = ordem === 'inativos' ? { red:0, yellow:1, green:2 } : { green:0, yellow:1, red:2 };
+            return [...grupos].sort((a,b) => {
+                if (peso[a.status] !== peso[b.status]) return peso[a.status] - peso[b.status];
+                const da = a.dias === Infinity ? 1e9 : a.dias;
+                const db = b.dias === Infinity ? 1e9 : b.dias;
+                if (da !== db) return ordem === 'inativos' ? db - da : da - db;
+                return a.chave.localeCompare(b.chave);
+            });
+        }
 
         function carregarEstadoCarteira() {
             try {
@@ -1621,6 +1681,25 @@
         function renderCarteiraFarol() {
             const container = document.getElementById('carteira-detalhes');
             const estado = carregarEstadoCarteira();
+            const prefs = carregarPreferenciasCarteira();
+            const modo = prefs.modo;
+            const ordem = prefs.ordem;
+            const gruposOrdenados = ordenarGrupos(gruposCarteira, ordem);
+            const clientesOrdenados = ordenarClientes(clientesStatus, ordem);
+
+            if (modo === 'filiais') {
+                container.innerHTML = `<div class="table-wrapper" style="margin:0;">
+                    <table class="carteira-antiga-table"><thead><tr><th>Cliente / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th></tr></thead><tbody>
+                    ${clientesOrdenados.map(c => {
+                        const cadastro = c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success)"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger)"></i> Inativo';
+                        const ultima = c.ultimaInteracao ? `${formatarData(c.ultimaInteracao)} <small style="color:var(--muted)">(${c.dias}d)</small>` : '<em style="color:var(--danger)">sem interação</em>';
+                        const badge = `<span class="farol-status-badge ${c.status}">${c.status==='green'?'🟢 Ativo':c.status==='yellow'?'🟡 Esfriando':'🔴 Inativo'}</span>`;
+                        return `<tr class="carteira-row-${c.status}" data-nome="${c.nomeUpper}" title="Clique para ver a ficha completa"><td><strong>${c.nome}</strong>${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>`:''}</td><td>${c.cidade||'—'}${c.uf?'/'+c.uf:''}</td><td>${cadastro}</td><td>${ultima}</td><td>${badge}</td></tr>`;
+                    }).join('')}
+                    </tbody></table></div>`;
+                container.querySelectorAll('tbody tr[data-nome]').forEach(row => row.addEventListener('click', e => { e.stopPropagation(); if (window.abrirFichaCliente) window.abrirFichaCliente(row.dataset.nome); }));
+                return;
+            }
 
             if (!gruposCarteira.length) {
                 container.innerHTML = `
@@ -1631,7 +1710,7 @@
                 return;
             }
 
-            container.innerHTML = gruposCarteira.map((g, idx) => {
+            container.innerHTML = gruposOrdenados.map((g, idx) => {
                 const icone = g.status === 'green' ? 'fa-check-circle'
                     : g.status === 'yellow' ? 'fa-exclamation-circle'
                     : 'fa-times-circle';
@@ -1645,7 +1724,7 @@
                     <span>🟡 ${g.contagem.yellow}</span>
                     <span>🔴 ${g.contagem.red}</span>`;
 
-                const clientesHtml = g.clientes.map((c, cidx) => {
+                const clientesHtml = ordenarClientes(g.clientes, ordem).map((c, cidx) => {
                     const badge = `
                         <span class="farol-status-badge ${c.status}">
                             <i class="fas ${c.status === 'green' ? 'fa-check' : c.status === 'yellow' ? 'fa-clock' : 'fa-times'}"></i>
@@ -1759,6 +1838,20 @@
 
         if (btnExpandirCarteira) btnExpandirCarteira.onclick = window._carteiraExpandirTudo;
         if (btnRecolherCarteira) btnRecolherCarteira.onclick = window._carteiraRecolherTudo;
+
+        const selModoCarteira = document.getElementById('carteira-modo-exibicao');
+        const selOrdemCarteira = document.getElementById('carteira-ordem');
+        const prefsIniciais = carregarPreferenciasCarteira();
+        selModoCarteira.value = prefsIniciais.modo;
+        selOrdemCarteira.value = prefsIniciais.ordem;
+        function atualizarPreferenciaCarteira(campo, valor) {
+            const prefs = carregarPreferenciasCarteira();
+            prefs[campo] = valor;
+            salvarPreferenciasCarteira(prefs);
+            renderCarteiraFarol();
+        }
+        selModoCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('modo', e.target.value));
+        selOrdemCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('ordem', e.target.value));
 
         window.abrirFichaCliente = function(nomeUpper, cnpj='', pedidoData=null, permitirBuscaAproximada=true) {
             const kpiModal = document.getElementById('kpi-detail-modal');
