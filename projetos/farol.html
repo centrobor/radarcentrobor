@@ -1501,7 +1501,7 @@ function campHistoricoGrupo(grupo,codigo,nome,data){
   return {...grupo,filiais,status:calcularStatus(dias),ultimaInteracao:ultima,dias};
 }
 function campanhaSelecionados(){
-  const rows=DADOS_GLOBAIS.campanhaRaw||[]; const out=[];
+  const rows=DADOS_GLOBAIS?.campanhaRaw||[]; const out=[];
   rows.forEach(r=>{const codigo=String(r.vendedor_cod||r['Vendedor Cod']||r.codigo||'').trim();const vendedor=r.vendedor_nome||r['Vendedor Nome']||campNomeVendedor(codigo); if(!codigo)return; for(let i=1;i<=50;i++){const cliente=String(r[`Cliente ${i}`]||'').trim();if(cliente)out.push({codigo,vendedor,cliente,ordem:i});}}); return out;
 }
 function construirCampanha(){
@@ -1512,7 +1512,11 @@ function construirCampanha(){
     const snapshot=grupo?campHistoricoGrupo(grupo,sel.codigo,sel.vendedor,data):null;
     const inativos=snapshot?.filiais.filter(f=>f.campanhaStatus==='red')||[];
     const encontrado=!!snapshot; const elegivel=inativos.length>0;
-    const principal=inativos.slice().sort((a,b)=>(a.campanhaUltima? -a.campanhaUltima:Infinity)-(b.campanhaUltima? -b.campanhaUltima:Infinity))[0]||snapshot?.filiais[0]||null;
+    const principal=inativos.slice().sort((a,b)=>{
+      const ta=a.campanhaUltima?new Date(a.campanhaUltima).getTime():-Infinity;
+      const tb=b.campanhaUltima?new Date(b.campanhaUltima).getTime():-Infinity;
+      return tb-ta;
+    })[0]||snapshot?.filiais[0]||null;
     const fat=snapshot?campFaturamentoGrupo(snapshot,sel.codigo,sel.vendedor,data):{faturado:0,qFat:0,ultimaFat:null,aprovado:0,qAprov:0,ultimaAprov:null};
     const manual=campManual(sel); const fatTotal=fat.faturado+(manual.houve?Number(manual.valor||0):0); const qFat=fat.qFat+(manual.houve?1:0); const ultimaFat=manual.houve&&manual.data ? new Date(manual.data+'T00:00:00') : fat.ultimaFat; const temAprov=fat.qAprov>0;
     let status='inconsistente'; if(elegivel) status=fatTotal>0?'faturado':temAprov?'aprovado':'semvenda';
@@ -1527,7 +1531,13 @@ function renderCampanha(){
   const all=construirCampanha(); const vis=CAMP_RESULTADO; const eleg=all.filter(r=>r.elegivel); const fatur=all.filter(r=>r.status==='faturado'); const incons=all.filter(r=>r.status==='inconsistente'); const aprov=all.filter(r=>r.status==='aprovado');
   document.getElementById('camp-kpis').innerHTML=`<div class="camp-kpi"><div class="n">${all.length}</div><div class="l">Clientes indicados</div></div><div class="camp-kpi"><div class="n">${eleg.length}</div><div class="l">Elegíveis na data</div></div><div class="camp-kpi"><div class="n">${fatur.length}</div><div class="l">Faturaram</div></div><div class="camp-kpi"><div class="n">${aprov.length}</div><div class="l">Aprovados</div></div><div class="camp-kpi"><div class="n">${incons.length}</div><div class="l">Inconsistentes</div></div>`;
   const sellers=[...new Map(all.map(r=>[r.codigo,r])).values()]; document.getElementById('camp-vendedor-resumo').innerHTML=`<div class="camp-card" style="margin-bottom:14px"><div class="camp-vendedor-box"><div><strong>Controle por vendedor</strong><div class="camp-subtitle">Selecione um vendedor na tabela para exportar/copiar somente o controle dele.</div></div>${sellers.map(r=>`<button class="btn btn-light" onclick="selecionarCampVendedor('${r.codigo}')">${r.vendedor}</button>`).join('')}</div></div>`;
-  if(!vis.length){document.getElementById('camp-tabela').innerHTML='<div class="camp-empty">Nenhum cliente encontrado para os filtros atuais.</div>';return;}
+  if(!vis.length){
+    const temCampanha=campanhaSelecionados().length>0;
+    document.getElementById('camp-tabela').innerHTML=temCampanha
+      ? '<div class="camp-empty">Nenhum cliente encontrado para os filtros atuais.</div>'
+      : '<div class="camp-empty"><strong>Planilha da campanha sem clientes carregados.</strong><br><small>Verifique a aba campanha_clientes_inativos no OpenSheet. O Farol principal continua funcionando normalmente.</small></div>';
+    return;
+  }
   document.getElementById('camp-tabela').innerHTML=`<table class="camp-table"><thead><tr><th>Vendedor</th><th>Cliente indicado</th><th>Empresa / CNPJ inativo</th><th>Campanha</th><th>Faturado desde campanha</th><th>Último faturamento</th><th>Aprovado</th><th>Qtd. Fat.</th><th>Qtd. Aprov.</th></tr></thead><tbody>${vis.map((r,i)=>`<tr data-camp-idx="${i}" onclick="abrirCampDetalhe(${i})"><td><strong>${r.vendedor}</strong><br><small>${r.codigo}</small></td><td><strong>${r.cliente}</strong></td><td>${r.principal?.nome||'Não localizado'}<br><small>${r.inativos.map(f=>f.cnpj||f.registroCompleto?.['CPF/CGC']||'').filter(Boolean).join(' • ')||'—'}</small></td><td><span class="camp-status ${r.status==='faturado'?'ok':r.status==='aprovado'?'warn':r.status==='semvenda'?'info':'bad'}">${campanhaStatusLabel(r.status)}</span></td><td>${campMoeda(r.fatTotal)}</td><td>${r.ultimaFat?formatarData(r.ultimaFat):'—'}</td><td>${campMoeda(r.fat.aprovado)}</td><td>${r.qFat}</td><td>${r.fat.qAprov}</td></tr>`).join('')}</tbody></table>`;
 }
 function selecionarCampVendedor(codigo){document.getElementById('camp-vendedor').value=codigo; CAMP_CONFIG.vendedor=codigo; campSalvarConfig(); renderCampanha();}
@@ -1572,13 +1582,22 @@ let DADOS_GLOBAIS = null;
 async function carregarTudo() {
   document.getElementById('loading').classList.add('active');
   try {
-    const [metaRaw, aprovRaw, fatRaw, carteiraRaw, campanhaRaw] = await Promise.all([
+    // Os dados do Farol são obrigatórios. A planilha da campanha é complementar:
+    // se ela estiver indisponível, o Farol continua funcionando normalmente.
+    const [metaRaw, aprovRaw, fatRaw, carteiraRaw] = await Promise.all([
       carregarJSON(BASES.meta),
       carregarJSON(BASES.aprovados),
       carregarJSON(BASES.faturados),
-      carregarJSON(BASES.carteira),
-      carregarJSON(BASES.campanha)
+      carregarJSON(BASES.carteira)
     ]);
+
+    let campanhaRaw = [];
+    try {
+      campanhaRaw = await carregarJSON(BASES.campanha);
+    } catch (campErr) {
+      console.warn('Planilha da campanha indisponível; Farol continuará funcionando.', campErr);
+      campanhaRaw = [];
+    }
 
     const vendedores = extrairVendedores(carteiraRaw, metaRaw);
     DADOS_GLOBAIS = { metaRaw, aprovRaw, fatRaw, carteiraRaw, campanhaRaw, vendedores };
