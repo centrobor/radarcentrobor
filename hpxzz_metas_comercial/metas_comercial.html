@@ -937,7 +937,7 @@
                 monthsArr.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-                    const participantes = getParticipantesParaMes(ano, mes).filter(v => !(String(v.cod)==='24' || normalizarNome(v.nome).includes('fabiano')));
+                    const participantes = getParticipantesParaMes(ano, mes).filter(v => { const n = normalizarNome(v.nome); const isFabiano = String(v.cod)==='24' || n.includes('fabiano'); const isDimasEduardo = String(v.cod)==='10' || String(v.cod)==='12' || n.includes('dimas') || n.includes('eduardo'); return !isFabiano && !isDimasEduardo; });
                     const rowsVend = participantes.map(v => {
                         const d = getDadosParticipanteMes(ano, mes, v);
                         const metaPlus = d.meta * 1.1;
@@ -1002,7 +1002,7 @@
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
                     const sheetData=[['Participante','Meta Mensal','Meta Plus','Faturado','% Meta','Atingiu Meta','% Plus','Atingiu Plus']];
-                    getParticipantesParaMes(ano,mes).forEach(v=>{const d=getDadosParticipanteMes(ano,mes,v), mp=d.meta*1.1;sheetData.push([v.nome,d.meta,mp,d.fat,d.meta?((d.fat/d.meta)*100).toFixed(1):'0',d.fat>=d.meta?'Sim':'Não',mp?((d.fat/mp)*100).toFixed(1):'0',d.fat>=mp?'Sim':'Não']);});
+                    getParticipantesParaMes(ano,mes).filter(v=>{const n=normalizarNome(v.nome); return !(String(v.cod)==='24' || n.includes('fabiano') || String(v.cod)==='10' || String(v.cod)==='12' || n.includes('dimas') || n.includes('eduardo'));}).forEach(v=>{const d=getDadosParticipanteMes(ano,mes,v); const mp=d.meta*1.1; sheetData.push([v.nome,d.meta,mp,d.fat,d.meta?((d.fat/d.meta)*100).toFixed(1):'0',d.fat>=d.meta?'Sim':'Não',mp?((d.fat/mp)*100).toFixed(1):'0',d.fat>=mp?'Sim':'Não']);});
                     XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheetData),nomeMes.substring(0,31));
                 });
                 XLSX.writeFile(wb,`metas_${currentYear}.xlsx`);
