@@ -462,7 +462,6 @@
             function getParticipantesParaMes(ano, mes) {
                 const regs = getConsolidadoRegistros(ano, mes);
                 const mapa = new Map();
-                let temDimasOuEduardo = false;
 
                 regs.forEach(r => {
                     const cod = String(r.id_vendedor || '').trim();
@@ -470,17 +469,13 @@
                     if (!cod || cod === '80' || !nome) return;
                     const nomeNorm = normalizarNome(nome);
                     const isDimasEduardo = cod === '10' || cod === '12' || nomeNorm.includes('dimas') || nomeNorm.includes('eduardo');
-                    if (isDimasEduardo) {
-                        temDimasOuEduardo = true;
-                        return;
-                    }
+                    // Eduardo / Dimas tem uma seção própria de Faturamento Geral.
+                    // Portanto, NÃO entra em Vendedores Participantes.
+                    if (isDimasEduardo) return;
                     const chave = `${cod}::${nomeNorm}`;
                     if (!mapa.has(chave)) mapa.set(chave, {cod, nome});
                 });
 
-                if (temDimasOuEduardo) {
-                    mapa.set('dimas-eduardo', {cod:'10', nome:'Eduardo / Dimas', mergedKey:'dimas-eduardo'});
-                }
                 return Array.from(mapa.values());
             }
 
