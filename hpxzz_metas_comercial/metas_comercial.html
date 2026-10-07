@@ -176,17 +176,18 @@
         .award-month-cell{min-width:95px}
         .seal-medal{
             display:inline-flex;align-items:center;justify-content:center;flex-direction:column;
-            gap:2px;width:47px;height:47px;border-radius:14px;background:#fff7d6;
-            color:#a16207;border:1px solid #f4d46b;box-shadow:0 3px 10px rgba(161,98,7,.12);
+            gap:2px;width:47px;height:47px;border-radius:14px;background:linear-gradient(145deg,#f6d2ae,#c47b43);
+            color:#5b2f15;border:1px solid #a85e2c;box-shadow:0 3px 10px rgba(91,47,21,.12);
         }
         .seal-medal i{font-size:1.05rem}
         .seal-medal small{font-size:.43rem;font-weight:900}
         .seal-medal.bronze{background:linear-gradient(145deg,#f6d2ae,#c47b43);color:#5b2f15;border-color:#a85e2c}
         .seal-medal.silver{background:linear-gradient(145deg,#f3f4f6,#bfc5cd);color:#3f4650;border-color:#969da7}
+        .seal-medal.gold{background:linear-gradient(145deg,#fff2a8,#d4a72c);color:#6b4b00;border-color:#b88912;box-shadow:0 3px 12px rgba(184,137,18,.22)}
         .seal-empty{
             display:inline-flex;align-items:center;justify-content:center;flex-direction:column;
-            gap:2px;width:47px;height:47px;border-radius:14px;background:#f1f5f9;
-            color:#94a3b8;border:1px solid #e2e8f0;
+            gap:2px;width:47px;height:47px;border-radius:14px;background:#fff;
+            color:#a8b1bc;border:2px dashed #aeb7c2;
         }
         .seal-empty i{font-size:.9rem}
         .seal-empty small{font-size:.43rem;font-weight:900}
@@ -927,7 +928,7 @@
                 monthsArr.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-                    const participantes = getParticipantesParaMes(ano, mes);
+                    const participantes = getParticipantesParaMes(ano, mes).filter(v => !(String(v.cod)==='24' || normalizarNome(v.nome).includes('fabiano')));
                     const rowsVend = participantes.map(v => {
                         const d = getDadosParticipanteMes(ano, mes, v);
                         const metaPlus = d.meta * 1.1;
@@ -941,8 +942,8 @@
                     html += `<div class="month-block" id="month-block-${m}">
                         <div class="block-header"><h2 style="margin:0;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h2>
                         <button class="btn-outline" onclick="gerarPDFMes('${m}')"><i class="fas fa-file-pdf"></i> PDF do mês</button></div>
-                        <h3>Participantes do Consolidado</h3>
-                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal (Consolidado)</th><th>Meta Plus (+10%)</th><th>Faturado (Consolidado)</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                        <h3>Vendedores Participantes</h3>
+                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     rowsVend.forEach(r => {
                         const payload = JSON.stringify({cod:r.cod,nome:r.nome,mergedKey:r.mergedKey}).replace(/"/g,'&quot;');
                         html += `<tr class="clickable-row" onclick='abrirDetalhesVendedor(${payload},"${m}")'>
@@ -951,7 +952,7 @@
                             <td>${r.percPlus.toFixed(1)}%</td><td><span class="status-badge ${r.atingiuPlus?'status-aprovado':'status-pendente'}">${r.atingiuPlus?'Sim':'Não'}</span></td></tr>`;
                     });
                     html += `<tr style="font-weight:700;background:var(--primary-soft);"><td>Total</td><td>R$ ${formatCurrency(totalMetaVend)}</td><td></td><td>R$ ${formatCurrency(totalFatVend)}</td><td colspan="4"></td></tr></tbody></table></div>
-                        <h3>Metas Especiais (Fabiano)</h3><div class="table-wrapper"><table><thead><tr><th>Categoria</th><th>Meta Consolidada</th><th>Faturado Consolidado</th><th>Meta Plus (+10%)</th><th>Atingiu Meta?</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                        <h3>Metas e Pedicuras (Fabiano)</h3><div class="table-wrapper"><table><thead><tr><th>Categoria</th><th>Meta Consolidada</th><th>Faturado Consolidado</th><th>Meta Plus (+10%)</th><th>Atingiu Meta?</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     ESPECIAIS_FABIANO.forEach(esp => {
                         const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
                         const meta = getMetaConsolidadaEspecial(ano, mes, esp.nome, esp.nova);
@@ -1003,22 +1004,49 @@
             function getCampaignSellers() {
                 const out = [];
                 const seen = new Set();
+                let temFabiano = false;
+
                 getParticipantesConsolidados().forEach(v => {
                     const n = normalizarNome(v.nome);
+                    const isFabiano = v.cod === '24' || n.includes('fabiano');
                     const isDimasEduardo = v.cod === '10' || v.cod === '12' || n.includes('dimas') || n.includes('eduardo');
+
+                    if (isFabiano) {
+                        if (!temFabiano) {
+                            temFabiano = true;
+                            out.push({cod:'24', nome:'Fabiano', mergedKey:'fabiano-especial'});
+                        }
+                        return;
+                    }
+
                     const key = isDimasEduardo ? 'dimas-eduardo' : chaveParticipante(v.cod,v.nome);
                     if (seen.has(key)) return;
                     seen.add(key);
-                    out.push(isDimasEduardo ? {cod:v.cod,nome:'Eduardo / Dimas',mergedKey:'dimas-eduardo'} : v);
+                    out.push(isDimasEduardo ? {cod:'10',nome:'Eduardo / Dimas',mergedKey:'dimas-eduardo'} : v);
                 });
                 return out;
+            }
+
+            function getDadosCampanhaMes(ano, mes, vendedor) {
+                if (vendedor.mergedKey === 'fabiano-especial') {
+                    let meta = 0, fat = 0;
+                    ESPECIAIS_FABIANO.forEach(esp => {
+                        const metaBase = getMetaConsolidadaEspecial(ano, mes, esp.nome, esp.nova);
+                        const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
+                        const fatOficial = getFaturadoConsolidadoEspecial(ano, mes, esp.nome, fatBase);
+                        meta += metaBase;
+                        fat += fatOficial;
+                    });
+                    return {meta, fat, metaPlus: meta * 1.1};
+                }
+                return getDadosParticipanteMes(ano, mes, vendedor);
             }
 
             function getAwardStatusForSeller(v, year) {
                 const months = getMonthsForYear(year).sort((a,b)=>a.monthNum-b.monthNum).filter(m=>!isFutureMonth(year,m.monthNum));
                 const result=[]; let streak=0, totalSeals=0, trincas=0, semestres=0;
                 months.forEach(m=>{
-                    const d=getDadosParticipanteMes(year,m.monthNum,v);
+                    const d=getDadosCampanhaMes(year,m.monthNum,v);
                     const meta=d.meta, fat=d.fat, earned=meta>0 && fat>=meta;
                     if(earned){streak++;totalSeals++;}else streak=0;
                     result.push({month:m.monthNum,key:m.value,earned,meta,fat,streak,trincaAward:false,semesterAward:false});
@@ -1028,8 +1056,14 @@
                     if(r.earned){
                         run++;
                         if(run===3){trincas++;r.trincaAward=true;}
-                        if(run===6){semestres++;r.semesterAward=true;run=0;}
-                    }else run=0;
+                        if(run===6){semestres++;r.semesterAward=true;}
+                        // O nível visual do selo acompanha a maior conquista atingida
+                        // naquele mês: 1 = bronze, 3 = prata, 6+ = ouro.
+                        r.sealLevel = run >= 6 ? 'gold' : run >= 3 ? 'silver' : 'bronze';
+                    }else{
+                        run=0;
+                        r.sealLevel='empty';
+                    }
                 });
                 let currentStreak=0; for(let i=result.length-1;i>=0;i--){if(!result[i].earned)break;currentStreak++;}
                 return {seller:v,months:result,totalSeals,trincas,semestres,currentStreak};
@@ -1066,7 +1100,7 @@
                             <div class="award-note">Critério: somente a <strong>Meta Mensal</strong> consolidada/validada. Meta Plus não gera selo.</div>
                         </div>
                         <div class="award-legend">
-                            🏅 = selo adquirido &nbsp; • &nbsp; 🔷 = trinca &nbsp; • &nbsp; 🏆 = prêmio de 6 meses
+                            🥉 = 1 mês atingido &nbsp; • &nbsp; 🥈 = trinca (3 meses) &nbsp; • &nbsp; 🥇 = 6 meses
                         </div>
                     </div>
                     <table class="award-table">
@@ -1080,14 +1114,11 @@
                     r.months.forEach(m => {
                         const metaRef = m.meta || 0;
                         const fatRef = m.fat || 0;
-                        let awardClass = '';
-                        let awardLabel = '';
-                        // Marca as conquistas especiais por mês: 6 meses = prata, trinca = bronze.
-                        if (m.semesterAward) { awardClass = 'silver'; awardLabel = '6M'; }
-                        else if (m.trincaAward) { awardClass = 'bronze'; awardLabel = '3M'; }
+                        const awardClass = m.sealLevel || (m.earned ? 'bronze' : 'empty');
+                        const awardLabel = awardClass === 'gold' ? '6M' : awardClass === 'silver' ? '3M' : awardClass === 'bronze' ? 'SELO' : '';
 
                         const icon = m.earned
-                            ? `<span class="seal-medal ${awardClass}"><i class="fas fa-certificate"></i><small>SELO${awardLabel ? ' • '+awardLabel : ''}</small></span>`
+                            ? `<span class="seal-medal ${awardClass}"><i class="fas fa-certificate"></i><small>${awardLabel}</small></span>`
                             : '<span class="seal-empty"><i class="fas fa-minus"></i><small>—</small></span>';
 
                         table += `<td class="award-month-cell">
