@@ -1044,28 +1044,64 @@
 
             function getAwardStatusForSeller(v, year) {
                 const months = getMonthsForYear(year).sort((a,b)=>a.monthNum-b.monthNum).filter(m=>!isFutureMonth(year,m.monthNum));
-                const result=[]; let streak=0, totalSeals=0, trincas=0, semestres=0;
+                const result=[];
+                let streak=0, totalSeals=0, trincas=0, semestres=0;
+                let streakSinceAward=0;
+                let trincasInSequence=0;
+
                 months.forEach(m=>{
                     const d=getDadosCampanhaMes(year,m.monthNum,v);
                     const meta=d.meta, fat=d.fat, earned=meta>0 && fat>=meta;
-                    if(earned){streak++;totalSeals++;}else streak=0;
-                    result.push({month:m.monthNum,key:m.value,earned,meta,fat,streak,trincaAward:false,semesterAward:false});
-                });
-                let run=0;
-                result.forEach(r=>{
-                    if(r.earned){
-                        run++;
-                        if(run===3){trincas++;r.trincaAward=true;}
-                        if(run===6){semestres++;r.semesterAward=true;}
-                        // O nível visual do selo acompanha a maior conquista atingida
-                        // naquele mês: 1 = bronze, 3 = prata, 6+ = ouro.
-                        r.sealLevel = run >= 6 ? 'gold' : run >= 3 ? 'silver' : 'bronze';
+                    if(earned){
+                        streak++;
+                        totalSeals++;
+                        streakSinceAward++;
                     }else{
-                        run=0;
-                        r.sealLevel='empty';
+                        streak=0;
+                        streakSinceAward=0;
+                        trincasInSequence=0;
+                    }
+
+                    result.push({
+                        month:m.monthNum,
+                        key:m.value,
+                        earned,
+                        meta,
+                        fat,
+                        streak,
+                        trincaAward:false,
+                        semesterAward:false,
+                        sealLevel: earned ? 'bronze' : 'empty'
+                    });
+
+                    if(earned && streakSinceAward===3){
+                        // A cada 3 meses consecutivos forma-se uma nova trinca.
+                        // A primeira trinca vira prata; a segunda trinca consecutiva
+                        // (6 meses sem interrupção) vira ouro.
+                        trincas++;
+                        trincasInSequence++;
+                        const current = result[result.length-1];
+                        current.trincaAward=true;
+
+                        if(trincasInSequence===2){
+                            semestres++;
+                            current.semesterAward=true;
+                            current.sealLevel='gold';
+                            // Depois do prêmio de 6 meses, começa um novo ciclo.
+                            trincasInSequence=0;
+                        }else{
+                            current.sealLevel='silver';
+                        }
+
+                        // A contagem da próxima trinca começa novamente do zero.
+                        streakSinceAward=0;
                     }
                 });
-                let currentStreak=0; for(let i=result.length-1;i>=0;i--){if(!result[i].earned)break;currentStreak++;}
+                let currentStreak=0;
+                for(let i=result.length-1;i>=0;i--){
+                    if(!result[i].earned) break;
+                    currentStreak++;
+                }
                 return {seller:v,months:result,totalSeals,trincas,semestres,currentStreak};
             }
 
