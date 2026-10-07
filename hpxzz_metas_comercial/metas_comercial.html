@@ -158,6 +158,15 @@
         .award-report-header{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:18px}
         .award-report-title{font-weight:900;font-size:1.15rem}
         .award-legend{font-size:.7rem;color:var(--text-light);line-height:1.6}
+        .award-legend-full{min-width:330px}
+        .legend-title{font-size:.72rem;color:var(--text-dark);margin-bottom:5px}
+        .legend-items{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px 12px}
+        .legend-item{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+        .legend-dot{display:inline-block;width:12px;height:12px;border-radius:50%;border:1px solid transparent}
+        .legend-dot.bronze{background:#c47b43;border-color:#a85e2c}
+        .legend-dot.silver{background:#bfc5cd;border-color:#969da7}
+        .legend-dot.gold{background:#d4a72c;border-color:#b88912}
+        .legend-dot.empty{background:#fff;border:2px dashed #aeb7c2}
         .award-table{min-width:1050px}
         .award-table th{white-space:nowrap;text-align:center}
         .award-table th:first-child,.award-table td:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
@@ -1005,6 +1014,7 @@
                 const out = [];
                 const seen = new Set();
                 let temFabiano = false;
+                let temDimasEduardo = false;
 
                 getParticipantesConsolidados().forEach(v => {
                     const n = normalizarNome(v.nome);
@@ -1019,15 +1029,23 @@
                         return;
                     }
 
-                    // Eduardo / Dimas pertence somente à seção de Faturamento Geral.
-                    // Não deve aparecer como participante na campanha/premiações.
-                    if (isDimasEduardo) return;
+                    // Eduardo / Dimas não aparece na tabela principal de Vendedores Participantes,
+                    // mas PARTICIPA da campanha e deve aparecer na aba de Premiações como um único participante.
+                    if (isDimasEduardo) {
+                        temDimasEduardo = true;
+                        return;
+                    }
 
                     const key = chaveParticipante(v.cod,v.nome);
                     if (seen.has(key)) return;
                     seen.add(key);
                     out.push(v);
                 });
+
+                if (temDimasEduardo) {
+                    out.push({cod:'10', nome:'Eduardo / Dimas', mergedKey:'dimas-eduardo'});
+                }
+
                 return out;
             }
 
@@ -1139,8 +1157,14 @@
                             <div class="award-report-title">Relatório de Premiações — ${year}</div>
                             <div class="award-note">Critério: somente a <strong>Meta Mensal</strong> consolidada/validada. Meta Plus não gera selo.</div>
                         </div>
-                        <div class="award-legend">
-                            <strong>SELO</strong> = 1 mês atingido &nbsp; • &nbsp; <strong>3M</strong> = Trinca (3 meses) &nbsp; • &nbsp; <strong>6M</strong> = Prêmio de 6 meses
+                        <div class="award-legend award-legend-full">
+                            <div class="legend-title"><strong>Legenda dos selos</strong></div>
+                            <div class="legend-items">
+                                <span class="legend-item"><span class="legend-dot bronze"></span><strong>SELO</strong> = 1 mês atingido</span>
+                                <span class="legend-item"><span class="legend-dot silver"></span><strong>3M</strong> = Trinca de 3 meses</span>
+                                <span class="legend-item"><span class="legend-dot gold"></span><strong>6M</strong> = 6 meses / duas trincas</span>
+                                <span class="legend-item"><span class="legend-dot empty"></span>Não atingiu</span>
+                            </div>
                         </div>
                     </div>
                     <table class="award-table">
