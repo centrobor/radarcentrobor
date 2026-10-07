@@ -140,6 +140,57 @@
             .month-block{box-shadow:none;border:1px solid #ccc;break-inside:avoid;margin-bottom:20px}
             .btn-outline{display:none!important}
         }
+
+        /* Visão / Premiações */
+        .view-tabs{display:flex;gap:8px;margin:0 0 20px;padding:6px;background:rgba(255,255,255,.72);border:1px solid var(--border-light);border-radius:18px;box-shadow:var(--shadow-sm)}
+        .view-tab{border:0;background:transparent;color:var(--text-soft);padding:11px 18px;border-radius:13px;font-weight:800;cursor:pointer;transition:.2s}
+        .view-tab.active{background:var(--primary);color:#fff;box-shadow:0 5px 14px rgba(30,58,95,.18)}
+        .awards-toolbar{display:flex;justify-content:space-between;gap:18px;align-items:center;background:var(--card-bg);backdrop-filter:var(--blur);border:1px solid var(--border-light);border-radius:var(--radius-lg);padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
+        .awards-toolbar h2{margin:0 0 5px;font-size:1.2rem}
+        .awards-toolbar p{color:var(--text-light);font-size:.8rem;line-height:1.5}
+        .award-actions{display:flex;gap:8px;flex-wrap:wrap}
+        .awards-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+        .award-kpi{background:#fff;border:1px solid var(--line);border-radius:18px;padding:16px;box-shadow:var(--shadow-sm)}
+        .award-kpi .kpi-icon{font-size:1.2rem;color:var(--primary);margin-bottom:8px}
+        .award-kpi .kpi-label{font-size:.68rem;color:var(--text-light);text-transform:uppercase;letter-spacing:.5px}
+        .award-kpi .kpi-value{font-size:1.35rem;font-weight:900;margin-top:3px}
+        .awards-report{background:#fff;border:1px solid var(--line);border-radius:24px;padding:20px;box-shadow:var(--shadow-sm);overflow-x:auto}
+        .award-report-header{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;margin-bottom:18px}
+        .award-report-title{font-weight:900;font-size:1.15rem}
+        .award-legend{font-size:.7rem;color:var(--text-light);line-height:1.6}
+        .award-table{min-width:1050px}
+        .award-table th{white-space:nowrap;text-align:center}
+        .award-table th:first-child,.award-table td:first-child{text-align:left;position:sticky;left:0;background:#fff;z-index:1}
+        .award-table td{text-align:center;vertical-align:middle;padding:9px 7px}
+        .seal-cell{display:inline-flex;align-items:center;justify-content:center;flex-direction:column;gap:2px;width:42px;height:42px;border-radius:13px;background:#f1f5f9;color:#94a3b8;border:1px solid #e2e8f0}
+        .seal-cell.earned{background:#fff7d6;color:#a16207;border-color:#f4d46b;box-shadow:0 3px 10px rgba(161,98,7,.12)}
+        .seal-cell i{font-size:1rem}
+        .seal-cell small{font-size:.48rem;font-weight:900}
+        .award-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:30px;font-size:.65rem;font-weight:900;white-space:nowrap}
+        .award-badge.trinca{background:#e8f2ff;color:#1855a5}
+        .award-badge.seis{background:#fff0d5;color:#9a5a00}
+        .award-streak{font-size:.68rem;color:var(--text-light);margin-top:4px}
+        .award-total{font-weight:900}
+        .award-note{font-size:.65rem;color:var(--text-light)}
+        @media(max-width:1000px){
+            .view-tabs{margin-top:10px}
+            .awards-toolbar{flex-direction:column;align-items:stretch}
+            .award-actions{justify-content:stretch}
+            .award-actions button{flex:1}
+            .awards-summary{grid-template-columns:1fr 1fr}
+            .awards-report{padding:14px}
+        }
+        @media print{
+            body.print-awards .wrapper{max-width:100%}
+            body.print-awards .awards-toolbar{border:0;box-shadow:none;padding:0 0 15px}
+            body.print-awards .view-tabs,body.print-awards #metasView,body.print-awards .filters-bar,
+            body.print-awards .header,body.print-awards .mobile-topbar,body.print-awards .hamburger-overlay,
+            body.print-awards .hamburger-menu,body.print-awards .mobile-bottom-bar,body.print-awards .footer,
+            body.print-awards .award-actions{display:none!important}
+            body.print-awards #premiacoesView{display:block!important}
+            body.print-awards .awards-report{box-shadow:none;border:1px solid #bbb}
+            body.print-awards .awards-summary{grid-template-columns:repeat(4,1fr)}
+        }
     </style>
 </head>
 <body>
@@ -200,9 +251,35 @@
             </div>
         </div>
 
-        <div id="tablesContainer"></div>
+        <div class="view-tabs" id="viewTabs">
+            <button class="view-tab active" id="tabMetas"><i class="fas fa-bullseye"></i> Metas</button>
+            <button class="view-tab" id="tabPremiacoes"><i class="fas fa-award"></i> Premiações</button>
+        </div>
 
-        <div class="chart-card">
+        <div id="metasView">
+            <div id="tablesContainer"></div>
+
+            <div class="chart-card">
+                <h3><i class="fas fa-chart-bar"></i> Metas Atingidas por Vendedor</h3>
+                <canvas id="statsChart" height="100"></canvas>
+            </div>
+        </div>
+
+        <div id="premiacoesView" style="display:none;">
+            <div class="awards-toolbar">
+                <div>
+                    <h2><i class="fas fa-trophy"></i> Campanha de Premiações</h2>
+                    <p>Um selo por mês atingido. 3 selos consecutivos = <strong>Trinca</strong>. 6 selos consecutivos = <strong>Prêmio do Semestre</strong>.</p>
+                </div>
+                <div class="award-actions">
+                    <button class="btn-outline" id="copyAwards"><i class="fas fa-copy"></i> Copiar relatório</button>
+                    <button class="btn-outline" id="pdfAwards"><i class="fas fa-file-pdf"></i> PDF dos prêmios</button>
+                </div>
+            </div>
+            <div id="awardsSummary" class="awards-summary"></div>
+            <div id="awardsReport" class="awards-report"></div>
+        </div>
+        
             <h3><i class="fas fa-chart-bar"></i> Metas Atingidas por Vendedor</h3>
             <canvas id="statsChart" height="100"></canvas>
         </div>
@@ -251,6 +328,7 @@
             const BASES = {
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
+                consolidado: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento_consolidado_meses`,
             };
             const VENDEDORES_LIST = [
                 { cod: "33", nome: "Fábio Prado" },
@@ -268,7 +346,7 @@
             ];
             const GERAL_META_PADRAO = 1100000;
 
-            let allFaturados = [], allMetas = [];
+            let allFaturados = [], allMetas = [], allConsolidado = [];
             let selectedMonths = new Set();
             let currentYear = new Date().getFullYear();
             const today = new Date();
@@ -280,11 +358,14 @@
 
             async function fetchData() {
                 try {
-                    const [faturados, metas] = await Promise.all([
+                    const [faturados, metas, consolidado] = await Promise.all([
                         fetch(BASES.faturados).then(r => r.json()),
-                        fetch(BASES.metas).then(r => r.json())
+                        fetch(BASES.metas).then(r => r.json()),
+                        fetch(BASES.consolidado).then(r => r.json())
                     ]);
-                    allFaturados = faturados; allMetas = metas;
+                    allFaturados = faturados;
+                    allMetas = metas;
+                    allConsolidado = Array.isArray(consolidado) ? consolidado : [];
                     document.getElementById('last-update-text').innerText = `Atualizado em: ${new Date().toLocaleString('pt-BR')}`;
                     document.getElementById('last-update-badge').style.display = 'flex';
                     initFilters();
@@ -371,13 +452,86 @@
                 return map;
             }
 
+            function normalizarNome(nome) {
+                return String(nome || '').toLowerCase()
+                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                    .replace(/[^a-z0-9]+/g, ' ').trim();
+            }
+
+            function getConsolidadoRegistros(ano, mes) {
+                return allConsolidado.filter(r => {
+                    const d = parseDataBR(r.mes_ano);
+                    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
+                });
+            }
+
+            function getConsolidadoPorVendedorMes(ano, mes, cod, nome) {
+                const alvoId = String(cod || '').trim();
+                const alvoNome = normalizarNome(nome);
+                const registros = getConsolidadoRegistros(ano, mes).filter(r =>
+                    String(r.id_vendedor || '').trim() === alvoId
+                );
+                if (!registros.length) return null;
+
+                // Para IDs com mais de uma linha (ex.: Fabiano/24), prioriza o nome.
+                if (alvoNome) {
+                    const exato = registros.find(r => normalizarNome(r.vendedor) === alvoNome);
+                    if (exato) return exato;
+                    const parcial = registros.find(r => {
+                        const n = normalizarNome(r.vendedor);
+                        return n === alvoNome || n.includes(alvoNome) || alvoNome.includes(n);
+                    });
+                    if (parcial) return parcial;
+                }
+
+                return registros[0];
+            }
+
             function getMetaPorVendedorMes(ano, mes) {
                 const map = {};
+
+                // Base atual continua sendo consultada normalmente.
                 allMetas.forEach(m => {
-                    const cod = String(m.id_vendedor || '').trim(); if (!cod || cod === '80') return;
+                    const cod = String(m.id_vendedor || '').trim();
+                    if (!cod || cod === '80') return;
+                    // Não deixar a linha 24 do Fabiano contaminar as metas especiais.
+                    if (cod === '24') return;
                     map[cod] = cleanNumber(m.meta_mensal);
                 });
+
+                // Consolidado é a fonte de autoridade quando houver registro.
+                VENDEDORES_LIST.forEach(v => {
+                    const c = getConsolidadoPorVendedorMes(ano, mes, v.cod, v.nome);
+                    if (c && String(c.meta_mensal || '').trim() !== '') {
+                        map[v.cod] = cleanNumber(c.meta_mensal);
+                    }
+                });
+
                 return map;
+            }
+
+            function getFaturamentoPorVendedorMesAutoritativo(ano, mes) {
+                const base = getFaturamentoPorVendedorMes(ano, mes);
+                const map = { ...base };
+
+                VENDEDORES_LIST.forEach(v => {
+                    const c = getConsolidadoPorVendedorMes(ano, mes, v.cod, v.nome);
+                    if (c && String(c.faturado || '').trim() !== '') {
+                        map[v.cod] = cleanNumber(c.faturado);
+                    }
+                });
+
+                return map;
+            }
+
+            function getMetaConsolidadaEspecial(ano, mes, nomeCategoria, fallback) {
+                const c = getConsolidadoPorVendedorMes(ano, mes, '24', nomeCategoria);
+                return c && String(c.meta_mensal || '').trim() !== '' ? cleanNumber(c.meta_mensal) : fallback;
+            }
+
+            function getFaturadoConsolidadoEspecial(ano, mes, nomeCategoria, fallback) {
+                const c = getConsolidadoPorVendedorMes(ano, mes, '24', nomeCategoria);
+                return c && String(c.faturado || '').trim() !== '' ? cleanNumber(c.faturado) : fallback;
             }
 
             function getFabianoSincPoliasFat(ano, mes) {
@@ -521,7 +675,7 @@
                 monthsArr.forEach((m, idx) => {
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
 
                     const rowsVend = VENDEDORES_LIST.map(v => {
@@ -557,11 +711,14 @@
                         <div class="table-wrapper">
                             <table><thead><tr><th>Categoria</th><th>Meta Anterior</th><th>Meta Nova</th><th>Faturado</th><th>Atingiu Nova?</th><th>Meta Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     ESPECIAIS_FABIANO.forEach(esp => {
-                        const fat = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
-                        const metaPlus = esp.nova * 1.1;
-                        const atingiuNova = fat >= esp.nova;
+                        const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
+                        const metaBase = esp.tipo === 'sincpolias' ? esp.nova : esp.nova;
+                        const metaNova = getMetaConsolidadaEspecial(ano, mes, esp.nome, metaBase);
+                        const fat = getFaturadoConsolidadoEspecial(ano, mes, esp.nome, fatBase);
+                        const metaPlus = metaNova * 1.1;
+                        const atingiuNova = fat >= metaNova;
                         const atingiuPlus = fat >= metaPlus;
-                        html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(esp.anterior)}</td><td>R$ ${formatCurrency(esp.nova)}</td><td>R$ ${formatCurrency(fat)}</td>
+                        html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(esp.anterior)}</td><td>R$ ${formatCurrency(metaNova)}</td><td>R$ ${formatCurrency(fat)}</td>
                             <td><span class="status-badge ${atingiuNova?'status-aprovado':'status-pendente'}">${atingiuNova?'Sim':'Não'}</span></td>
                             <td>R$ ${formatCurrency(metaPlus)}</td><td><span class="status-badge ${atingiuPlus?'status-aprovado':'status-pendente'}">${atingiuPlus?'Sim':'Não'}</span></td></tr>`;
                     });
@@ -585,13 +742,13 @@
                 const stats = {};
                 selectedMonths.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
-                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
                     VENDEDORES_LIST.forEach(v => {
                         const nome = v.nome;
                         if (!stats[nome]) stats[nome] = { atingidas: 0, total: 0 };
                         stats[nome].total++;
-                        if ((fatMap[v.cod]||0) >= (metaMap[v.cod]||0)) stats[nome].atingidas++;
+                        if ((metaMap[v.cod]||0) > 0 && (fatMap[v.cod]||0) >= (metaMap[v.cod]||0)) stats[nome].atingidas++;
                     });
                 });
                 const labels = Object.keys(stats);
@@ -611,7 +768,7 @@
                 monthsArr.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    const fatMap = getFaturamentoPorVendedorMes(ano, mes);
+                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
                     const sheetData = [['Vendedor', 'Meta Mensal', 'Meta Plus', 'Faturado', '% Meta', 'Atingiu Meta', '% Plus', 'Atingiu Plus']];
                     VENDEDORES_LIST.forEach(v => {
@@ -626,7 +783,202 @@
                 XLSX.writeFile(wb, `metas_${currentYear}.xlsx`);
             }
 
-            function renderAll() { renderTables(); renderStatsChart(); }
+            
+            let currentView = 'metas';
+
+            function getCampaignSellers() {
+                const base = VENDEDORES_LIST.map(v => ({...v}));
+                const seen = new Set(base.map(v => v.cod));
+                // Acrescenta colaboradores que existam no consolidado e ainda não estejam na lista.
+                allConsolidado.forEach(r => {
+                    const cod = String(r.id_vendedor || '').trim();
+                    const nome = String(r.vendedor || '').trim();
+                    if (!cod || cod === '80' || cod === '24' || !nome || seen.has(cod)) return;
+                    base.push({cod, nome});
+                    seen.add(cod);
+                });
+                return base;
+            }
+
+            function getAwardStatusForSeller(v, year) {
+                const months = getMonthsForYear(year)
+                    .sort((a,b) => a.monthNum - b.monthNum)
+                    .filter(m => !isFutureMonth(year, m.monthNum));
+
+                const result = [];
+                let streak = 0;
+                let totalSeals = 0;
+                let trincas = 0;
+                let semestres = 0;
+
+                months.forEach(m => {
+                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(year, m.monthNum);
+                    const metaMap = getMetaPorVendedorMes(year, m.monthNum);
+                    const meta = metaMap[v.cod] || 0;
+                    const fat = fatMap[v.cod] || 0;
+                    const earned = meta > 0 && fat >= meta;
+
+                    if (earned) {
+                        streak++;
+                        totalSeals++;
+                    } else {
+                        streak = 0;
+                    }
+
+                    result.push({
+                        month: m.monthNum,
+                        key: m.value,
+                        earned,
+                        meta,
+                        fat,
+                        streak
+                    });
+                });
+
+                // Cada bloco consecutivo de 3 gera uma trinca; cada bloco de 6 gera um prêmio do semestre.
+                // O 6º mês também fecha duas trincas? Não: a regra considera a premiação de 6 meses
+                // como uma conquista maior, sem duplicar trincas dentro do mesmo bloco de seis.
+                let run = 0;
+                result.forEach(r => {
+                    if (r.earned) {
+                        run++;
+                        if (run === 3) trincas++;
+                        if (run === 6) {
+                            semestres++;
+                            run = 0;
+                        }
+                    } else {
+                        run = 0;
+                    }
+                });
+
+                // O contador visual de sequência atual deve refletir a sequência desde a última quebra.
+                let currentStreak = 0;
+                for (let i=result.length-1;i>=0;i--) {
+                    if (!result[i].earned) break;
+                    currentStreak++;
+                }
+
+                return { seller:v, months:result, totalSeals, trincas, semestres, currentStreak };
+            }
+
+            function getAwardRows(year) {
+                return getCampaignSellers().map(v => getAwardStatusForSeller(v, year));
+            }
+
+            function renderAwards() {
+                const year = currentYear;
+                const rows = getAwardRows(year);
+                const months = getMonthsForYear(year).sort((a,b)=>a.monthNum-b.monthNum)
+                    .filter(m => !isFutureMonth(year,m.monthNum));
+
+                const totalSeals = rows.reduce((s,r)=>s+r.totalSeals,0);
+                const totalTrincas = rows.reduce((s,r)=>s+r.trincas,0);
+                const totalSemestres = rows.reduce((s,r)=>s+r.semestres,0);
+                const awardedSellers = rows.filter(r=>r.totalSeals>0).length;
+
+                document.getElementById('awardsSummary').innerHTML = `
+                    <div class="award-kpi"><div class="kpi-icon"><i class="fas fa-user-check"></i></div><div class="kpi-label">Colaboradores com selo</div><div class="kpi-value">${awardedSellers}</div></div>
+                    <div class="award-kpi"><div class="kpi-icon"><i class="fas fa-certificate"></i></div><div class="kpi-label">Selos conquistados</div><div class="kpi-value">${totalSeals}</div></div>
+                    <div class="award-kpi"><div class="kpi-icon"><i class="fas fa-layer-group"></i></div><div class="kpi-label">Trincas</div><div class="kpi-value">${totalTrincas}</div></div>
+                    <div class="award-kpi"><div class="kpi-icon"><i class="fas fa-trophy"></i></div><div class="kpi-label">Prêmios de 6 meses</div><div class="kpi-value">${totalSemestres}</div></div>
+                `;
+
+                const monthHeaders = months.map(m => `<th>${m.label.slice(0,3).toUpperCase()}</th>`).join('');
+
+                let table = `
+                    <div class="award-report-header">
+                        <div>
+                            <div class="award-report-title">Relatório de Premiações — ${year}</div>
+                            <div class="award-note">Critério: somente a <strong>Meta Mensal</strong> consolidada/validada. Meta Plus não gera selo.</div>
+                        </div>
+                        <div class="award-legend">
+                            🏅 = selo adquirido &nbsp; • &nbsp; 🔷 = trinca &nbsp; • &nbsp; 🏆 = prêmio de 6 meses
+                        </div>
+                    </div>
+                    <table class="award-table">
+                        <thead><tr><th>Colaborador</th>${monthHeaders}<th>Selos</th><th>Trincas</th><th>6 meses</th><th>Sequência atual</th></tr></thead>
+                        <tbody>
+                `;
+
+                rows.forEach(r => {
+                    table += `<tr>
+                        <td><strong>${r.seller.nome}</strong><div class="award-note">ID ${r.seller.cod}</div></td>`;
+                    r.months.forEach(m => {
+                        const icon = m.earned ? '<i class="fas fa-certificate"></i><small>SELO</small>' : '<i class="fas fa-minus"></i><small>—</small>';
+                        table += `<td><span class="seal-cell ${m.earned?'earned':''}" title="${m.earned?'Meta atingida':'Meta não atingida'}">${icon}</span></td>`;
+                    });
+                    table += `<td class="award-total">${r.totalSeals}</td>
+                        <td>${r.trincas ? `<span class="award-badge trinca"><i class="fas fa-certificate"></i>${r.trincas} ${r.trincas===1?'Trinca':'Trincas'}</span>` : '—'}</td>
+                        <td>${r.semestres ? `<span class="award-badge seis"><i class="fas fa-trophy"></i>${r.semestres}</span>` : '—'}</td>
+                        <td>${r.currentStreak ? `<strong>${r.currentStreak}</strong> mês${r.currentStreak===1?'':'es'}` : '—'}</td>
+                    </tr>`;
+                });
+
+                table += `</tbody></table>`;
+                document.getElementById('awardsReport').innerHTML = table;
+            }
+
+            function setView(view) {
+                currentView = view;
+                const metas = document.getElementById('metasView');
+                const awards = document.getElementById('premiacoesView');
+                const tabM = document.getElementById('tabMetas');
+                const tabP = document.getElementById('tabPremiacoes');
+                const isAwards = view === 'premiacoes';
+                metas.style.display = isAwards ? 'none' : 'block';
+                awards.style.display = isAwards ? 'block' : 'none';
+                tabM.classList.toggle('active', !isAwards);
+                tabP.classList.toggle('active', isAwards);
+                if (isAwards) renderAwards();
+            }
+
+            async function copyAwardsReport() {
+                const el = document.getElementById('awardsReport');
+                const text = el.innerText.replace(/\n{3,}/g,'\n\n');
+                try {
+                    await navigator.clipboard.writeText(text);
+                    const btn = document.getElementById('copyAwards');
+                    const old = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-check"></i> Copiado!';
+                    setTimeout(()=>btn.innerHTML=old,1600);
+                } catch(e) {
+                    const ta = document.createElement('textarea');
+                    ta.value = text; document.body.appendChild(ta); ta.select();
+                    document.execCommand('copy'); ta.remove();
+                }
+            }
+
+            async function gerarPDFAwards() {
+                const report = document.getElementById('awardsReport');
+                const canvas = await html2canvas(report, {scale:2, backgroundColor:'#ffffff', logging:false});
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('l','mm','a4');
+                const pageW = pdf.internal.pageSize.getWidth();
+                const pageH = pdf.internal.pageSize.getHeight();
+                const margin = 8;
+                const imgW = pageW - margin*2;
+                const imgH = canvas.height * imgW / canvas.width;
+                let y = margin;
+                let remaining = imgH;
+                const data = canvas.toDataURL('image/png');
+
+                pdf.setFontSize(12);
+                pdf.text(`Relatório de Premiações — ${currentYear}`, margin, 6);
+                y = 10;
+                pdf.addImage(data,'PNG',margin,y,imgW,imgH);
+                remaining -= (pageH - y - margin);
+                while (remaining > 0) {
+                    pdf.addPage();
+                    y = -(imgH - remaining + 10);
+                    pdf.addImage(data,'PNG',margin,y,imgW,imgH);
+                    remaining -= (pageH - margin*2);
+                }
+                pdf.save(`Premiacoes_${currentYear}.pdf`);
+            }
+
+
+            function renderAll() { renderTables(); renderStatsChart(); if(currentView === 'premiacoes') renderAwards(); }
 
             document.getElementById('home-btn').addEventListener('click', () => window.location.href = BASE_URL + '/');
             document.getElementById('logout-btn').addEventListener('click', () => {
@@ -657,6 +1009,10 @@
             document.getElementById('greeting').innerText = getNomeUsuario();
             document.getElementById('topbar-greeting').innerText = getNomeUsuario().split(' ')[0];
             document.getElementById('menu-user-name').innerText = getNomeUsuario();
+            document.getElementById('tabMetas').addEventListener('click', () => setView('metas'));
+            document.getElementById('tabPremiacoes').addEventListener('click', () => setView('premiacoes'));
+            document.getElementById('copyAwards').addEventListener('click', copyAwardsReport);
+            document.getElementById('pdfAwards').addEventListener('click', gerarPDFAwards);
             document.getElementById('footer-year').innerText = new Date().getFullYear();
 
             document.getElementById('vendedorDetailModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
