@@ -1047,14 +1047,24 @@
             function getDadosCampanhaMes(ano, mes, vendedor) {
                 if (vendedor.mergedKey === 'fabiano-especial') {
                     let meta = 0, fat = 0;
+                    let metasEspeciaisAtingidas = true;
                     ESPECIAIS_FABIANO.forEach(esp => {
                         const metaBase = getMetaConsolidadaEspecial(ano, mes, esp.nome, esp.nova);
                         const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
                         const fatOficial = getFaturadoConsolidadoEspecial(ano, mes, esp.nome, fatBase);
                         meta += metaBase;
                         fat += fatOficial;
+                        if (!(metaBase > 0 && fatOficial >= metaBase)) metasEspeciaisAtingidas = false;
                     });
-                    return {meta, fat, metaPlus: meta * 1.1};
+                    return {
+                        meta,
+                        fat,
+                        metaPlus: meta * 1.1,
+                        // Fabiano só conquista o selo quando TODAS as metas especiais
+                        // do mês forem atingidas individualmente. O total agregado
+                        // não pode mascarar uma categoria que ficou abaixo da meta.
+                        campaignEligible: metasEspeciaisAtingidas
+                    };
                 }
                 return getDadosParticipanteMes(ano, mes, vendedor);
             }
@@ -1068,7 +1078,12 @@
 
                 months.forEach(m=>{
                     const d=getDadosCampanhaMes(year,m.monthNum,v);
-                    const meta=d.meta, fat=d.fat, earned=meta>0 && fat>=meta;
+                    const meta=d.meta, fat=d.fat;
+                    // Para Fabiano, o selo exige que as duas metas especiais
+                    // sejam atingidas no mesmo mês. Para os demais, vale a meta mensal.
+                    const earned = v.mergedKey === 'fabiano-especial'
+                        ? d.campaignEligible === true
+                        : meta > 0 && fat >= meta;
                     if(earned){
                         streak++;
                         totalSeals++;
