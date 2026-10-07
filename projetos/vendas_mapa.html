@@ -1073,27 +1073,68 @@ function hasFocusedGeoSelection(){
   return false;
 }
 
+function cityFallbackCoord(city, uf){
+  // Coordenadas aproximadas de municípios mais comuns na carteira/vendas.
+  // O estado continua sendo o fallback seguro quando a cidade não estiver mapeada.
+  const key = normText(city);
+  const known = {
+    'sao paulo':[-23.5505,-46.6333],'guarulhos':[-23.4545,-46.5333],
+    'campinas':[-22.9099,-47.0626],'sao jose dos campos':[-23.2237,-45.9009],
+    'sorocaba':[-23.5015,-47.4526],'santo andre':[-23.6639,-46.5383],
+    'sao bernardo do campo':[-23.6914,-46.5646],'osasco':[-23.5329,-46.7917],
+    'mogi das cruzes':[-23.5228,-46.1883],'itaquaquecetuba':[-23.4862,-46.3486],
+    'jundiai':[-23.1852,-46.8978],'ribeirao preto':[-21.1704,-47.8103],
+    'piracicaba':[-22.7338,-47.6476],'bauru':[-22.3246,-49.0871],
+    'sao jose do rio preto':[-20.8113,-49.3758],'franca':[-20.5397,-47.4008],
+    'taubate':[-23.0104,-45.5593],'praia grande':[-24.0047,-46.4028],
+    'maua':[-23.6677,-46.4613],'diadema':[-23.6813,-46.6200],
+    'curitiba':[-25.4284,-49.2733],'londrina':[-23.3045,-51.1696],
+    'maringa':[-23.4205,-51.9333],'belo horizonte':[-19.9167,-43.9345],
+    'contagem':[-19.9320,-44.0539],'uberlandia':[-18.9186,-48.2772],
+    'rio de janeiro':[-22.9068,-43.1729],'niteroi':[-22.8832,-43.1034],
+    'porto alegre':[-30.0346,-51.2177],'florianopolis':[-27.5954,-48.5480],
+    'joinville':[-26.3045,-48.8487],'salvador':[-12.9777,-38.5016],
+    'recife':[-8.0476,-34.8770],'fortaleza':[-3.7319,-38.5267],
+    'goiania':[-16.6869,-49.2648],'vitoria':[-20.3155,-40.3128]
+  };
+  if(known[key]) return known[key];
+  if(uf && centers[uf]) return centers[uf];
+  return null;
+}
+
 function geoForMap(){
   const oneUF = [...new Set(filteredRecords.map(x=>x.uf).filter(Boolean))];
   const useCities = mapMode==='cities' || (mapMode==='auto' && hasFocusedGeoSelection() && oneUF.length===1);
   const m = new Map();
+
   filteredRecords.forEach(x=>{
     const k = useCities ? (x.cidade||x.uf||'Não informado') : (x.uf||'Não informado');
     const o = m.get(k) || {valor:0,qtd:0,n:0,emp:new Set(),uf:x.uf,lat:NaN,lng:NaN};
     o.valor += x.valor; o.qtd += x.qtd; o.n++;
     if(x.empresa) o.emp.add(x.empresa);
-    if(validCoord(x.lat,x.lng)){ o.lat=x.lat; o.lng=x.lng; }
-    else if(!validCoord(o.lat,o.lng) && centers[x.uf]){ o.lat=centers[x.uf][0]; o.lng=centers[x.uf][1]; }
+
+    if(validCoord(x.lat,x.lng)){
+      o.lat=x.lat; o.lng=x.lng;
+    }else if(useCities){
+      const p=cityFallbackCoord(x.cidade,x.uf);
+      if(p && !validCoord(o.lat,o.lng)){ o.lat=p[0]; o.lng=p[1]; }
+    }else if(centers[x.uf] && !validCoord(o.lat,o.lng)){
+      o.lat=centers[x.uf][0]; o.lng=centers[x.uf][1];
+    }
     m.set(k,o);
   });
-  return [...m.entries()].sort((a,b)=>(b[1][mapMetric]||0)-(a[1][mapMetric]||0)).slice(0,150).map(([k,o])=>{
-    let lat=o.lat, lng=o.lng;
-    if(!validCoord(lat,lng)){
-      const uf = o.uf || (stateNames[k]?k:'');
-      if(centers[uf]){ lat=centers[uf][0]; lng=centers[uf][1]; }
-    }
-    return {key:k, lat, lng, label: useCities?k:(stateNames[k]||k), o, city:useCities};
-  });
+
+  return [...m.entries()]
+    .sort((a,b)=>(b[1][mapMetric]||0)-(a[1][mapMetric]||0))
+    .slice(0,150)
+    .map(([k,o])=>{
+      let lat=o.lat, lng=o.lng;
+      if(!validCoord(lat,lng)){
+        const p=cityFallbackCoord(k,o.uf);
+        if(p){ lat=p[0]; lng=p[1]; }
+      }
+      return {key:k,lat,lng,label:useCities?k:(stateNames[k]||k),o,city:useCities};
+    });
 }
 
 function renderMap(){
@@ -1257,13 +1298,45 @@ function openGenericDetail(key, mode, records){
   const byVend = aggFrom(records,'vendedor');
   const byUF = aggFrom(records,'estado');
   const byCity = aggFrom(records,'cidade');
+  const byBairro = aggFrom(records,'bairro');
   const byMarca = aggFrom(records,'marca');
+  const byCnpj = aggFrom(records,'cnpj');
 
-  const empRows = byEmp.slice(0,RANKING_MIN).map(([k,o])=>`<tr class="click" onclick="drillInto('${encodeURIComponent(k)}','empresa')"><td>${esc(k)}</td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${o.n}</td></tr>`).join('');
-  const vendRows = byVend.slice(0,RANKING_MIN).map(([k,o])=>`<tr class="click" onclick="drillInto('${encodeURIComponent(k)}','vendedor')"><td>${esc(k)}</td><td>${money(o.valor)}</td><td>${o.emp.size}</td></tr>`).join('');
-  const ufRows = byUF.slice(0,RANKING_MIN).map(([k,o])=>`<tr class="click" onclick="drillInto('${encodeURIComponent(k)}','estado')"><td>${esc(k)} ${stateNames[k]?'— '+stateNames[k]:''}</td><td>${money(o.valor)}</td><td>${o.emp.size}</td></tr>`).join('');
-  const cityRows = byCity.slice(0,RANKING_MIN).map(([k,o])=>`<tr class="click" onclick="drillInto('${encodeURIComponent(k)}','cidade')"><td>${esc(k)}</td><td>${money(o.valor)}</td><td>${o.emp.size}</td></tr>`).join('');
-  const marcaRows = byMarca.slice(0,RANKING_MIN).map(([k,o])=>`<tr class="click" onclick="drillInto('${encodeURIComponent(k)}','marca')"><td>${esc(k)}</td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td></tr>`).join('');
+  // Mantém o contexto atual para que "Ver mais" e filtros internos
+  // continuem trabalhando exatamente sobre este drill-down.
+  window.__drillTables = {emp:byEmp,vend:byVend,uf:byUF,city:byCity,bairro:byBairro,marca:byMarca,cnpj:byCnpj};
+  window.__drillRecords = records;
+
+  const tableRows = (arr,type,limit=RANKING_MIN)=>{
+    return arr.slice(0,limit).map(([k,o])=>{
+      const safe=encodeURIComponent(k);
+      let click='';
+      if(type==='emp') click=`onclick="drillInto('${safe}','empresa')"`;
+      else if(type==='vend') click=`onclick="drillInto('${safe}','vendedor')"`;
+      else if(type==='uf') click=`onclick="drillInto('${safe}','estado')"`;
+      else if(type==='city') click=`onclick="drillInto('${safe}','cidade')"`;
+      else if(type==='bairro') click=`onclick="drillInto('${safe}','bairro')"`;
+      else if(type==='marca') click=`onclick="drillInto('${safe}','marca')"`;
+      else if(type==='cnpj') click=`onclick="drillInto('${safe}','cnpj')"`;
+      return `<tr class="click" ${click}>
+        <td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.n)}</td>
+        <td>${int(o.n)}</td>
+      </tr>`;
+    }).join('');
+  };
+
+  const section=(id,title,arr,type,cols='Nome|Faturamento|Qtd.|Lanç.')=>{
+    if(!arr.length) return '';
+    const heads=cols.split('|').map(h=>`<th>${esc(h)}</th>`).join('');
+    const rows=tableRows(arr,type);
+    const more=arr.length>RANKING_MIN
+      ? `<div style="padding:7px;text-align:center"><button class="viewmore-btn" onclick="showMoreDrillRows('${type}',${RANKING_MIN},this)">Ver mais ${Math.min(20,arr.length-RANKING_MIN)} de ${arr.length}</button></div>`
+      : '';
+    return `<div class="company-group" id="drillSection_${id}">
+      <h4>${esc(title)} <span style="float:right;color:#9ca3af;font-weight:500">${int(arr.length)} registros</span></h4>
+      <div class="table-wrap"><table class="mini-table"><thead><tr>${heads}</tr></thead><tbody id="drillBody_${type}">${rows}</tbody></table>${more}</div>
+    </div>`;
+  };
 
   const mapId = 'genMap_'+Date.now();
   openModal(`<i class="fa-solid fa-chart-column"></i> ${esc(key)}`,
@@ -1274,6 +1347,7 @@ function openGenericDetail(key, mode, records){
           <div><b>${esc(key)}</b><div class="map-note">${analysisLabel()} • ${int(records.length)} lançamentos no contexto</div></div>
           <button class="back-drill" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Fechar</button>
         </div>
+
         <div class="kpis" style="margin-bottom:10px">
           <div class="kpi"><small>Faturamento</small><b>${money(fat)}</b></div>
           <div class="kpi"><small>Quantidade</small><b>${int(qtd)}</b></div>
@@ -1282,15 +1356,46 @@ function openGenericDetail(key, mode, records){
           <div class="kpi"><small>Estados</small><b>${ufs.size}</b></div>
           <div class="kpi"><small>Cidades</small><b>${cidades.size}</b></div>
         </div>
-        <div style="margin:10px 0"><button class="source-return" onclick="openFullRanking()"><i class="fa-solid fa-up-right-from-square"></i> Ver planilha completa (${int(records.length)} registros) em nova aba</button></div>
-        ${emps.size?`<div class="company-group"><h4>Empresas que compraram</h4><div class="table-wrap"><table class="mini-table"><thead><tr><th>Empresa</th><th>Fat.</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${empRows}</tbody></table></div></div>`:''}
-        ${byVend.length?`<div class="company-group"><h4>Vendedores</h4><div class="table-wrap"><table class="mini-table"><thead><tr><th>Vendedor</th><th>Fat.</th><th>Emp.</th></tr></thead><tbody>${vendRows}</tbody></table></div></div>`:''}
-        ${byUF.length?`<div class="company-group"><h4>Estados</h4><div class="table-wrap"><table class="mini-table"><thead><tr><th>UF</th><th>Fat.</th><th>Emp.</th></tr></thead><tbody>${ufRows}</tbody></table></div></div>`:''}
-        ${byCity.length?`<div class="company-group"><h4>Cidades</h4><div class="table-wrap"><table class="mini-table"><thead><tr><th>Cidade</th><th>Fat.</th><th>Emp.</th></tr></thead><tbody>${cityRows}</tbody></table></div></div>`:''}
-        ${byMarca.length?`<div class="company-group"><h4>Marcas</h4><div class="table-wrap"><table class="mini-table"><thead><tr><th>Marca</th><th>Fat.</th><th>Qtd.</th></tr></thead><tbody>${marcaRows}</tbody></table></div></div>`:''}
+
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">
+          <button class="source-return" onclick="backToQuery()"><i class="fa-solid fa-arrow-left"></i> Voltar à consulta</button>
+          <button class="source-return" onclick="openFullRanking()"><i class="fa-solid fa-table-list"></i> Abrir ranking completo</button>
+        </div>
+
+        <!-- PRINCIPAL: depois de selecionar um produto/vendedor etc.,
+             a primeira coisa exibida é a lista de empresas, nunca um
+             único cliente destacado. -->
+        ${section('emp','Empresas que compraram',byEmp,'emp','Empresa|Faturamento|Qtd.|Lanç.|')}
+        ${section('vend','Vendedores',byVend,'vend','Vendedor|Faturamento|Qtd.|Lanç.|')}
+        ${section('uf','Estados',byUF,'uf','UF|Faturamento|Qtd.|Lanç.|')}
+        ${section('city','Cidades',byCity,'city','Cidade|Faturamento|Qtd.|Lanç.|')}
+        ${section('bairro','Bairros',byBairro,'bairro','Bairro|Faturamento|Qtd.|Lanç.|')}
+        ${section('marca','Marcas',byMarca,'marca','Marca|Faturamento|Qtd.|Lanç.')}
+        ${section('cnpj','CNPJs',byCnpj,'cnpj','CNPJ|Faturamento|Qtd.|Lanç.')}
       </div>
     </div>`);
   setTimeout(()=>initMiniMap(mapId, records), 60);
+}
+
+function showMoreDrillRows(type, offset, btn){
+  const arr=(window.__drillTables||{})[type]||[];
+  const body=document.getElementById('drillBody_'+type);
+  if(!body) return;
+  const end=Math.min(offset+20,arr.length);
+  const html=arr.slice(offset,end).map(([k,o])=>{
+    const safe=encodeURIComponent(k);
+    const mode={emp:'empresa',vend:'vendedor',uf:'estado',city:'cidade',bairro:'bairro',marca:'marca',cnpj:'cnpj'}[type];
+    return `<tr class="click" onclick="drillInto('${safe}','${mode}')">
+      <td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.n)}</td>
+    </tr>`;
+  }).join('');
+  body.insertAdjacentHTML('beforeend',html);
+  if(end>=arr.length){
+    btn.parentElement.remove();
+  }else{
+    btn.textContent=`Ver mais ${Math.min(20,arr.length-end)} de ${arr.length}`;
+    btn.onclick=()=>showMoreDrillRows(type,end,btn);
+  }
 }
 
 function aggFrom(records, key){
@@ -1493,7 +1598,7 @@ function initMiniMap(id, records, ufHint){
     const o = groups.get(k) || {valor:0, qtd:0, lat:NaN, lng:NaN};
     o.valor += x.valor; o.qtd += x.qtd;
     if(validCoord(x.lat,x.lng)){ o.lat=x.lat; o.lng=x.lng; }
-    else if(!validCoord(o.lat,o.lng) && centers[x.uf]){ o.lat=centers[x.uf][0]; o.lng=centers[x.uf][1]; }
+    else if(!validCoord(o.lat,o.lng)){ const p=cityFallbackCoord(x.cidade,x.uf); if(p){ o.lat=p[0]; o.lng=p[1]; } }
     groups.set(k,o);
   });
   const max = Math.max(...[...groups.values()].map(o=>o.valor),1);
