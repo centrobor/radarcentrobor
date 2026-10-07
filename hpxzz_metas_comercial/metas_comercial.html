@@ -172,6 +172,26 @@
         .award-streak{font-size:.68rem;color:var(--text-light);margin-top:4px}
         .award-total{font-weight:900}
         .award-note{font-size:.65rem;color:var(--text-light)}
+
+        .award-month-cell{min-width:95px}
+        .seal-medal{
+            display:inline-flex;align-items:center;justify-content:center;flex-direction:column;
+            gap:2px;width:47px;height:47px;border-radius:14px;background:#fff7d6;
+            color:#a16207;border:1px solid #f4d46b;box-shadow:0 3px 10px rgba(161,98,7,.12);
+        }
+        .seal-medal i{font-size:1.05rem}
+        .seal-medal small{font-size:.43rem;font-weight:900}
+        .seal-medal.bronze{background:linear-gradient(145deg,#f6d2ae,#c47b43);color:#5b2f15;border-color:#a85e2c}
+        .seal-medal.silver{background:linear-gradient(145deg,#f3f4f6,#bfc5cd);color:#3f4650;border-color:#969da7}
+        .seal-empty{
+            display:inline-flex;align-items:center;justify-content:center;flex-direction:column;
+            gap:2px;width:47px;height:47px;border-radius:14px;background:#f1f5f9;
+            color:#94a3b8;border:1px solid #e2e8f0;
+        }
+        .seal-empty i{font-size:.9rem}
+        .seal-empty small{font-size:.43rem;font-weight:900}
+        .award-meta-ref{font-size:.57rem;color:var(--text-soft);margin-top:4px;white-space:nowrap}
+        .award-fat-ref{font-size:.57rem;color:var(--text-light);white-space:nowrap}
         @media(max-width:1000px){
             .view-tabs{margin-top:10px}
             .awards-toolbar{flex-direction:column;align-items:stretch}
@@ -191,9 +211,70 @@
             body.print-awards .awards-report{box-shadow:none;border:1px solid #bbb}
             body.print-awards .awards-summary{grid-template-columns:repeat(4,1fr)}
         }
+
+        /* Loading / erro de carregamento */
+        .data-loading-overlay{
+            display:flex;position:fixed;inset:0;z-index:5000;
+            background:rgba(8,18,30,.62);backdrop-filter:blur(5px);
+            align-items:center;justify-content:center;padding:24px;
+        }
+        .data-loading-overlay.hidden{display:none}
+        .loading-card{
+            width:min(460px,94vw);background:#fff;border-radius:26px;
+            padding:30px 28px;box-shadow:0 30px 80px rgba(0,0,0,.3);
+            text-align:center;border:1px solid rgba(255,255,255,.8)
+        }
+        .loading-icon{
+            width:58px;height:58px;margin:0 auto 18px;border-radius:50%;
+            border:5px solid #e5e7eb;border-top-color:var(--primary);
+            animation:dataSpin .85s linear infinite;
+        }
+        .loading-card.error .loading-icon{
+            animation:none;border-color:#fee2e2;border-top-color:var(--danger);
+            position:relative;
+        }
+        .loading-card.error .loading-icon:after{
+            content:'!';position:absolute;inset:0;display:flex;align-items:center;
+            justify-content:center;font-size:25px;font-weight:900;color:var(--danger);
+        }
+        @keyframes dataSpin{to{transform:rotate(360deg)}}
+        .loading-title{font-size:1.15rem;font-weight:900;color:var(--text-dark);margin-bottom:6px}
+        .loading-message{font-size:.82rem;color:var(--text-soft);line-height:1.5;min-height:24px}
+        .loading-progress{
+            height:8px;background:#e9eef5;border-radius:20px;overflow:hidden;margin:20px 0 9px;
+        }
+        .loading-progress-bar{
+            height:100%;width:0%;background:var(--primary);border-radius:20px;
+            transition:width .35s ease;
+        }
+        .loading-percent{font-size:.7rem;color:var(--text-light);font-weight:800}
+        .loading-error{
+            display:none;margin-top:15px;text-align:left;background:#fff5f5;
+            border:1px solid #fecaca;color:#991b1b;border-radius:13px;padding:12px;
+            font-size:.72rem;line-height:1.45;word-break:break-word;
+        }
+        .loading-card.error .loading-error{display:block}
+        .loading-retry{
+            display:none;margin:17px auto 0;border:0;background:var(--primary);color:#fff;
+            padding:10px 18px;border-radius:12px;font-weight:800;cursor:pointer
+        }
+        .loading-card.error .loading-retry{display:inline-flex;align-items:center;gap:7px}
     </style>
 </head>
+
 <body>
+    <div class="data-loading-overlay" id="dataLoadingOverlay">
+        <div class="loading-card" id="dataLoadingCard">
+            <div class="loading-icon" id="dataLoadingIcon"></div>
+            <div class="loading-title" id="dataLoadingTitle">Buscando dados...</div>
+            <div class="loading-message" id="dataLoadingMessage">Conectando às fontes de dados.</div>
+            <div class="loading-progress"><div class="loading-progress-bar" id="dataLoadingProgress"></div></div>
+            <div class="loading-percent" id="dataLoadingPercent">0%</div>
+            <div class="loading-error" id="dataLoadingError"></div>
+            <button class="loading-retry" id="dataLoadingRetry"><i class="fas fa-rotate-right"></i> Tentar novamente</button>
+        </div>
+    </div>
+
 
     <div class="mobile-topbar" id="mobile-topbar">
         <div class="topbar-left">
@@ -340,6 +421,59 @@
                 { cod: "60", nome: "Valéria" },
                 { cod: "61", nome: "Luan" },
             ];
+
+            // O consolidado é a lista oficial de participantes.
+            // A lista antiga serve apenas para preservar nomes/configurações
+            // enquanto os dados do consolidado ainda não foram carregados.
+            function getParticipantesConsolidados() {
+                const mapa = new Map();
+
+                allConsolidado.forEach(r => {
+                    const cod = String(r.id_vendedor || '').trim();
+                    const nome = String(r.vendedor || '').trim();
+                    if (!cod || cod === '80' || !nome) return;
+
+                    // Se houver múltiplas linhas para o mesmo ID (ex.: Fabiano),
+                    // cada identificação pelo nome continua disponível.
+                    const chave = `${cod}::${normalizarNome(nome)}`;
+                    if (!mapa.has(chave)) {
+                        mapa.set(chave, {
+                            cod,
+                            nome,
+                            id: cod,
+                            nomeNormalizado: normalizarNome(nome)
+                        });
+                    }
+                });
+
+                return Array.from(mapa.values());
+            }
+
+            function getParticipantesParaMes(ano, mes) {
+                const regs = getConsolidadoRegistros(ano, mes);
+                const mapa = new Map();
+
+                regs.forEach(r => {
+                    const cod = String(r.id_vendedor || '').trim();
+                    const nome = String(r.vendedor || '').trim();
+                    if (!cod || cod === '80' || !nome) return;
+                    const chave = `${cod}::${normalizarNome(nome)}`;
+                    if (!mapa.has(chave)) {
+                        mapa.set(chave, {cod, nome});
+                    }
+                });
+
+                return Array.from(mapa.values());
+            }
+
+            function getVendedorOficial(cod, nome) {
+                const n = normalizarNome(nome);
+                return getParticipantesConsolidados().find(v =>
+                    v.cod === String(cod).trim() &&
+                    (normalizarNome(v.nome) === n || n.includes(normalizarNome(v.nome)) || normalizarNome(v.nome).includes(n))
+                ) || null;
+            }
+
             const ESPECIAIS_FABIANO = [
                 { nome: "Sinc/Polias/Esp.", anterior: 180000, nova: 207000, bonus: 300, bonusPlus: 125, tipo: 'sincpolias' },
                 { nome: "Lavand.(exceto V, Sinc./Plana)", anterior: 132000, nova: 151000, bonus: 300, bonusPlus: 125, tipo: 'lavanderia' }
@@ -356,21 +490,100 @@
             const formatCurrency = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
             const parseDataBR = str => { if (!str) return null; const p = String(str).split('/'); if (p.length === 3) return new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0])); return null; };
 
+            function setLoadingProgress(percent, message) {
+                const p = Math.max(0, Math.min(100, percent));
+                document.getElementById('dataLoadingProgress').style.width = p + '%';
+                document.getElementById('dataLoadingPercent').innerText = p + '%';
+                document.getElementById('dataLoadingMessage').innerText = message || '';
+            }
+
+            function showLoading() {
+                const overlay = document.getElementById('dataLoadingOverlay');
+                const card = document.getElementById('dataLoadingCard');
+                card.classList.remove('error');
+                overlay.classList.remove('hidden');
+                document.getElementById('dataLoadingTitle').innerText = 'Buscando dados...';
+                document.getElementById('dataLoadingError').innerText = '';
+                document.getElementById('dataLoadingRetry').style.display = 'none';
+                setLoadingProgress(0, 'Preparando consulta às fontes de dados.');
+            }
+
+            function hideLoading() {
+                document.getElementById('dataLoadingOverlay').classList.add('hidden');
+            }
+
+            function showLoadingError(error) {
+                const overlay = document.getElementById('dataLoadingOverlay');
+                const card = document.getElementById('dataLoadingCard');
+                overlay.classList.remove('hidden');
+                card.classList.add('error');
+                document.getElementById('dataLoadingTitle').innerText = 'Não foi possível carregar os dados';
+                document.getElementById('dataLoadingMessage').innerText = 'A página não foi liberada para evitar exibir informações incompletas.';
+                document.getElementById('dataLoadingError').innerText =
+                    `Detalhes: ${error?.message || String(error || 'Erro desconhecido')}`;
+                setLoadingProgress(0, 'Erro durante a consulta.');
+            }
+
+            async function fetchJsonWithStatus(url, label, progress) {
+                setLoadingProgress(progress, `Consultando ${label}...`);
+                const response = await fetch(url, { cache:'no-store' });
+                if (!response.ok) {
+                    throw new Error(`${label}: HTTP ${response.status} — ${response.statusText || 'resposta inválida'}`);
+                }
+                const data = await response.json();
+                if (!Array.isArray(data)) {
+                    throw new Error(`${label}: a resposta não retornou uma lista de dados válida.`);
+                }
+                setLoadingProgress(progress + 4, `${label} carregado.`);
+                return data;
+            }
+
             async function fetchData() {
+                showLoading();
                 try {
-                    const [faturados, metas, consolidado] = await Promise.all([
-                        fetch(BASES.faturados).then(r => r.json()),
-                        fetch(BASES.metas).then(r => r.json()),
-                        fetch(BASES.consolidado).then(r => r.json())
-                    ]);
+                    // 1. Base histórica
+                    const faturados = await fetchJsonWithStatus(BASES.faturados, 'faturados', 8);
+
+                    // 2. Metas padrão
+                    const metas = await fetchJsonWithStatus(BASES.metas, 'metas padrão', 35);
+
+                    // 3. Consolidado: fonte de autoridade
+                    const consolidado = await fetchJsonWithStatus(BASES.consolidado, 'metas consolidadas', 62);
+
+                    if (!consolidado.length) {
+                        throw new Error('O consolidado retornou zero participantes. A página foi bloqueada para evitar listar vendedores incorretamente.');
+                    }
+
                     allFaturados = faturados;
                     allMetas = metas;
-                    allConsolidado = Array.isArray(consolidado) ? consolidado : [];
+                    allConsolidado = consolidado;
+
+                    setLoadingProgress(82, 'Validando participantes e sobrescrevendo os dados pelo consolidado...');
+
+                    // Validação mínima do consolidado.
+                    const invalidos = allConsolidado.filter(r =>
+                        !String(r.id_vendedor || '').trim() ||
+                        !String(r.vendedor || '').trim() ||
+                        !String(r.mes_ano || '').trim()
+                    );
+
+                    if (invalidos.length === allConsolidado.length) {
+                        throw new Error('O consolidado foi carregado, mas não contém registros válidos de mês, ID e vendedor.');
+                    }
+
+                    setLoadingProgress(92, 'Montando metas, faturamento e campanha de premiações...');
                     document.getElementById('last-update-text').innerText = `Atualizado em: ${new Date().toLocaleString('pt-BR')}`;
                     document.getElementById('last-update-badge').style.display = 'flex';
+
                     initFilters();
                     renderAll();
-                } catch (e) { console.error(e); }
+
+                    setLoadingProgress(100, `${getParticipantesConsolidados().length} participantes oficiais carregados.`);
+                    setTimeout(hideLoading, 350);
+                } catch (e) {
+                    console.error('Erro ao carregar dados:', e);
+                    showLoadingError(e);
+                }
             }
 
             function getAvailableYears() {
@@ -473,10 +686,10 @@
                 );
                 if (!registros.length) return null;
 
-                // Para IDs com mais de uma linha (ex.: Fabiano/24), prioriza o nome.
                 if (alvoNome) {
                     const exato = registros.find(r => normalizarNome(r.vendedor) === alvoNome);
                     if (exato) return exato;
+
                     const parcial = registros.find(r => {
                         const n = normalizarNome(r.vendedor);
                         return n === alvoNome || n.includes(alvoNome) || alvoNome.includes(n);
@@ -487,7 +700,65 @@
                 return registros[0];
             }
 
+            function getCampoConsolidado(ano, mes, cod, nome, campo) {
+                const c = getConsolidadoPorVendedorMes(ano, mes, cod, nome);
+                if (!c) return { existe:false, valor:null, registro:null };
+
+                const bruto = c[campo];
+                const preenchido = bruto !== undefined && bruto !== null && String(bruto).trim() !== '';
+                return {
+                    existe: preenchido,
+                    valor: preenchido ? bruto : null,
+                    registro: c
+                };
+            }
+
             function getMetaPorVendedorMes(ano, mes) {
+                const map = {};
+
+                // Base padrão.
+                allMetas.forEach(m => {
+                    const cod = String(m.id_vendedor || '').trim();
+                    if (!cod || cod === '80') return;
+                    map[cod] = cleanNumber(m.meta_mensal);
+                });
+
+                // Consolidado sobrescreve qualquer valor padrão para cada participante.
+                getParticipantesParaMes(ano, mes).forEach(v => {
+                    const c = getCampoConsolidado(ano, mes, v.cod, v.nome, 'meta_mensal');
+                    if (c.existe) map[v.cod] = cleanNumber(c.valor);
+                });
+
+                return map;
+            }
+
+            function getFaturamentoPorVendedorMesAutoritativo(ano, mes) {
+                const base = getFaturamentoPorVendedorMes(ano, mes);
+                const map = { ...base };
+
+                getParticipantesParaMes(ano, mes).forEach(v => {
+                    const c = getCampoConsolidado(ano, mes, v.cod, v.nome, 'faturado');
+                    if (c.existe) map[v.cod] = cleanNumber(c.valor);
+                });
+
+                return map;
+            }
+
+            function getMetaConsolidadaEspecial(ano, mes, nomeCategoria, fallback) {
+                const c = getCampoConsolidado(ano, mes, '24', nomeCategoria, 'meta_mensal');
+                return c.existe ? cleanNumber(c.valor) : fallback;
+            }
+
+            function getFaturadoConsolidadoEspecial(ano, mes, nomeCategoria, fallback) {
+                const c = getCampoConsolidado(ano, mes, '24', nomeCategoria, 'faturado');
+                return c.existe ? cleanNumber(c.valor) : fallback;
+            }
+
+            function getRegistroAutoritativo(ano, mes, vendedor) {
+                return getConsolidadoPorVendedorMes(ano, mes, vendedor.cod, vendedor.nome);
+            }
+
+function getMetaPorVendedorMes(ano, mes) {
                 const map = {};
 
                 // Base atual continua sendo consultada normalmente.
@@ -678,7 +949,8 @@
                     const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
 
-                    const rowsVend = VENDEDORES_LIST.map(v => {
+                    const participantesMes = getParticipantesParaMes(ano, mes);
+                    const rowsVend = participantesMes.map(v => {
                         const meta = metaMap[v.cod] || 0;
                         const fat = fatMap[v.cod] || 0;
                         const metaPlus = meta * 1.1;
@@ -744,7 +1016,7 @@
                     const [ano, mes] = m.split('-').map(Number);
                     const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
-                    VENDEDORES_LIST.forEach(v => {
+                    getCampaignSellers().forEach(v => {
                         const nome = v.nome;
                         if (!stats[nome]) stats[nome] = { atingidas: 0, total: 0 };
                         stats[nome].total++;
@@ -771,7 +1043,7 @@
                     const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
                     const metaMap = getMetaPorVendedorMes(ano, mes);
                     const sheetData = [['Vendedor', 'Meta Mensal', 'Meta Plus', 'Faturado', '% Meta', 'Atingiu Meta', '% Plus', 'Atingiu Plus']];
-                    VENDEDORES_LIST.forEach(v => {
+                    getParticipantesParaMes(ano, mes).forEach(v => {
                         const meta = metaMap[v.cod] || 0;
                         const fat = fatMap[v.cod] || 0;
                         const metaPlus = meta * 1.1;
@@ -787,17 +1059,12 @@
             let currentView = 'metas';
 
             function getCampaignSellers() {
-                const base = VENDEDORES_LIST.map(v => ({...v}));
-                const seen = new Set(base.map(v => v.cod));
-                // Acrescenta colaboradores que existam no consolidado e ainda não estejam na lista.
-                allConsolidado.forEach(r => {
-                    const cod = String(r.id_vendedor || '').trim();
-                    const nome = String(r.vendedor || '').trim();
-                    if (!cod || cod === '80' || cod === '24' || !nome || seen.has(cod)) return;
-                    base.push({cod, nome});
-                    seen.add(cod);
-                });
-                return base;
+                // REGRA: só participa quem estiver no consolidado.
+                // Se Hélio existir no padrão, mas não no consolidado, ele não aparece.
+                return getParticipantesConsolidados().map(v => ({
+                    cod: v.cod,
+                    nome: v.nome
+                }));
             }
 
             function getAwardStatusForSeller(v, year) {
@@ -840,11 +1107,18 @@
                 // como uma conquista maior, sem duplicar trincas dentro do mesmo bloco de seis.
                 let run = 0;
                 result.forEach(r => {
+                    r.trincaAward = false;
+                    r.semesterAward = false;
                     if (r.earned) {
                         run++;
-                        if (run === 3) trincas++;
+                        if (run === 3) {
+                            trincas++;
+                            r.trincaAward = true;
+                        }
                         if (run === 6) {
                             semestres++;
+                            r.semesterAward = true;
+                            // O prêmio de 6 meses encerra o ciclo atual.
                             run = 0;
                         }
                     } else {
@@ -905,8 +1179,23 @@
                     table += `<tr>
                         <td><strong>${r.seller.nome}</strong><div class="award-note">ID ${r.seller.cod}</div></td>`;
                     r.months.forEach(m => {
-                        const icon = m.earned ? '<i class="fas fa-certificate"></i><small>SELO</small>' : '<i class="fas fa-minus"></i><small>—</small>';
-                        table += `<td><span class="seal-cell ${m.earned?'earned':''}" title="${m.earned?'Meta atingida':'Meta não atingida'}">${icon}</span></td>`;
+                        const metaRef = m.meta || 0;
+                        const fatRef = m.fat || 0;
+                        let awardClass = '';
+                        let awardLabel = '';
+                        // Marca as conquistas especiais por mês: 6 meses = prata, trinca = bronze.
+                        if (m.semesterAward) { awardClass = 'silver'; awardLabel = '6M'; }
+                        else if (m.trincaAward) { awardClass = 'bronze'; awardLabel = '3M'; }
+
+                        const icon = m.earned
+                            ? `<span class="seal-medal ${awardClass}"><i class="fas fa-certificate"></i><small>SELO${awardLabel ? ' • '+awardLabel : ''}</small></span>`
+                            : '<span class="seal-empty"><i class="fas fa-minus"></i><small>—</small></span>';
+
+                        table += `<td class="award-month-cell">
+                            ${icon}
+                            <div class="award-meta-ref">Meta: R$ ${formatCurrency(metaRef)}</div>
+                            <div class="award-fat-ref">Fat.: R$ ${formatCurrency(fatRef)}</div>
+                        </td>`;
                     });
                     table += `<td class="award-total">${r.totalSeals}</td>
                         <td>${r.trincas ? `<span class="award-badge trinca"><i class="fas fa-certificate"></i>${r.trincas} ${r.trincas===1?'Trinca':'Trincas'}</span>` : '—'}</td>
@@ -1014,6 +1303,8 @@
             document.getElementById('copyAwards').addEventListener('click', copyAwardsReport);
             document.getElementById('pdfAwards').addEventListener('click', gerarPDFAwards);
             document.getElementById('footer-year').innerText = new Date().getFullYear();
+
+            document.getElementById('dataLoadingRetry').addEventListener('click', fetchData);
 
             document.getElementById('vendedorDetailModal').addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
 
