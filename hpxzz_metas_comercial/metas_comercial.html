@@ -452,17 +452,25 @@
             function getParticipantesParaMes(ano, mes) {
                 const regs = getConsolidadoRegistros(ano, mes);
                 const mapa = new Map();
+                let temDimasOuEduardo = false;
 
                 regs.forEach(r => {
                     const cod = String(r.id_vendedor || '').trim();
                     const nome = String(r.vendedor || '').trim();
                     if (!cod || cod === '80' || !nome) return;
-                    const chave = `${cod}::${normalizarNome(nome)}`;
-                    if (!mapa.has(chave)) {
-                        mapa.set(chave, {cod, nome});
+                    const nomeNorm = normalizarNome(nome);
+                    const isDimasEduardo = cod === '10' || cod === '12' || nomeNorm.includes('dimas') || nomeNorm.includes('eduardo');
+                    if (isDimasEduardo) {
+                        temDimasOuEduardo = true;
+                        return;
                     }
+                    const chave = `${cod}::${nomeNorm}`;
+                    if (!mapa.has(chave)) mapa.set(chave, {cod, nome});
                 });
 
+                if (temDimasOuEduardo) {
+                    mapa.set('dimas-eduardo', {cod:'10', nome:'Eduardo / Dimas', mergedKey:'dimas-eduardo'});
+                }
                 return Array.from(mapa.values());
             }
 
@@ -654,12 +662,17 @@
                 });
             }
 
+            function chaveParticipante(cod, nome) {
+                return `${String(cod || '').trim()}::${normalizarNome(nome)}`;
+            }
+
             function getFaturamentoPorVendedorMes(ano, mes) {
                 const map = {};
                 allFaturados.forEach(f => {
                     const d = parseDataBR(f['Data']);
                     if (!d || d.getFullYear() !== ano || d.getMonth()+1 !== mes) return;
-                    const cod = f['Cod. Vendedor']?.trim(); if (!cod || cod === '80') return;
+                    const cod = String(f['Cod. Vendedor'] || '').trim();
+                    if (!cod || cod === '80') return;
                     map[cod] = (map[cod] || 0) + cleanNumber(f['Valor Mercadoria']);
                 });
                 return map;
@@ -667,7 +680,7 @@
 
             function normalizarNome(nome) {
                 return String(nome || '').toLowerCase()
-                    .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
                     .replace(/[^a-z0-9]+/g, ' ').trim();
             }
 
@@ -685,62 +698,82 @@
                     String(r.id_vendedor || '').trim() === alvoId
                 );
                 if (!registros.length) return null;
-
                 if (alvoNome) {
                     const exato = registros.find(r => normalizarNome(r.vendedor) === alvoNome);
                     if (exato) return exato;
-
                     const parcial = registros.find(r => {
                         const n = normalizarNome(r.vendedor);
                         return n === alvoNome || n.includes(alvoNome) || alvoNome.includes(n);
                     });
                     if (parcial) return parcial;
                 }
-
                 return registros[0];
             }
 
             function getCampoConsolidado(ano, mes, cod, nome, campo) {
                 const c = getConsolidadoPorVendedorMes(ano, mes, cod, nome);
                 if (!c) return { existe:false, valor:null, registro:null };
-
                 const bruto = c[campo];
                 const preenchido = bruto !== undefined && bruto !== null && String(bruto).trim() !== '';
-                return {
-                    existe: preenchido,
-                    valor: preenchido ? bruto : null,
-                    registro: c
-                };
+                return { existe: preenchido, valor: preenchido ? bruto : null, registro: c };
+            }
+
+            // Dados oficiais por participante. O consolidado é a autoridade para
+            // meta_mensal e faturado; a base padrão só serve como fallback quando
+            // o campo realmente não existe no consolidado.
+            function getDadosParticipanteMes(ano, mes, vendedor) {
+                const regs = getConsolidadoRegistros(ano, mes).filter(r =>
+                    String(r.id_vendedor || '').trim() === String(vendedor.cod || '').trim()
+                );
+                let candidatos = regs;
+                const nomeNorm = normalizarNome(vendedor.nome);
+                if (nomeNorm) {
+                    const exatos = regs.filter(r => normalizarNome(r.vendedor) === nomeNorm);
+                    if (exatos.length) candidatos = exatos;
+                }
+
+                // Dimas/Eduardo representam a mesma meta. O relatório consolida os dois
+                // em uma única linha e não soma o mesmo faturamento duas vezes.
+                if (vendedor.mergedKey === 'dimas-eduardo') {
+                    candidatos = getConsolidadoRegistros(ano, mes).filter(r => {
+                        const id = String(r.id_vendedor || '').trim();
+                        const nome = normalizarNome(r.vendedor);
+                        return ['10','12'].includes(id) || nome.includes('dimas') || nome.includes('eduardo');
+                    });
+                }
+
+                const metaReg = candidatos.find(r => String(r.meta_mensal || '').trim() !== '');
+                const fatReg = candidatos.find(r => String(r.faturado || '').trim() !== '');
+
+                let meta = metaReg ? cleanNumber(metaReg.meta_mensal) : null;
+                let fat = fatReg ? cleanNumber(fatReg.faturado) : null;
+
+                // Fallback apenas se o campo não estiver presente no consolidado.
+                if (meta === null) {
+                    const base = allMetas.find(m => String(m.id_vendedor || '').trim() === String(vendedor.cod || '').trim());
+                    meta = base ? cleanNumber(base.meta_mensal) : 0;
+                }
+                if (fat === null) {
+                    const baseMap = getFaturamentoPorVendedorMes(ano, mes);
+                    fat = baseMap[String(vendedor.cod || '').trim()] || 0;
+                }
+
+                return { meta, fat, metaPlus: meta * 1.1 };
             }
 
             function getMetaPorVendedorMes(ano, mes) {
                 const map = {};
-
-                // Base padrão.
-                allMetas.forEach(m => {
-                    const cod = String(m.id_vendedor || '').trim();
-                    if (!cod || cod === '80') return;
-                    map[cod] = cleanNumber(m.meta_mensal);
-                });
-
-                // Consolidado sobrescreve qualquer valor padrão para cada participante.
                 getParticipantesParaMes(ano, mes).forEach(v => {
-                    const c = getCampoConsolidado(ano, mes, v.cod, v.nome, 'meta_mensal');
-                    if (c.existe) map[v.cod] = cleanNumber(c.valor);
+                    map[chaveParticipante(v.cod, v.nome)] = getDadosParticipanteMes(ano, mes, v).meta;
                 });
-
                 return map;
             }
 
             function getFaturamentoPorVendedorMesAutoritativo(ano, mes) {
-                const base = getFaturamentoPorVendedorMes(ano, mes);
-                const map = { ...base };
-
+                const map = {};
                 getParticipantesParaMes(ano, mes).forEach(v => {
-                    const c = getCampoConsolidado(ano, mes, v.cod, v.nome, 'faturado');
-                    if (c.existe) map[v.cod] = cleanNumber(c.valor);
+                    map[chaveParticipante(v.cod, v.nome)] = getDadosParticipanteMes(ano, mes, v).fat;
                 });
-
                 return map;
             }
 
@@ -752,57 +785,6 @@
             function getFaturadoConsolidadoEspecial(ano, mes, nomeCategoria, fallback) {
                 const c = getCampoConsolidado(ano, mes, '24', nomeCategoria, 'faturado');
                 return c.existe ? cleanNumber(c.valor) : fallback;
-            }
-
-            function getRegistroAutoritativo(ano, mes, vendedor) {
-                return getConsolidadoPorVendedorMes(ano, mes, vendedor.cod, vendedor.nome);
-            }
-
-function getMetaPorVendedorMes(ano, mes) {
-                const map = {};
-
-                // Base atual continua sendo consultada normalmente.
-                allMetas.forEach(m => {
-                    const cod = String(m.id_vendedor || '').trim();
-                    if (!cod || cod === '80') return;
-                    // Não deixar a linha 24 do Fabiano contaminar as metas especiais.
-                    if (cod === '24') return;
-                    map[cod] = cleanNumber(m.meta_mensal);
-                });
-
-                // Consolidado é a fonte de autoridade quando houver registro.
-                VENDEDORES_LIST.forEach(v => {
-                    const c = getConsolidadoPorVendedorMes(ano, mes, v.cod, v.nome);
-                    if (c && String(c.meta_mensal || '').trim() !== '') {
-                        map[v.cod] = cleanNumber(c.meta_mensal);
-                    }
-                });
-
-                return map;
-            }
-
-            function getFaturamentoPorVendedorMesAutoritativo(ano, mes) {
-                const base = getFaturamentoPorVendedorMes(ano, mes);
-                const map = { ...base };
-
-                VENDEDORES_LIST.forEach(v => {
-                    const c = getConsolidadoPorVendedorMes(ano, mes, v.cod, v.nome);
-                    if (c && String(c.faturado || '').trim() !== '') {
-                        map[v.cod] = cleanNumber(c.faturado);
-                    }
-                });
-
-                return map;
-            }
-
-            function getMetaConsolidadaEspecial(ano, mes, nomeCategoria, fallback) {
-                const c = getConsolidadoPorVendedorMes(ano, mes, '24', nomeCategoria);
-                return c && String(c.meta_mensal || '').trim() !== '' ? cleanNumber(c.meta_mensal) : fallback;
-            }
-
-            function getFaturadoConsolidadoEspecial(ano, mes, nomeCategoria, fallback) {
-                const c = getConsolidadoPorVendedorMes(ano, mes, '24', nomeCategoria);
-                return c && String(c.faturado || '').trim() !== '' ? cleanNumber(c.faturado) : fallback;
             }
 
             function getFabianoSincPoliasFat(ano, mes) {
@@ -892,11 +874,10 @@ function getMetaPorVendedorMes(ano, mes) {
             function abrirDetalhesVendedor(vendedor, monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
                 const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                const fatMap = getFaturamentoPorVendedorMes(ano, mes);
-                const metaMap = getMetaPorVendedorMes(ano, mes);
-                const meta = metaMap[vendedor.cod] || 0;
-                const fat = fatMap[vendedor.cod] || 0;
-                const metaPlus = meta * 1.1;
+                const dados = getDadosParticipanteMes(ano, mes, vendedor);
+                const meta = dados.meta;
+                const fat = dados.fat;
+                const metaPlus = dados.metaPlus;
                 const perc = meta ? (fat / meta) * 100 : 0;
                 const percPlus = metaPlus ? (fat / metaPlus) * 100 : 0;
                 const atingiu = fat >= meta;
@@ -943,69 +924,46 @@ function getMetaPorVendedorMes(ano, mes) {
                 let monthsArr = Array.from(selectedMonths).sort((a,b) => b.localeCompare(a));
                 if (!monthsArr.length) { container.innerHTML = '<p>Nenhum mês selecionado.</p>'; return; }
                 let html = '';
-                monthsArr.forEach((m, idx) => {
+                monthsArr.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
                     const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }).toUpperCase();
-                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
-                    const metaMap = getMetaPorVendedorMes(ano, mes);
-
-                    const participantesMes = getParticipantesParaMes(ano, mes);
-                    const rowsVend = participantesMes.map(v => {
-                        const meta = metaMap[v.cod] || 0;
-                        const fat = fatMap[v.cod] || 0;
-                        const metaPlus = meta * 1.1;
-                        const perc = meta ? (fat / meta) * 100 : 0;
-                        const percPlus = metaPlus ? (fat / metaPlus) * 100 : 0;
-                        const atingiu = fat >= meta;
-                        const atingiuPlus = fat >= metaPlus;
-                        return { ...v, meta, fat, metaPlus, perc, percPlus, atingiu, atingiuPlus };
+                    const participantes = getParticipantesParaMes(ano, mes);
+                    const rowsVend = participantes.map(v => {
+                        const d = getDadosParticipanteMes(ano, mes, v);
+                        const metaPlus = d.meta * 1.1;
+                        const perc = d.meta ? (d.fat / d.meta) * 100 : 0;
+                        const percPlus = metaPlus ? (d.fat / metaPlus) * 100 : 0;
+                        return { ...v, meta:d.meta, fat:d.fat, metaPlus, perc, percPlus, atingiu:d.fat>=d.meta, atingiuPlus:d.fat>=metaPlus };
                     });
                     const totalMetaVend = rowsVend.reduce((s,r)=>s+r.meta,0);
                     const totalFatVend = rowsVend.reduce((s,r)=>s+r.fat,0);
 
                     html += `<div class="month-block" id="month-block-${m}">
-                        <div class="block-header">
-                            <h2 style="margin:0;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h2>
-                            <button class="btn-outline" onclick="gerarPDFMes('${m}')"><i class="fas fa-file-pdf"></i> PDF do mês</button>
-                        </div>
-                        <h3>Vendedores</h3>
-                        <div class="table-wrapper">
-                            <table><thead><tr><th>Vendedor</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                        <div class="block-header"><h2 style="margin:0;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h2>
+                        <button class="btn-outline" onclick="gerarPDFMes('${m}')"><i class="fas fa-file-pdf"></i> PDF do mês</button></div>
+                        <h3>Participantes do Consolidado</h3>
+                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal (Consolidado)</th><th>Meta Plus (+10%)</th><th>Faturado (Consolidado)</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     rowsVend.forEach(r => {
-                        html += `<tr class="clickable-row" onclick="abrirDetalhesVendedor({cod:'${r.cod}',nome:'${r.nome}'},'${m}')">
+                        const payload = JSON.stringify({cod:r.cod,nome:r.nome,mergedKey:r.mergedKey}).replace(/"/g,'&quot;');
+                        html += `<tr class="clickable-row" onclick='abrirDetalhesVendedor(${payload},"${m}")'>
                             <td>${r.nome}</td><td>R$ ${formatCurrency(r.meta)}</td><td>R$ ${formatCurrency(r.metaPlus)}</td><td>R$ ${formatCurrency(r.fat)}</td><td>${r.perc.toFixed(1)}%</td>
                             <td><span class="status-badge ${r.atingiu?'status-aprovado':'status-pendente'}">${r.atingiu?'Sim':'Não'}</span></td>
                             <td>${r.percPlus.toFixed(1)}%</td><td><span class="status-badge ${r.atingiuPlus?'status-aprovado':'status-pendente'}">${r.atingiuPlus?'Sim':'Não'}</span></td></tr>`;
                     });
                     html += `<tr style="font-weight:700;background:var(--primary-soft);"><td>Total</td><td>R$ ${formatCurrency(totalMetaVend)}</td><td></td><td>R$ ${formatCurrency(totalFatVend)}</td><td colspan="4"></td></tr></tbody></table></div>
-
-                        <h3>Metas Especiais (Fabiano)</h3>
-                        <div class="table-wrapper">
-                            <table><thead><tr><th>Categoria</th><th>Meta Anterior</th><th>Meta Nova</th><th>Faturado</th><th>Atingiu Nova?</th><th>Meta Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
+                        <h3>Metas Especiais (Fabiano)</h3><div class="table-wrapper"><table><thead><tr><th>Categoria</th><th>Meta Consolidada</th><th>Faturado Consolidado</th><th>Meta Plus (+10%)</th><th>Atingiu Meta?</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     ESPECIAIS_FABIANO.forEach(esp => {
                         const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
-                        const metaBase = esp.tipo === 'sincpolias' ? esp.nova : esp.nova;
-                        const metaNova = getMetaConsolidadaEspecial(ano, mes, esp.nome, metaBase);
+                        const meta = getMetaConsolidadaEspecial(ano, mes, esp.nome, esp.nova);
                         const fat = getFaturadoConsolidadoEspecial(ano, mes, esp.nome, fatBase);
-                        const metaPlus = metaNova * 1.1;
-                        const atingiuNova = fat >= metaNova;
-                        const atingiuPlus = fat >= metaPlus;
-                        html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(esp.anterior)}</td><td>R$ ${formatCurrency(metaNova)}</td><td>R$ ${formatCurrency(fat)}</td>
-                            <td><span class="status-badge ${atingiuNova?'status-aprovado':'status-pendente'}">${atingiuNova?'Sim':'Não'}</span></td>
-                            <td>R$ ${formatCurrency(metaPlus)}</td><td><span class="status-badge ${atingiuPlus?'status-aprovado':'status-pendente'}">${atingiuPlus?'Sim':'Não'}</span></td></tr>`;
+                        const metaPlus = meta * 1.1;
+                        html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(meta)}</td><td>R$ ${formatCurrency(fat)}</td><td>R$ ${formatCurrency(metaPlus)}</td><td><span class="status-badge ${fat>=meta?'status-aprovado':'status-pendente'}">${fat>=meta?'Sim':'Não'}</span></td><td><span class="status-badge ${fat>=metaPlus?'status-aprovado':'status-pendente'}">${fat>=metaPlus?'Sim':'Não'}</span></td></tr>`;
                     });
                     html += `</tbody></table></div>
-
-                        <h3>Faturamento Geral (Dimas / Eduardo)</h3>
-                        <div class="table-wrapper">
-                            <table><thead><tr><th>Descrição</th><th>Meta Nova</th><th>Faturado</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>`;
-                    const fatGeral = getFaturamentoGeralMes(ano, mes);
-                    const metaGeral = getMetaGeralMes(ano, mes);
-                    const percGeral = metaGeral ? (fatGeral / metaGeral) * 100 : 0;
-                    const atingiuGeral = fatGeral >= metaGeral;
-                    html += `<tr><td>Faturamento Geral</td><td>R$ ${formatCurrency(metaGeral)}</td><td>R$ ${formatCurrency(fatGeral)}</td><td>${percGeral.toFixed(1)}%</td><td><span class="status-badge ${atingiuGeral?'status-aprovado':'status-pendente'}">${atingiuGeral?'Sim':'Não'}</span></td></tr>
-                        </tbody></table></div>
-                    </div>`;
+                        <h3>Faturamento Geral (Eduardo / Dimas)</h3><div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>`;
+                    const geral = getDadosParticipanteMes(ano, mes, {cod:'10',nome:'Dimas',mergedKey:'dimas-eduardo'});
+                    const percGeral = geral.meta ? (geral.fat/geral.meta)*100 : 0;
+                    html += `<tr><td>Eduardo / Dimas</td><td>R$ ${formatCurrency(geral.meta)}</td><td>R$ ${formatCurrency(geral.meta*1.1)}</td><td>R$ ${formatCurrency(geral.fat)}</td><td>${percGeral.toFixed(1)}%</td><td><span class="status-badge ${geral.fat>=geral.meta?'status-aprovado':'status-pendente'}">${geral.fat>=geral.meta?'Sim':'Não'}</span></td></tr></tbody></table></div></div>`;
                 });
                 container.innerHTML = html;
             }
@@ -1014,126 +972,67 @@ function getMetaPorVendedorMes(ano, mes) {
                 const stats = {};
                 selectedMonths.forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
-                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
-                    const metaMap = getMetaPorVendedorMes(ano, mes);
-                    getCampaignSellers().forEach(v => {
+                    getParticipantesParaMes(ano, mes).forEach(v => {
                         const nome = v.nome;
                         if (!stats[nome]) stats[nome] = { atingidas: 0, total: 0 };
+                        const d = getDadosParticipanteMes(ano, mes, v);
                         stats[nome].total++;
-                        if ((metaMap[v.cod]||0) > 0 && (fatMap[v.cod]||0) >= (metaMap[v.cod]||0)) stats[nome].atingidas++;
+                        if (d.meta > 0 && d.fat >= d.meta) stats[nome].atingidas++;
                     });
                 });
-                const labels = Object.keys(stats);
-                const data = labels.map(l => stats[l].atingidas);
+                const labels = Object.keys(stats), data = labels.map(l => stats[l].atingidas);
                 const ctx = document.getElementById('statsChart').getContext('2d');
                 if (window.statsChartInstance) window.statsChartInstance.destroy();
-                window.statsChartInstance = new Chart(ctx, {
-                    type: 'bar',
-                    data: { labels, datasets: [{ label: 'Meses com meta atingida', data, backgroundColor: '#1e3a5f' }] },
-                    options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
-                });
+                window.statsChartInstance = new Chart(ctx, { type:'bar', data:{labels,datasets:[{label:'Meses com meta atingida',data,backgroundColor:'#1e3a5f'}]}, options:{responsive:true,scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}} });
             }
 
             function exportToExcel() {
                 const wb = XLSX.utils.book_new();
-                const monthsArr = Array.from(selectedMonths).sort();
-                monthsArr.forEach(m => {
+                Array.from(selectedMonths).sort().forEach(m => {
                     const [ano, mes] = m.split('-').map(Number);
-                    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
-                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(ano, mes);
-                    const metaMap = getMetaPorVendedorMes(ano, mes);
-                    const sheetData = [['Vendedor', 'Meta Mensal', 'Meta Plus', 'Faturado', '% Meta', 'Atingiu Meta', '% Plus', 'Atingiu Plus']];
-                    getParticipantesParaMes(ano, mes).forEach(v => {
-                        const meta = metaMap[v.cod] || 0;
-                        const fat = fatMap[v.cod] || 0;
-                        const metaPlus = meta * 1.1;
-                        sheetData.push([v.nome, meta, metaPlus, fat, meta?((fat/meta)*100).toFixed(1):'0', fat>=meta?'Sim':'Não', metaPlus?((fat/metaPlus)*100).toFixed(1):'0', fat>=metaPlus?'Sim':'Não']);
-                    });
-                    const ws = XLSX.utils.aoa_to_sheet(sheetData);
-                    XLSX.utils.book_append_sheet(wb, ws, nomeMes.substring(0,31));
+                    const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'});
+                    const sheetData=[['Participante','Meta Mensal','Meta Plus','Faturado','% Meta','Atingiu Meta','% Plus','Atingiu Plus']];
+                    getParticipantesParaMes(ano,mes).forEach(v=>{const d=getDadosParticipanteMes(ano,mes,v), mp=d.meta*1.1;sheetData.push([v.nome,d.meta,mp,d.fat,d.meta?((d.fat/d.meta)*100).toFixed(1):'0',d.fat>=d.meta?'Sim':'Não',mp?((d.fat/mp)*100).toFixed(1):'0',d.fat>=mp?'Sim':'Não']);});
+                    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(sheetData),nomeMes.substring(0,31));
                 });
-                XLSX.writeFile(wb, `metas_${currentYear}.xlsx`);
+                XLSX.writeFile(wb,`metas_${currentYear}.xlsx`);
             }
 
-            
             let currentView = 'metas';
 
             function getCampaignSellers() {
-                // REGRA: só participa quem estiver no consolidado.
-                // Se Hélio existir no padrão, mas não no consolidado, ele não aparece.
-                return getParticipantesConsolidados().map(v => ({
-                    cod: v.cod,
-                    nome: v.nome
-                }));
+                const out = [];
+                const seen = new Set();
+                getParticipantesConsolidados().forEach(v => {
+                    const n = normalizarNome(v.nome);
+                    const isDimasEduardo = v.cod === '10' || v.cod === '12' || n.includes('dimas') || n.includes('eduardo');
+                    const key = isDimasEduardo ? 'dimas-eduardo' : chaveParticipante(v.cod,v.nome);
+                    if (seen.has(key)) return;
+                    seen.add(key);
+                    out.push(isDimasEduardo ? {cod:v.cod,nome:'Eduardo / Dimas',mergedKey:'dimas-eduardo'} : v);
+                });
+                return out;
             }
 
             function getAwardStatusForSeller(v, year) {
-                const months = getMonthsForYear(year)
-                    .sort((a,b) => a.monthNum - b.monthNum)
-                    .filter(m => !isFutureMonth(year, m.monthNum));
-
-                const result = [];
-                let streak = 0;
-                let totalSeals = 0;
-                let trincas = 0;
-                let semestres = 0;
-
-                months.forEach(m => {
-                    const fatMap = getFaturamentoPorVendedorMesAutoritativo(year, m.monthNum);
-                    const metaMap = getMetaPorVendedorMes(year, m.monthNum);
-                    const meta = metaMap[v.cod] || 0;
-                    const fat = fatMap[v.cod] || 0;
-                    const earned = meta > 0 && fat >= meta;
-
-                    if (earned) {
-                        streak++;
-                        totalSeals++;
-                    } else {
-                        streak = 0;
-                    }
-
-                    result.push({
-                        month: m.monthNum,
-                        key: m.value,
-                        earned,
-                        meta,
-                        fat,
-                        streak
-                    });
+                const months = getMonthsForYear(year).sort((a,b)=>a.monthNum-b.monthNum).filter(m=>!isFutureMonth(year,m.monthNum));
+                const result=[]; let streak=0, totalSeals=0, trincas=0, semestres=0;
+                months.forEach(m=>{
+                    const d=getDadosParticipanteMes(year,m.monthNum,v);
+                    const meta=d.meta, fat=d.fat, earned=meta>0 && fat>=meta;
+                    if(earned){streak++;totalSeals++;}else streak=0;
+                    result.push({month:m.monthNum,key:m.value,earned,meta,fat,streak,trincaAward:false,semesterAward:false});
                 });
-
-                // Cada bloco consecutivo de 3 gera uma trinca; cada bloco de 6 gera um prêmio do semestre.
-                // O 6º mês também fecha duas trincas? Não: a regra considera a premiação de 6 meses
-                // como uma conquista maior, sem duplicar trincas dentro do mesmo bloco de seis.
-                let run = 0;
-                result.forEach(r => {
-                    r.trincaAward = false;
-                    r.semesterAward = false;
-                    if (r.earned) {
+                let run=0;
+                result.forEach(r=>{
+                    if(r.earned){
                         run++;
-                        if (run === 3) {
-                            trincas++;
-                            r.trincaAward = true;
-                        }
-                        if (run === 6) {
-                            semestres++;
-                            r.semesterAward = true;
-                            // O prêmio de 6 meses encerra o ciclo atual.
-                            run = 0;
-                        }
-                    } else {
-                        run = 0;
-                    }
+                        if(run===3){trincas++;r.trincaAward=true;}
+                        if(run===6){semestres++;r.semesterAward=true;run=0;}
+                    }else run=0;
                 });
-
-                // O contador visual de sequência atual deve refletir a sequência desde a última quebra.
-                let currentStreak = 0;
-                for (let i=result.length-1;i>=0;i--) {
-                    if (!result[i].earned) break;
-                    currentStreak++;
-                }
-
-                return { seller:v, months:result, totalSeals, trincas, semestres, currentStreak };
+                let currentStreak=0; for(let i=result.length-1;i>=0;i--){if(!result[i].earned)break;currentStreak++;}
+                return {seller:v,months:result,totalSeals,trincas,semestres,currentStreak};
             }
 
             function getAwardRows(year) {
