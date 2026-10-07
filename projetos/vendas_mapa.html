@@ -81,7 +81,7 @@ const SHEET_URL='https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJsw
 const CLIENT_SHEET_URL='https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes';
 const stateNames={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 const centers={SP:[-23.55,-46.63],RJ:[-22.9,-43.2],MG:[-19.9,-44],PR:[-25.4,-49.3],SC:[-27.6,-48.5],RS:[-30,-51.2],BA:[-12.9,-38.5],PE:[-8.05,-34.9],CE:[-3.7,-38.5],GO:[-16.7,-49.25],ES:[-20.3,-40.3],DF:[-15.8,-47.9],MT:[-15.6,-56.1],MS:[-20.5,-54.6],PA:[-1.45,-48.5],AM:[-3.1,-60],MA:[-2.5,-44.3],PB:[-7.1,-34.9],RN:[-5.8,-35.2],AL:[-9.65,-35.7],SE:[-10.9,-37.1],PI:[-5.1,-42.8],RO:[-8.76,-63.9],AC:[-9.97,-67.8],AP:[0.03,-51.05],RR:[2.82,-60.67],TO:[-10.18,-48.33]};
-let map,markers,chart,raw=[],filtered=[],clients=[],analysis='produto',filters=[],currentPeriod='current',queryCache={},mapMode='auto',mapMetric='valor';
+let map,markers,chart,raw=[],filtered=[],clients=[],clientIndex={cnpj:new Map(),codigo:new Map(),nome:new Map(),razao:new Map()},analysis='produto',filters=[],currentPeriod='current',queryCache={},mapMode='auto',mapMetric='valor';
 let sortState={ranking:{key:'valor',dir:-1},states:{key:'valor',dir:-1}};let activeDrill=null;const STORAGE_KEY='radarComercialConsulta_v2';
 const RANKING_MIN=20;
 const $=id=>document.getElementById(id); const money=n=>Number(n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); const int=n=>Number(n||0).toLocaleString('pt-BR'); const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -94,26 +94,38 @@ function extractCNPJ(r){const keys=Object.keys(r||{});const explicit=keys.filter
 function formatCNPJ(v){const d=String(v||'').replace(/\D/g,'');if(d.length!==14)return String(v||'');return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')}
 function norm(r){let d=dt(pick(r,['Data','Data Venda','Data Faturamento']));return {raw:r,fields:Object.keys(r||{}),date:d,codigo:pick(r,['Código','Codigo']),descricao:pick(r,['Descrição','Produto','Descrição Produto','Item']),marca:pick(r,['Marca']),grupo:pick(r,['Grupo']),notaFiscal:pick(r,['Nota Fiscal','NF']),nomeChave:pick(r,['Nome Chave','NomeChave']),empresa:pick(r,['Empresa','Cliente','Razão Social','Razao Social','Nome Chave']),cnpj:extractCNPJ(r),grupoEmpresa:pick(r,['Grupo Empresa','Grupo de Empresas','Grupo Cliente']),produtor:pick(r,['Produtor','Fabricante','Fornecedor','Linha','Produtor/Fabricante']),vendedor:pick(r,['Vendedor']),uf:getUF(r),cidade:pick(r,['Cidade','Município','Municipio']),bairro:pick(r,['Bairro','Bairro Cliente','bairro']),lat:num(pick(r,['Latitude','Lat','latitude'])),lng:num(pick(r,['Longitude','Lng','longitude'])),nf:pick(r,['Nota Fiscal','NF']),qtd:num(pick(r,['Quantidade','Qtd','Qtde'])),valor:num(pick(r,['Valor Mercadoria','Valor Total','Valor Faturado','Faturamento','Valor']))}}
 function normClient(c){const keys=Object.keys(c||{});const val=names=>{for(const n of names){const k=keys.find(x=>normText(x)===normText(n));if(k&&String(c[k]??'').trim())return String(c[k]).trim()}return ''};return {raw:c,fields:keys,codigo:val(['Código','Codigo','Código Cliente','Cod Cliente']),nomeChave:val(['Nome Chave','NomeChave','Nome chave']),razao:val(['Nome/Razão Social','Razão Social','Razao Social','Nome','Cliente']),cnpj:val(['CPF/CGC','CPF/CNPJ','CNPJ','Documento']).replace(/\D/g,''),cidade:val(['Cidade','Município','Municipio','Cidade Cliente']),uf:val(['UF','Estado','Estado UF']),bairro:val(['Bairro','Bairro Cliente','bairro']),lat:num(val(['Latitude','Lat','latitude'])),lng:num(val(['Longitude','Lng','longitude']))}}
+function rebuildClientIndex(){
+  clientIndex={cnpj:new Map(),codigo:new Map(),nome:new Map(),razao:new Map()};
+  clients.forEach(c=>{
+    const add=(map,key)=>{if(!key)return; if(!map.has(key))map.set(key,[]); map.get(key).push(c)};
+    add(clientIndex.cnpj,String(c.cnpj||'').replace(/\D/g,''));
+    add(clientIndex.codigo,normText(c.codigo));
+    add(clientIndex.nome,normText(c.nomeChave));
+    add(clientIndex.razao,normText(c.razao));
+  });
+}
 function findClients(nameOrRecord,saleRecord){
   if(!clients.length)return [];
   let x=typeof nameOrRecord==='string'?{empresa:nameOrRecord,nomeChave:nameOrRecord,cnpj:'',codigo:'',cidade:'',uf:''}:(nameOrRecord||{});
   if(saleRecord)x=Object.assign({},saleRecord,x);
   const xc=String(x.cnpj||'').replace(/\D/g,''), code=normText(x.codigo), name=normText(x.empresa||x.nomeChave||''), city=normText(x.cidade), uf=normText(x.uf);
-  let hits=clients.filter(c=>{
-    if(xc&&c.cnpj&&c.cnpj===xc)return true;
-    if(code&&c.codigo&&normText(c.codigo)===code)return true;
-    if(name&&c.nomeChave&&normText(c.nomeChave)===name)return true;
-    if(name&&c.razao&&normText(c.razao)===name)return true;
-    return false;
-  });
+  let hits=[];
+  if(xc&&clientIndex.cnpj.has(xc)) hits.push(...clientIndex.cnpj.get(xc));
+  if(code&&clientIndex.codigo.has(code)) hits.push(...clientIndex.codigo.get(code));
+  if(name&&clientIndex.nome.has(name)) hits.push(...clientIndex.nome.get(name));
+  if(name&&clientIndex.razao.has(name)) hits.push(...clientIndex.razao.get(name));
+  const seen=new Set(); hits=hits.filter(c=>{if(seen.has(c))return false;seen.add(c);return true});
   if(!hits.length&&name){
-    hits=clients.filter(c=>{
-      const nk=normText(c.nomeChave),rz=normText(c.razao);
-      const nameMatch=(nk&& (nk===name||nk.includes(name)||name.includes(nk)))||(rz&&(rz===name||rz.includes(name)||name.includes(rz)));
-      const cityMatch=!city||!c.cidade||normText(c.cidade)===city;
-      const ufMatch=!uf||!c.uf||normText(c.uf)===uf;
-      return nameMatch&&cityMatch&&ufMatch;
-    });
+    // Fallback limitado aos candidatos por primeira palavra, evitando varrer todos os clientes para cada venda.
+    const token=name.split(/\s+/).filter(Boolean).slice(0,2).join(' ');
+    if(token){
+      const candidates=[];
+      for(const [k,list] of clientIndex.nome){if(k.includes(token)||token.includes(k))candidates.push(...list)}
+      for(const [k,list] of clientIndex.razao){if(k.includes(token)||token.includes(k))candidates.push(...list)}
+      const uniq=[];const used=new Set();
+      for(const c of candidates){if(used.has(c))continue;used.add(c);const nk=normText(c.nomeChave),rz=normText(c.razao);const nameMatch=(nk&&(nk===name||nk.includes(name)||name.includes(nk)))||(rz&&(rz===name||rz.includes(name)||name.includes(rz)));const cityMatch=!city||!c.cidade||normText(c.cidade)===city;const ufMatch=!uf||!c.uf||normText(c.uf)===uf;if(nameMatch&&cityMatch&&ufMatch)uniq.push(c)}
+      hits=uniq;
+    }
   }
   return hits.slice(0,50);
 }
@@ -128,7 +140,13 @@ function enrichSale(x){
   x._clientMatches=hits;
   return x;
 }
-function enrichAllSales(){raw.forEach(enrichSale);}
+function enrichAllSales(){
+  const total=raw.length;
+  for(let i=0;i<total;i++){
+    enrichSale(raw[i]);
+    if(i%1000===0||i===total-1){const p=94+(i+1)/total*4;setProgress(p,phrases[7],`Cruzando faturamentos com ${int(clients.length)} cadastros • ${int(i+1)} de ${int(total)}`)}
+  }
+}
 
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>$('toast').classList.remove('show'),3000)}
 const phrases=['Voltando no tempo… localizando os primeiros registros da jornada.','Paleozóico: procurando fósseis de vendas entre os dados antigos…','Jurássico: encontramos camadas de informações comerciais.','Idade Média: atravessando séculos de registros para chegar ao período escolhido.','Era das grandes navegações: cruzando rotas, estados e clientes.','Revolução Industrial: separando produtos, volumes e faturamento.','Era digital: indexando empresas, CNPJs e vendedores.','Geografia comercial: posicionando as vendas no mapa do Brasil.','Quase lá: organizando o ranking e preparando o radar.'];
@@ -196,7 +214,7 @@ function resetQueryButton(){
   btn.onclick=clearSavedConsultation;
   document.querySelector('.compact-actions').appendChild(btn);
 }
-async function fetchServer(){showLoading('Máquina do tempo iniciando…');try{const [salesRes,clientRes]=await Promise.all([fetch(SHEET_URL,{cache:'no-store'}),fetch(CLIENT_SHEET_URL,{cache:'no-store'}).catch(()=>null)]);if(!salesRes.ok)throw Error('OpenSheet HTTP '+salesRes.status);const json=await salesRes.json();if(!Array.isArray(json))throw Error('Resposta inválida');if(clientRes&&clientRes.ok){try{const c=await clientRes.json();clients=Array.isArray(c)?c.map(normClient):[]}catch(e){clients=[]}}raw=[];for(let i=0;i<json.length;i+=500){const part=json.slice(i,i+500);part.forEach(r=>{const x=norm(r);if(x.date&&(x.valor||x.qtd))raw.push(x)});let p=Math.min(94,i/json.length*100);let phrase=phrases[Math.min(phrases.length-1,Math.floor(p/12))];setProgress(p,phrase,`${Math.min(i+500,json.length).toLocaleString('pt-BR')} de ${json.length.toLocaleString('pt-BR')} registros atravessados`);await new Promise(r=>setTimeout(r,12))}raw.sort((a,b)=>b.date-a.date);enrichAllSales();localStorage.setItem('radarLastSync',new Date().toISOString());buildYears();const restored=loadViewState();if(!restored)setPeriod('current');$('status').textContent=`Online • ${int(raw.length)} vendas • ${int(clients.length)} cadastros`;hideLoading();toast(`Consulta concluída. ${raw.length.toLocaleString('pt-BR')} vendas carregadas.`)}catch(e){console.error(e);$('status').textContent='Falha na consulta';$('loadTitle').textContent='O portal encontrou uma anomalia';$('loadMsg').textContent=e.message;$('loadDetail').textContent='Se estiver abrindo via file://, rode em um servidor local (Live Server, python -m http.server).';setTimeout(()=>$('loading').classList.remove('show'),1800)}}
+async function fetchServer(){showLoading('Máquina do tempo iniciando…');try{const [salesRes,clientRes]=await Promise.all([fetch(SHEET_URL,{cache:'no-store'}),fetch(CLIENT_SHEET_URL,{cache:'no-store'}).catch(()=>null)]);if(!salesRes.ok)throw Error('OpenSheet HTTP '+salesRes.status);const json=await salesRes.json();if(!Array.isArray(json))throw Error('Resposta inválida');if(clientRes&&clientRes.ok){try{const c=await clientRes.json();clients=Array.isArray(c)?c.map(normClient):[];rebuildClientIndex()}catch(e){clients=[];rebuildClientIndex()}}else{clients=[];rebuildClientIndex()}raw=[];for(let i=0;i<json.length;i+=500){const part=json.slice(i,i+500);part.forEach(r=>{const x=norm(r);if(x.date&&(x.valor||x.qtd))raw.push(x)});let p=Math.min(94,i/json.length*100);let phrase=phrases[Math.min(phrases.length-1,Math.floor(p/12))];setProgress(p,phrase,`${Math.min(i+500,json.length).toLocaleString('pt-BR')} de ${json.length.toLocaleString('pt-BR')} registros atravessados`);await new Promise(r=>setTimeout(r,0))}raw.sort((a,b)=>b.date-a.date);enrichAllSales();localStorage.setItem('radarLastSync',new Date().toISOString());buildYears();const restored=loadViewState();if(!restored)setPeriod('current');$('status').textContent=`Online • ${int(raw.length)} vendas • ${int(clients.length)} cadastros`;hideLoading();toast(`Consulta concluída. ${raw.length.toLocaleString('pt-BR')} vendas carregadas.`)}catch(e){console.error(e);$('status').textContent='Falha na consulta';$('loadTitle').textContent='O portal encontrou uma anomalia';$('loadMsg').textContent=e.message;$('loadDetail').textContent='Se estiver abrindo via file://, rode em um servidor local (Live Server, python -m http.server).';setTimeout(()=>$('loading').classList.remove('show'),1800)}}
 function buildYears(){let years=[...new Set(raw.map(x=>x.date.getFullYear()))].sort((a,b)=>b-a);$('yearSelect').innerHTML='<option value="">Consultar outro ano…</option>'+years.map(y=>`<option value="${y}">${y}</option>`).join('')}
 function setPeriod(p){currentPeriod=p;$('allPeriod').checked=p==='all';document.querySelectorAll('.period').forEach(b=>b.classList.toggle('active',b.dataset.period===p));let now=new Date(),from,to;if(p==='current'){from=new Date(now.getFullYear(),0,1);to=now}else if(p==='prev'){from=new Date(now.getFullYear()-1,0,1);to=new Date(now.getFullYear()-1,11,31,23,59,59)}else if(p==='all'){from=new Date(Math.min(...raw.map(x=>x.date)));to=now}else{return} $('from').value=from.toISOString().slice(0,10);$('to').value=to.toISOString().slice(0,10);filters=[];renderChips();apply()}
 function valueFor(x,key){return key==='estado'?x.uf:key==='grupoEmpresa'?(x.grupoEmpresa||x.empresa):key==='quantidadeMin'?x.qtd:key==='valorMin'?x.valor:key==='cnpj'?x.cnpj:key==='cidade'?x.cidade:key==='bairro'?x.bairro:key==='nf'?x.nf:x[key]}
