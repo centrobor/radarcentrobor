@@ -2185,13 +2185,12 @@ function reportHTML(mapImg='',dataOverride=null,printConfig=null){
   return `<div class="report-preview"><div class="preview-cover"><div class="preview-eyebrow">RADAR CENTROBOR</div><h1>Radar Centrobor</h1><p>Inteligência comercial baseada na consulta atual.</p><div class="preview-grid"><div class="preview-meta"><small>Período</small><b>${esc(c.period)}</b></div><div class="preview-meta"><small>Análise</small><b>${esc(labelField(analysis))}</b></div><div class="preview-meta"><small>Nível</small><b>${esc(c.trail)}</b></div><div class="preview-meta"><small>Filtros</small><b>${esc(c.filtersTxt)}</b></div><div class="preview-meta"><small>Registros</small><b>${int(filtered.length)}</b></div><div class="preview-meta"><small>Abrangência</small><b>${int(c.totalUf)} estados • ${int(c.cities)} cidades</b></div></div></div><div class="preview-kpis"><div class="preview-kpi"><small>Faturamento</small><b>${money(c.totalFat)}</b></div><div class="preview-kpi"><small>Quantidade</small><b>${int(c.totalQtd)}</b></div><div class="preview-kpi"><small>Empresas</small><b>${int(c.totalEmp)}</b></div><div class="preview-kpi"><small>Produtos</small><b>${int(c.totalProd)}</b></div><div class="preview-kpi"><small>Estados</small><b>${int(c.totalUf)}</b></div><div class="preview-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><div class="preview-section"><h3>Mapa da consulta</h3>${mapImg?`<img src="${mapImg}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;border:1px solid #dbe3ec">`:'<div class="preview-map-note">Mapa com coordenadas e marcadores reais será incluído na versão para impressão.</div>'}</div><div class="preview-section"><h3>${esc(DIM_PLURAL[c.dim]||'Ranking')}</h3><table><thead><tr><th>#</th><th>Nome</th><th>Faturamento</th><th>Qtd.</th><th>Lanç.</th><th>Empresas</th></tr></thead><tbody>${table||'<tr><td colspan="6">Nenhum dado encontrado.</td></tr>'}</tbody></table></div><div class="report-footer">Gerado em ${esc(new Date().toLocaleString('pt-BR'))} • Desenvolvido por Eduardo Mineiro para Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div></div>`;
 }
 async function showReport(){
-  const printConfig=await choosePrintRanking();
-  if(!printConfig)return;
+  // Abrir o relatório é apenas uma visualização.
+  // A escolha da quantidade do ranking fica para o momento em que
+  // o usuário realmente solicitar a impressão/Salvar como PDF.
   openModal('Radar Centrobor','<div class="report-preview"><div style="padding:35px;text-align:center;color:#64748b">Preparando o Radar Centrobor…</div></div>');
   const mapImg=await buildPrintMapImage({preview:true});
-  $('modalBody').innerHTML=reportHTML(mapImg,null,printConfig);
-  $('modalBody').dataset.printRankingMode=printConfig.mode;
-  $('modalBody').dataset.printRankingLimit=String(printConfig.limit||20);
+  $('modalBody').innerHTML=reportHTML(mapImg);
 }
 function exportExcel(){
   let rows=filtered.map(x=>({Data:x.date.toLocaleDateString('pt-BR'),Empresa:x.empresa,CNPJ:x.cnpj,GrupoEmpresa:x.grupoEmpresa,Produto:x.descricao,Marca:x.marca,Produtor:x.produtor,Grupo:x.grupo,UF:x.uf,Cidade:x.cidade,Vendedor:x.vendedor,NotaFiscal:x.nf,Quantidade:x.qtd,Faturamento:x.valor}));
