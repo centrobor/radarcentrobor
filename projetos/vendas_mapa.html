@@ -40,6 +40,7 @@
 .explore-info{min-width:0;min-height:0;overflow:auto;background:#fff;padding:14px}
 .explore-info::-webkit-scrollbar{width:8px}.explore-info::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:10px}
 .explore-breadcrumbs{display:flex;gap:6px;overflow:auto;padding-bottom:8px;white-space:nowrap}
+.explore-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-bottom:8px}.explore-nav-actions{display:flex;align-items:center;gap:5px;flex-wrap:wrap}.explore-nav .explore-breadcrumbs{padding-bottom:0;min-width:0}
 .explore-kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:10px}
 .explore-kpi{border:1px solid #e8edf3;background:#fbfdff;border-radius:11px;padding:9px}.explore-kpi small{display:block;color:#6b7280;font-size:8px;text-transform:uppercase;font-weight:800}.explore-kpi b{display:block;font-size:15px;margin-top:3px;color:#111827}
 .explore-section{border:1px solid #edf0f3;border-radius:12px;margin-top:9px;overflow:hidden;background:#fff}
@@ -61,6 +62,7 @@
 .analysis-modal .modal-layout{display:grid;grid-template-columns:minmax(420px,1.12fr) minmax(420px,.88fr);min-height:0;flex:1}
 .analysis-modal .context-map{min-width:0;min-height:0;position:relative;background:#e8f0fe}
 .analysis-modal .context-map > div{position:absolute;inset:0}
+.analysis-modal .context-map{overflow:hidden;isolation:isolate}.analysis-modal .context-map .leaflet-container{position:absolute!important;inset:0!important;width:100%!important;height:100%!important;background:#dfeaf5;z-index:1}.analysis-modal .context-map .leaflet-tile-pane{will-change:transform}.modal-map-recover{position:absolute;z-index:800;left:50%;top:50%;transform:translate(-50%,-50%);display:none;background:#fff;border:0;border-radius:10px;padding:9px 12px;box-shadow:var(--shadow);font-size:10px;font-weight:800;color:#374151}.modal-map-recover.show{display:block}
 .analysis-modal .context-info{min-width:0;min-height:0;overflow:auto;padding:14px;background:#fff}
 .analysis-modal .context-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .analysis-modal .crumb{border:1px solid #dbe5f4;background:#f8fbff;color:#174ea6;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:700}
@@ -370,7 +372,7 @@ function detailLaunch(i){
   const matched=x.clientMatch?[x.clientMatch]:findClients(x.empresa||'',x);
   const fichaHtml=matched.length?buildFicha(matched[0]):'<div class="map-note">Nenhum cadastro correspondente localizado.</div>';
   const fieldHtml=(x.fields||[]).map(k=>[k,String((x.raw||{})[k]??'').trim()]).filter(([,v])=>v).slice(0,40).map(([k,v])=>`<div class="company-field"><small>${esc(k)}</small><b>${esc(v)}</b></div>`).join('');
-  openModal('<i class="fa-solid fa-receipt"></i> Detalhes da venda',`<div class="context-toolbar"><button class="explore-back" onclick="openContextModal()"><i class="fa-solid fa-arrow-left"></i> Voltar à exploração</button><button class="viewmore-btn" onclick="detail('${encodeURIComponent(x.empresa||'Não informado')}','empresa')">Abrir ficha da empresa</button>${x.descricao?`<button class="viewmore-btn" onclick="detail('${encodeURIComponent(x.descricao)}','produto')">Ver produto</button>`:''}</div><div class="explore-kpis"><div class="explore-kpi"><small>CNPJ</small><b>${x.cnpj?formatCNPJ(x.cnpj):'Não localizado'}</b></div><div class="explore-kpi"><small>Produto</small><b>${esc(x.descricao||'—')}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(x.qtd)}</b></div><div class="explore-kpi"><small>Faturamento</small><b>${money(x.valor)}</b></div></div>${fichaHtml}<div class="explore-section"><div class="explore-section-head"><b>Dados completos do lançamento</b><span>${fieldHtml? 'campos disponíveis':'sem campos adicionais'}</span></div><div class="explore-detail-grid">${fieldHtml||'<div class="explore-empty">Sem campos adicionais.</div>'}</div></div>`,[x]);
+  openModal('<i class="fa-solid fa-receipt"></i> Detalhes da venda',`<div class="context-toolbar"><button class="explore-back" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button><button class="viewmore-btn" onclick="detail('${encodeURIComponent(x.empresa||'Não informado')}','empresa')">Abrir ficha da empresa</button>${x.descricao?`<button class="viewmore-btn" onclick="detail('${encodeURIComponent(x.descricao)}','produto')">Ver produto</button>`:''}</div><div class="explore-kpis"><div class="explore-kpi"><small>CNPJ</small><b>${x.cnpj?formatCNPJ(x.cnpj):'Não localizado'}</b></div><div class="explore-kpi"><small>Produto</small><b>${esc(x.descricao||'—')}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(x.qtd)}</b></div><div class="explore-kpi"><small>Faturamento</small><b>${money(x.valor)}</b></div></div>${fichaHtml}<div class="explore-section"><div class="explore-section-head"><b>Dados completos do lançamento</b><span>${fieldHtml? 'campos disponíveis':'sem campos adicionais'}</span></div><div class="explore-detail-grid">${fieldHtml||'<div class="explore-empty">Sem campos adicionais.</div>'}</div></div>`,[x]);
   $('modal').classList.add('explore-overlay');$('app').classList.add('explore-active');
 }
 
@@ -385,7 +387,7 @@ function detailCompany(name){
   const sellers=buildExploreSellerRows(d).slice(0,6),products=buildExploreProductRows(d).slice(0,8);
   const rows=d.slice(0,500).map(x=>`<tr class="click" onclick="detailLaunch(${filtered.indexOf(x)})"><td>${x.date?x.date.toLocaleDateString('pt-BR'):'—'}</td><td>${esc(x.descricao||'—')}</td><td>${int(x.qtd)}</td><td>${money(x.valor)}</td><td>${esc(x.vendedor||'—')}</td><td>${esc(x.cidade||'—')}</td><td>${esc(x.bairro||'—')}</td></tr>`).join('');
   const sellerBars=buildExploreBars(sellers,6),productBars=buildExploreBars(products,8);
-  openModal('<i class="fa-solid fa-building"></i> Ficha da empresa • '+esc(name),`<div class="context-toolbar"><button class="explore-back" onclick="openContextModal()"><i class="fa-solid fa-arrow-left"></i> Voltar à exploração</button><span class="sync-badge"><i class="fa-solid fa-location-dot"></i> Mapa segue este contexto</span></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div><div class="explore-kpi"><small>CNPJ(s)</small><b>${int(cnpjs.length)}</b></div></div>${fichaHtml}<div class="explore-section"><div class="explore-section-head"><b>Vendedores da empresa</b><span>maior faturamento primeiro</span></div><div class="explore-bars">${sellerBars}</div></div><div class="explore-section"><div class="explore-section-head"><b>Produtos comprados</b><span>mix da empresa</span></div><div class="explore-bars">${productBars}</div></div><div class="explore-section"><div class="explore-section-head"><b>Histórico de vendas</b><span>${int(d.length)} lançamentos</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Fat.</th><th>Vendedor</th><th>Cidade</th><th>Bairro</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="explore-empty">Sem lançamentos.</td></tr>'}</tbody></table></div></div>`,d);
+  openModal('<i class="fa-solid fa-building"></i> Ficha da empresa • '+esc(name),`<div class="context-toolbar"><button class="explore-back" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button><span class="sync-badge"><i class="fa-solid fa-location-dot"></i> Mapa segue este contexto</span></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div><div class="explore-kpi"><small>CNPJ(s)</small><b>${int(cnpjs.length)}</b></div></div>${fichaHtml}<div class="explore-section"><div class="explore-section-head"><b>Vendedores da empresa</b><span>maior faturamento primeiro</span></div><div class="explore-bars">${sellerBars}</div></div><div class="explore-section"><div class="explore-section-head"><b>Produtos comprados</b><span>mix da empresa</span></div><div class="explore-bars">${productBars}</div></div><div class="explore-section"><div class="explore-section-head"><b>Histórico de vendas</b><span>${int(d.length)} lançamentos</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Fat.</th><th>Vendedor</th><th>Cidade</th><th>Bairro</th></tr></thead><tbody>${rows||'<tr><td colspan="7" class="explore-empty">Sem lançamentos.</td></tr>'}</tbody></table></div></div>`,d);
   $('modal').classList.add('explore-overlay');$('app').classList.add('explore-active');
 }
 
@@ -448,6 +450,8 @@ function setPeriodYear(y){let f=new Date(y,0,1),t=y===new Date().getFullYear()?n
    ============================================================ */
 let contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''};
 let modalMap=null, modalMapLayer=null, modalMapMarkers=null;
+let exploreHistory=[];
+let modalMapToken=0;
 let clientIndex={cnpj:new Map(),codigo:new Map(),nome:new Map(),razao:new Map()};
 let geoCache={};
 try{geoCache=JSON.parse(localStorage.getItem('radarGeoCache_v1')||'{}')||{}}catch(e){geoCache={}}
@@ -485,12 +489,15 @@ function resetLower(mode){
   const i=order.indexOf(mode);
   order.slice(i+1).forEach(k=>contextPath[k]='');
 }
-function setContext(mode,key,{renderNow=true,open=true}={}){
+function setContext(mode,key,{renderNow=true,open=true,fromHistory=false}={}){
   key=decodeURIComponent(String(key||''));
-  if(mode==='produto'||mode==='estado'||mode==='cidade'||mode==='bairro'||mode==='empresa'||mode==='vendedor'){
-    if(!key){contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''}}
+  const before=JSON.stringify(contextPath);
+  if(['produto','estado','cidade','bairro','empresa','vendedor'].includes(mode)){
+    if(!key) contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''};
     else {contextPath[mode]=key;resetLower(mode)}
   }
+  const after=JSON.stringify(contextPath);
+  if(!fromHistory && before!==after) exploreHistory.push(JSON.parse(before));
   if(renderNow)apply();
   saveViewState();
   if(open)openContextModal();
@@ -594,30 +601,36 @@ function contextMapData(d){
   return [...m].map(([key,o])=>({key,label:stateNames[key]||key,kind:'estado',lat:centers[key]?.[0],lng:centers[key]?.[1],o}));
 }
 function mapClickTarget(kind,key){
-  if(kind==='estado'||kind==='cidade'||kind==='bairro'||kind==='empresa')setContext(kind,key);
+  if(['estado','cidade','bairro','empresa','produto','vendedor'].includes(kind)) setContext(kind,key,{renderNow:true,open:true});
+}
+
+function destroyModalMap(){
+  modalMapToken++;
+  if(modalMap){try{modalMap.off();modalMap.remove()}catch(e){}}
+  modalMap=null;modalMapLayer=null;modalMapMarkers=null;
+}
+function refreshModalMapSize(token){
+  if(!modalMap || token!==modalMapToken)return;
+  try{modalMap.invalidateSize(true);if(modalMapLayer&&modalMapLayer.getBounds&&modalMapLayer.getBounds().isValid())modalMap.fitBounds(modalMapLayer.getBounds(),{padding:[36,36],maxZoom:contextDepth()==='geral'?5:11,animate:false})}catch(e){}
 }
 function drawContextMap(targetId,d){
-  const el=$(targetId); if(!el)return;
-  if(modalMap){try{modalMap.remove()}catch(e){}modalMap=null}
-  modalMap=L.map(el,{zoomControl:false,attributionControl:false}).setView([-14.3,-52.8],4);
+  const el=$(targetId);if(!el)return;
+  destroyModalMap();
+  const token=modalMapToken;
+  el.innerHTML='';
+  modalMap=L.map(el,{zoomControl:false,attributionControl:false,preferCanvas:true,fadeAnimation:false,zoomAnimation:false,markerZoomAnimation:false}).setView([-14.3,-52.8],4);
   L.control.zoom({position:'bottomright'}).addTo(modalMap);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(modalMap);
+  const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{subdomains:['a','b','c'],maxZoom:19,keepBuffer:2,updateWhenIdle:true,updateWhenZooming:false,attribution:'© OpenStreetMap contributors'});
+  tiles.on('load',()=>refreshModalMapSize(token));tiles.on('tileerror',()=>{const b=el.closest('.context-map');if(b){const r=b.querySelector('.modal-map-recover');if(r)r.classList.add('show')}});tiles.addTo(modalMap);
   const data=contextMapData(d),max=Math.max(...data.map(g=>g.o[mapMetric]||0),1);
-  const group=L.layerGroup().addTo(modalMap);
-  data.forEach(g=>{
-    if(!validCoord(g.lat,g.lng))return;
-    const ratio=(g.o[mapMetric]||0)/max;
-    const c=L.circleMarker([g.lat,g.lng],{radius:8+Math.pow(ratio,.42)*34,color:'#fff',weight:2.5,fillColor:palette(ratio),fillOpacity:.9});
-    c.bindTooltip('<b>'+esc(g.label)+'</b><br>'+money(g.o.valor)+'<br>'+int(g.o.qtd)+' un.<br><span style="color:#6b7280">'+int(g.o.n)+' lançamentos</span>');
-    c.on('click',()=>mapClickTarget(g.kind,g.key));
-    c.addTo(group);
-  });
-  if(data.some(g=>validCoord(g.lat,g.lng))){
-    const bounds=L.latLngBounds(data.filter(g=>validCoord(g.lat,g.lng)).map(g=>[g.lat,g.lng]));
-    modalMap.fitBounds(bounds,{padding:[50,50],maxZoom:contextDepth()==='geral'?5:11});
-  }
-  setTimeout(()=>modalMap && modalMap.invalidateSize(true),80);
+  modalMapLayer=L.layerGroup().addTo(modalMap);
+  const valid=data.filter(g=>validCoord(g.lat,g.lng));
+  for(let i=0;i<data.length;i++){const g=data[i];if(!validCoord(g.lat,g.lng))continue;const ratio=(g.o[mapMetric]||0)/max;const c=L.circleMarker([g.lat,g.lng],{radius:8+Math.pow(ratio,.42)*34,color:'#fff',weight:2.5,fillColor:palette(ratio),fillOpacity:.9});c.bindTooltip('<b>'+esc(g.label)+'</b><br>'+money(g.o.valor)+'<br>'+int(g.o.qtd)+' un.<br><span style="color:#6b7280">'+int(g.o.n)+' lançamentos</span>');c.on('click',()=>mapClickTarget(g.kind,g.key));c.addTo(modalMapLayer)}
+  if(valid.length){const bounds=L.latLngBounds(valid.map(g=>[g.lat,g.lng]));modalMap.fitBounds(bounds,{padding:[50,50],maxZoom:contextDepth()==='geral'?5:11,animate:false})}
+  requestAnimationFrame(()=>refreshModalMapSize(token));setTimeout(()=>refreshModalMapSize(token),80);setTimeout(()=>refreshModalMapSize(token),220);setTimeout(()=>refreshModalMapSize(token),600);
+  window.addEventListener('resize',()=>refreshModalMapSize(token),{once:true});
 }
+
 function buildExploreBars(rows,limit=6){
   const top=rows.slice(0,limit),max=Math.max(...top.map(([,o])=>o.valor||0),1);
   return top.map(([k,o])=>`<div class="explore-bar"><div><div class="explore-bar-label" title="${esc(k)}">${esc(k)}</div><div class="explore-bar-track"><div class="explore-bar-fill" style="width:${Math.max(3,(o.valor/max)*100)}%"></div></div></div><div class="explore-bar-value">${money(o.valor)}</div></div>`).join('')||'<div class="explore-empty">Nenhum dado para este contexto.</div>';
@@ -653,7 +666,7 @@ function openContextModal(){
   const sellerRows=sellers.slice(0,8).map(([k,o],i)=>`<tr class="click" onclick="detail('${encodeURIComponent(k)}','vendedor')"><td>${i+1}</td><td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.emp.size)}</td></tr>`).join('');
   const companyRows=companies.slice(0,10).map(([k,o],i)=>`<tr class="click" onclick="detail('${encodeURIComponent(k)}','empresa')"><td>${i+1}</td><td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.n)}</td></tr>`).join('');
   const productRows=products.slice(0,8).map(([k,o],i)=>`<tr class="click" onclick="detail('${encodeURIComponent(k)}','produto')"><td>${i+1}</td><td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.emp.size)}</td></tr>`).join('');
-  const body=`<div class="explore-shell"><section class="explore-map-pane"><div id="${mapId}"></div><div class="map-context-badge"><b>${esc(depth==='geral'?'Visão comercial geral':label)}</b><span>${int(d.length)} lançamentos • ${money(totalFat)}</span></div><div class="explore-map-tools"><button onclick="jumpContext(0)"><i class="fa-solid fa-earth-americas"></i> Visão geral</button><button onclick="if(map){map.invalidateSize();map.setView([-14.3,-52.8],4,{animate:true})}"><i class="fa-solid fa-expand"></i> Brasil</button><button onclick="openFullRanking()"><i class="fa-solid fa-table-list"></i> Planilha completa</button></div></section><section class="explore-info"><div class="explore-breadcrumbs">${trailHtml}<span class="sync-badge"><i class="fa-solid fa-link"></i> Consulta sincronizada</span></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(totalFat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(totalQtd)}</b></div><div class="explore-kpi"><small>Empresas</small><b>${int(totalEmp)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div><div class="explore-kpi"><small>CNPJs</small><b>${int(totalCnpj)}</b></div><div class="explore-kpi"><small>Vendedores</small><b>${int(totalVend)}</b></div></div><div class="explore-section"><div class="explore-section-head"><b>${esc(primaryTitle)}</b><span>${int(ranking.length)} itens</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Registro</th><th>Faturamento</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${primaryRows}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Onde está o faturamento</b><span>Top ${Math.min(6,ranking.length)}</span></div><div class="explore-bars">${buildExploreBars(ranking,6)}</div></div><div class="explore-section"><div class="explore-section-head"><b>Empresas</b><span>clique para abrir a ficha completa</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Empresa</th><th>Fat.</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${companyRows||'<tr><td colspan="5" class="explore-empty">Nenhuma empresa identificada.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendedores</b><span>performance no contexto atual</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Vendedor</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${sellerRows||'<tr><td colspan="5" class="explore-empty">Nenhum vendedor identificado.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Produtos</b><span>mix comercial</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Produto</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${productRows||'<tr><td colspan="5" class="explore-empty">Nenhum produto identificado.</td></tr>'}</tbody></table></div></div></section></div>`;
+  const body=`<div class="explore-shell"><section class="explore-map-pane"><div id="${mapId}"></div><div class="map-context-badge"><b>${esc(depth==='geral'?'Visão comercial geral':label)}</b><span>${int(d.length)} lançamentos • ${money(totalFat)}</span></div><div class="explore-map-tools"><button onclick="jumpContext(0)"><i class="fa-solid fa-earth-americas"></i> Visão geral</button><button onclick="if(map){map.invalidateSize();map.setView([-14.3,-52.8],4,{animate:true})}"><i class="fa-solid fa-expand"></i> Brasil</button><button onclick="openFullRanking()"><i class="fa-solid fa-table-list"></i> Planilha completa</button></div></section><section class="explore-info"><div class="explore-nav"><div class="explore-breadcrumbs">${trailHtml}</div><div class="explore-nav-actions"><button class="explore-back" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button><button class="explore-back" onclick="exploreHome()"><i class="fa-solid fa-house"></i> Início</button><button class="explore-back" onclick="closeModal()"><i class="fa-solid fa-xmark"></i> Fechar</button><span class="sync-badge"><i class="fa-solid fa-link"></i> Consulta sincronizada</span></div></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(totalFat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(totalQtd)}</b></div><div class="explore-kpi"><small>Empresas</small><b>${int(totalEmp)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div><div class="explore-kpi"><small>CNPJs</small><b>${int(totalCnpj)}</b></div><div class="explore-kpi"><small>Vendedores</small><b>${int(totalVend)}</b></div></div><div class="explore-section"><div class="explore-section-head"><b>${esc(primaryTitle)}</b><span>${int(ranking.length)} itens</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Registro</th><th>Faturamento</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${primaryRows}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Onde está o faturamento</b><span>Top ${Math.min(6,ranking.length)}</span></div><div class="explore-bars">${buildExploreBars(ranking,6)}</div></div><div class="explore-section"><div class="explore-section-head"><b>Empresas</b><span>clique para abrir a ficha completa</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Empresa</th><th>Fat.</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${companyRows||'<tr><td colspan="5" class="explore-empty">Nenhuma empresa identificada.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendedores</b><span>performance no contexto atual</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Vendedor</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${sellerRows||'<tr><td colspan="5" class="explore-empty">Nenhum vendedor identificado.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Produtos</b><span>mix comercial</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Produto</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${productRows||'<tr><td colspan="5" class="explore-empty">Nenhum produto identificado.</td></tr>'}</tbody></table></div></div></section></div>`;
   openModal(depth==='geral'?'Explorar vendas':`Explorar • ${esc(label)}`,body,d);
   $('modal').classList.add('explore-overlay');
   $('app').classList.add('explore-active');
@@ -709,19 +722,26 @@ function clearSavedConsultation(){
   setPeriod('current');toast('Filtros e contexto resetados para o padrão.');
 }
 function openModal(t,b,mapData=null){
+  destroyModalMap();
   $('modalTitle').innerHTML=t;
   const box=$('modal').querySelector('.modalbox');box.classList.add('analysis-modal');
   const hasExplore=String(b).includes('class="explore-shell"');
   const hasLayout=String(b).includes('class="modal-layout"');
-  const mapId='genericContextMap_'+Date.now();
-  if(hasExplore){$('modalBody').innerHTML=b}
-  else if(hasLayout){$('modalBody').innerHTML=b}
-  else{$('modalBody').innerHTML=`<div class="modal-layout"><div class="context-map"><div id="${mapId}"></div><div class="map-context-badge"><b>Mapa do contexto atual</b><span>Tabela e mapa usam a mesma consulta</span></div></div><div class="context-info">${b}</div></div>`}
+  const mapId='genericContextMap_'+(++modalMapToken);
+  if(hasExplore||hasLayout) $('modalBody').innerHTML=b;
+  else $('modalBody').innerHTML=`<div class="modal-layout"><div class="context-map"><div id="${mapId}"></div><div class="map-context-badge"><b>Mapa do contexto atual</b><span>Tabela e mapa usam a mesma consulta</span></div><button class="modal-map-recover" onclick="recoverModalMap('${mapId}')"><i class="fa-solid fa-rotate"></i> Recarregar mapa</button></div><div class="context-info">${b}</div></div>`;
   $('modal').classList.add('open');
   mapData=mapData||filtered;
-  if(!hasExplore&&!hasLayout)setTimeout(()=>{drawContextMap(mapId,mapData);if(modalMap)modalMap.invalidateSize(true)},60);
+  if(!hasExplore&&!hasLayout){
+    const start=()=>{if(document.getElementById(mapId)){drawContextMap(mapId,mapData)}};
+    requestAnimationFrame(()=>requestAnimationFrame(start));setTimeout(start,140);setTimeout(start,420);
+  }
 }
-function closeModal(){if(modalMap){try{modalMap.remove()}catch(e){}modalMap=null}const box=$('modal').querySelector('.modalbox');if(box)box.classList.remove('analysis-modal','state-modal');$('modal').classList.remove('open','explore-overlay');$('app').classList.remove('explore-active')}
+function recoverModalMap(id){if($(id))drawContextMap(id,filtered.slice())}
+function closeModal(){const wasExplore=$('app').classList.contains('explore-active')||$('modal').classList.contains('explore-overlay');destroyModalMap();const box=$('modal').querySelector('.modalbox');if(box)box.classList.remove('analysis-modal','state-modal');$('modal').classList.remove('open','explore-overlay');$('app').classList.remove('explore-active');exploreHistory=[];if(wasExplore){contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''};apply();}}
+function exploreBack(){if(exploreHistory.length){contextPath=exploreHistory.pop();apply();openContextModal()}else exploreHome()}
+function exploreHome(){exploreHistory=[];contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''};apply();openContextModal()}
+
 function detailProduct(name){
   name=decodeURIComponent(name);
   setContext('produto',name,{open:false});
@@ -731,7 +751,7 @@ function detailProduct(name){
   const companyRows=buildExploreCompanyRows(d).map(([k,o],i)=>`<tr class="click" onclick="detail('${encodeURIComponent(k)}','empresa')"><td>${i+1}</td><td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.n)}</td></tr>`).join('');
   const sellerRows=buildExploreSellerRows(d).map(([k,o],i)=>`<tr class="click" onclick="detail('${encodeURIComponent(k)}','vendedor')"><td>${i+1}</td><td><b>${esc(k)}</b></td><td>${money(o.valor)}</td><td>${int(o.qtd)}</td><td>${int(o.emp.size)}</td></tr>`).join('');
   const salesRows=d.slice(0,300).map(x=>`<tr class="click" onclick="detailLaunch(${filtered.indexOf(x)})"><td>${x.date?x.date.toLocaleDateString('pt-BR'):'—'}</td><td>${esc(x.empresa||'—')}</td><td>${esc(x.vendedor||'—')}</td><td>${esc(x.cidade||'—')}</td><td>${int(x.qtd)}</td><td>${money(x.valor)}</td></tr>`).join('');
-  openModal('<i class="fa-solid fa-box"></i> Ficha do produto • '+esc(name),`<div class="context-toolbar"><button class="explore-back" onclick="openContextModal()"><i class="fa-solid fa-arrow-left"></i> Voltar à exploração</button></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="explore-kpi"><small>Empresas</small><b>${int(emps.length)}</b></div><div class="explore-kpi"><small>Vendedores</small><b>${int(vends.length)}</b></div></div><div class="explore-company-card"><div class="explore-company-title"><div><b>${esc(name)}</b><small>Produto selecionado • ${int(d.length)} lançamentos</small></div></div><div class="explore-pills">${brands.slice(0,6).map(b=>`<span class="explore-pill"><i class="fa-solid fa-tag"></i> ${esc(b)}</span>`).join('')||'<span class="explore-pill">Marca não informada</span>'}</div></div><div class="explore-section"><div class="explore-section-head"><b>Empresas que compram</b><span>clique para abrir a ficha</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Empresa</th><th>Fat.</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${companyRows||'<tr><td colspan="5" class="explore-empty">Nenhuma empresa identificada.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendedores</b><span>performance neste produto</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Vendedor</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${sellerRows||'<tr><td colspan="5" class="explore-empty">Nenhum vendedor identificado.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendas do produto</b><span>clique para abrir o lançamento</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Empresa</th><th>Vendedor</th><th>Cidade</th><th>Qtd.</th><th>Fat.</th></tr></thead><tbody>${salesRows||'<tr><td colspan="6" class="explore-empty">Sem vendas.</td></tr>'}</tbody></table></div></div>`,d);
+  openModal('<i class="fa-solid fa-box"></i> Ficha do produto • '+esc(name),`<div class="context-toolbar"><button class="explore-back" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="explore-kpi"><small>Empresas</small><b>${int(emps.length)}</b></div><div class="explore-kpi"><small>Vendedores</small><b>${int(vends.length)}</b></div></div><div class="explore-company-card"><div class="explore-company-title"><div><b>${esc(name)}</b><small>Produto selecionado • ${int(d.length)} lançamentos</small></div></div><div class="explore-pills">${brands.slice(0,6).map(b=>`<span class="explore-pill"><i class="fa-solid fa-tag"></i> ${esc(b)}</span>`).join('')||'<span class="explore-pill">Marca não informada</span>'}</div></div><div class="explore-section"><div class="explore-section-head"><b>Empresas que compram</b><span>clique para abrir a ficha</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Empresa</th><th>Fat.</th><th>Qtd.</th><th>Lanç.</th></tr></thead><tbody>${companyRows||'<tr><td colspan="5" class="explore-empty">Nenhuma empresa identificada.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendedores</b><span>performance neste produto</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>#</th><th>Vendedor</th><th>Fat.</th><th>Qtd.</th><th>Emp.</th></tr></thead><tbody>${sellerRows||'<tr><td colspan="5" class="explore-empty">Nenhum vendedor identificado.</td></tr>'}</tbody></table></div></div><div class="explore-section"><div class="explore-section-head"><b>Vendas do produto</b><span>clique para abrir o lançamento</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Empresa</th><th>Vendedor</th><th>Cidade</th><th>Qtd.</th><th>Fat.</th></tr></thead><tbody>${salesRows||'<tr><td colspan="6" class="explore-empty">Sem vendas.</td></tr>'}</tbody></table></div></div>`,d);
   $('modal').classList.add('explore-overlay');$('app').classList.add('explore-active');
 }
 function detail(key,mode){
@@ -743,7 +763,7 @@ function detail(key,mode){
   const title=mode==='estado'?(stateNames[key]||key):key;
   const fat=d.reduce((s,x)=>s+x.valor,0),qtd=d.reduce((s,x)=>s+x.qtd,0);
   const rows=d.slice(0,500).map((x,i)=>`<tr class="click" onclick="detailLaunch(${filtered.indexOf(x)})"><td>${x.date?x.date.toLocaleDateString('pt-BR'):'—'}</td><td>${esc(x.empresa||'—')}</td><td>${esc(x.descricao||'—')}</td><td>${esc(x.vendedor||'—')}</td><td>${int(x.qtd)}</td><td>${money(x.valor)}</td></tr>`).join('');
-  openModal('<i class="fa-solid fa-chart-column"></i> '+esc(title),`<div class="context-toolbar"><button class="explore-back" onclick="openContextModal()"><i class="fa-solid fa-arrow-left"></i> Voltar à exploração</button></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(qtd)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div></div><div class="explore-section"><div class="explore-section-head"><b>Lançamentos no recorte</b><span>clique em uma linha para abrir a venda</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Empresa</th><th>Produto</th><th>Vendedor</th><th>Qtd.</th><th>Faturamento</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="explore-empty">Nenhum lançamento encontrado.</td></tr>'}</tbody></table></div></div>`,d);
+  openModal('<i class="fa-solid fa-chart-column"></i> '+esc(title),`<div class="context-toolbar"><button class="explore-back" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button></div><div class="explore-kpis"><div class="explore-kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="explore-kpi"><small>Quantidade</small><b>${int(qtd)}</b></div><div class="explore-kpi"><small>Lançamentos</small><b>${int(d.length)}</b></div></div><div class="explore-section"><div class="explore-section-head"><b>Lançamentos no recorte</b><span>clique em uma linha para abrir a venda</span></div><div class="explore-table"><table class="mini-table"><thead><tr><th>Data</th><th>Empresa</th><th>Produto</th><th>Vendedor</th><th>Qtd.</th><th>Faturamento</th></tr></thead><tbody>${rows||'<tr><td colspan="6" class="explore-empty">Nenhum lançamento encontrado.</td></tr>'}</tbody></table></div></div>`,d);
   $('modal').classList.add('explore-overlay');$('app').classList.add('explore-active');
 }
 
@@ -761,7 +781,7 @@ function detailCompany(name){
   const matched=d[0]?.clientMatch?[d[0].clientMatch]:findClients(name,d[0]);
   const fichaHtml=matched.length?buildFicha(matched[0]):'<div class="map-note">Nenhum cadastro correspondente localizado.</div>';
   const rows=d.slice(0,500).map(x=>`<tr class="click" onclick="detailLaunch(${filtered.indexOf(x)})"><td>${x.date?x.date.toLocaleDateString('pt-BR'):'—'}</td><td>${esc(x.descricao||'—')}</td><td>${int(x.qtd)}</td><td>${money(x.valor)}</td><td>${esc(x.vendedor||'—')}</td><td>${esc(x.cidade||'—')}</td><td>${esc(x.bairro||'—')}</td></tr>`).join('');
-  openModal('<i class="fa-solid fa-building"></i> '+esc(name),`<div class="context-toolbar"><button class="viewmore-btn" onclick="jumpContext(0);openContextModal()"><i class="fa-solid fa-arrow-left"></i> Visão geral</button></div><div class="kpis"><div class="kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="kpi"><small>CNPJ(s)</small><b>${cnpjs.length}</b></div><div class="kpi"><small>Vendedores</small><b>${new Set(d.map(x=>x.vendedor).filter(Boolean)).size}</b></div></div>${fichaHtml}<div class="context-table"><table class="mini-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Fat.</th><th>Vendedor</th><th>Cidade</th><th>Bairro</th></tr></thead><tbody>${rows}</tbody></table></div>`,d);
+  openModal('<i class="fa-solid fa-building"></i> '+esc(name),`<div class="context-toolbar"><button class="viewmore-btn" onclick="exploreBack()"><i class="fa-solid fa-arrow-left"></i> Voltar</button></div><div class="kpis"><div class="kpi"><small>Faturamento</small><b>${money(fat)}</b></div><div class="kpi"><small>Quantidade</small><b>${int(q)}</b></div><div class="kpi"><small>CNPJ(s)</small><b>${cnpjs.length}</b></div><div class="kpi"><small>Vendedores</small><b>${new Set(d.map(x=>x.vendedor).filter(Boolean)).size}</b></div></div>${fichaHtml}<div class="context-table"><table class="mini-table"><thead><tr><th>Data</th><th>Produto</th><th>Qtd.</th><th>Fat.</th><th>Vendedor</th><th>Cidade</th><th>Bairro</th></tr></thead><tbody>${rows}</tbody></table></div>`,d);
 }
 function detailState(uf,d,title,fat,qtd,empresas){setContext('estado',uf);}
 
