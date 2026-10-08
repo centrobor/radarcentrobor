@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Radar Centrobor • Maps Comercial</title>
+<meta name="radar-ui-version" content="painel-recolhivel-v2">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -123,9 +124,47 @@ button{cursor:pointer}
 .toast.show{display:block}
 .mobile-fab{display:none}
 
+/* === Painéis recolhíveis === */
+.side{transition:transform .28s ease,opacity .2s ease,visibility .2s ease}
+.side.closed{
+  transform:translateX(calc(-100% - 28px));
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+.panel-reopen{
+  position:absolute;
+  z-index:1300;
+  width:40px;
+  height:40px;
+  border:1px solid rgba(255,255,255,.8);
+  border-radius:50%;
+  background:rgba(255,255,255,.96);
+  color:#174ea6;
+  box-shadow:0 6px 22px rgba(15,23,42,.22);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+  transition:opacity .2s ease,transform .2s ease,visibility .2s ease;
+}
+.panel-reopen:hover{transform:scale(1.05);background:#f8fbff}
+.panel-reopen.is-visible{
+  opacity:1;
+  visibility:visible;
+  pointer-events:auto;
+}
+.side-reopen{left:14px;top:50%;transform:translateY(-50%)}
+.side-reopen:hover{transform:translateY(-50%) scale(1.05)}
+.dock-reopen{right:14px;top:50%;transform:translateY(-50%)}
+.dock-reopen:hover{transform:translateY(-50%) scale(1.05)}
+.side.closed + .side-reopen{opacity:1;visibility:visible;pointer-events:auto}
+
 /* === Result dock === */
 .result-dock{position:absolute;z-index:850;right:14px;top:84px;bottom:14px;width:430px;background:rgba(255,255,255,.96);backdrop-filter:blur(16px);border-radius:16px;box-shadow:0 6px 26px rgba(32,33,36,.24);display:flex;flex-direction:column;overflow:hidden}
-.result-dock.hidden{display:none}
+.result-dock.hidden{display:none}.result-dock.hidden + .dock-reopen{opacity:1;visibility:visible;pointer-events:auto}
 .dock-head{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
 .dock-head b{display:block;font-size:13px}
 .dock-head span{font-size:10px;color:#6b7280}
@@ -290,7 +329,11 @@ button{cursor:pointer}
   .legend{top:auto;bottom:75px;right:14px}
   .actions{bottom:14px;right:14px}
   .mobile-fab{display:block;position:absolute;z-index:1200;right:14px;top:84px;border:0;border-radius:50%;width:48px;height:48px;background:#fff;box-shadow:var(--shadow);color:#1a73e8}
-  .side.closed{transform:translateY(calc(-100% + 54px))}
+  .side.closed{transform:translateY(calc(-100% + 54px));opacity:1;visibility:visible;pointer-events:auto}
+  .side.closed + .side-reopen{left:14px;top:84px;transform:none}
+  .side.closed + .side-reopen:hover{transform:scale(1.05)}
+  .dock-reopen{right:14px;bottom:80px;top:auto;transform:none}
+  .dock-reopen:hover{transform:scale(1.05)}
   .report-kpis{grid-template-columns:repeat(2,1fr)}
   .analysis-modal.modalbox{width:98vw;height:94vh}
   .analysis-modal .modal-layout{grid-template-columns:1fr;grid-template-rows:minmax(300px,46vh) minmax(0,1fr)}
@@ -870,6 +913,9 @@ button{cursor:pointer}
   <div class="section compact-actions"><button class="wide-action" id="showResults"><i class="fa-solid fa-table-list"></i><span>Ver tabelas da análise</span><i class="fa-solid fa-arrow-right"></i></button></div>
  </div>
 </aside>
+<button class="panel-reopen side-reopen" id="sideReopen" title="Reexibir Explorar vendas" aria-label="Reexibir Explorar vendas">
+  <i class="fa-solid fa-chevron-right"></i>
+</button>
 <div class="result-dock" id="resultDock">
   <div class="dock-head">
     <div><b>Resultados</b><span id="dockSubtitle">Análise atual</span></div>
@@ -899,6 +945,9 @@ button{cursor:pointer}
     </div>
   </div>
 </div>
+<button class="panel-reopen dock-reopen" id="dockReopen" title="Reexibir resultados" aria-label="Reexibir resultados">
+  <i class="fa-solid fa-chevron-left"></i>
+</button>
 <div class="map-reload" id="mapReload"><i class="fa-solid fa-rotate"></i><span>Atualizando mapa…</span></div>
 <div class="legend"><b>Intensidade comercial</b><div style="width:150px;height:8px;border-radius:10px;margin:7px 0;background:linear-gradient(90deg,#2563eb,#06b6d4,#22c55e,#facc15,#f97316,#dc2626)" ></div><div style="display:flex;justify-content:space-between;font-size:9px;color:#6b7280"><span>Menor</span><span>Maior</span></div></div>
 <div class="status" id="mapStatus"><span class="status-context">Mapa comercial • Ano atual</span><span class="dev-badge">Desenvolvido por Eduardo Mineiro para Centrobor - Radar Centrobor</span></div>
@@ -1947,8 +1996,10 @@ function loadViewState(){
     if(s.mapView)window._savedMapView=s.mapView;
     renderChips();enableCollapsibleSections();
     if(Array.isArray(s.collapsed))document.querySelectorAll('#side .section').forEach((sec,i)=>{if(s.collapsed[i]){sec.classList.add('section-collapsed');[...sec.children].filter(el=>!el.classList.contains('section-title')).forEach(el=>el.style.display='none')}});
-    if(s.sideClosed)$('side').classList.add('closed');else $('side').classList.remove('closed');
-    if(s.resultsHidden)$('resultDock').classList.add('hidden');else $('resultDock').classList.remove('hidden');
+    // A visibilidade dos painéis NÃO é restaurada do localStorage.
+    // A cada abertura da página, ambos começam visíveis.
+    $('side').classList.remove('closed');
+    $('resultDock').classList.remove('hidden');
     return !!(s.from&&s.to);
   }catch(e){return false}
 }
@@ -2583,14 +2634,40 @@ function wire(){
   $('excel').onclick=exportExcel;
   $('report').onclick=showReport;
   $('modalClose').onclick=closeModal; $('modalPrint').onclick=printCurrentModal;
-  $('showResults').onclick=()=>{$('resultDock').classList.remove('hidden');$('side').classList.add('closed');saveViewState()};
-  $('dockClose').onclick=()=>{$('resultDock').classList.add('hidden');$('side').classList.remove('closed');saveViewState()};
+  $('showResults').onclick=()=>{
+    $('resultDock').classList.remove('hidden');
+    $('dockReopen').classList.remove('is-visible');
+    saveViewState();
+  };
+  $('dockClose').onclick=()=>{
+    $('resultDock').classList.add('hidden');
+    $('dockReopen').classList.add('is-visible');
+    saveViewState();
+  };
+  $('dockReopen').onclick=()=>{
+    $('resultDock').classList.remove('hidden');
+    $('dockReopen').classList.remove('is-visible');
+    saveViewState();
+  };
   $('dockBack').onclick=backDock;
   $('dockReset').onclick=resetAll;
   $('productTotalCard').onclick=openFullRanking;
   window.onclick=e=>{if(e.target===$('modal'))closeModal()};
-  $('mobileToggle').onclick=()=>{$('side').classList.toggle('closed')};
-  $('closeSide').onclick=()=>{$('side').classList.add('closed')};
+  $('mobileToggle').onclick=()=>{
+    $('side').classList.toggle('closed');
+    $('sideReopen').classList.toggle('is-visible',$('side').classList.contains('closed'));
+    saveViewState();
+  };
+  $('closeSide').onclick=()=>{
+    $('side').classList.add('closed');
+    $('sideReopen').classList.add('is-visible');
+    saveViewState();
+  };
+  $('sideReopen').onclick=()=>{
+    $('side').classList.remove('closed');
+    $('sideReopen').classList.remove('is-visible');
+    saveViewState();
+  };
   document.querySelectorAll('th[data-sort]').forEach(th=>{
     th.addEventListener('click',()=>{
       const tableId=th.closest('table').parentElement.parentElement.querySelector('tbody').id;
@@ -2612,7 +2689,18 @@ function wire(){
    BOOT
    ============================================================ */
 wire();
+
+// Estado inicial obrigatório: os dois painéis começam abertos.
+// O usuário pode ocultá-los depois, mas isso é apenas visual e não é persistido.
+$('side').classList.remove('closed');
+$('resultDock').classList.remove('hidden');
+$('sideReopen').classList.remove('is-visible');
+$('dockReopen').classList.remove('is-visible');
+
 fetchServer();
+
+// loadViewState() também força os painéis abertos, então os botões de reexibição
+// permanecem escondidos até que o usuário oculte manualmente algum painel.
 
 /* Exposição global */
 window.removeFilter=removeFilter;
