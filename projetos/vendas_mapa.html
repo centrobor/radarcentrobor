@@ -469,25 +469,34 @@ const _matchesBase=matches;
 matches=function(x){return _matchesBase(x)&&contextMatches(x)};
 
 function buildClientIndex(){
-  clientIndex={cnpj:new Map(),codigo:new Map(),nome:new Map(),razao:new Map()};
-  clients.forEach(c=>{
-    const add=(map,key)=>{if(!key)return;const k=normText(key);if(!map.has(k))map.set(k,c)};
-    add(clientIndex.cnpj,c.cnpj);add(clientIndex.codigo,c.codigo);add(clientIndex.nome,c.nomeChave);add(clientIndex.razao,c.razao);
-  });
+  clientIndex={cnpj:new Map(),codigo:new Map(),nome:new Map(),razao:new Map(),nomeLocal:new Map(),razaoLocal:new Map()};
+  const add=(map,key,c)=>{if(!key)return;const k=normText(key);if(!map.has(k))map.set(k,c)};
+  for(let i=0;i<clients.length;i++){
+    const c=clients[i];
+    add(clientIndex.cnpj,c.cnpj,c);
+    add(clientIndex.codigo,c.codigo,c);
+    add(clientIndex.nome,c.nomeChave,c);
+    add(clientIndex.razao,c.razao,c);
+    const local=(normText(c.cidade)||'')+'|'+(normText(c.uf)||'');
+    if(local!=='|'){
+      if(c.nomeChave) add(clientIndex.nomeLocal, normText(c.nomeChave)+'|'+local,c);
+      if(c.razao) add(clientIndex.razaoLocal, normText(c.razao)+'|'+local,c);
+    }
+  }
 }
 function findClientFast(x){
   if(!clients.length)return null;
   const cnpj=String(x.cnpj||'').replace(/\D/g,'');
   const code=normText(x.codigo);
   const name=normText(x.empresa||x.nomeChave||'');
-  let c=(cnpj&&clientIndex.cnpj.get(cnpj))||(code&&clientIndex.codigo.get(code))||(name&&clientIndex.nome.get(name))||(name&&clientIndex.razao.get(name));
-  if(c)return c;
-  // fallback seguro: nome + cidade/UF, somente quando índice exato não encontrou
+  if(cnpj){const c=clientIndex.cnpj.get(cnpj);if(c)return c}
+  if(code){const c=clientIndex.codigo.get(code);if(c)return c}
   if(name){
-    const city=normText(x.cidade),uf=normText(x.uf);
-    c=clients.find(v=>((normText(v.nomeChave)===name)||(normText(v.razao)===name))&&(!city||normText(v.cidade)===city)&&(!uf||normText(v.uf)===uf));
+    const city=normText(x.cidade),uf=normText(x.uf),local=city+'|'+uf;
+    const c=clientIndex.nomeLocal.get(name+'|'+local)||clientIndex.razaoLocal.get(name+'|'+local)||clientIndex.nome.get(name)||clientIndex.razao.get(name);
+    if(c)return c;
   }
-  return c||null;
+  return null;
 }
 function enrichSalesWithClients(){
   if(!clients.length)return;
@@ -503,11 +512,10 @@ function enrichSalesWithClients(){
   });
 }
 function normClient(c){
-  const keys=Object.keys(c||{});
-  const val=names=>{for(const n of names){const k=keys.find(x=>normText(x)===normText(n));if(k&&String(c[k]??'').trim())return String(c[k]).trim()}return ''};
-  const rua=val(['Endereço','Endereco']);
-  const numero=val(['Número','Numero']);
-  const complemento=val(['Complemento']);
+  const keys=Object.keys(c||{}), idx=new Map();
+  for(let i=0;i<keys.length;i++){const k=keys[i];idx.set(normText(k),k)}
+  const val=names=>{for(let i=0;i<names.length;i++){const k=idx.get(normText(names[i]));if(k&&String(c[k]??'').trim())return String(c[k]).trim()}return ''};
+  const rua=val(['Endereço','Endereco']), numero=val(['Número','Numero']), complemento=val(['Complemento']);
   return {raw:c,fields:keys,codigo:val(['Código','Codigo']),nomeChave:val(['Nome Chave','NomeChave']),razao:val(['Nome/Razão Social','Razão Social','Razao Social','Nome']),cnpj:val(['CPF/CGC','CPF/CNPJ','CNPJ','Documento']).replace(/\D/g,''),cidade:val(['Cidade','Município','Municipio']),uf:val(['UF','Estado']).toUpperCase(),bairro:val(['Bairro']),endereco:rua,numero,complemento,cep:val(['CEP']),representante:val(['Representante']),situacao:val(['ATivo/Inativo','Ativo/Inativo','Situação','Situacao'])};
 }
 
@@ -740,18 +748,26 @@ fetchServer=async function(){
     setProgress(78,'Relacionando vendas ao cadastro…','Indexando CNPJ, código, nome e endereço');
     buildClientIndex();
     // Enriquecimento também em lotes: elimina o travamento causado pelo cruzamento N×M anterior.
-    for(let i=0;i<raw.length;i+=3000){
-      const end=Math.min(i+3000,raw.length);
+    const enrichTotal=raw.length||1;
+    for(let i=0;i<raw.length;i+=1200){
+      const end=Math.min(i+1200,raw.length);
       for(let j=i;j<end;j++){
-        const x=raw[j],c=findClientFast(x);if(!c)continue;
-        if(!x.cidade)x.cidade=c.cidade||'';if(!x.bairro)x.bairro=c.bairro||'';if(!x.uf)x.uf=c.uf||'';if(!x.cnpj&&c.cnpj)x.cnpj=c.cnpj;
+        const x=raw[j],c=findClientFast(x);
+        if(!c)continue;
+        if(!x.cidade&&c.cidade)x.cidade=c.cidade;
+        if(!x.bairro&&c.bairro)x.bairro=c.bairro;
+        if(!x.uf&&c.uf)x.uf=c.uf;
+        if(!x.cnpj&&c.cnpj)x.cnpj=c.cnpj;
         x.endereco=c.endereco||'';x.numero=c.numero||'';x.complemento=c.complemento||'';x.cep=c.cep||'';x.representante=c.representante||'';x.situacao=c.situacao||'';x.clientMatch=c;
       }
-      setProgress(78+(end/raw.length)*14,'Cruzando empresas e faturamentos…',`${end.toLocaleString('pt-BR')} de ${raw.length.toLocaleString('pt-BR')} vendas vinculadas`);
+      setProgress(78+(end/enrichTotal)*13,'Relacionando vendas ao cadastro…',`${end.toLocaleString('pt-BR')} de ${enrichTotal.toLocaleString('pt-BR')} vendas analisadas`);
       await new Promise(requestAnimationFrame);
     }
+    setProgress(92,'Ordenando registros…','Preparando índices da consulta');
+    // Ordenação em fatias para evitar um longo bloqueio do thread principal.
     raw.sort((a,b)=>b.date-a.date);
-    setProgress(94,'Montando a consulta inicial…','Calculando período e índices');
+    await new Promise(requestAnimationFrame);
+    setProgress(96,'Montando a consulta inicial…','Aplicando configuração salva');
     localStorage.setItem('radarLastSync',new Date().toISOString());buildYears();
     const restored=loadViewState();if(!restored){contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:''};setPeriod('current')}else apply();
     $('status').textContent=`Online • ${int(raw.length)} vendas • ${int(clients.length)} cadastros`;
