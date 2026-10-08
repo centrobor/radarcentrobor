@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{--blue:#1a73e8;--blue2:#0b57d0;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb;--panel:#fff;--green:#1e8e3e;--orange:#f9ab00;--shadow:0 4px 18px rgba(32,33,36,.18);--shadow-lg:0 18px 60px rgba(15,23,42,.32);--radius:16px}
 *{box-sizing:border-box}
@@ -354,6 +355,76 @@ button{cursor:pointer}
   .actions .action{padding:10px}
   .status{font-size:9px}
 }
+
+/* ============================================================
+   EXPERIÊNCIA PREMIUM — VOLTANDO NO TEMPO
+   ============================================================ */
+.loading{background:#02060d;color:#fff;overflow:hidden;align-items:stretch;justify-content:stretch;isolation:isolate}
+.loading-map{position:absolute;inset:-12%;z-index:0;opacity:.86;filter:brightness(.58) saturate(.72) contrast(1.06) blur(.65px);transform:scale(1.08);transition:transform 2.2s cubic-bezier(.2,.7,.2,1)}
+.loading-map .leaflet-container{background:#020b16!important}
+.loading-map .leaflet-tile-pane{filter:brightness(.72) saturate(.68) contrast(1.08)}
+.loading-map .leaflet-tile{transition:filter .5s ease}
+.loading-map:after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 46%,transparent 0 23%,rgba(1,7,16,.08) 44%,rgba(1,7,16,.66) 100%),linear-gradient(90deg,rgba(1,6,14,.68),transparent 34%,transparent 66%,rgba(1,6,14,.62));z-index:5}
+.loading-globe-glow{position:absolute;z-index:1;inset:-20%;pointer-events:none;background:radial-gradient(ellipse at 50% 51%,rgba(74,144,226,.16) 0%,rgba(42,102,172,.07) 28%,transparent 57%);filter:blur(22px);mix-blend-mode:screen}
+.loading-daynight{position:absolute;z-index:2;inset:-10%;pointer-events:none;background:radial-gradient(ellipse at var(--sun-x,58%) 42%,rgba(255,220,130,.17),transparent 15%),linear-gradient(110deg,rgba(0,4,18,.5),transparent 38%,rgba(0,4,24,.58));mix-blend-mode:screen;transition:background 1.5s ease}
+.loading-vignette{position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,transparent 25%,rgba(0,3,10,.2) 60%,rgba(0,2,8,.78) 100%)}
+.loading-stars{position:absolute;inset:0;z-index:1;opacity:.22;pointer-events:none;background-image:radial-gradient(circle,rgba(255,255,255,.9) 0 1px,transparent 1.5px);background-size:117px 131px;mask-image:linear-gradient(to bottom,transparent 0,#000 28%,#000 75%,transparent 100%)}
+.timebox{position:relative;z-index:4;width:min(820px,92vw);height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;text-shadow:0 3px 24px rgba(0,0,0,.72);padding:20px 0 55px}
+.loading-copy{display:flex;flex-direction:column;align-items:center;position:relative;z-index:5}
+.loading-kicker{font-size:9px;letter-spacing:.24em;color:rgba(224,238,255,.64);margin-bottom:9px;font-weight:800}
+.loading .timebox h2{font-size:clamp(34px,5vw,58px);line-height:1;letter-spacing:-.045em;margin:0;font-weight:650;color:#fff}
+.loading .timebox p.load-message{font-size:clamp(12px,1.5vw,15px);color:rgba(230,239,249,.82);margin:12px 0 0;min-height:20px;transition:opacity .28s ease,transform .28s ease}
+.load-message.fade-out{opacity:0;transform:translateY(4px)}
+.history-stage{display:flex;align-items:center;gap:8px;margin-top:13px;color:rgba(255,255,255,.82);font-size:11px;opacity:.92;transition:opacity .3s ease,transform .3s ease}
+.history-stage span{font-size:22px;filter:drop-shadow(0 0 10px rgba(122,190,255,.35));animation:historyFloat 2.2s ease-in-out infinite}
+.history-stage b{font-weight:600;letter-spacing:.03em}
+.timeline-orbit{position:absolute;width:min(650px,78vw);height:min(650px,78vw);max-height:55vh;min-height:260px;left:50%;top:50%;transform:translate(-50%,-57%);pointer-events:none;opacity:.58}
+.timeline-ring{position:absolute;inset:7%;border:1px solid rgba(143,190,235,.13);border-radius:50%;animation:ringSpin 32s linear infinite}
+.timeline-ring.ring2{inset:18%;border-color:rgba(143,190,235,.08);animation-direction:reverse;animation-duration:45s}
+.timeline-dot{position:absolute;width:5px;height:5px;border-radius:50%;background:#dceeff;box-shadow:0 0 16px 4px rgba(100,174,255,.5);left:50%;top:7%;transform:translateX(-50%)}
+.era{position:absolute;left:50%;top:50%;transform-origin:0 0;color:rgba(213,232,250,.38);transition:color .45s ease,opacity .45s ease,transform .45s ease;display:flex;align-items:center;gap:5px;font-size:10px;white-space:nowrap}
+.era .era-icon{font-size:16px;filter:grayscale(.35);opacity:.7;transition:.45s}
+.era small{font-size:8px;letter-spacing:.05em;text-transform:uppercase}
+.era:nth-child(4){transform:translate(-50%,-50%) rotate(0deg) translateY(-45%)}
+.era:nth-child(5){transform:translate(-50%,-50%) rotate(40deg) translateY(-45%)}
+.era:nth-child(6){transform:translate(-50%,-50%) rotate(80deg) translateY(-45%)}
+.era:nth-child(7){transform:translate(-50%,-50%) rotate(120deg) translateY(-45%)}
+.era:nth-child(8){transform:translate(-50%,-50%) rotate(160deg) translateY(-45%)}
+.era:nth-child(9){transform:translate(-50%,-50%) rotate(200deg) translateY(-45%)}
+.era:nth-child(10){transform:translate(-50%,-50%) rotate(240deg) translateY(-45%)}
+.era:nth-child(11){transform:translate(-50%,-50%) rotate(280deg) translateY(-45%)}
+.era:nth-child(12){transform:translate(-50%,-50%) rotate(320deg) translateY(-45%)}
+.era.era-active{color:#fff;opacity:1!important}.era.era-active .era-icon{filter:none;opacity:1;transform:scale(1.15);filter:drop-shadow(0 0 9px rgba(144,202,249,.55))}
+.progress-wrap{width:min(560px,74vw);margin-top:25px}
+.loading .progress{height:2px;margin:0;background:rgba(255,255,255,.16);border-radius:99px;overflow:hidden;box-shadow:0 0 20px rgba(73,145,221,.08)}
+.loading .progress i{height:100%;background:linear-gradient(90deg,#8ab4f8,#c5e1ff,#fff);box-shadow:0 0 12px rgba(138,180,248,.65);transition:width .35s cubic-bezier(.2,.7,.2,1)}
+.progress-meta{display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:rgba(213,229,244,.48);font-size:9px;letter-spacing:.02em}
+.progress-meta strong{font-size:10px;color:rgba(255,255,255,.75)}
+.loading-institution{position:absolute;z-index:6;bottom:16px;left:20px;right:20px;text-align:center;font-size:8px;color:rgba(255,255,255,.42);letter-spacing:.025em}
+@keyframes ringSpin{to{transform:rotate(360deg)}}
+@keyframes historyFloat{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-3px) scale(1.04)}}
+@media(max-width:600px){.timeline-orbit{width:90vw;height:90vw;max-height:48vh}.loading-kicker{font-size:7px}.loading .timebox h2{font-size:36px}.progress-wrap{width:78vw}.loading-institution{font-size:7px}.era small{display:none}.era .era-icon{font-size:18px}}
+
+/* ============================================================
+   RELATÓRIO EXECUTIVO / IMPRESSÃO A4
+   ============================================================ */
+.report-preview{background:#f5f8fc;min-height:100%;padding:16px}.report-preview .preview-cover{background:linear-gradient(135deg,#071d38 0%,#0b57d0 62%,#2381e8 100%);color:#fff;border-radius:16px;padding:28px 30px;position:relative;overflow:hidden;min-height:250px;display:flex;flex-direction:column;justify-content:flex-end}.preview-cover:before{content:"";position:absolute;width:420px;height:420px;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-120px;top:-160px;box-shadow:0 0 0 45px rgba(255,255,255,.025),0 0 0 90px rgba(255,255,255,.018)}.preview-cover:after{content:"";position:absolute;inset:0;background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.05) 55%,transparent 70%);pointer-events:none}.preview-eyebrow{font-size:9px;letter-spacing:.22em;opacity:.72;font-weight:800;position:relative;z-index:1}.preview-cover h1{font-size:32px;margin:8px 0 4px;position:relative;z-index:1}.preview-cover p{margin:0;opacity:.78;font-size:12px;position:relative;z-index:1}.preview-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:18px;position:relative;z-index:1}.preview-meta{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:10px;padding:9px}.preview-meta small{display:block;font-size:7px;text-transform:uppercase;letter-spacing:.06em;opacity:.62}.preview-meta b{display:block;font-size:10px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.preview-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}.preview-kpi{background:#fff;border:1px solid #e7edf4;border-radius:11px;padding:11px}.preview-kpi small{display:block;font-size:8px;color:#6b7280;text-transform:uppercase;font-weight:800}.preview-kpi b{display:block;font-size:17px;color:#102a43;margin-top:3px}.preview-section{background:#fff;border:1px solid #e7edf4;border-radius:13px;padding:12px;margin-top:10px}.preview-section h3{font-size:11px;color:#174ea6;margin:0 0 8px}.preview-section table{width:100%;border-collapse:collapse;font-size:9px}.preview-section th,.preview-section td{padding:6px;border-bottom:1px solid #edf1f5;text-align:left}.preview-section th{background:#f7f9fc;color:#64748b;font-size:8px;text-transform:uppercase}.preview-map-note{height:110px;border-radius:10px;background:linear-gradient(135deg,#e8f0fe,#dcecf7);display:grid;place-items:center;color:#55708c;font-size:10px}.report-preview .report-footer{font-size:8px;color:#94a3b8;text-align:center;margin-top:10px}
+@media(max-width:700px){.preview-grid,.preview-kpis{grid-template-columns:1fr 1fr}.preview-cover{padding:22px}.preview-cover h1{font-size:25px}}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+  body.printing *{visibility:hidden!important}
+  body.printing #printStage,body.printing #printStage *{visibility:visible!important}
+  body.printing #printStage{display:block!important;position:static!important;width:100%!important;background:#fff!important}
+  .print-stage-page{width:210mm;height:297mm;box-sizing:border-box;page-break-after:always;break-after:page;padding:13mm 13mm 12mm;position:relative;background:#fff;overflow:hidden}
+  .print-stage-page:last-child{page-break-after:auto;break-after:auto}
+  .print-cover{height:100%;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;padding:24mm 18mm;border-radius:0;background:linear-gradient(135deg,#071d38,#0b57d0 65%,#2381e8);color:#fff;position:relative;overflow:hidden}
+  .print-cover:before{content:"";position:absolute;width:180mm;height:180mm;border:1px solid rgba(255,255,255,.12);border-radius:50%;right:-60mm;top:-55mm;box-shadow:0 0 0 20mm rgba(255,255,255,.025),0 0 0 40mm rgba(255,255,255,.018)}
+  .print-cover h1{font-size:31px;margin:0 0 6px;position:relative}.print-cover .subtitle{font-size:13px;opacity:.85;position:relative}.print-meta-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:22px;position:relative}.print-meta-card{padding:9px;border:1px solid rgba(255,255,255,.23);border-radius:9px;background:rgba(255,255,255,.09)}.print-meta-card small{display:block;opacity:.66;text-transform:uppercase;font-size:7px;font-weight:800}.print-meta-card b{display:block;margin-top:3px;font-size:9px;line-height:1.3}
+  .print-section-title{font-size:15px;color:#174ea6;margin:0 0 7px}.print-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-bottom:10px}.print-kpi{border:1px solid #e3eaf2;border-radius:8px;padding:8px;background:#fbfdff}.print-kpi small{display:block;color:#6b7280;font-size:7px;text-transform:uppercase;font-weight:800}.print-kpi b{display:block;margin-top:3px;font-size:12px;color:#102a43}.print-table{width:100%;border-collapse:collapse;font-size:7.5px}.print-table th{background:#f3f6fa;color:#374151}.print-table th,.print-table td{padding:4px 5px;border-bottom:1px solid #e5e7eb;text-align:left}.print-table .num{text-align:right}.print-map-page{padding:12mm 12mm 10mm}.print-map-title{font-size:16px;color:#174ea6;margin:0 0 3px}.print-map-subtitle{font-size:8px;color:#6b7280;margin-bottom:7px}.print-map{display:block;width:100%;height:240mm;object-fit:contain;border:1px solid #dbe3ec;border-radius:7px;background:#dfeaf5}.print-map-legend{display:flex;justify-content:space-between;font-size:7px;color:#6b7280;margin-top:5px}.print-chart{display:block;width:100%;max-height:75mm;object-fit:contain;border:1px solid #e5e7eb;border-radius:7px;margin-top:10px}.print-footer{position:absolute;bottom:7mm;left:13mm;right:13mm;font-size:7px;color:#8a97a6;text-align:center}.print-page-header{font-size:8px;color:#94a3b8;margin-bottom:8px;display:flex;justify-content:space-between}.print-data-block{break-inside:avoid;page-break-inside:avoid}.print-section{margin-top:10px;break-inside:avoid;page-break-inside:avoid}
+  body.printing .modal,body.printing .loading,body.printing .toast{display:none!important}
+}
 </style></head>
 <body>
 <div class="app" id="app">
@@ -426,7 +497,40 @@ button{cursor:pointer}
 <div class="actions"><button class="action" id="pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button><button class="action" id="excel"><i class="fa-solid fa-file-excel"></i> Excel</button><button class="action primary" id="report"><i class="fa-solid fa-chart-column"></i> Relatório</button></div>
 </div>
 <div class="modal" id="modal"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle">Detalhes</h2><div class="modal-head-actions"><button class="modal-print" id="modalPrint" title="Imprimir / Salvar como PDF"><i class="fa-solid fa-print"></i></button><button class="close" id="modalClose"><i class="fa-solid fa-xmark"></i></button></div></div><div id="modalBody"></div></div></div>
-<div class="loading" id="loading"><div class="loading-map" id="loadingMap"></div><div class="loading-daynight" id="loadingDayNight"></div><div class="timebox"><div class="machine"><div class="orbit"></div><div class="orbit two"></div><div class="core"></div><div class="era e1"><i class="fa-solid fa-dinosaur"></i> Pré-história</div><div class="era e2"><i class="fa-solid fa-hammer"></i> Ferramentas</div><div class="era e3"><i class="fa-solid fa-fire"></i> Primeiras civilizações</div><div class="era e4"><i class="fa-solid fa-landmark"></i> Mundo antigo</div><div class="era e5"><i class="fa-solid fa-chess-rook"></i> Idade Média</div><div class="era e6"><i class="fa-solid fa-sailboat"></i> Grandes navegações</div><div class="era e7"><i class="fa-solid fa-city"></i> Era contemporânea</div><div class="era e8"><i class="fa-solid fa-microchip"></i> Era digital</div></div><h2 id="loadTitle">Preparando a viagem…</h2><p id="loadMsg">Abrindo um portal para os arquivos comerciais.</p><div class="progress"><i id="loadBar"></i></div><div class="loadline"><span id="loadPct">0%</span> • <span id="loadDetail">Sincronizando com o servidor</span></div></div><div class="loading-institution">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div></div>
+<div class="loading" id="loading" aria-live="polite">
+  <div class="loading-map" id="loadingMap"></div>
+  <div class="loading-globe-glow"></div>
+  <div class="loading-daynight" id="loadingDayNight"></div>
+  <div class="loading-vignette"></div>
+  <div class="loading-stars"></div>
+  <div class="timebox">
+    <div class="timeline-orbit" aria-hidden="true">
+      <div class="timeline-ring"></div>
+      <div class="timeline-ring ring2"></div>
+      <div class="timeline-dot"></div>
+      <div class="era era-active" data-era="0"><span class="era-icon">🦕</span><small>Pré-história</small></div>
+      <div class="era" data-era="1"><span class="era-icon">🪨</span><small>Paleolítico</small></div>
+      <div class="era" data-era="2"><span class="era-icon">🏺</span><small>Antiguidade</small></div>
+      <div class="era" data-era="3"><span class="era-icon">🔺</span><small>Egito antigo</small></div>
+      <div class="era" data-era="4"><span class="era-icon">🏰</span><small>Idade Média</small></div>
+      <div class="era" data-era="5"><span class="era-icon">⛵</span><small>Navegações</small></div>
+      <div class="era" data-era="6"><span class="era-icon">⚙️</span><small>Industrial</small></div>
+      <div class="era" data-era="7"><span class="era-icon">💻</span><small>Era digital</small></div>
+      <div class="era" data-era="8"><span class="era-icon">🌎</span><small>Presente</small></div>
+    </div>
+    <div class="loading-copy">
+      <div class="loading-kicker">RADAR COMERCIAL • LINHA DO TEMPO</div>
+      <h2 id="loadTitle">Voltando no tempo…</h2>
+      <p id="loadMsg" class="load-message">Consultando os registros…</p>
+      <div class="history-stage" id="historyStage"><span id="historyIcon">🦕</span><b id="historyLabel">Pré-história</b></div>
+      <div class="progress-wrap">
+        <div class="progress"><i id="loadBar"></i></div>
+        <div class="progress-meta"><span id="loadDetail">Abrindo a máquina do tempo comercial…</span><strong id="loadPct">0%</strong></div>
+      </div>
+    </div>
+  </div>
+  <div class="loading-institution">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div>
+</div>
 <div class="toast" id="toast"></div>
 <script>
 /* ============================================================
@@ -518,27 +622,84 @@ function findClientFast(x){
    TOAST / LOADING
    ============================================================ */
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>$('toast').classList.remove('show'),3000)}
-const phrases=['Consultando os registros…','Percorrendo os dados…','Voltando às origens…','Explorando o passado…','Conectando acontecimentos…','Organizando a história…','Era das grandes navegações: cruzando rotas e clientes…','Era digital: indexando empresas, CNPJs e vendedores…','Quase lá…'];
-const eraIcons=['fa-solid fa-dinosaur','fa-solid fa-hammer','fa-solid fa-fire','fa-solid fa-landmark','fa-solid fa-chess-rook','fa-solid fa-sailboat','fa-solid fa-city','fa-solid fa-microchip'];
-let loadingMapInstance=null,loadingTimer=null,loadingStarted=0;
+const phrases=['Consultando os registros…','Percorrendo os dados…','Voltando às origens…','Explorando o passado…','Desenterrando informações…','Conectando acontecimentos…','Atravessando os séculos…','Chegando ao mundo moderno…','Quase lá…'];
+const eraData=[
+  {icon:'🦕',label:'Pré-história',msg:'Desenterrando os primeiros registros…'},
+  {icon:'🪨',label:'Paleolítico',msg:'Procurando evidências antigas…'},
+  {icon:'🏺',label:'Primeiras civilizações',msg:'Consultando as primeiras civilizações…'},
+  {icon:'🔺',label:'Egito antigo',msg:'Decifrando registros antigos…'},
+  {icon:'🏰',label:'Idade Média',msg:'Atravessando a Idade Média…'},
+  {icon:'⛵',label:'Grandes navegações',msg:'Navegando por registros históricos…'},
+  {icon:'⚙️',label:'Revolução Industrial',msg:'Acelerando através da Revolução Industrial…'},
+  {icon:'💻',label:'Era digital',msg:'Chegando ao mundo moderno…'},
+  {icon:'🌎',label:'Presente',msg:'Quase lá…'}
+];
+let loadingMapInstance=null,loadingTimer=null,loadingStarted=0,loadingLastEra=-1,loadingMessageTimer=null;
 function ensureLoadingMap(){
   if(loadingMapInstance||!window.L)return;
-  loadingMapInstance=L.map('loadingMap',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false}).setView([10,10],2);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:5,opacity:.78}).addTo(loadingMapInstance);
+  loadingMapInstance=L.map('loadingMap',{zoomControl:false,attributionControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false,preferCanvas:true}).setView([12,8],2);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:5,opacity:.82,crossOrigin:true}).addTo(loadingMapInstance);
 }
 function updateLoadingDayNight(){
-  const h=new Date().getHours()+new Date().getMinutes()/60;
-  const sunX=Math.round(50+40*Math.cos(((h-12)/24)*Math.PI*2));
-  document.documentElement.style.setProperty('--sun-x',Math.max(8,Math.min(92,sunX))+'%');
+  const now=new Date(),utc=now.getUTCHours()+now.getUTCMinutes()/60;
+  const solarLon=((12-utc)*15+540)%360-180;
+  const sunX=Math.round(50+(solarLon/180)*42);
+  document.documentElement.style.setProperty('--sun-x',Math.max(7,Math.min(93,sunX))+'%');
+}
+function setLoadingEra(idx){
+  idx=Math.max(0,Math.min(eraData.length-1,idx));
+  const d=eraData[idx];
+  document.querySelectorAll('.era').forEach((e,n)=>e.classList.toggle('era-active',n===idx));
+  const icon=$('historyIcon'),label=$('historyLabel'),msg=$('loadMsg');
+  if(idx!==loadingLastEra){
+    loadingLastEra=idx;
+    msg.classList.add('fade-out');
+    if(loadingMessageTimer)clearTimeout(loadingMessageTimer);
+    loadingMessageTimer=setTimeout(()=>{icon.textContent=d.icon;label.textContent=d.label;msg.textContent=d.msg;msg.classList.remove('fade-out')},180);
+  }
 }
 function animateLoading(){
-  clearInterval(loadingTimer);loadingStarted=performance.now();let i=0;
-  const tick=()=>{const elapsed=(performance.now()-loadingStarted)/1000;const p=Math.min(92,Math.max(4,Math.round(elapsed*13)));i=Math.min(phrases.length-1,Math.floor(elapsed/0.72));setProgress(p,phrases[i],i<2?'Abrindo a máquina do tempo comercial…':i<5?'Percorrendo camadas históricas…':'Posicionando registros no mapa…');const era=Math.min(7,Math.floor(i*8/phrases.length));document.querySelectorAll('.era').forEach((e,n)=>e.style.opacity=n===era?'.95':'.38');if(loadingMapInstance){const pts=[[10,10],[35,-20],[-5,35],[22,75],[-18,110],[5,150],[25,5]];const pt=pts[Math.min(i,pts.length-1)];loadingMapInstance.panTo(pt,{animate:true,duration:1.4});loadingMapInstance.setZoom(i<2?2:i<6?2.6:3,{animate:true,duration:1.2})}}
-  tick();loadingTimer=setInterval(tick,350);
+  clearInterval(loadingTimer);loadingStarted=performance.now();loadingLastEra=-1;
+  const camera=[
+    [[18,-15],2.05],[[42,-35],2.35],[[-2,28],2.55],[[25,72],2.75],
+    [[-17,108],2.8],[[8,150],2.65],[[32,12],2.45],[[8,-55],2.55],[[-12,20],2.8]
+  ];
+  let camIndex=0;
+  const moveCamera=()=>{
+    if(!loadingMapInstance)return;
+    const [center,zoom]=camera[camIndex%camera.length];
+    loadingMapInstance.flyTo(center,zoom,{animate:true,duration:2.8,easeLinearity:.18});
+    camIndex++;
+    document.getElementById('loadingMap').style.transform=`scale(${1.08+(camIndex%3)*.012})`;
+  };
+  moveCamera();
+  const tick=()=>{
+    const elapsed=(performance.now()-loadingStarted)/1000;
+    // O progresso visual nunca passa de 96% sozinho: o restante vem do processo real.
+    const p=Math.min(96,Math.max(3,Math.round(elapsed*8)));
+    const era=Math.min(8,Math.floor((p/100)*9));
+    setLoadingEra(era);
+    if(loadingMapInstance&&elapsed>2.4&&Math.floor(elapsed/2.8)>camIndex-1)moveCamera();
+    setLoadingEra(era);
+    updateLoadingDayNight();
+  };
+  tick();loadingTimer=setInterval(tick,220);
 }
-function showLoading(title='Consultando o servidor…'){$('loading').classList.add('show');$('loadTitle').textContent='Voltando no tempo…';$('loadMsg').textContent=title;ensureLoadingMap();updateLoadingDayNight();setProgress(2,phrases[0],'Abrindo a máquina do tempo comercial…');requestAnimationFrame(()=>loadingMapInstance&&loadingMapInstance.invalidateSize(true));animateLoading()}
-function setProgress(p,msg,detail){$('loadBar').style.width=Math.max(0,Math.min(100,p))+'%';$('loadPct').textContent=Math.round(p)+'%';$('loadMsg').textContent=msg||'';$('loadDetail').textContent=detail||''}
-function hideLoading(){clearInterval(loadingTimer);setProgress(100,'Quase lá…','Dados comerciais materializados no mapa');setTimeout(()=>{$('loading').classList.remove('show');if(loadingMapInstance)loadingMapInstance.invalidateSize(true)},220)}
+function showLoading(title='Consultando o servidor…'){
+  $('loading').classList.add('show');$('loadTitle').textContent='Voltando no tempo…';$('loadMsg').textContent=title;
+  ensureLoadingMap();updateLoadingDayNight();setProgress(2,eraData[0].msg,'Abrindo a máquina do tempo comercial…');setLoadingEra(0);
+  requestAnimationFrame(()=>loadingMapInstance&&loadingMapInstance.invalidateSize(true));animateLoading();
+}
+function setProgress(p,msg,detail){
+  p=Math.max(0,Math.min(100,Number(p)||0));$('loadBar').style.width=p+'%';$('loadPct').textContent=Math.round(p)+'%';
+  if(msg){const m=$('loadMsg');if(msg!==m.textContent&&!m.classList.contains('fade-out'))m.classList.add('fade-out');setTimeout(()=>{m.textContent=msg;m.classList.remove('fade-out')},120)}
+  if(detail)$('loadDetail').textContent=detail;
+  const era=Math.min(8,Math.floor(p/100*9));setLoadingEra(era);
+}
+function hideLoading(){
+  clearInterval(loadingTimer);if(loadingMessageTimer)clearTimeout(loadingMessageTimer);setProgress(100,'Quase lá…','Dados comerciais materializados no mapa');setLoadingEra(8);
+  setTimeout(()=>{$('loading').classList.remove('show');if(loadingMapInstance)loadingMapInstance.invalidateSize(true)},260);
+}
 
 /* ============================================================
    CONTEXTO / DRILL
@@ -1373,51 +1534,68 @@ function setPeriodYear(y){
 /* ============================================================
    RELATÓRIO / EXPORT
    ============================================================ */
-function reportHTML(){
-  const dim=currentDimension();
-  const rows=getCurrentRankingRows();
+function reportContext(){
+  const dim=currentDimension(),rows=getCurrentRankingRows();
   const period=`${$('from').value.split('-').reverse().join('/')} → ${$('to').value.split('-').reverse().join('/')}`;
-  const filtrosTxt=filters.length?filters.map(f=>`${labelField(f.field)} = ${f.value}`).join(' • '):'Nenhum';
+  const filtersTxt=filters.length?filters.map(f=>`${labelField(f.field)} = ${f.value}`).join(' • '):'Nenhum filtro adicional';
   const totalFat=filtered.reduce((s,x)=>s+x.valor,0),totalQtd=filtered.reduce((s,x)=>s+x.qtd,0);
-  const totalEmp=new Set(filtered.map(x=>x.empresa).filter(Boolean)).size;
-  const trail=drillStack.map(x=>x.label).join(' → ')||analysisLabel();
-  return `<div class="report" id="printReport"><h1>Radar Comercial • Relatório</h1><div class="report-meta">Período: ${period} • Análise: ${labelField(analysis)} • Nível: ${esc(trail)} • Filtros: ${esc(filtrosTxt)} • Gerado em ${new Date().toLocaleString('pt-BR')}</div><div class="report-kpis"><div class="report-kpi"><small>Faturamento</small><b>${money(totalFat)}</b></div><div class="report-kpi"><small>Quantidade</small><b>${int(totalQtd)}</b></div><div class="report-kpi"><small>Empresas</small><b>${int(totalEmp)}</b></div><div class="report-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><h2 style="font-size:14px;margin:14px 0 6px;color:#174ea6">${esc(DIM_PLURAL[dim]||'Ranking')}</h2><table><thead><tr><th>#</th><th>Nome</th><th>Faturamento</th><th>Quantidade</th><th>Lançamentos</th><th>Empresas</th></tr></thead><tbody>${rows.slice(0,80).map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td>${money(r.valor)}</td><td>${r.qtd}</td><td>${r.n||0}</td><td>${r.emp||0}</td></tr>`).join('')}</tbody></table></div>`;
+  const totalEmp=new Set(filtered.map(x=>x.empresa).filter(Boolean)).size,totalProd=new Set(filtered.map(x=>x.descricao).filter(Boolean)).size,totalUf=new Set(filtered.map(x=>x.uf).filter(Boolean)).size;
+  return {dim,rows,period,filtersTxt,totalFat,totalQtd,totalEmp,totalProd,totalUf,trail:drillStack.map(x=>x.label).join(' → ')||analysisLabel(),cities:new Set(filtered.map(x=>x.cidade).filter(Boolean)).size};
 }
-function showReport(){openModal('Relatório da consulta',reportHTML())}
+function reportHTML(mapImg=''){
+  const c=reportContext(),table=c.rows.slice(0,12).map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.name)}</b></td><td style="text-align:right">${money(r.valor)}</td><td style="text-align:right">${int(r.qtd)}</td><td style="text-align:right">${int(r.n||0)}</td><td style="text-align:right">${int(r.emp||0)}</td></tr>`).join('');
+  return `<div class="report-preview"><div class="preview-cover"><div class="preview-eyebrow">RADAR COMERCIAL • CENTROBOR</div><h1>Relatório Executivo de Vendas</h1><p>Inteligência comercial baseada na consulta atual.</p><div class="preview-grid"><div class="preview-meta"><small>Período</small><b>${esc(c.period)}</b></div><div class="preview-meta"><small>Análise</small><b>${esc(labelField(analysis))}</b></div><div class="preview-meta"><small>Nível</small><b>${esc(c.trail)}</b></div><div class="preview-meta"><small>Filtros</small><b>${esc(c.filtersTxt)}</b></div><div class="preview-meta"><small>Registros</small><b>${int(filtered.length)}</b></div><div class="preview-meta"><small>Abrangência</small><b>${int(c.totalUf)} estados • ${int(c.cities)} cidades</b></div></div></div><div class="preview-kpis"><div class="preview-kpi"><small>Faturamento</small><b>${money(c.totalFat)}</b></div><div class="preview-kpi"><small>Quantidade</small><b>${int(c.totalQtd)}</b></div><div class="preview-kpi"><small>Empresas</small><b>${int(c.totalEmp)}</b></div><div class="preview-kpi"><small>Produtos</small><b>${int(c.totalProd)}</b></div><div class="preview-kpi"><small>Estados</small><b>${int(c.totalUf)}</b></div><div class="preview-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><div class="preview-section"><h3>Mapa da consulta</h3>${mapImg?`<img src="${mapImg}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;border:1px solid #dbe3ec">`:'<div class="preview-map-note">Mapa com coordenadas e marcadores reais será incluído na versão para impressão.</div>'}</div><div class="preview-section"><h3>${esc(DIM_PLURAL[c.dim]||'Ranking')}</h3><table><thead><tr><th>#</th><th>Nome</th><th>Faturamento</th><th>Qtd.</th><th>Lanç.</th><th>Empresas</th></tr></thead><tbody>${table||'<tr><td colspan="6">Nenhum dado encontrado.</td></tr>'}</tbody></table></div><div class="report-footer">Gerado em ${esc(new Date().toLocaleString('pt-BR'))} • Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div></div>`;
+}
+async function showReport(){
+  openModal('Relatório executivo da consulta','<div class="report-preview"><div style="padding:35px;text-align:center;color:#64748b">Preparando a prévia do relatório…</div></div>');
+  const mapImg=await buildPrintMapImage({preview:true});
+  $('modalBody').innerHTML=reportHTML(mapImg);
+}
 function exportExcel(){
   let rows=filtered.map(x=>({Data:x.date.toLocaleDateString('pt-BR'),Empresa:x.empresa,CNPJ:x.cnpj,GrupoEmpresa:x.grupoEmpresa,Produto:x.descricao,Marca:x.marca,Produtor:x.produtor,Grupo:x.grupo,UF:x.uf,Cidade:x.cidade,Vendedor:x.vendedor,NotaFiscal:x.nf,Quantidade:x.qtd,Faturamento:x.valor}));
-  let ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Vendas');
-  XLSX.writeFile(wb,'radar_comercial_'+new Date().toISOString().slice(0,10)+'.xlsx');
-  toast(`Excel exportado: ${rows.length} registros do contexto atual.`);
+  let ws=XLSX.utils.json_to_sheet(rows),wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Vendas');XLSX.writeFile(wb,'radar_comercial_'+new Date().toISOString().slice(0,10)+'.xlsx');toast(`Excel exportado: ${rows.length} registros do contexto atual.`);
 }
 
-function buildPrintMapImage(){
-  const mapEl=document.getElementById('map');
-  if(!mapEl||typeof html2canvas==='undefined')return Promise.resolve('');
-  return html2canvas(mapEl,{useCORS:true,allowTaint:true,scale:1.35,logging:false,backgroundColor:'#dfeaf5'}).then(c=>c.toDataURL('image/jpeg',.86)).catch(()=> '');
+async function buildPrintMapImage(options={}){
+  if(typeof html2canvas==='undefined'||!window.L)return '';
+  const data=contextMapData(filtered).filter(g=>validCoord(g.lat,g.lng));
+  if(!data.length)return '';
+  const host=document.createElement('div');host.id='printMapRender';host.style.cssText=`position:fixed;left:-20000px;top:0;width:${options.preview?'1100':'1500'}px;height:${options.preview?'620':'1050'}px;background:#dfeaf5;z-index:-1;`;
+  document.body.appendChild(host);
+  let pm=null,tileLoaded=false;
+  try{
+    pm=L.map(host,{zoomControl:false,attributionControl:false,preferCanvas:true,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,touchZoom:false}).setView([-14.3,-52.8],4);
+    const tiles=L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,crossOrigin:true,attribution:'© OpenStreetMap contributors'}).addTo(pm);
+    const max=Math.max(...data.map(g=>g.o[mapMetric]||0),1),group=L.layerGroup().addTo(pm);
+    data.forEach(g=>{const ratio=(g.o[mapMetric]||0)/max;const radius=data.length===1?18:9+Math.pow(ratio,.42)*38;const m=L.circleMarker([g.lat,g.lng],{radius,color:'#fff',weight:2.5,fillColor:palette(ratio),fillOpacity:.9});m.bindTooltip('<b>'+esc(g.label)+'</b><br>'+money(g.o.valor)+'<br>'+int(g.o.qtd)+' un.');group.addLayer(m)});
+    const bounds=L.latLngBounds(data.map(g=>[g.lat,g.lng]));
+    if(data.length===1)pm.setView([data[0].lat,data[0].lng],11,{animate:false});else pm.fitBounds(bounds,{padding:[70,70],maxZoom:data.length<=3?11:data.length<=10?9:7,animate:false});
+    pm.invalidateSize(true);
+    await new Promise(resolve=>{tiles.once('load',()=>{tileLoaded=true;resolve()});setTimeout(resolve,1400)});
+    pm.invalidateSize(true);await new Promise(r=>setTimeout(r,250));
+    const canvas=await html2canvas(host,{useCORS:true,allowTaint:false,scale:options.preview?1.1:1.25,logging:false,backgroundColor:'#dfeaf5',imageTimeout:12000});
+    return canvas.toDataURL('image/jpeg',.9);
+  }catch(e){console.warn('Mapa para impressão indisponível',e);return ''}finally{try{if(pm)pm.remove()}catch(e){}host.remove()}
 }
-function printFooter(){return '<div class="print-footer">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div>'}
+function printFooter(){return '<div class="print-footer">Radar Comercial • Centrobor • Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div>'}
 function buildPrintStage(kind='report',specificHtml=''){
   let stage=document.getElementById('printStage');if(!stage){stage=document.createElement('div');stage.id='printStage';stage.className='print-only';document.body.appendChild(stage)}
-  const period=`${$('from').value.split('-').reverse().join('/')} → ${$('to').value.split('-').reverse().join('/')}`;
-  const filtersTxt=filters.length?filters.map(f=>`${labelField(f.field)} = ${f.value}`).join(' • '):'Nenhum';
-  const now=new Date().toLocaleString('pt-BR');const dim=currentDimension();const rows=getCurrentRankingRows();
-  const totalFat=filtered.reduce((s,x)=>s+x.valor,0),totalQtd=filtered.reduce((s,x)=>s+x.qtd,0),totalEmp=new Set(filtered.map(x=>x.empresa).filter(Boolean)).size,totalProd=new Set(filtered.map(x=>x.descricao).filter(Boolean)).size,totalUf=new Set(filtered.map(x=>x.uf).filter(Boolean)).size;
-  const table=rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td class="num">${money(r.valor)}</td><td class="num">${int(r.qtd)}</td><td class="num">${int(r.n||0)}</td><td class="num">${int(r.emp||0)}</td></tr>`).join('');
+  const c=reportContext(),now=new Date().toLocaleString('pt-BR');
+  const table=c.rows.map((r,i)=>`<tr><td>${i+1}</td><td>${esc(r.name)}</td><td class="num">${money(r.valor)}</td><td class="num">${int(r.qtd)}</td><td class="num">${int(r.n||0)}</td><td class="num">${int(r.emp||0)}</td></tr>`).join('');
   const chartData=dockChartInst&&document.getElementById('dockChart')?(()=>{try{return document.getElementById('dockChart').toDataURL('image/png')}catch(e){return ''}})():'';
-  stage.innerHTML=`<div class="print-stage-page"><div class="print-cover"><div style="font-size:48px;margin-bottom:14px">◉</div><h1>Radar Comercial</h1><div class="subtitle">Relatório completo da consulta realizada</div><div style="margin-top:18px;font-size:12px">${esc(now)}</div><div class="print-meta-grid"><div class="print-meta-card"><small>Período</small><b>${esc(period)}</b></div><div class="print-meta-card"><small>Análise</small><b>${esc(labelField(analysis))}</b></div><div class="print-meta-card"><small>Nível</small><b>${esc(drillStack.map(x=>x.label).join(' → ')||analysisLabel())}</b></div><div class="print-meta-card"><small>Filtros</small><b>${esc(filtersTxt)}</b></div><div class="print-meta-card"><small>Registros</small><b>${int(filtered.length)}</b></div><div class="print-meta-card"><small>Localização</small><b>${int(totalUf)} estados • ${int(new Set(filtered.map(x=>x.cidade).filter(Boolean)).size)} cidades</b></div></div></div>${printFooter()}</div>
-  <div class="print-stage-page"><h2 class="print-section-title">Resumo da consulta</h2><div class="print-kpis"><div class="print-kpi"><small>Faturamento</small><b>${money(totalFat)}</b></div><div class="print-kpi"><small>Quantidade</small><b>${int(totalQtd)}</b></div><div class="print-kpi"><small>Empresas</small><b>${int(totalEmp)}</b></div><div class="print-kpi"><small>Produtos</small><b>${int(totalProd)}</b></div><div class="print-kpi"><small>Estados</small><b>${int(totalUf)}</b></div><div class="print-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><h2 class="print-section-title">${esc(DIM_PLURAL[dim]||'Ranking')}</h2><table class="print-table"><thead><tr><th>#</th><th>Nome</th><th class="num">Faturamento</th><th class="num">Quantidade</th><th class="num">Lanç.</th><th class="num">Empresas</th></tr></thead><tbody>${table}</tbody></table>${chartData?`<div style="margin-top:14px"><h2 class="print-section-title">Visualização da consulta</h2><img src="${chartData}" style="display:block;width:100%;max-height:72mm;object-fit:contain;border:1px solid #e5e7eb;border-radius:8px"></div>`:''}${printFooter()}</div>${specificHtml}`;
+  stage.innerHTML=`<div class="print-stage-page"><div class="print-cover"><div style="position:relative;z-index:1;font-size:9px;letter-spacing:.22em;opacity:.7;font-weight:800">RADAR COMERCIAL • CENTROBOR</div><h1 style="position:relative;z-index:1">Relatório Executivo de Vendas</h1><div class="subtitle">Inteligência comercial baseada na consulta realizada</div><div style="position:relative;z-index:1;margin-top:10px;font-size:10px;opacity:.68">Gerado em ${esc(now)}</div><div class="print-meta-grid"><div class="print-meta-card"><small>Período</small><b>${esc(c.period)}</b></div><div class="print-meta-card"><small>Análise</small><b>${esc(labelField(analysis))}</b></div><div class="print-meta-card"><small>Nível</small><b>${esc(c.trail)}</b></div><div class="print-meta-card"><small>Filtros</small><b>${esc(c.filtersTxt)}</b></div><div class="print-meta-card"><small>Registros</small><b>${int(filtered.length)}</b></div><div class="print-meta-card"><small>Localização</small><b>${int(c.totalUf)} estados • ${int(c.cities)} cidades</b></div></div>${printFooter()}</div></div>
+  <div class="print-stage-page"><div class="print-page-header"><span>RADAR COMERCIAL • MAPA DA CONSULTA</span><span>${esc(c.period)}</span></div><h2 class="print-map-title">Mapa da consulta</h2><div class="print-map-subtitle">Distribuição geográfica dos registros filtrados • ${int(filtered.length)} lançamentos • Coordenadas reais disponíveis no cadastro.</div><div id="printMapSlot" class="print-map-slot"></div><div class="print-map-legend"><span>● intensidade menor</span><span>● intensidade maior</span></div>${printFooter()}</div>
+  <div class="print-stage-page"><div class="print-page-header"><span>RADAR COMERCIAL • INTELIGÊNCIA ANALÍTICA</span><span>${esc(c.period)}</span></div><h2 class="print-section-title">Resumo da consulta</h2><div class="print-kpis"><div class="print-kpi"><small>Faturamento</small><b>${money(c.totalFat)}</b></div><div class="print-kpi"><small>Quantidade</small><b>${int(c.totalQtd)}</b></div><div class="print-kpi"><small>Empresas</small><b>${int(c.totalEmp)}</b></div><div class="print-kpi"><small>Produtos</small><b>${int(c.totalProd)}</b></div><div class="print-kpi"><small>Estados</small><b>${int(c.totalUf)}</b></div><div class="print-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><div class="print-section"><h2 class="print-section-title">${esc(DIM_PLURAL[c.dim]||'Ranking')}</h2><table class="print-table"><thead><tr><th>#</th><th>Nome</th><th class="num">Faturamento</th><th class="num">Quantidade</th><th class="num">Lanç.</th><th class="num">Empresas</th></tr></thead><tbody>${table||'<tr><td colspan="6">Nenhum dado encontrado.</td></tr>'}</tbody></table></div>${chartData?`<div class="print-section"><h2 class="print-section-title">Visualização da consulta</h2><img class="print-chart" src="${chartData}"></div>`:''}${printFooter()}</div>${specificHtml}`;
   return stage;
 }
 async function prepareNativePrint(kind='report',specificHtml='',includeMap=kind==='report'){
-  const stage=buildPrintStage(kind,specificHtml);const mapImg=includeMap?await buildPrintMapImage():'';
-  if(mapImg){const mapPage=document.createElement('div');mapPage.className='print-stage-page';mapPage.innerHTML=`<h2 class="print-section-title">Mapa da consulta</h2><img class="print-map" src="${mapImg}">${printFooter()}`;stage.appendChild(mapPage)}
+  const stage=buildPrintStage(kind,specificHtml);
+  if(includeMap){const mapImg=await buildPrintMapImage();const slot=stage.querySelector('#printMapSlot');if(slot){if(mapImg)slot.innerHTML=`<img class="print-map" src="${mapImg}">`;else slot.innerHTML='<div style="height:240mm;display:grid;place-items:center;border:1px solid #dbe3ec;color:#64748b;font-size:10px">Não foi possível renderizar o mapa para impressão.</div>'}}
   document.body.classList.add('printing');stage.style.display='block';
   const cleanup=()=>{document.body.classList.remove('printing');stage.style.display='none';window.removeEventListener('afterprint',cleanup)};
-  window.addEventListener('afterprint',cleanup);setTimeout(()=>window.print(),80);
+  window.addEventListener('afterprint',cleanup);setTimeout(()=>window.print(),120);
 }
 function exportPDF(){prepareNativePrint('report','',true);}
-
 
 /* ============================================================
    RANKING FULL TAB
@@ -1441,7 +1619,8 @@ function openFullRanking(){
     th:hover{background:#eef4ff;color:#1a73e8}tbody tr:hover{background:#f5f9ff}.wrap{padding:0 22px 40px}
     .btn{border:1px solid #dadce0;background:#fff;border-radius:8px;padding:8px 12px;font-size:12px;cursor:pointer}
     .btn.primary{background:#1a73e8;color:#fff;border-color:#1a73e8}
-  </style></head><body>
+  
+</style></head><body>
     <header><h1>${esc(title)} — ${data.length} registros</h1><div class="meta">Período: ${period} • Filtros: ${esc(filtrosTxt)} • ${esc(drillStack.map(x=>x.label).join(' → ')||analysisLabel())}</div></header>
     <div class="toolbar"><input id="q" placeholder="Filtrar por nome…"><button class="btn" onclick="exportCSV()">Exportar CSV</button><button class="btn primary" onclick="window.print()">Imprimir</button><span class="count" id="cnt">${data.length} linhas</span></div>
     <div class="wrap"><table id="tbl"><thead><tr><th>#</th><th>Nome</th><th style="text-align:right">Faturamento</th><th style="text-align:right">Qtd.</th><th style="text-align:right">Lanç.</th><th style="text-align:right">Empresas</th></tr></thead><tbody>${rowsHtml}</tbody></table></div>
@@ -1466,7 +1645,8 @@ function openFullRanking(){
 function openFullStates(){
   const data=agg('estado').filter(([k])=>k);
   const rowsHtml=data.map(([k,o],i)=>`<tr><td>${i+1}</td><td><b>${esc(k)}</b> — ${esc(stateNames[k]||'')}</td><td style="text-align:right">${money(o.valor)}</td><td style="text-align:right">${int(o.qtd)}</td><td style="text-align:right">${int(o.n)}</td><td style="text-align:right">${int(o.emp.size)}</td><td style="text-align:right">${int(o.cidades.size)}</td></tr>`).join('');
-  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Estados — ${data.length}</title><style>body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f5f7fa;color:#1f2937}header{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 22px;position:sticky;top:0}header h1{margin:0;font-size:18px}.wrap{padding:0 22px 40px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px 12px;border-bottom:1px solid #eef0f2;font-size:12px;text-align:left}th{background:#fafbfc;font-size:11px;text-transform:uppercase;color:#6b7280}.num{text-align:right}</style></head><body><header><h1>Estados — ${int(data.length)} registros</h1></header><div class="wrap"><table><thead><tr><th>#</th><th>Estado</th><th class="num">Faturamento</th><th class="num">Qtd.</th><th class="num">Lanç.</th><th class="num">Empresas</th><th class="num">Cidades</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></body></html>`;
+  const html=`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Estados — ${data.length}</title><style>body{font-family:Inter,system-ui,sans-serif;margin:0;background:#f5f7fa;color:#1f2937}header{background:#fff;border-bottom:1px solid #e5e7eb;padding:16px 22px;position:sticky;top:0}header h1{margin:0;font-size:18px}.wrap{padding:0 22px 40px}table{width:100%;border-collapse:collapse;background:#fff}th,td{padding:10px 12px;border-bottom:1px solid #eef0f2;font-size:12px;text-align:left}th{background:#fafbfc;font-size:11px;text-transform:uppercase;color:#6b7280}.num{text-align:right}
+</style></head><body><header><h1>Estados — ${int(data.length)} registros</h1></header><div class="wrap"><table><thead><tr><th>#</th><th>Estado</th><th class="num">Faturamento</th><th class="num">Qtd.</th><th class="num">Lanç.</th><th class="num">Empresas</th><th class="num">Cidades</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></body></html>`;
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
   const win=window.open(url,'_blank');
@@ -1551,12 +1731,7 @@ async function fetchServer(){
 /* ============================================================
    WIRE
    ============================================================ */
-function printCurrentModal(){
-  const title=$('modalTitle').textContent||'Detalhes';
-  const body=$('modalBody').innerHTML||'';
-  const safe=`<div class="print-stage-page"><h2 class="print-section-title">${esc(title)}</h2><div style="font-size:10px;color:#6b7280;margin-bottom:10px">Gerado em ${new Date().toLocaleString('pt-BR')}</div>${body}${printFooter()}</div>`;
-  prepareNativePrint('modal',safe,false);
-}
+function printCurrentModal(){ const title=$('modalTitle').textContent||'Detalhes'; if(/Relatório/i.test(title)){prepareNativePrint('report','',true);return;} const body=$('modalBody').innerHTML||''; const safe=`<div class="print-stage-page"><h2 class="print-section-title">${esc(title)}</h2><div style="font-size:10px;color:#6b7280;margin-bottom:10px">Gerado em ${new Date().toLocaleString('pt-BR')}</div>${body}${printFooter()}</div>`; prepareNativePrint('modal',safe,false); }
 
 function wire(){
   resetQueryButton();
