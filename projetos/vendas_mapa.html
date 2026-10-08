@@ -2033,14 +2033,137 @@ function rankingRowsForData(data,dim){
     .map(([k,o])=>({name:k,valor:o.valor,qtd:o.qtd,n:o.n,emp:o.emp.size,field:dim,value:k}));
 }
 
-function getPrintRankingRows(dataOverride=null){
+function getPrintRankingRows(dataOverride=null,printConfig=null){
   const c=reportContext(dataOverride);
   const rows=Array.isArray(c.rows)?c.rows:[];
-  // Respeita exatamente a configuração visual do ranking:
-  // "top" = somente Top N; "all" = ranking completo.
-  if(rankingMode==='all') return rows;
-  const limit=Math.max(1,Number(rankingLimit)||20);
-  return rows.slice(0,limit);
+  const mode=printConfig?.mode||rankingMode||'top';
+  const limit=Math.max(1,Number(printConfig?.limit ?? rankingLimit)||20);
+  // A impressão tem sua própria configuração, escolhida na hora de gerar o PDF.
+  // Se não houver uma escolha temporária, mantém o comportamento configurado na tela.
+  return mode==='all' ? rows : rows.slice(0,limit);
+}
+
+/* ============================================================
+   SELETOR DE ESCOPO DO RANKING PARA IMPRESSÃO
+   ============================================================ */
+function choosePrintRanking(){
+  return new Promise(resolve=>{
+    const old=document.getElementById('printRankingChooser');
+    if(old)old.remove();
+
+    const overlay=document.createElement('div');
+    overlay.id='printRankingChooser';
+    overlay.innerHTML=`
+      <div class="print-choice-backdrop"></div>
+      <div class="print-choice-card" role="dialog" aria-modal="true" aria-labelledby="printChoiceTitle">
+        <div class="print-choice-head">
+          <div>
+            <span class="print-choice-eyebrow">RADAR CENTROBOR • IMPRESSÃO</span>
+            <h2 id="printChoiceTitle">O que você quer incluir no ranking?</h2>
+            <p>Escolha somente o escopo do ranking deste PDF. Os filtros, período, mapa e indicadores continuam usando a consulta atual.</p>
+          </div>
+          <button class="print-choice-close" type="button" aria-label="Cancelar"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="print-choice-options">
+          <button class="print-choice-option selected" data-mode="top" data-limit="20" type="button">
+            <span class="print-choice-icon"><i class="fa-solid fa-ranking-star"></i></span>
+            <span><b>Top 20</b><small>Padrão recomendado</small></span>
+            <i class="fa-solid fa-check print-choice-check"></i>
+          </button>
+
+          <button class="print-choice-option" data-mode="all" type="button">
+            <span class="print-choice-icon"><i class="fa-solid fa-list"></i></span>
+            <span><b>Todos os registros</b><small>Inclui o ranking completo, mesmo que gere várias páginas</small></span>
+            <i class="fa-solid fa-check print-choice-check"></i>
+          </button>
+
+          <div class="print-choice-custom">
+            <div class="print-choice-custom-top">
+              <span class="print-choice-icon"><i class="fa-solid fa-sliders"></i></span>
+              <div><b>Quantidade personalizada</b><small>Defina quantas posições deseja no ranking</small></div>
+            </div>
+            <div class="print-choice-custom-row">
+              <input id="printRankingCustomInput" type="number" min="1" max="99999" inputmode="numeric" value="20" aria-label="Quantidade personalizada">
+              <button id="printRankingCustomBtn" type="button">Usar quantidade</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="print-choice-footer">
+          <span><i class="fa-solid fa-circle-info"></i> O Top 20 é aplicado por padrão em cada nova impressão.</span>
+          <button class="print-choice-cancel" type="button">Cancelar</button>
+          <button class="print-choice-confirm" type="button">Continuar <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>`;
+
+    const style=document.createElement('style');
+    style.id='printRankingChooserStyle';
+    style.textContent=`
+      #printRankingChooser{position:fixed;inset:0;z-index:12000;display:grid;place-items:center;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+      .print-choice-backdrop{position:absolute;inset:0;background:rgba(4,12,24,.62);backdrop-filter:blur(7px)}
+      .print-choice-card{position:relative;width:min(620px,calc(100vw - 30px));background:#fff;border:1px solid #e5eaf1;border-radius:18px;box-shadow:0 30px 90px rgba(0,0,0,.28);overflow:hidden;color:#172033}
+      .print-choice-head{display:flex;gap:18px;justify-content:space-between;padding:24px 26px 18px;border-bottom:1px solid #edf1f5}
+      .print-choice-eyebrow{font-size:9px;font-weight:800;letter-spacing:.14em;color:#1769d5}
+      .print-choice-head h2{margin:7px 0 6px;font-size:21px;line-height:1.2}
+      .print-choice-head p{margin:0;color:#697789;font-size:12px;line-height:1.55;max-width:510px}
+      .print-choice-close{width:34px;height:34px;border:0;background:#f5f7fa;border-radius:9px;color:#64748b;cursor:pointer;flex:none}
+      .print-choice-options{padding:18px 26px 8px;display:grid;gap:10px}
+      .print-choice-option,.print-choice-custom{border:1px solid #e1e7ef;border-radius:13px;background:#fff}
+      .print-choice-option{width:100%;display:grid;grid-template-columns:40px 1fr 24px;align-items:center;text-align:left;gap:11px;padding:13px;cursor:pointer;transition:.18s}
+      .print-choice-option:hover{border-color:#9bbce9;background:#f7fbff}
+      .print-choice-option.selected{border-color:#1a73e8;background:#f3f8ff;box-shadow:0 0 0 2px rgba(26,115,232,.08)}
+      .print-choice-icon{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:#edf5ff;color:#1769d5}
+      .print-choice-option b,.print-choice-custom b{display:block;font-size:13px}
+      .print-choice-option small,.print-choice-custom small{display:block;color:#7a8797;font-size:11px;margin-top:3px}
+      .print-choice-check{opacity:0;color:#1a73e8}.print-choice-option.selected .print-choice-check{opacity:1}
+      .print-choice-custom{padding:13px}
+      .print-choice-custom-top{display:flex;gap:11px;align-items:center}
+      .print-choice-custom-row{display:flex;gap:8px;margin-top:10px;padding-left:49px}
+      .print-choice-custom-row input{width:130px;border:1px solid #d7dee8;border-radius:9px;padding:10px 11px;font-size:13px;outline:none}
+      .print-choice-custom-row input:focus{border-color:#1a73e8;box-shadow:0 0 0 3px rgba(26,115,232,.1)}
+      .print-choice-custom-row button{border:1px solid #1769d5;background:#1769d5;color:#fff;border-radius:9px;padding:0 14px;font-weight:700;cursor:pointer}
+      .print-choice-footer{display:flex;align-items:center;gap:9px;padding:16px 26px;background:#f8fafc;border-top:1px solid #edf1f5}
+      .print-choice-footer>span{margin-right:auto;color:#6c7888;font-size:10px}
+      .print-choice-cancel,.print-choice-confirm{border-radius:9px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer}
+      .print-choice-cancel{border:1px solid #d7dee8;background:#fff;color:#536173}
+      .print-choice-confirm{border:1px solid #1769d5;background:#1769d5;color:#fff}
+      @media(max-width:600px){
+        .print-choice-head,.print-choice-options,.print-choice-footer{padding-left:17px;padding-right:17px}
+        .print-choice-footer{flex-wrap:wrap}.print-choice-footer>span{width:100%;margin-bottom:5px}
+        .print-choice-custom-row{padding-left:0}.print-choice-custom-row input{width:105px}
+      }`;
+    document.head.appendChild(style);
+    document.body.appendChild(overlay);
+
+    let selected={mode:'top',limit:20};
+    const options=[...overlay.querySelectorAll('.print-choice-option')];
+    const finish=value=>{
+      overlay.remove();
+      style.remove();
+      resolve(value);
+    };
+    const select=(mode,limit)=>{
+      selected={mode,limit};
+      options.forEach(o=>o.classList.toggle('selected',o.dataset.mode===mode));
+    };
+    options.forEach(o=>o.addEventListener('click',()=>{
+      select(o.dataset.mode,o.dataset.mode==='all'?null:Number(o.dataset.limit)||20);
+    }));
+    overlay.querySelector('#printRankingCustomBtn').onclick=()=>{
+      const n=Math.max(1,Math.min(99999,Number(overlay.querySelector('#printRankingCustomInput').value)||0));
+      if(!n){overlay.querySelector('#printRankingCustomInput').focus();return}
+      select('top',n);
+      overlay.querySelector('#printRankingCustomInput').value=n;
+    };
+    overlay.querySelector('#printRankingCustomInput').onkeydown=e=>{
+      if(e.key==='Enter')overlay.querySelector('#printRankingCustomBtn').click();
+    };
+    overlay.querySelector('.print-choice-confirm').onclick=()=>finish(selected);
+    overlay.querySelector('.print-choice-cancel').onclick=()=>finish(null);
+    overlay.querySelector('.print-choice-close').onclick=()=>finish(null);
+    overlay.querySelector('.print-choice-backdrop').onclick=()=>finish(null);
+  });
 }
 
 function reportContext(dataOverride=null){
@@ -2057,14 +2180,18 @@ function reportContext(dataOverride=null){
     cities:new Set(source.map(x=>x.cidade).filter(Boolean)).size,source};
 }
 
-function reportHTML(mapImg='',dataOverride=null){
-  const c=reportContext(dataOverride),printRows=getPrintRankingRows(dataOverride),table=printRows.slice(0,12).map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.name)}</b></td><td style="text-align:right">${money(r.valor)}</td><td style="text-align:right">${int(r.qtd)}</td><td style="text-align:right">${int(r.n||0)}</td><td style="text-align:right">${int(r.emp||0)}</td></tr>`).join('');
+function reportHTML(mapImg='',dataOverride=null,printConfig=null){
+  const c=reportContext(dataOverride),printRows=getPrintRankingRows(dataOverride,printConfig),table=printRows.slice(0,12).map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.name)}</b></td><td style="text-align:right">${money(r.valor)}</td><td style="text-align:right">${int(r.qtd)}</td><td style="text-align:right">${int(r.n||0)}</td><td style="text-align:right">${int(r.emp||0)}</td></tr>`).join('');
   return `<div class="report-preview"><div class="preview-cover"><div class="preview-eyebrow">RADAR CENTROBOR</div><h1>Radar Centrobor</h1><p>Inteligência comercial baseada na consulta atual.</p><div class="preview-grid"><div class="preview-meta"><small>Período</small><b>${esc(c.period)}</b></div><div class="preview-meta"><small>Análise</small><b>${esc(labelField(analysis))}</b></div><div class="preview-meta"><small>Nível</small><b>${esc(c.trail)}</b></div><div class="preview-meta"><small>Filtros</small><b>${esc(c.filtersTxt)}</b></div><div class="preview-meta"><small>Registros</small><b>${int(filtered.length)}</b></div><div class="preview-meta"><small>Abrangência</small><b>${int(c.totalUf)} estados • ${int(c.cities)} cidades</b></div></div></div><div class="preview-kpis"><div class="preview-kpi"><small>Faturamento</small><b>${money(c.totalFat)}</b></div><div class="preview-kpi"><small>Quantidade</small><b>${int(c.totalQtd)}</b></div><div class="preview-kpi"><small>Empresas</small><b>${int(c.totalEmp)}</b></div><div class="preview-kpi"><small>Produtos</small><b>${int(c.totalProd)}</b></div><div class="preview-kpi"><small>Estados</small><b>${int(c.totalUf)}</b></div><div class="preview-kpi"><small>Lançamentos</small><b>${int(filtered.length)}</b></div></div><div class="preview-section"><h3>Mapa da consulta</h3>${mapImg?`<img src="${mapImg}" style="width:100%;height:190px;object-fit:cover;border-radius:10px;border:1px solid #dbe3ec">`:'<div class="preview-map-note">Mapa com coordenadas e marcadores reais será incluído na versão para impressão.</div>'}</div><div class="preview-section"><h3>${esc(DIM_PLURAL[c.dim]||'Ranking')}</h3><table><thead><tr><th>#</th><th>Nome</th><th>Faturamento</th><th>Qtd.</th><th>Lanç.</th><th>Empresas</th></tr></thead><tbody>${table||'<tr><td colspan="6">Nenhum dado encontrado.</td></tr>'}</tbody></table></div><div class="report-footer">Gerado em ${esc(new Date().toLocaleString('pt-BR'))} • Desenvolvido por Eduardo Mineiro para Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div></div>`;
 }
 async function showReport(){
-  openModal('Radar Centrobor','<div class="report-preview"><div style="padding:35px;text-align:center;color:#64748b">Preparando a prévia do relatório…</div></div>');
+  const printConfig=await choosePrintRanking();
+  if(!printConfig)return;
+  openModal('Radar Centrobor','<div class="report-preview"><div style="padding:35px;text-align:center;color:#64748b">Preparando o Radar Centrobor…</div></div>');
   const mapImg=await buildPrintMapImage({preview:true});
-  $('modalBody').innerHTML=reportHTML(mapImg);
+  $('modalBody').innerHTML=reportHTML(mapImg,null,printConfig);
+  $('modalBody').dataset.printRankingMode=printConfig.mode;
+  $('modalBody').dataset.printRankingLimit=String(printConfig.limit||20);
 }
 function exportExcel(){
   let rows=filtered.map(x=>({Data:x.date.toLocaleDateString('pt-BR'),Empresa:x.empresa,CNPJ:x.cnpj,GrupoEmpresa:x.grupoEmpresa,Produto:x.descricao,Marca:x.marca,Produtor:x.produtor,Grupo:x.grupo,UF:x.uf,Cidade:x.cidade,Vendedor:x.vendedor,NotaFiscal:x.nf,Quantidade:x.qtd,Faturamento:x.valor}));
@@ -2094,7 +2221,7 @@ async function buildPrintMapImage(options={}){
   }catch(e){console.warn('Mapa para impressão indisponível',e);return ''}finally{try{if(pm)pm.remove()}catch(e){}host.remove()}
 }
 function printFooter(){return '<div class="print-footer">Radar Centrobor • Centrobor • Desenvolvido por Eduardo Mineiro para Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div>'}
-function buildPrintStage(kind='report',specificHtml=''){
+function buildPrintStage(kind='report',specificHtml='',printConfig=null){
   let stage=document.getElementById('printStage');
   if(!stage){
     stage=document.createElement('div');
@@ -2106,8 +2233,10 @@ function buildPrintStage(kind='report',specificHtml=''){
   const c=reportContext();
   const now=new Date().toLocaleString('pt-BR');
   const allRankingRows=Array.isArray(c.rows)?c.rows:[];
-  const rankingRows=getPrintRankingRows();
+  const rankingRows=getPrintRankingRows(null,printConfig);
   const rankingPrinted=rankingRows.length;
+  const printRankingMode=printConfig?.mode||rankingMode||'top';
+  const printRankingLimit=Math.max(1,Number(printConfig?.limit ?? rankingLimit)||20);
   const chartData=dockChartInst&&document.getElementById('dockChart')
     ?(()=>{try{return document.getElementById('dockChart').toDataURL('image/png')}catch(e){return ''}})()
     :'';
@@ -2197,7 +2326,7 @@ function buildPrintStage(kind='report',specificHtml=''){
       <div class="print-stage-page">
         ${pageHeader(chunkIndex===0
   ?'RESUMO DA CONSULTA'
-  :`RANKING • CONTINUAÇÃO • ${rankingMode==='all'?'TODOS OS REGISTROS':'TOP '+Math.max(1,Number(rankingLimit)||20)}`)}
+  :`RANKING • CONTINUAÇÃO • ${printRankingMode==='all'?'TODOS OS REGISTROS':'TOP '+printRankingLimit}`)}
         ${chunkIndex===0?`
           <div class="print-section-intro">
             <div><span class="print-eyebrow">LEITURA EXECUTIVA</span><h2>Resumo da consulta</h2></div>
@@ -2207,9 +2336,9 @@ function buildPrintStage(kind='report',specificHtml=''){
         `:''}
         <div class="print-table-heading">
           <div><span class="print-eyebrow">RANKING</span><h3>${esc(DIM_PLURAL[c.dim]||'Ranking da consulta')}</h3></div>
-          <span>${rankingMode==='all'
-            ? `${rankingTotal.toLocaleString('pt-BR')} itens`
-            : `Top ${rankingRows.length.toLocaleString('pt-BR')} de ${rankingTotal.toLocaleString('pt-BR')}`}</span>
+          <span>${printRankingMode==='all'
+            ? `${allRankingRows.length.toLocaleString('pt-BR')} itens`
+            : `Top ${rankingRows.length.toLocaleString('pt-BR')} de ${allRankingRows.length.toLocaleString('pt-BR')}`}</span>
         </div>
         <table class="print-table">
           <thead><tr><th>#</th><th>Nome</th><th class="num">Faturamento</th><th class="num">Qtd.</th><th class="num">Lanç.</th><th class="num">Empresas</th></tr></thead>
@@ -2222,8 +2351,8 @@ function buildPrintStage(kind='report',specificHtml=''){
           </div>`:''}
         ${(rankingMode==='all' && rankingRows.length>chunkSize)
           ? `<div class="print-note">Exibindo ${Math.min((chunkIndex+1)*chunkSize,rankingRows.length)} de ${rankingRows.length} itens.`
-          : (rankingMode!=='all' && rankingTotal>rankingRows.length)
-            ? `<div class="print-note">Exibindo somente o Top ${rankingRows.length} configurado. Existem ${rankingTotal.toLocaleString('pt-BR')} registros no ranking completo.</div>`
+          : (printRankingMode!=='all' && allRankingRows.length>rankingRows.length)
+            ? `<div class="print-note">Exibindo somente o Top ${rankingRows.length} configurado. Existem ${allRankingRows.length.toLocaleString('pt-BR')} registros no ranking completo.</div>`
             : ''}
         ${pageFooter()}
       </div>`);
@@ -2234,8 +2363,8 @@ function buildPrintStage(kind='report',specificHtml=''){
   stage.innerHTML=pages.join('');
   return stage;
 }
-async function prepareNativePrint(kind='report',specificHtml='',includeMap=kind==='report'){
-  const stage=buildPrintStage(kind,specificHtml);
+async function prepareNativePrint(kind='report',specificHtml='',includeMap=kind==='report',printConfig=null){
+  const stage=buildPrintStage(kind,specificHtml,printConfig);
   if(includeMap){const mapImg=await buildPrintMapImage({data:printDataOverride||filtered});const slot=stage.querySelector('#printMapSlot');if(slot){if(mapImg)slot.innerHTML=`<img class="print-map" src="${mapImg}">`;else slot.innerHTML='<div style="height:225mm;display:grid;place-items:center;border:1px solid #dbe3ec;color:#64748b;font-size:10px">Não foi possível renderizar o mapa para impressão.</div>'}}
   document.body.classList.add('printing');stage.style.display='block';
   const cleanup=()=>{
@@ -2246,7 +2375,11 @@ async function prepareNativePrint(kind='report',specificHtml='',includeMap=kind=
   };
   window.addEventListener('afterprint',cleanup);setTimeout(()=>window.print(),120);
 }
-function exportPDF(){prepareNativePrint('report','',true);}
+async function exportPDF(){
+  const printConfig=await choosePrintRanking();
+  if(!printConfig)return;
+  await prepareNativePrint('report','',true,printConfig);
+}
 
 /* ============================================================
    RANKING FULL TAB
@@ -2383,6 +2516,8 @@ async function fetchServer(){
    WIRE
    ============================================================ */
 async function printCurrentModal(){
+  const printConfig=await choosePrintRanking();
+  if(!printConfig)return;
   const title=$('modalTitle').textContent||'Detalhes';
   if(!/Radar Centrobor/i.test(title)){
     printDataOverride=Array.isArray(window._modalPrintData)
@@ -2391,7 +2526,7 @@ async function printCurrentModal(){
   }else{
     printDataOverride=null;
   }
-  await prepareNativePrint('report','',true);
+  await prepareNativePrint('report','',true,printConfig);
 }
 
 function wire(){
