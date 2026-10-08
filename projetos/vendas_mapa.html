@@ -218,14 +218,21 @@ button{cursor:pointer}
 .analysis-modal .modalhead h2{font-size:16px}
 .analysis-modal .modal-layout{display:grid;grid-template-columns:minmax(420px,1.12fr) minmax(420px,.88fr);min-height:0;flex:1}
 .analysis-modal .context-map{min-width:0;min-height:0;position:relative;background:#e8f0fe}
-.analysis-modal .context-map>div{position:absolute;inset:0;width:100%;height:100%}
+/* FIX: só o container do mapa (com id) recebe position:absolute/inset */
+.analysis-modal .context-map>div[id]{position:absolute;inset:0;width:100%;height:100%}
 .analysis-modal .context-info{min-width:0;min-height:0;overflow:auto;padding:14px;background:#fff}
 .analysis-modal .context-toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:10px}
 .analysis-modal .crumb{border:1px solid #dbe5f4;background:#f8fbff;color:#174ea6;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:700}
 .analysis-modal .crumb.current{background:#e8f0fe}
 .analysis-modal .context-table{max-height:48vh;overflow:auto;border:1px solid #eef0f2;border-radius:10px}
 .analysis-modal .context-table .mini-table th{top:0}
-.analysis-modal .map-context-badge{position:absolute;left:12px;top:12px;z-index:500;background:#fff;border-radius:11px;padding:8px 10px;box-shadow:var(--shadow);font-size:10px}
+/* FIX: badge volta ao tamanho natural, não estica, e não bloqueia o mapa */
+.analysis-modal .map-context-badge{
+  position:absolute;left:12px;top:12px;right:auto;bottom:auto;
+  z-index:500;background:#fff;border-radius:11px;padding:8px 10px;
+  box-shadow:var(--shadow);font-size:10px;
+  max-width:calc(100% - 24px);pointer-events:none;
+}
 .analysis-modal .map-context-badge b{display:block;font-size:11px}
 .analysis-modal .map-context-badge span{display:block;color:#6b7280;margin-top:2px}
 .sync-badge{display:inline-flex;align-items:center;gap:5px;background:#ecfdf3;color:#166534;border-radius:999px;padding:4px 8px;font-size:9px;font-weight:800}
@@ -410,12 +417,20 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&
    ============================================================ */
 function normText(v){return String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim()}
 function num(v){if(v==null)return 0;if(typeof v==='number')return isFinite(v)?v:0;let s=String(v).trim().replace(/R\$\s?/g,'');if(s.includes(',')&&s.includes('.'))s=s.replace(/\./g,'').replace(',','.');else if(s.includes(','))s=s.replace(',','.');const n=Number(s.replace(/[^0-9.-]/g,''));return isFinite(n)?n:0}
+/* FIX: parser dedicado para coordenadas — string vazia vira NaN (não 0) */
+function numCoord(v){
+  if(v==null)return NaN;
+  const s=String(v).trim();
+  if(!s)return NaN;
+  const n=Number(s.replace(',','.').replace(/[^0-9.\-]/g,''));
+  return isFinite(n)?n:NaN;
+}
 function dt(v){if(!v)return null;if(v instanceof Date)return isNaN(v)?null:v;let s=String(v).trim(),m=s.match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);if(m){let y=+m[3];if(y<100)y+=2000;return new Date(y,+m[2]-1,+m[1])}let d=new Date(s);return isNaN(d)?null:d}
 function getUF(r){let u=String(r['UF']||r['Estado']||r['Estado UF']||'').trim().toUpperCase();if(stateNames[u])return u;let c=String(r['Cidade']||r['Município']||r['Municipio']||'').trim().toLowerCase();const mapc={'são paulo':'SP','guarulhos':'SP','itaquaquecetuba':'SP','campinas':'SP','mogi das cruzes':'SP','santo andré':'SP','rio de janeiro':'RJ','belo horizonte':'MG','curitiba':'PR','porto alegre':'RS','florianópolis':'SC','salvador':'BA','recife':'PE','fortaleza':'CE','goiânia':'GO','vitória':'ES','brasília':'DF'};return mapc[c]||''}
 function pick(r,names){let keys=Object.keys(r||{});for(const n of names){if(r[n]!=null&&String(r[n]).trim()!=='')return r[n];let k=keys.find(x=>normText(x)===normText(n));if(k&&r[k]!=null&&String(r[k]).trim()!=='')return r[k]}return ''}
 function extractCNPJ(r){const keys=Object.keys(r||{});const explicit=keys.filter(k=>/cnpj|cpf\s*\/\s*cnpj|documento|cpf\/cgc/i.test(k));for(const k of explicit){const d=String(r[k]??'').replace(/\D/g,'');if(d.length>=14)return d.slice(0,14)}for(const k of keys.filter(k=>/chave\s*acesso/i.test(k))){const d=String(r[k]??'').replace(/\D/g,'');if(d.length>=44)return d.slice(6,20)}for(const k of keys.filter(k=>/campo\s*chave/i.test(k))){const raw=String(r[k]??'');const exact=raw.match(/(?:^|\D)(\d{14})(?:\D|$)/);if(exact)return exact[1];const d=raw.replace(/\D/g,'');if(d.length===14)return d}return ''}
 function formatCNPJ(v){const d=String(v||'').replace(/\D/g,'');if(d.length!==14)return String(v||'');return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5')}
-function norm(r){let d=dt(pick(r,['Data','Data Venda','Data Faturamento']));return {raw:r,fields:Object.keys(r||{}),date:d,codigo:pick(r,['Código','Codigo']),descricao:pick(r,['Descrição','Produto','Descrição Produto','Item','Campo Chave']),marca:pick(r,['Marca']),grupo:pick(r,['Grupo']),notaFiscal:pick(r,['Nota Fiscal','NF']),nomeChave:pick(r,['Nome Chave','NomeChave']),empresa:pick(r,['Empresa','Cliente','Razão Social','Razao Social','Nome Chave']),cnpj:extractCNPJ(r),grupoEmpresa:pick(r,['Grupo Empresa','Grupo de Empresas','Grupo Cliente']),produtor:pick(r,['Produtor','Fabricante','Fornecedor','Linha','Produtor/Fabricante']),vendedor:pick(r,['Vendedor']),uf:getUF(r),cidade:pick(r,['Cidade','Município','Municipio']),bairro:pick(r,['Bairro','Bairro Cliente','bairro']),lat:num(pick(r,['Latitude','Lat','latitude'])),lng:num(pick(r,['Longitude','Lng','longitude'])),nf:pick(r,['Nota Fiscal','NF']),qtd:num(pick(r,['Quantidade','Qtd','Qtde'])),valor:num(pick(r,['Valor Mercadoria','Valor Total','Valor Faturado','Faturamento','Valor']))}}
+function norm(r){let d=dt(pick(r,['Data','Data Venda','Data Faturamento']));return {raw:r,fields:Object.keys(r||{}),date:d,codigo:pick(r,['Código','Codigo']),descricao:pick(r,['Descrição','Produto','Descrição Produto','Item','Campo Chave']),marca:pick(r,['Marca']),grupo:pick(r,['Grupo']),notaFiscal:pick(r,['Nota Fiscal','NF']),nomeChave:pick(r,['Nome Chave','NomeChave']),empresa:pick(r,['Empresa','Cliente','Razão Social','Razao Social','Nome Chave']),cnpj:extractCNPJ(r),grupoEmpresa:pick(r,['Grupo Empresa','Grupo de Empresas','Grupo Cliente']),produtor:pick(r,['Produtor','Fabricante','Fornecedor','Linha','Produtor/Fabricante']),vendedor:pick(r,['Vendedor']),uf:getUF(r),cidade:pick(r,['Cidade','Município','Municipio']),bairro:pick(r,['Bairro','Bairro Cliente','bairro']),lat:numCoord(pick(r,['Latitude','Lat','latitude'])),lng:numCoord(pick(r,['Longitude','Lng','longitude'])),nf:pick(r,['Nota Fiscal','NF']),qtd:num(pick(r,['Quantidade','Qtd','Qtde'])),valor:num(pick(r,['Valor Mercadoria','Valor Total','Valor Faturado','Faturamento','Valor']))}}
 
 /* ============================================================
    CLIENTES
@@ -676,7 +691,12 @@ function secondaryDimension(){
 /* ============================================================
    MAPA
    ============================================================ */
-function validCoord(lat,lng){return Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=-90&&lat<=90&&lng>=-180&&lng<=180}
+/* FIX: bloqueia (0,0) — que era o resultado de num('') quando não havia lat/lng */
+function validCoord(lat,lng){
+  if(!Number.isFinite(lat)||!Number.isFinite(lng))return false;
+  if(lat===0&&lng===0)return false;
+  return lat>=-90&&lat<=90&&lng>=-180&&lng<=180;
+}
 function palette(r){r=Math.max(0,Math.min(1,r));const s=[[0,[37,99,235]],[.2,[6,182,212]],[.42,[34,197,94]],[.62,[250,204,21]],[.8,[249,115,22]],[1,[220,38,38]]];for(let i=1;i<s.length;i++)if(r<=s[i][0]){let a=s[i-1],b=s[i],t=(r-a[0])/(b[0]-a[0]);return 'rgb('+a[1].map((v,j)=>Math.round(v+(b[1][j]-v)*t)).join(',')+')'}return 'rgb(220,38,38)'}
 
 function contextMapData(d){
@@ -710,9 +730,11 @@ function contextMapData(d){
     let lat,lng;
     if(o.coordN>0){lat=o.latSum/o.coordN;lng=o.lngSum/o.coordN;}
     else if(centers[o.uf]){
-      let h=0;for(let i=0;i<key.length;i++)h=(h*31+key.charCodeAt(i))|0;
+      /* FIX: hash unsigned + jitter confinado a ±0.275° do centro do estado */
+      let h=0;for(let i=0;i<key.length;i++)h=((h<<5)-h+key.charCodeAt(i))|0;
+      h=h>>>0;
       const j1=((h%1000)/1000)-0.5;
-      const j2=(((h>>8)%1000)/1000)-0.5;
+      const j2=((Math.floor(h/1000)%1000)/1000)-0.5;
       const spread=(o.kind==='estado')?0:0.55;
       lat=centers[o.uf][0]+j1*spread;
       lng=centers[o.uf][1]+j2*spread;
