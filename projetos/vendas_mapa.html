@@ -486,8 +486,21 @@ button{cursor:pointer}
 <div class="app-credit">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div><div class="actions"><button class="action" id="pdf"><i class="fa-solid fa-file-pdf"></i> PDF</button><button class="action" id="excel"><i class="fa-solid fa-file-excel"></i> Excel</button><button class="action primary" id="report"><i class="fa-solid fa-chart-column"></i> Relatório</button></div>
 </div>
 <div class="modal" id="modal"><div class="modalbox"><div class="modalhead"><h2 id="modalTitle">Detalhes</h2><div style="display:flex;gap:6px;align-items:center"><button class="round mini" id="modalPrint" title="Imprimir este conteúdo"><i class="fa-solid fa-print"></i></button><button class="close" id="modalClose"><i class="fa-solid fa-xmark"></i></button></div></div><div id="modalBody"></div></div></div>
-<div class="loading" id="loading"><div class="loading-world"><div class="loading-world-map"></div><div class="loading-glass"></div></div><div class="timebox"><div class="machine"><div class="orbit"></div><div class="orbit two"></div><div class="core"></div><div class="time-icon" id="timeIcon"><i class="fa-solid fa-fish-fins"></i></div><div class="era e1"><i class="fa-solid fa-fish-fins"></i> Paleozóico</div><div class="era e2"><i class="fa-solid fa-dragon"></i> Mesozoico</div><div class="era e3"><i class="fa-solid fa-landmark"></i> Antiguidade</div><div class="era e4"><i class="fa-solid fa-microchip"></i> Era digital</div></div><h2 id="loadTitle">Voltando no tempo</h2><p id="loadMsg">Consultando os registros comerciais…</p><div class="progress"><i id="loadBar"></i></div><div class="loadline"><span id="loadPct">0%</span> • <span id="loadDetail">Sincronizando com o servidor</span></div></div><div class="loading-credit">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div></div>
-<div id="printStage"></div><div class="toast" id="toast"></div>
+<div class="loading" id="loading">
+  <div class="loading-world">
+    <div class="loading-globe" aria-hidden="true"></div>
+    <div class="loading-night" aria-hidden="true"></div>
+    <div class="loading-vignette" aria-hidden="true"></div>
+  </div>
+  <div class="timebox">
+    <div class="time-icon" id="timeIcon"><i class="fa-solid fa-fish-fins"></i></div>
+    <h2 id="loadTitle">Voltando no tempo…</h2>
+    <p id="loadMsg">Consultando os registros comerciais…</p>
+    <div class="loadline"><span id="loadPct">0%</span> • <span id="loadDetail">Preparando a viagem</span></div>
+  </div>
+  <div class="loading-credit">Desenvolvido por Eduardo Mineiro para Rada Centrobor — Centrobor Centro Nacional de Distribuição de Borracha.</div>
+</div>
+<div class="toast" id="toast"></div>
 <script>
 /* ============================================================
    CONFIG
@@ -579,55 +592,59 @@ function findClientFast(x){
    ============================================================ */
 function toast(t){$('toast').textContent=t;$('toast').classList.add('show');clearTimeout(window._t);window._t=setTimeout(()=>$('toast').classList.remove('show'),3000)}
 const timeTravelSteps=[
-  {icon:'fa-fish-fins',msg:'Paleozóico: pescando registros antigos…',detail:'Ainda não encontramos o CNPJ do trilobita.'},
-  {icon:'fa-dragon',msg:'Mesozoico: atravessando camadas de dados…',detail:'O T-Rex pediu prioridade no ranking.'},
+  {icon:'fa-fish-fins',msg:'Paleozóico: pescando registros antigos…',detail:'Nem o trilobita escapou da busca.'},
+  {icon:'fa-dragon',msg:'Jurássico: procurando dados entre os dinossauros…',detail:'O T-Rex pediu para entrar no ranking.'},
   {icon:'fa-fire',msg:'Pré-história: acendendo a fogueira dos filtros…',detail:'Organizando fósseis comerciais.'},
-  {icon:'fa-landmark-dome',msg:'Antiguidade: erguendo as primeiras civilizações…',detail:'Pirâmides, cidades e clientes em formação.'},
+  {icon:'fa-landmark-dome',msg:'Antiguidade: levantando as primeiras civilizações…',detail:'Pirâmides, cidades e registros tomando forma.'},
   {icon:'fa-shield-halved',msg:'Idade Média: cruzando reinos e rotas…',detail:'Sem cavaleiros, mas com muitos registros.'},
-  {icon:'fa-compass',msg:'Grandes navegações: cruzando territórios…',detail:'Navegando entre estados, cidades e bairros.'},
+  {icon:'fa-sailboat',msg:'Grandes navegações: atravessando oceanos…',detail:'Cruzando estados, cidades e bairros.'},
   {icon:'fa-industry',msg:'Revolução Industrial: acelerando a consulta…',detail:'Separando produtos, volumes e faturamento.'},
   {icon:'fa-microchip',msg:'Era digital: indexando tudo…',detail:'CNPJs, NFs, vendedores e coordenadas.'},
-  {icon:'fa-location-dot',msg:'Quase lá: posicionando o radar…',detail:'Montando o retrato final da consulta.'}
+  {icon:'fa-location-dot',msg:'Quase lá: encontrando o presente…',detail:'Montando o retrato final da consulta.'}
 ];
 let loadingTimer=null,loadingStep=0;
 function updateDayNight(){
   const now=new Date(), utc=now.getUTCHours()+now.getUTCMinutes()/60;
   const sunLon=(12-utc)*15;
   const x=((sunLon+180)/360)*100;
-  const lat=23.44*Math.sin((now.getUTCMonth()/12)*Math.PI*2);
-  const y=50-lat*0.65;
   document.querySelector('.loading-world')?.style.setProperty('--sun-x',x+'%');
-  document.querySelector('.loading-world')?.style.setProperty('--sun-y',y+'%');
 }
 function animateTimeTravel(p=0){
-  if(!loadingTimer){loadingStep=Math.min(timeTravelSteps.length-1,Math.floor((p/100)*timeTravelSteps.length));}
-  const st=timeTravelSteps[Math.min(timeTravelSteps.length-1,loadingStep)];
+  const idx=Math.min(timeTravelSteps.length-1,Math.floor((Math.max(0,Math.min(100,p))/100)*timeTravelSteps.length));
+  const st=timeTravelSteps[Math.min(idx,timeTravelSteps.length-1)];
   const icon=$('timeIcon');
-  if(icon){icon.style.opacity='0';icon.style.transform='translate(-50%,-50%) scale(.72)';setTimeout(()=>{icon.innerHTML='<i class="fa-solid '+st.icon+'"></i>';icon.style.opacity='1';icon.style.transform='translate(-50%,-50%) scale(1)'},100)}
-  $('loadMsg').textContent=st.msg;
-  $('loadDetail').textContent=st.detail;
+  if(icon && st && icon.dataset.step!==String(idx)){
+    icon.dataset.step=String(idx);
+    icon.style.opacity='0'; icon.style.transform='translate(-50%,-50%) scale(.65) rotate(-12deg)';
+    setTimeout(()=>{
+      icon.innerHTML='<i class="fa-solid '+st.icon+'"></i>';
+      icon.style.opacity='1'; icon.style.transform='translate(-50%,-50%) scale(1) rotate(0deg)';
+    },120);
+  }
+  if(st){$('loadMsg').textContent=st.msg;$('loadDetail').textContent=st.detail;}
 }
-function showLoading(title='Consultando o servidor…'){
+function showLoading(){
   $('loading').classList.add('show');
-  $('loadTitle').textContent='Voltando no tempo';
   updateDayNight();
-  animateTimeTravel(0);
   clearInterval(loadingTimer);
   loadingStep=0;
-  loadingTimer=setInterval(()=>{loadingStep=(loadingStep+1)%timeTravelSteps.length;animateTimeTravel((loadingStep/(timeTravelSteps.length-1))*100)},850);
-  setProgress(0,timeTravelSteps[0].msg,timeTravelSteps[0].detail);
+  $('loadTitle').textContent='Voltando no tempo…';
+  $('loadPct').textContent='0%';
+  animateTimeTravel(0);
+  loadingTimer=setInterval(()=>{
+    loadingStep=(loadingStep+1)%timeTravelSteps.length;
+    animateTimeTravel((loadingStep/(timeTravelSteps.length-1))*100);
+  },850);
 }
 function setProgress(p,msg,detail){
-  $('loadBar').style.width=Math.max(0,Math.min(100,p))+'%';
-  $('loadPct').textContent=Math.round(p)+'%';
+  $('loadPct').textContent=Math.round(Math.max(0,Math.min(100,p)))+'%';
   if(msg)$('loadMsg').textContent=msg;
   if(detail)$('loadDetail').textContent=detail;
-  if(p>0)animateTimeTravel(p);
+  animateTimeTravel(p);
 }
 function hideLoading(){
   clearInterval(loadingTimer);loadingTimer=null;
-  setProgress(100,'Consulta concluída ✓','Dados comerciais prontos no radar.');
-  setTimeout(()=>$('loading').classList.remove('show'),220);
+  setTimeout(()=>{$('loading').classList.remove('show')},180);
 }
 
 /* ============================================================
@@ -1999,6 +2016,49 @@ function openFullStates(){
  .timebox h2{font-size:27px}
  .era{font-size:8px}
 }
+
+/* === Refinamento final: glass do popup + loading cinematográfico === */
+.modal.explore-overlay{
+  background:rgba(8,18,35,.16);
+  backdrop-filter:blur(5px) saturate(.9);
+}
+.modal.explore-overlay .modalbox{
+  background:rgba(255,255,255,.78);
+  backdrop-filter:blur(18px) saturate(1.12);
+  border:1px solid rgba(255,255,255,.82);
+  box-shadow:0 28px 90px rgba(5,18,38,.38),0 0 0 1px rgba(255,255,255,.28) inset;
+}
+.modal.explore-overlay .explore-info{background:rgba(255,255,255,.72);backdrop-filter:blur(16px)}
+.modal.explore-overlay .explore-navbar,.modal.explore-overlay .modalhead{background:rgba(255,255,255,.66);backdrop-filter:blur(18px)}
+.modal.explore-overlay .explore-map-pane{
+  background:rgba(220,235,249,.38);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.72),0 0 50px rgba(26,115,232,.08);
+}
+.modal.explore-overlay .explore-map-pane .leaflet-container{
+  filter:none!important;
+  box-shadow:0 0 0 2px rgba(255,255,255,.82),0 18px 55px rgba(15,23,42,.28);
+}
+.app.explore-active>.map{filter:blur(5px) saturate(.82) brightness(.72);transform:scale(1.015)}
+.app-credit{bottom:4px;font-size:8px;opacity:.55;background:rgba(255,255,255,.48);box-shadow:none;padding:3px 7px}
+
+.loading{background:#020712;isolation:isolate}
+.loading-world{position:absolute;inset:0;overflow:hidden;background:#020712}
+.loading-globe{position:absolute;width:118vmax;height:118vmax;left:50%;top:50%;transform:translate(-50%,-50%) rotateY(0deg);border-radius:50%;background-image:url('https://upload.wikimedia.org/wikipedia/commons/8/83/Equirectangular_projection_SW.jpg');background-size:cover;background-position:center;opacity:.72;filter:saturate(.72) contrast(1.08) brightness(.72);box-shadow:inset -18vmax 0 22vmax rgba(0,0,0,.58),inset 10vmax 0 18vmax rgba(255,225,150,.12),0 0 12vmax rgba(0,0,0,.6);animation:globeSpin 20s linear infinite}
+.loading-globe:before{content:"";position:absolute;inset:-2%;border-radius:50%;background:radial-gradient(circle at 62% 43%,rgba(255,239,188,.28),transparent 23%),radial-gradient(circle at 24% 60%,rgba(0,0,0,.72),transparent 49%),linear-gradient(90deg,rgba(0,0,0,.72),transparent 42%,rgba(255,224,145,.06) 63%,rgba(0,0,0,.72));mix-blend-mode:screen}
+.loading-night{position:absolute;inset:-5%;background:radial-gradient(ellipse 45% 100% at var(--sun-x,60%) 50%,transparent 0 32%,rgba(0,0,0,.42) 52%,rgba(0,0,0,.76) 75%,rgba(0,0,0,.9) 100%);pointer-events:none;mix-blend-mode:multiply}
+.loading-vignette{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 0 28%,rgba(0,5,15,.12) 55%,rgba(0,4,12,.82) 100%),linear-gradient(180deg,rgba(0,4,12,.3),rgba(0,4,12,.18) 45%,rgba(0,4,12,.6));pointer-events:none}
+.timebox{position:relative;z-index:4;width:min(920px,94vw);padding:0;background:transparent;border:0;box-shadow:none;backdrop-filter:none;text-align:center}
+.machine{display:none!important}
+.time-icon{position:relative;left:auto;top:auto;transform:none!important;width:86px;height:86px;margin:0 auto 18px;display:grid;place-items:center;font-size:42px;color:#fff;text-shadow:0 8px 30px rgba(0,0,0,.55);opacity:1!important}
+.time-icon i{animation:eraFloat 1.8s ease-in-out infinite}
+.timebox h2{font-size:clamp(42px,6vw,76px);font-weight:700;letter-spacing:-.055em;margin:0 0 12px;text-shadow:0 8px 35px rgba(0,0,0,.65)}
+.timebox p{font-size:clamp(15px,1.7vw,21px);color:rgba(255,255,255,.94);min-height:30px;margin:0;text-shadow:0 4px 18px rgba(0,0,0,.6)}
+.progress{display:none!important}
+.loadline{margin-top:14px;font-size:11px;color:rgba(255,255,255,.66);text-shadow:0 2px 10px #000}
+.loading-credit{bottom:8px;font-size:8px;color:rgba(255,255,255,.46);opacity:.7}
+@keyframes globeSpin{0%{transform:translate(-50%,-50%) rotateY(0deg) scale(1.04)}50%{transform:translate(-50%,-50%) rotateY(180deg) scale(1.08)}100%{transform:translate(-50%,-50%) rotateY(360deg) scale(1.04)}}
+@keyframes eraFloat{50%{transform:translateY(-7px) scale(1.08) rotate(2deg)}}
+@media(max-width:600px){.loading-globe{width:150vmax;height:150vmax}.timebox h2{font-size:42px}.time-icon{width:68px;height:68px;font-size:34px}.loading-credit{white-space:normal;text-align:center;width:90vw}}
 </style></head><body><header><h1>Estados — ${int(data.length)} registros</h1></header><div class="wrap"><table><thead><tr><th>#</th><th>Estado</th><th class="num">Faturamento</th><th class="num">Qtd.</th><th class="num">Lanç.</th><th class="num">Empresas</th><th class="num">Cidades</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></body></html>`;
   const blob=new Blob([html],{type:'text/html;charset=utf-8'});
   const url=URL.createObjectURL(blob);
