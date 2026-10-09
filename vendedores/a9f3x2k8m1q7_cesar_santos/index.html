@@ -720,14 +720,15 @@
             opensheet: "",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "mapa-vendas",
             nome: "Mapas",
             icon: "fas fa-map-marked-alt",
-            desktop: "https://centrobor.github.io/radarcentrobor/maps_cesar_santos.html",
-            mobile: "https://centrobor.github.io/radarcentrobor/maps_cesar_santos.html",
+            desktop: "https://centrobor.github.io/radarcentrobor/vendedores/a9f3x2k8m1q7_cesar_santos/maps_a9f3x2k8m1q7_cesar_santos.html",
+            mobile: "https://centrobor.github.io/radarcentrobor/vendedores/a9f3x2k8m1q7_cesar_santos/maps_a9f3x2k8m1q7_cesar_santos.html",
             opensheet: "",
             desktopVisible: true,
             mobileVisible: true,
@@ -752,7 +753,7 @@
 
         if (desktop) {
             desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
-                <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}">
+                <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
                     <div class="tool-icon"><i class="${item.icon}"></i></div>
                     <div class="tool-label">${item.nome}</div>
                 </a>
@@ -772,8 +773,19 @@
             if (!item || !item.mobile && !item.desktop) return;
             if (fecharMobile) closeHamburgerMenu();
             const destino = item.mobile || item.desktop;
-            if (item.novaGuia) window.open(destino, '_blank', 'noopener,noreferrer');
-            else window.location.href = destino;
+            if (item.novaGuia) {
+                // Abre diretamente a partir do clique do usuário para evitar bloqueio de pop-up.
+                const link = document.createElement('a');
+                link.href = destino;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+            } else {
+                window.location.href = destino;
+            }
         };
 
         MENU_ITENS.forEach(item => {
@@ -788,11 +800,11 @@
             desktop.querySelectorAll('.tool-card').forEach(card => {
                 card.addEventListener('click', (event) => {
                     const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
-                    if (item?.novaGuia) event.preventDefault();
-                    if (item?.desktop) {
-                        if (item.novaGuia) window.open(item.desktop, '_blank', 'noopener,noreferrer');
-                        else window.location.href = item.desktop;
+                    if (item?.novaGuia) {
+                        // O link já possui target="_blank"; deixa o navegador abrir a nova guia.
+                        return;
                     }
+                    if (item?.desktop) window.location.href = item.desktop;
                 });
             });
         }
