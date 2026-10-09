@@ -981,6 +981,25 @@
             width: 100%;
             text-align: left;
         }
+        .novidade-badge {
+            display: inline-flex;
+            align-items: center;
+            margin-left: auto;
+            padding: 3px 7px;
+            border-radius: 999px;
+            background: #e53935;
+            color: #fff;
+            font-size: 0.58rem;
+            font-weight: 800;
+            letter-spacing: 0.35px;
+            line-height: 1.2;
+            box-shadow: 0 2px 6px rgba(229, 57, 53, 0.22);
+            vertical-align: middle;
+            white-space: nowrap;
+        }
+        .tool-card .novidade-badge {
+            margin: 8px auto 0;
+        }
         .hamburger-menu .menu-item i {
             width: 22px;
             text-align: center;
@@ -1354,7 +1373,8 @@
             <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custos</button>
             <button class="menu-item" id="menu-analise"><i class="fas fa-ship"></i> Análise Custos</button>
             <button class="menu-item" id="menu-vendas"><i class="fas fa-tags"></i> Vendas</button>
-            <button class="menu-item" id="menu-calculadora-correias"><i class="fas fa-ruler-combined"></i> Calculadora Correias</button>
+            <a class="menu-item" id="menu-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><i class="fas fa-ruler-combined"></i> Calculadora Correias <span class="novidade-badge novidade-temporaria">NOVO</span></a>
+            <a class="menu-item" id="menu-mapas" href="https://centrobor.github.io/radarcentrobor/projetos/mapa_v1" target="_blank" rel="noopener noreferrer"><i class="fas fa-map-marked-alt"></i> Mapas <span class="novidade-badge novidade-temporaria">NOVO</span></a>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
@@ -1415,7 +1435,8 @@
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custos</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos"><div class="tool-icon"><i class="fas fa-ship"></i></div><div class="tool-label">Análise</div></a>
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas"><div class="tool-icon"><i class="fas fa-tags"></i></div><div class="tool-label">Vendas</div></a>
-            <a class="tool-card" id="tool-calculadora-correias" href="#"><div class="tool-icon"><i class="fas fa-ruler-combined"></i></div><div class="tool-label">Calculadora Correias</div></a>
+            <a class="tool-card" id="tool-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><div class="tool-icon"><i class="fas fa-ruler-combined"></i></div><div class="tool-label">Calculadora Correias</div><span class="novidade-badge novidade-temporaria">NOVO</span></a>
+            <a class="tool-card" id="tool-mapas" href="https://centrobor.github.io/radarcentrobor/projetos/mapa_v1" target="_blank" rel="noopener noreferrer"><div class="tool-icon"><i class="fas fa-map-marked-alt"></i></div><div class="tool-label">Mapas</div><span class="novidade-badge novidade-temporaria">NOVO</span></a>
         </div>
 
         <!-- FILTRO MENSAL + PDF -->
@@ -2022,6 +2043,16 @@
             setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length; updateCarrossel(); } }, 6000);
             document.getElementById('footer-year').textContent = new Date().getFullYear();
 
+            // Selo NOVO válido por dois meses a partir de 09/10/2026.
+            // O selo fica visível até 09/12/2026 e some em 10/12/2026.
+            const inicioNovidade = new Date(2026, 9, 9);
+            const fimNovidade = new Date(2026, 11, 10);
+            const hojeNovidade = new Date();
+            hojeNovidade.setHours(0, 0, 0, 0);
+            document.querySelectorAll('.novidade-temporaria').forEach(selo => {
+                selo.style.display = (hojeNovidade >= inicioNovidade && hojeNovidade < fimNovidade) ? 'inline-flex' : 'none';
+            });
+
             document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
             document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
             document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
@@ -2029,10 +2060,13 @@
             document.getElementById('menu-custos').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question'; });
             document.getElementById('menu-analise').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/vendedores/c5w8j1z4l9y2_fabiano/analise_de_custos'; });
             document.getElementById('menu-vendas').addEventListener('click', () => { closeHamburger(); window.location.href = 'https://centrobor.github.io/radarcentrobor/hpvx67_vendas/vendas'; });
-            document.getElementById('menu-calculadora-correias').addEventListener('click', () => { closeHamburger(); window.location.href = MENU_FERRAMENTAS.calculadoraCorreias.link; });
+            document.getElementById('menu-calculadora-correias').addEventListener('click', () => { closeHamburger(); });
+            document.getElementById('menu-mapas').addEventListener('click', () => { closeHamburger(); });
             const toolCalculadoraCorreias = document.getElementById('tool-calculadora-correias');
             if (toolCalculadoraCorreias) {
                 toolCalculadoraCorreias.href = MENU_FERRAMENTAS.calculadoraCorreias.link;
+                toolCalculadoraCorreias.target = '_blank';
+                toolCalculadoraCorreias.rel = 'noopener noreferrer';
                 toolCalculadoraCorreias.querySelector('i').className = MENU_FERRAMENTAS.calculadoraCorreias.icon;
                 toolCalculadoraCorreias.querySelector('.tool-label').textContent = MENU_FERRAMENTAS.calculadoraCorreias.nome;
             }
