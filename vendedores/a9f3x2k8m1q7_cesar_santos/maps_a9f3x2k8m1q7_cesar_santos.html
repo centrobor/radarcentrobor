@@ -859,16 +859,12 @@ button{cursor:pointer}
 @media(max-width:900px){.status{max-width:calc(100vw - 28px);}.dev-badge{max-width:40vw;}}
 @media(max-width:600px){.status{gap:5px;max-width:calc(100vw - 28px);}.dev-badge{font-size:7px;max-width:38vw;padding:3px 6px;}}
 
-/* === Edição individual do colaborador === */
+/* === Edição individual do colaborador: mantém todos os modos e ferramentas === */
 .brand span{font-size:10px}
 .topbar{gap:8px}
 .searchbox{min-width:260px;max-width:430px;flex:1}
-/* Remove análises gerenciais e opções desnecessárias nesta edição individual. */
-#analysisGrid .analysis:not([data-analysis="produto"]),
-#yearSelect,#allPeriod,.section:has(#rankingMode),.section:has(#mapMode),
-#excel,#report,#pdf{display:none!important}
-#analysisGrid{grid-template-columns:1fr}
-#analysisGrid .analysis[data-analysis="produto"]{display:block;text-align:center;font-weight:800;pointer-events:none}
+/* Todos os modos de análise, filtros, exportação e impressão permanecem disponíveis. */
+#analysisGrid{grid-template-columns:1fr 1fr}
 .side-head p{font-size:11px}
 .section{padding:10px 3px}
 .kpis{gap:8px}
@@ -1015,28 +1011,24 @@ button{cursor:pointer}
 </div>
 <div class="toast" id="toast"></div>
 <script>
-
-
-
 /* ============================================================
    CONFIG
    ============================================================ */
-// CONFIGURAÇÃO ÚNICA DO COLABORADOR: edite somente nome e código para cada cópia. O filtro no navegador não substitui autorização no servidor.
-======================================================================
+// ======================================================================
 // CONFIGURAÇÃO DO VENDEDOR DESTA CÓPIA — EDITE SOMENTE ESTA LINHA
-// Altere o nome e código, par ao sistema obter as credenciais de ID do usúario.
+// Para criar a página de outro vendedor, altere nome e código abaixo.
 // Exemplo atual: César Santos, código 55.
+// IMPORTANTE: o filtro no navegador organiza a visualização, mas não é
+// uma barreira de segurança; para sigilo real, restrinja os dados na API.
 // ======================================================================
 const COLABORADOR = { nome: 'César Santos', codigo: '55' };
 // ======================================================================
-
-
 const SHEET_URL='https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/faturados';
 const CLIENT_SHEET_URL='https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes';
 const stateNames={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 const centers={SP:[-23.55,-46.63],RJ:[-22.9,-43.2],MG:[-19.9,-44],PR:[-25.4,-49.3],SC:[-27.6,-48.5],RS:[-30,-51.2],BA:[-12.9,-38.5],PE:[-8.05,-34.9],CE:[-3.7,-38.5],GO:[-16.7,-49.25],ES:[-20.3,-40.3],DF:[-15.8,-47.9],MT:[-15.6,-56.1],MS:[-20.5,-54.6],PA:[-1.45,-48.5],AM:[-3.1,-60],MA:[-2.5,-44.3],PB:[-7.1,-34.9],RN:[-5.8,-35.2],AL:[-9.65,-35.7],SE:[-10.9,-37.1],PI:[-5.1,-42.8],RO:[-8.76,-63.9],AC:[-9.97,-67.8],AP:[0.03,-51.05],RR:[2.82,-60.67],TO:[-10.18,-48.33]};
 
-let map,markers,chart,raw=[],filtered=[],clients=[],analysis='produto',filters=[],currentPeriod='current',queryCache={},mapMode='auto',mapMetric='valor';
+let map,markers,chart,raw=[],filtered=[],clients=[],analysis='produto',filters=[],currentPeriod='all',queryCache={},mapMode='auto',mapMetric='valor';
 let sortState={ranking:{key:'valor',dir:-1},states:{key:'valor',dir:-1}};
 window._savedMapView={center:[-14.3,-52.8],zoom:4};
 const STORAGE_KEY='radarComercialIndividual_v1_'+String(COLABORADOR.codigo||COLABORADOR.nome).replace(/[^a-z0-9_-]/gi,'_');
@@ -2057,7 +2049,7 @@ function loadViewState(){
 }
 function clearSavedConsultation(){
   localStorage.removeItem(STORAGE_KEY);
-  analysis='produto';filters=[];currentPeriod='current';mapMode='auto';mapMetric='valor';
+  analysis='produto';filters=[];currentPeriod='all';mapMode='auto';mapMetric='valor';
   drillStack=[];
   contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:'',cnpj:'',grupoEmpresa:''};
   sortState={ranking:{key:'valor',dir:-1},states:{key:'valor',dir:-1}};
@@ -2066,7 +2058,7 @@ function clearSavedConsultation(){
   document.querySelectorAll('.analysis').forEach(b=>b.classList.toggle('active',b.dataset.analysis==='produto'));
   $('resultDock').classList.remove('hidden');$('side').classList.remove('closed');
   document.querySelectorAll('#side .section').forEach(sec=>{sec.classList.remove('section-collapsed');[...sec.children].filter(el=>!el.classList.contains('section-title')).forEach(el=>el.style.display='')});
-  setPeriod('current');
+  setPeriod('all');
   toast('Filtros e contexto resetados para o padrão.');
 }
 function enableCollapsibleSections(){
