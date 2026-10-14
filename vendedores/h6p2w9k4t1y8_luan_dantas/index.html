@@ -659,12 +659,24 @@
                     </select>
                 </div>
                 <div class="carteira-preferencia">
+                    <label for="carteira-filtro-status"><i class="fas fa-filter"></i> Situação</label>
+                    <select id="carteira-filtro-status" class="farol-select">
+                        <option value="todos">Todos os clientes</option>
+                        <option value="red">Somente inativos</option>
+                        <option value="yellow">Somente esfriando</option>
+                        <option value="green">Somente ativos</option>
+                    </select>
+                </div>
+                <div class="carteira-preferencia">
                     <label for="carteira-ordem"><i class="fas fa-sort-amount-down"></i> Ordenação</label>
                     <select id="carteira-ordem" class="farol-select">
                         <option value="ativos">Mais ativos primeiro</option>
                         <option value="inativos">Mais inativos primeiro</option>
+                        <option value="recentes">Interações mais recentes</option>
+                        <option value="antigos">Interações mais antigas</option>
                     </select>
                 </div>
+                <button class="farol-btn" id="btn-carteira-resetar"><i class="fas fa-rotate-left"></i> Resetar filtros</button>
                 <button class="farol-btn" id="btn-carteira-recolher"><i class="fas fa-compress-alt"></i> Recolher</button>
                 <button class="farol-btn" id="btn-carteira-expandir"><i class="fas fa-expand-alt"></i> Expandir</button>
             </div>
@@ -2109,7 +2121,7 @@
 
         const STORAGE_KEY = `radar_carteira_farol_expandido_${codVendedor}`;
         const VIEW_STORAGE_KEY = `radar_carteira_farol_preferencias_${codVendedor}`;
-        const DEFAULT_VIEW_PREFS = { modo: 'grupos', ordem: 'ativos' };
+        const DEFAULT_VIEW_PREFS = { modo: 'grupos', ordem: 'ativos', status: 'todos' };
 
         function carregarPreferenciasCarteira() {
             try {
@@ -2123,6 +2135,12 @@
         function ordenarClientes(clientes, ordem) {
             const peso = ordem === 'inativos' ? { red:0, yellow:1, green:2 } : { green:0, yellow:1, red:2 };
             return [...clientes].sort((a,b) => {
+                if (ordem === 'recentes' || ordem === 'antigos') {
+                    const da = a.ultimaInteracao ? (parseDataBR(a.ultimaInteracao)?.getTime() || new Date(a.ultimaInteracao).getTime() || 0) : 0;
+                    const db = b.ultimaInteracao ? (parseDataBR(b.ultimaInteracao)?.getTime() || new Date(b.ultimaInteracao).getTime() || 0) : 0;
+                    if (da !== db) return ordem === 'recentes' ? db - da : da - db;
+                    return a.nome.localeCompare(b.nome);
+                }
                 if (peso[a.status] !== peso[b.status]) return peso[a.status] - peso[b.status];
                 const da = a.dias === Infinity ? 1e9 : a.dias;
                 const db = b.dias === Infinity ? 1e9 : b.dias;
@@ -2133,6 +2151,12 @@
         function ordenarGrupos(grupos, ordem) {
             const peso = ordem === 'inativos' ? { red:0, yellow:1, green:2 } : { green:0, yellow:1, red:2 };
             return [...grupos].sort((a,b) => {
+                if (ordem === 'recentes' || ordem === 'antigos') {
+                    const da = a.ultimaInteracao ? (parseDataBR(a.ultimaInteracao)?.getTime() || new Date(a.ultimaInteracao).getTime() || 0) : 0;
+                    const db = b.ultimaInteracao ? (parseDataBR(b.ultimaInteracao)?.getTime() || new Date(b.ultimaInteracao).getTime() || 0) : 0;
+                    if (da !== db) return ordem === 'recentes' ? db - da : da - db;
+                    return a.chave.localeCompare(b.chave);
+                }
                 if (peso[a.status] !== peso[b.status]) return peso[a.status] - peso[b.status];
                 const da = a.dias === Infinity ? 1e9 : a.dias;
                 const db = b.dias === Infinity ? 1e9 : b.dias;
@@ -2164,8 +2188,11 @@
             const prefs = carregarPreferenciasCarteira();
             const modo = prefs.modo;
             const ordem = prefs.ordem;
-            const gruposOrdenados = ordenarGrupos(gruposCarteira, ordem);
-            const clientesOrdenados = ordenarClientes(clientesStatus, ordem);
+            const filtroStatus = prefs.status || 'todos';
+            const gruposFiltrados = gruposCarteira.filter(g => filtroStatus === 'todos' || g.clientes.some(c => c.status === filtroStatus));
+            const gruposOrdenados = ordenarGrupos(gruposFiltrados, ordem);
+            const clientesFiltrados = clientesStatus.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
+            const clientesOrdenados = ordenarClientes(clientesFiltrados, ordem);
 
             if (modo === 'filiais') {
                 container.innerHTML = `<div class="table-wrapper" style="margin:0;">
@@ -2204,7 +2231,8 @@
                     <span>🟡 ${g.contagem.yellow}</span>
                     <span>🔴 ${g.contagem.red}</span>`;
 
-                const clientesHtml = ordenarClientes(g.clientes, ordem).map((c, cidx) => {
+                const clientesDoGrupo = g.clientes.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
+                const clientesHtml = ordenarClientes(clientesDoGrupo, ordem).map((c, cidx) => {
                     const badge = `
                         <span class="farol-status-badge ${c.status}">
                             <i class="fas ${c.status === 'green' ? 'fa-check' : c.status === 'yellow' ? 'fa-clock' : 'fa-times'}"></i>
@@ -2321,9 +2349,12 @@
 
         const selModoCarteira = document.getElementById('carteira-modo-exibicao');
         const selOrdemCarteira = document.getElementById('carteira-ordem');
+        const selStatusCarteira = document.getElementById('carteira-filtro-status');
+        const btnResetarCarteira = document.getElementById('btn-carteira-resetar');
         const prefsIniciais = carregarPreferenciasCarteira();
         selModoCarteira.value = prefsIniciais.modo;
         selOrdemCarteira.value = prefsIniciais.ordem;
+        selStatusCarteira.value = prefsIniciais.status || 'todos';
         function atualizarPreferenciaCarteira(campo, valor) {
             const prefs = carregarPreferenciasCarteira();
             prefs[campo] = valor;
@@ -2332,6 +2363,15 @@
         }
         selModoCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('modo', e.target.value));
         selOrdemCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('ordem', e.target.value));
+        selStatusCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('status', e.target.value));
+        if (btnResetarCarteira) btnResetarCarteira.addEventListener('click', () => {
+            const padrao = { ...DEFAULT_VIEW_PREFS };
+            salvarPreferenciasCarteira(padrao);
+            selModoCarteira.value = padrao.modo;
+            selOrdemCarteira.value = padrao.ordem;
+            selStatusCarteira.value = padrao.status;
+            renderCarteiraFarol();
+        });
 
         window.abrirFichaCliente = function(nomeUpper, cnpj='', pedidoData=null, permitirBuscaAproximada=true) {
             const kpiModal = document.getElementById('kpi-detail-modal');
