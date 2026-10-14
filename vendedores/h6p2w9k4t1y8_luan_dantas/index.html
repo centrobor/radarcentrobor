@@ -396,6 +396,28 @@
             justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
         }
         .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        /* Estado de conexão: nunca bloqueia a página inteira */
+        #connection-status {
+            display:none; align-items:center; gap:10px; flex-wrap:wrap;
+            padding:10px 14px; margin:-8px 0 18px; border-radius:14px;
+            border:1px solid #f2d28b; background:#fff8e7; color:#795512;
+            font-size:.78rem; line-height:1.4;
+        }
+        #connection-status.visible { display:flex; }
+        #connection-status .status-icon { font-size:1rem; }
+        #connection-status button {
+            margin-left:auto; border:1px solid currentColor; border-radius:20px;
+            background:transparent; color:inherit; padding:5px 10px;
+            font:inherit; font-weight:700; cursor:pointer;
+        }
+        .section-sync-status {
+            display:inline-flex; align-items:center; gap:5px; margin-left:auto;
+            font-size:.65rem; font-weight:600; color:#9a6700;
+            background:#fff7df; border:1px solid #f1d58a; border-radius:20px;
+            padding:4px 8px; white-space:nowrap;
+        }
+        .section-sync-status.ok { color:#287443; background:#edf8ef; border-color:#c6e7cc; }
+        .section-sync-status i { font-size:.7rem; }
         .loading-spinner {
             width: 60px; height: 60px;
             border: 6px solid rgba(30,58,95,0.2); border-top: 6px solid var(--primary);
@@ -552,6 +574,12 @@
             <button class="icon-btn notification-bell" id="notification-bell" title="Notificações"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
             <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
         </div>
+    </div>
+
+    <div id="connection-status" role="status" aria-live="polite">
+        <i class="fas fa-cloud-arrow-down status-icon"></i>
+        <span id="connection-status-text">Algumas informações estão indisponíveis no momento.</span>
+        <button type="button" id="connection-retry">Tentar atualizar</button>
     </div>
 
     <div class="carousel-section" id="carousel-section">
@@ -916,7 +944,120 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    async function carregarJSON(url) { const r=await fetch(url); if(!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); }
+    // Cache por endpoint: dados válidos continuam disponíveis se o OpenSheet cair.
+    const CACHE_PREFIX = 'radar_cache_v2:';
+    const endpointsComFalha = new Set();
+    let retryTimer = null;
+    let retryEmAndamento = false;
+    let ultimoMesSolicitado = null;
+
+    function lerCacheEndpoint(url) {
+        try {
+            const raw = localStorage.getItem(CACHE_PREFIX + url);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed && Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed.data : null;
+        } catch (_) { return null; }
+    }
+
+    function salvarCacheEndpoint(url, data) {
+        try {
+            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
+        } catch (e) {
+            // Se o armazenamento estiver cheio, a página continua funcionando sem cache novo.
+            console.warn('Não foi possível atualizar o cache local:', e);
+        }
+    }
+
+    function atualizarAvisoConexao() {
+        const banner = document.getElementById('connection-status');
+        const texto = document.getElementById('connection-status-text');
+        if (!banner || !texto) return;
+        const falhas = endpointsComFalha.size;
+        banner.classList.toggle('visible', falhas > 0);
+        if (falhas > 0) {
+            texto.textContent = `Estamos com dificuldade para atualizar ${falhas} fonte(s) de dados. ${falhas ? 'A página continua disponível com os últimos dados salvos neste dispositivo; novas tentativas serão feitas automaticamente.' : ''}`;
+        }
+        atualizarIndicadoresSecoes();
+    }
+
+    function atualizarIndicadoresSecoes() {
+        const grupos = [
+            { id:'metas-panel', urls:[BASES.meta, BASES.metasGlobais] },
+            { id:'grafico-tops-panel', urls:[BASES.faturados, BASES.cotacoes] },
+            { id:'campanhas-especiais-panel', urls:[BASES.campanhas_especiais] },
+            { id:'tabela-aprovados', urls:[BASES.aprovados] },
+            { id:'tabela-faturados', urls:[BASES.faturados] },
+            { id:'tabela-aprovadosfaturados', urls:[BASES.aprovadosfaturados] },
+            { id:'tabela-cotacoes', urls:[BASES.cotacoes] },
+            { id:'carteira-detalhes', urls:[BASES.carteira] }
+        ];
+        grupos.forEach(g => {
+            const el = document.getElementById(g.id);
+            if (!el) return;
+            const falhou = g.urls.some(url => endpointsComFalha.has(url));
+            const statusId = `sync-status-${g.id}`;
+            let badge = document.getElementById(statusId);
+            if (falhou) {
+                if (!badge) {
+                    badge = document.createElement('span');
+                    badge.id = statusId;
+                    badge.className = 'section-sync-status';
+                    const heading = el.closest('.card-panel, .main-split, .table-wrapper')?.previousElementSibling;
+                    const alvo = el.closest('.card-panel')?.querySelector('.section-title') || (heading?.classList.contains('section-title') ? heading : null);
+                    if (alvo) { alvo.style.display = 'flex'; alvo.appendChild(badge); }
+                    else if (el.classList.contains('table-wrapper')) {
+                        // O título correspondente permanece visível; o aviso global informa o detalhe.
+                        el.style.outline = '1px dashed #e6bd5b';
+                    }
+                }
+                if (badge) badge.innerHTML = '<i class="fas fa-cloud-arrow-down"></i> Em atualização';
+            } else {
+                if (badge) badge.remove();
+                el.style.outline = '';
+            }
+        });
+    }
+
+    async function carregarJSON(url) {
+        try {
+            const r = await fetch(url, { cache: 'no-store' });
+            if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
+            const data = await r.json();
+            salvarCacheEndpoint(url, data);
+            endpointsComFalha.delete(url);
+            atualizarAvisoConexao();
+            return data;
+        } catch (e) {
+            console.warn('Fonte temporariamente indisponível:', url, e);
+            endpointsComFalha.add(url);
+            const cache = lerCacheEndpoint(url);
+            atualizarAvisoConexao();
+            if (cache !== null) return cache;
+            // Dados sem cache não devem derrubar a renderização inteira.
+            return [];
+        }
+    }
+
+    async function tentarAtualizarFontes() {
+        if (retryEmAndamento) return;
+        retryEmAndamento = true;
+        try {
+            const urls = [...endpointsComFalha];
+            await Promise.all(urls.map(url => carregarJSON(url)));
+            // Re-renderiza com o que foi atualizado e preserva o que ainda está em cache.
+            if (ultimoMesSolicitado) await renderAll(ultimoMesSolicitado);
+        } catch (e) {
+            console.warn('Atualização parcial concluída:', e);
+        } finally {
+            retryEmAndamento = false;
+            atualizarAvisoConexao();
+            if (endpointsComFalha.size) {
+                clearTimeout(retryTimer);
+                retryTimer = setTimeout(tentarAtualizarFontes, 30000);
+            }
+        }
+    }
 
     async function carregarInfoAtualizacao() {
         try {
@@ -2149,31 +2290,41 @@
         window.print();
     }
 
-    async function carregarDadosComRetry(selectedMonth, tentativas=0) {
-        mostrarLoading();
+    async function carregarDadosComRetry(selectedMonth) {
+        ultimoMesSolicitado = selectedMonth;
+        // A tela só bloqueia durante a primeira montagem visual, não durante novas tentativas.
+        const primeiraRenderizacao = !document.body.dataset.radarRendered;
+        if (primeiraRenderizacao) mostrarLoading();
         try {
             await renderAll(selectedMonth);
-            esconderLoading();
+            document.body.dataset.radarRendered = 'true';
         } catch(e) {
-            console.error(e);
-            if (tentativas<10) {
-                document.querySelector('.loading-text').textContent = `Erro. Tentando novamente em 3s... (${tentativas+1}/10)`;
-                setTimeout(() => carregarDadosComRetry(selectedMonth, tentativas+1), 3000);
-            } else {
-                loadingOverlay.innerHTML = '<div style="text-align:center;"><p>Falha ao carregar.</p><button onclick="location.reload()" style="margin-top:20px;padding:10px 20px;border-radius:20px;background:var(--primary);color:white;border:none;cursor:pointer;">Tentar novamente</button></div>';
+            console.error('Falha ao montar a interface:', e);
+            const banner = document.getElementById('connection-status');
+            const texto = document.getElementById('connection-status-text');
+            if (banner && texto) {
+                texto.textContent = 'Não foi possível montar parte da página. Os dados locais serão preservados e tentaremos novamente automaticamente.';
+                banner.classList.add('visible');
+            }
+        } finally {
+            esconderLoading();
+            atualizarAvisoConexao();
+            if (endpointsComFalha.size) {
+                clearTimeout(retryTimer);
+                retryTimer = setTimeout(tentarAtualizarFontes, 30000);
             }
         }
     }
 
     async function init() {
-        carregarInfoAtualizacao();
-        await carregarBanners();
-        await carregarNotificacoes();
-        atualizarBadgeNotificacoes();
+        // Essas fontes são auxiliares: falhas não impedem a abertura do dashboard.
+        Promise.allSettled([carregarInfoAtualizacao(), carregarBanners(), carregarNotificacoes()])
+            .then(() => atualizarBadgeNotificacoes());
         currentMonth = formatMonthKey(new Date());
         carregarDadosComRetry(currentMonth);
         renderCarrossel();
 
+        document.getElementById('connection-retry')?.addEventListener('click', tentarAtualizarFontes);
         document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
         document.getElementById('prev-btn').addEventListener('click', ()=>{ currentCarouselIndex=(currentCarouselIndex-1+BANNERS.length)%BANNERS.length; updateCarrossel(); });
         document.getElementById('next-btn').addEventListener('click', ()=>{ currentCarouselIndex=(currentCarouselIndex+1)%BANNERS.length; updateCarrossel(); });
