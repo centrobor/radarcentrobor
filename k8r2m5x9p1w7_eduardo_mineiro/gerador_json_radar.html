@@ -16,7 +16,7 @@
 .tabs{display:flex;gap:8px;padding:6px;background:#0b1425;border:1px solid var(--line);border-radius:14px;margin:0 0 18px;width:max-content;max-width:100%}
 .tab-btn{border:1px solid transparent;background:transparent;color:#a8b8d2;padding:11px 18px;border-radius:10px;font:700 13px Inter,sans-serif;cursor:pointer}
 .tab-btn.active{background:#1c3151;border-color:#345782;color:#fff;box-shadow:0 5px 18px #0002}
-.tab-pane[hidden]{display:none!important}.terminal-panel{padding:0;overflow:hidden}
+.tab-pane[hidden]{display:none!important}.terminal-panel{padding:0;overflow:hidden}.engine-config{display:none!important}
 .terminal-heading{padding:22px 22px 10px;display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
 .terminal-heading h2{margin-bottom:8px}.terminal-heading p{margin-bottom:0}
 .terminal-chip{font:700 10px ui-monospace,monospace;letter-spacing:.1em;color:#8fa7c9;border:1px solid #31415b;border-radius:999px;padding:7px 10px;white-space:nowrap}.terminal-chip span{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:7px;box-shadow:0 0 9px #39d6a0}
@@ -62,6 +62,12 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
   <header class="top"><div class="logo"><i class="fa-solid fa-boxes-stacked"></i></div><div><div class="eyebrow">Radar Centrobor · Ferramenta interna</div><h1>Gerador de JSON em lote</h1></div></header>
   <p class="intro">Ambiente de execução do Radar Centrobor. Consulte fontes, acompanhe validações e gere o pacote <strong>dados/</strong> por comandos — todas as operações, atualizações e falhas aparecem no terminal.</p>
 
+  <nav class="tabs" role="tablist" aria-label="Modo do gerador">
+    <button class="tab-btn" type="button" role="tab" data-tab="interface" aria-controls="pane-interface"><i class="fa-solid fa-sliders"></i> Interface</button>
+    <button class="tab-btn" type="button" role="tab" data-tab="terminal" aria-controls="pane-terminal"><i class="fa-solid fa-terminal"></i> Terminal</button>
+  </nav>
+
+  <section id="pane-terminal" class="tab-pane" role="tabpanel">
   <section class="panel terminal-panel terminal-app">
     <div class="terminal-heading">
       <div>
@@ -95,15 +101,26 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
     <div class="terminal-hint"><i class="fa-solid fa-circle-info"></i> O terminal registra consultas, progresso, validações, arquivos criados e erros. O download é local: após baixar, publique os JSONs manualmente na pasta <code>dados/</code> do repositório.</div>
   </section>
 
-  <!-- Configurações e seletores mantidos no DOM para o motor de geração; a operação diária é feita pelo terminal. -->
-  <section class="engine-config" aria-hidden="true">
-    <input id="sheetId" value="1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI">
-    <input id="baseUrl" value="https://opensheet.elk.sh">
-    <button id="startBtn" type="button">Gerar</button><button id="zipBtn" type="button" disabled>ZIP</button><button id="resetBtn" type="button">Limpar</button>
-    <div id="progressWrap"><div id="progress"></div></div><div id="summary"></div><div id="notice"></div>
-    <button id="selectAll" type="button">Selecionar todos</button><button id="selectNone" type="button">Desmarcar todos</button>
-    <div id="sourceList"></div>
-  </section>
+  </section><!-- /pane-terminal -->
+
+  <section id="pane-interface" class="tab-pane" role="tabpanel" hidden>
+    <section class="panel">
+      <h2><i class="fa-solid fa-sliders"></i> Configuração da fonte</h2>
+      <p>Configure a planilha e a base OpenSheet. A consulta e o download podem ser feitos pelos botões abaixo ou pelos comandos na aba Terminal.</p>
+      <div class="settings">
+        <div class="field"><label for="sheetId">ID da planilha Google</label><input id="sheetId" value="1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI" spellcheck="false"></div>
+        <div class="field"><label for="baseUrl">Base OpenSheet</label><input id="baseUrl" value="https://opensheet.elk.sh" spellcheck="false"></div>
+      </div>
+      <div class="actions"><button class="btn primary" id="startBtn" type="button"><i class="fa-solid fa-cloud-arrow-down"></i> Buscar dados selecionados</button><button class="btn" id="zipBtn" type="button" disabled><i class="fa-solid fa-file-zipper"></i> Baixar ZIP de JSONs</button><button class="btn subtle" id="resetBtn" type="button"><i class="fa-solid fa-rotate-left"></i> Limpar resultados</button></div>
+      <div class="progress-wrap" id="progressWrap"><div class="progress" id="progress"></div></div>
+      <div class="summary" id="summary"><span class="pill">Cadastro de usuários incluído</span><span class="pill">Formato: JSON UTF-8</span><span class="pill">Pasta no ZIP: dados/</span></div>
+      <div class="notice" id="notice" role="status"></div>
+    </section>
+    <section class="panel">
+      <div class="selection-head"><div><h2>Arquivos para gerar</h2><p style="margin:5px 0 0">A aba faturados será separada automaticamente em arquivos por código de vendedor; as demais fontes continuam compartilhadas.</p></div><div class="small-actions"><button id="selectAll" type="button">Selecionar todos</button><button id="selectNone" type="button">Desmarcar todos</button></div></div>
+      <div class="list" id="sourceList"></div>
+    </section>
+  </section><!-- /pane-interface -->
   <div class="footer">Radar Centrobor · Terminal de geração JSON · Execução no navegador</div>
 </main>
 <script>
@@ -307,6 +324,8 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
   document.getElementById('terminalForm').addEventListener('submit',async e=>{e.preventDefault();const input=document.getElementById('terminalInput');const value=input.value;input.value='';await executeCommand(value);});
   document.querySelectorAll('[data-command]').forEach(btn=>btn.addEventListener('click',()=>executeCommand(btn.dataset.command)));
   renderSources();updateSummary();
+  let initialTab='terminal';try{const saved=localStorage.getItem('radarGeradorJsonAba');if(saved==='interface'||saved==='terminal')initialTab=saved;}catch(e){}
+  switchTab(initialTab);
   terminalLine('[SISTEMA] Terminal inicializado. Fontes disponíveis: '+SOURCES.length+'.','term-muted');
   terminalLine('[INFO] Todas as fontes começam selecionadas. Digite "gerar" para iniciar.','term-muted');
 
