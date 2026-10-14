@@ -1532,8 +1532,13 @@ function contextMapData(d){
   for(const [key,o] of m.entries()){
     let lat,lng;
     if(o.coordN>0){lat=o.latSum/o.coordN;lng=o.lngSum/o.coordN;}
-    // Sem coordenadas reais da ficha, não desenhamos um ponto aproximado/falso.
-    out.push({key,label:o.label,kind:o.kind,lat,lng,o});
+    // Compatibilidade com o comportamento anterior: quando não há coordenadas do cadastro/venda,
+    // posiciona o agrupamento de forma aproximada no centro da UF para manter o mapa utilizável.
+    if(!validCoord(lat,lng)){
+      const centers={AC:[-9.97,-67.81],AL:[-9.65,-35.735],AP:[0.035,-51.07],AM:[-3.1,-60.02],BA:[-12.97,-38.51],CE:[-3.73,-38.52],DF:[-15.79,-47.88],ES:[-20.315,-40.312],GO:[-16.68,-49.25],MA:[-2.53,-44.30],MT:[-15.60,-56.10],MS:[-20.45,-54.62],MG:[-19.92,-43.94],PA:[-1.45,-48.50],PB:[-7.12,-34.86],PR:[-25.43,-49.27],PE:[-8.05,-34.90],PI:[-5.09,-42.80],RJ:[-22.91,-43.20],RN:[-5.79,-35.21],RS:[-30.03,-51.23],RO:[-8.76,-63.90],RR:[2.82,-60.67],SC:[-27.59,-48.55],SP:[-23.55,-46.63],SE:[-10.91,-37.07],TO:[-10.18,-48.33]};
+      const center=centers[o.uf]; if(center){lat=center[0];lng=center[1];}
+    }
+    out.push({key,label,kind,lat,lng,o});
   }
   return out;
 }
@@ -2617,10 +2622,10 @@ async function fetchServer(){
       for(let j=i;j<end;j++){
         const x=raw[j],c=findClientFast(x);
         if(!c)continue;
-        // Localização administrativa vem exclusivamente da ficha de cadastro do cliente.
-        x.cidade=c.cidade||''; x.bairro=c.bairro||''; x.uf=c.uf||'';
-        // Coordenadas da ficha têm prioridade; não inventar posição a partir do centro do estado.
-        x.lat=validCoord(c.lat,c.lng)?c.lat:NaN; x.lng=validCoord(c.lat,c.lng)?c.lng:NaN;
+        // Prioriza os dados do cadastro, mas preserva os dados da venda quando a ficha estiver incompleta.
+        x.cidade=c.cidade||x.cidade||''; x.bairro=c.bairro||x.bairro||''; x.uf=c.uf||x.uf||'';
+        // Usa coordenadas do cadastro; se não houver, mantém as coordenadas que vieram no faturamento.
+        if(validCoord(c.lat,c.lng)){x.lat=c.lat;x.lng=c.lng;} else if(!validCoord(x.lat,x.lng)){x.lat=NaN;x.lng=NaN;}
         if(!x.cnpj&&c.cnpj)x.cnpj=c.cnpj;
         x.endereco=c.endereco||'';x.numero=c.numero||'';x.complemento=c.complemento||'';x.cep=c.cep||'';x.representante=c.representante||'';x.situacao=c.situacao||'';x.clientMatch=c;
       }
