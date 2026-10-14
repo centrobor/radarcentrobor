@@ -17,7 +17,7 @@
 <body>
 <main class="wrap">
   <header class="top"><div class="logo"><i class="fa-solid fa-boxes-stacked"></i></div><div><div class="eyebrow">Radar Centrobor · Ferramenta interna</div><h1>Gerador de JSON em lote</h1></div></header>
-  <p class="intro">Busque as abas do Google Sheets pelo OpenSheet, valide os resultados e baixe um ZIP pronto para substituir os arquivos antigos da pasta <strong>dados/</strong> na raiz do repositório. O HTML não altera o GitHub automaticamente: você baixa o pacote e publica os JSONs manualmente.</p>
+  <p class="intro">Busque as abas do Google Sheets pelo OpenSheet, valide os resultados e baixe um ZIP pronto para substituir os arquivos da pasta <strong>dados/</strong> na raiz do repositório. O pacote agora inclui também <strong>cadastro.json</strong>, usado pela página de login. O HTML não altera o GitHub automaticamente: você baixa o pacote e publica os JSONs manualmente.</p>
 
   <section class="panel">
     <h2><i class="fa-solid fa-sliders"></i> Configuração da fonte</h2><p>O ID abaixo é o mesmo utilizado pelo dashboard atual. Você pode trocar o ID ou o nome de uma aba antes de iniciar.</p>
@@ -27,7 +27,7 @@
     </div>
     <div class="actions"><button class="btn primary" id="startBtn"><i class="fa-solid fa-cloud-arrow-down"></i> Buscar dados selecionados</button><button class="btn" id="zipBtn" disabled><i class="fa-solid fa-file-zipper"></i> Baixar ZIP de JSONs</button><button class="btn subtle" id="resetBtn"><i class="fa-solid fa-rotate-left"></i> Limpar resultados</button></div>
     <div class="progress-wrap" id="progressWrap"><div class="progress" id="progress"></div></div>
-    <div class="summary" id="summary"><span class="pill">18 saídas configuradas</span><span class="pill">Formato: JSON UTF-8</span><span class="pill">Pasta no ZIP: dados/</span></div>
+    <div class="summary" id="summary"><span class="pill">Cadastro de usuários incluído</span><span class="pill">Formato: JSON UTF-8</span><span class="pill">Pasta no ZIP: dados/</span></div>
     <div class="notice" id="notice" role="status"></div>
   </section>
 
@@ -55,7 +55,8 @@
     {file:'postagens.json', tab:'postagens', label:'Feed / notificações'},
     {file:'campanhas_especiais.json', tab:'campanhas_especiais', label:'Campanhas especiais'},
     {file:'informacoes.json', tab:'informacoes', label:'Informações gerais'},
-    {file:'meta_faturamento_consolidado_meses.json', tab:'meta_faturamento_consolidado_meses', label:'Faturamento consolidado por mês'}
+    {file:'meta_faturamento_consolidado_meses.json', tab:'meta_faturamento_consolidado_meses', label:'Faturamento consolidado por mês'},
+    {file:'cadastro.json', tab:'cadastro', label:'Cadastro de usuários para o login (OpenSheet → dados/cadastro.json)'}
   ];
   // O código é a chave de separação mais confiável. Os nomes abaixo definem os arquivos gerados.
   const SELLERS = [
@@ -92,6 +93,12 @@
       const raw=await response.text();
       let data;try{data=JSON.parse(raw)}catch{throw new Error('A resposta não é um JSON válido. Verifique se a aba existe e se o OpenSheet está disponível.')}
       if(!Array.isArray(data)) throw new Error('Formato inesperado: era esperada uma lista JSON (array).');
+      if(s.tab==='cadastro') {
+        data = data.filter(row => row && typeof row === 'object' && !Array.isArray(row) && Object.values(row).some(value => String(value ?? '').trim() !== ''));
+        if(!data.some(row => String(row.nome_usuario ?? '').trim() && String(row.senha ?? '').trim())) {
+          throw new Error('O cadastro não contém registros válidos com nome_usuario e senha. O arquivo antigo será preservado.');
+        }
+      }
       if(data.length===0) throw new Error('A aba retornou zero registros. Arquivo não será incluído para evitar substituir dados válidos por uma lista vazia.');
       const updatedAt=new Date().toISOString();
       if(s.splitBySeller){

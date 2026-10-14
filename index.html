@@ -862,7 +862,8 @@
     <script>
         (function() {
             const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
-            const CADASTRO_URL = `https://opensheet.elk.sh/${SHEET_ID}/cadastro`;
+            // Cadastro local: o gerenciador deve gerar/atualizar este arquivo em /dados/cadastro.json.
+            const CADASTRO_URL = new URL("dados/cadastro.json", window.location.href).toString();
             const POSTAGENS_URL = `https://opensheet.elk.sh/${SHEET_ID}/postagens`;
             const COMEMORAR_URL = `https://opensheet.elk.sh/${SHEET_ID}/comemorar`;
 
@@ -1220,11 +1221,12 @@
                 try {
                     let usuarios = [];
                     try {
-                        const resp = await fetch(CADASTRO_URL);
-                        if (!resp.ok) throw new Error('Falha');
+                        const resp = await fetch(CADASTRO_URL, { cache: 'no-cache' });
+                        if (!resp.ok) throw new Error('Arquivo de cadastro indisponível');
                         usuarios = await resp.json();
+                        if (!Array.isArray(usuarios)) throw new Error('Formato de cadastro inválido');
                     } catch (e) { throw new Error(
-                            'Serviço indisponível. Aguarde uns instantes e atualize a página.'); }
+                            'Não foi possível carregar dados/cadastro.json. Verifique se o gerenciador já publicou o arquivo e tente novamente.'); }
                     const usuarioEncontrado = usuarios.find(x => {
                         const n = (x.nome_usuario || '').trim().toLowerCase() === u.toLowerCase();
                         const e = (x.email || '').trim().toLowerCase() === u.toLowerCase();
