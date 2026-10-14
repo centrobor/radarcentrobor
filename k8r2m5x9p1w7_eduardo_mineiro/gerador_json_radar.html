@@ -17,7 +17,7 @@
 <body>
 <main class="wrap">
   <header class="top"><div class="logo"><i class="fa-solid fa-boxes-stacked"></i></div><div><div class="eyebrow">Radar Centrobor · Ferramenta interna</div><h1>Gerador de JSON em lote</h1></div></header>
-  <p class="intro">Busque as abas do Google Sheets pelo OpenSheet, valide os resultados e baixe um ZIP pronto para substituir os arquivos da pasta <strong>dados/</strong> na raiz do repositório. O pacote agora inclui também <strong>cadastro.json</strong>, usado pela página de login. O HTML não altera o GitHub automaticamente: você baixa o pacote e publica os JSONs manualmente.</p>
+  <p class="intro">Busque as abas do Google Sheets pelo OpenSheet, valide os resultados e baixe um ZIP pronto para substituir os arquivos da pasta <strong>dados/</strong> na raiz do repositório. O pacote inclui também <strong>cadastro.json</strong> para login e <strong>atalhos.json</strong> para os links personalizados dos vendedores. O HTML não altera o GitHub automaticamente: você baixa o pacote e publica os JSONs manualmente.</p>
 
   <section class="panel">
     <h2><i class="fa-solid fa-sliders"></i> Configuração da fonte</h2><p>O ID abaixo é o mesmo utilizado pelo dashboard atual. Você pode trocar o ID ou o nome de uma aba antes de iniciar.</p>
@@ -56,7 +56,8 @@
     {file:'campanhas_especiais.json', tab:'campanhas_especiais', label:'Campanhas especiais'},
     {file:'informacoes.json', tab:'informacoes', label:'Informações gerais'},
     {file:'meta_faturamento_consolidado_meses.json', tab:'meta_faturamento_consolidado_meses', label:'Faturamento consolidado por mês'},
-    {file:'cadastro.json', tab:'cadastro', label:'Cadastro de usuários para o login (OpenSheet → dados/cadastro.json)'}
+    {file:'cadastro.json', tab:'cadastro', label:'Cadastro de usuários para o login (OpenSheet → dados/cadastro.json)'},
+    {file:'atalhos.json', tab:'atalhos', label:'Atalhos personalizados do menu por vendedor (ícone Font Awesome ou URL de imagem)'}
   ];
   // O código é a chave de separação mais confiável. Os nomes abaixo definem os arquivos gerados.
   const SELLERS = [
@@ -98,6 +99,12 @@
         if(!data.some(row => String(row.nome_usuario ?? '').trim() && String(row.senha ?? '').trim())) {
           throw new Error('O cadastro não contém registros válidos com nome_usuario e senha. O arquivo antigo será preservado.');
         }
+      }
+      if(s.tab==='atalhos') {
+        data = data.filter(row => row && typeof row === 'object' && !Array.isArray(row) && Object.values(row).some(value => String(value ?? '').trim() !== ''));
+        const validRows = data.filter(row => String(row.nome_vendedor ?? '').trim() && String(row.codigo_vendedor ?? '').trim() && /^https?:\/\//i.test(String(row.link ?? '').trim()) && String(row.icon ?? '').trim());
+        if(!validRows.length) throw new Error('A aba atalhos não contém registros válidos. Cada linha precisa de nome_vendedor, codigo_vendedor, link HTTP/HTTPS e icon. O arquivo antigo será preservado.');
+        if(validRows.length !== data.length) console.warn(`A aba atalhos tem ${data.length-validRows.length} linha(s) incompleta(s); elas serão mantidas no JSON para permitir edição, mas confira os campos obrigatórios.`);
       }
       if(data.length===0) throw new Error('A aba retornou zero registros. Arquivo não será incluído para evitar substituir dados válidos por uma lista vazia.');
       const updatedAt=new Date().toISOString();
@@ -148,7 +155,7 @@
     try{
       const zip=new JSZip();const folder=zip.folder('dados');
       valid.forEach(([i,r])=>r.files.forEach(f=>folder.file(f.file,f.json)));
-      const manifest={projeto:'Radar Centrobor',gerado_em:new Date().toISOString(),planilha_id:document.getElementById('sheetId').value.trim(),fonte:'OpenSheet',observacao:'Somente arquivos consultados com sucesso e validados foram incluídos. A aba faturados é separada por código de vendedor. Arquivos com falha ou resposta vazia foram omitidos para proteger versões anteriores.',arquivos:valid.flatMap(([i,r])=>r.files.map(f=>({arquivo:f.file,aba:SOURCES[i].tab,registros:f.rows,url:r.url,gerado_em:r.updatedAt,...(f.seller?{vendedor:f.seller,codigo_vendedor:f.code,coluna_codigo:r.codeKey}:{})}))) };
+      const manifest={projeto:'Radar Centrobor',gerado_em:new Date().toISOString(),planilha_id:document.getElementById('sheetId').value.trim(),fonte:'OpenSheet',observacao:'Somente arquivos consultados com sucesso e validados foram incluídos. A aba faturados é separada por código de vendedor. A aba atalhos é exportada como dados/atalhos.json. Arquivos com falha ou resposta vazia foram omitidos para proteger versões anteriores.',arquivos:valid.flatMap(([i,r])=>r.files.map(f=>({arquivo:f.file,aba:SOURCES[i].tab,registros:f.rows,url:r.url,gerado_em:r.updatedAt,...(f.seller?{vendedor:f.seller,codigo_vendedor:f.code,coluna_codigo:r.codeKey}:{})}))) };
       folder.file('_manifest.json',JSON.stringify(manifest,null,2)+'\n');
       const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
       const link=document.createElement('a');const objectUrl=URL.createObjectURL(blob);link.href=objectUrl;link.download=`radarcentrobor_dados_${new Date().toISOString().slice(0,10)}.zip`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);

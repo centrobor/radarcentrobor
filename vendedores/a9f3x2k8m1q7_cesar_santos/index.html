@@ -732,6 +732,8 @@
     const NOME_EXIBICAO = "César Santos";
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
 
+    let ATALHOS_DINAMICOS = [];
+
     const MENU_ITENS = [
         {
             id: "dashboard",
@@ -793,33 +795,85 @@
     ];
     // ===========================================================================
 
+    async function carregarAtalhosPersonalizados() {
+        try {
+            const registros = await carregarJSON(BASES.atalhos);
+            const normalizar = valor => removeAcentos(String(valor || '').trim().toLowerCase());
+            const nomeConfig = normalizar(NOME_EXIBICAO);
+            const codigoConfig = String(COD_VENDEDOR).trim();
+            ATALHOS_DINAMICOS = (Array.isArray(registros) ? registros : [])
+                .filter(item => String(item.codigo_vendedor || '').trim() === codigoConfig && normalizar(item.nome_vendedor) === nomeConfig)
+                .map((item, indice) => {
+                    let url;
+                    try { url = new URL(String(item.link || '').trim()); } catch (_) { return null; }
+                    if (!['https:', 'http:'].includes(url.protocol)) return null;
+                    const icon = String(item.icon || 'fas fa-link').trim();
+                    // O campo icon aceita classes Font Awesome ou URL direta de imagem.
+                    let iconImagem = '';
+                    try {
+                        const iconUrl = new URL(icon);
+                        if (iconUrl.protocol === 'https:' || iconUrl.protocol === 'http:') iconImagem = iconUrl.href;
+                    } catch (_) {}
+                    const iconSeguro = /^[a-zA-Z0-9 _-]{1,100}$/.test(icon) ? icon : 'fas fa-link';
+                    const nome = String(item.nome_atalho || item.nome || item.titulo || 'Atalho externo').trim().slice(0, 70);
+                    return {
+                        id: `atalho-externo-${indice}`,
+                        nome: nome || 'Atalho externo',
+                        icon: iconImagem ? 'fas fa-link' : iconSeguro,
+                        iconImagem,
+                        desktop: url.href,
+                        mobile: url.href,
+                        desktopVisible: true,
+                        mobileVisible: true,
+                        bottom: false,
+                        novaGuia: true,
+                        externo: true
+                    };
+                })
+                .filter(Boolean);
+        } catch (e) {
+            console.warn('Não foi possível carregar os atalhos personalizados:', e);
+            ATALHOS_DINAMICOS = [];
+        }
+    }
+
     function renderizarMenus() {
+        const iconeHTML = (item) => {
+            if (item.iconImagem) {
+                const src = String(item.iconImagem).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const alt = String(item.nome || 'Atalho').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<img src="${src}" alt="${alt}" loading="lazy" style="width:1.35em;height:1.35em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"><i class="fas fa-link" style="display:none"></i>`;
+            }
+            const cls = /^[a-zA-Z0-9 _-]{1,100}$/.test(String(item.icon || '')) ? item.icon : 'fas fa-link';
+            return `<i class="${cls}"></i>`;
+        };
         const mobile = document.getElementById('dynamic-mobile-menu');
         const desktop = document.getElementById('desktop-tools-menu');
         const bottom = document.getElementById('dynamic-bottom-menu');
+        const todosItensMenu = [...MENU_ITENS, ...ATALHOS_DINAMICOS];
 
         if (mobile) {
-            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
+            mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         if (desktop) {
-            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
+            desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    <div class="tool-icon"><i class="${item.icon}"></i></div>
+                    <div class="tool-icon">${iconeHTML(item)}</div>
                     <div class="tool-label">${item.nome}</div>
                 </a>
             `).join('');
         }
 
         if (bottom) {
-            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
+            const bottomItems = todosItensMenu.filter(item => item.bottom && item.mobileVisible !== false);
             bottom.innerHTML = bottomItems.map(item => `
                 <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
@@ -843,7 +897,7 @@
             }
         };
 
-        MENU_ITENS.forEach(item => {
+        todosItensMenu.forEach(item => {
             const mobileBtn = document.getElementById(`menu-${item.id}`);
             if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
 
@@ -925,7 +979,8 @@
         banners: BASE_DADOS + 'banners.json',
         postagens: BASE_DADOS + 'postagens.json',
         campanhas_especiais: BASE_DADOS + 'campanhas_especiais.json',
-        informacoes: BASE_DADOS + 'informacoes.json'
+        informacoes: BASE_DADOS + 'informacoes.json',
+        atalhos: BASE_DADOS + 'atalhos.json'
     };
 
     let codVendedor = COD_VENDEDOR;
@@ -2561,6 +2616,7 @@
         document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
         document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
         renderizarMenus();
+        carregarAtalhosPersonalizados().then(() => renderizarMenus());
         document.getElementById('menu-notifications-side').addEventListener('click', ()=>{ closeHamburger(); abrirModalNotificacoes(); });
         document.getElementById('menu-logout').addEventListener('click', ()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
         document.getElementById('bb-alertas').addEventListener('click', abrirModalNotificacoes);
