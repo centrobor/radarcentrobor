@@ -909,6 +909,16 @@
         metasGlobais: BASE_DADOS + 'metas.json',
         aprovados: BASE_DADOS + 'aprovados.json',
         faturados: BASE_DADOS + 'faturados_luan.json',
+        // Fontes individuais usadas exclusivamente para calcular o KPI global da equipe.
+        faturadosTime: [
+            BASE_DADOS + 'faturados_fabio.json',
+            BASE_DADOS + 'faturados_matheus.json',
+            BASE_DADOS + 'faturados_lorena.json',
+            BASE_DADOS + 'faturados_cesar.json',
+            BASE_DADOS + 'faturados_juliana.json',
+            BASE_DADOS + 'faturados_valeria.json',
+            BASE_DADOS + 'faturados_luan.json'
+        ],
         aprovadosfaturados: BASE_DADOS + 'aprovadosfaturados.json',
         carteira: BASE_DADOS + 'carteiraclientes.json',
         cotacoes: BASE_DADOS + 'cotacoes.json',
@@ -1530,11 +1540,15 @@
     }
 
     async function renderAll(selectedMonth) {
-        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = await Promise.all([
+        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw, faturadosTimePorVendedor] = await Promise.all([
             carregarJSON(BASES.meta), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.aprovados),
             carregarJSON(BASES.faturados), carregarJSON(BASES.aprovadosfaturados),
-            carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes)
+            carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes),
+            Promise.all(BASES.faturadosTime.map(url => carregarJSON(url)))
         ]);
+        // O KPI Meta do Time soma os faturamentos de todos os vendedores cadastrados,
+        // enquanto os demais KPIs e tabelas do vendedor continuam usando apenas seu JSON individual.
+        const fatTimeRaw = faturadosTimePorVendedor.flat();
 
         const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
         const meta = metaArr.length>0 ? metaArr[0] : {};
@@ -1578,7 +1592,7 @@
         const aprovFat = filterByMonth(aprovFatFull, 'Data');
 
         const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-        const totalFaturadoTime = fatRaw.reduce((acc, item) => {
+        const totalFaturadoTime = fatTimeRaw.reduce((acc, item) => {
             const d = parseDataBR(item['Data']);
             if (!d) return acc;
             if (selectedMonth && formatMonthKey(d)!==selectedMonth) return acc;
