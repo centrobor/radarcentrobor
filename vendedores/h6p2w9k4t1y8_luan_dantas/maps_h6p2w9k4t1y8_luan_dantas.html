@@ -892,7 +892,7 @@ button{cursor:pointer}
 <div class="topbar">
   <div class="searchbox"><i class="fa-solid fa-magnifying-glass"></i><input id="globalSearch" placeholder="Pesquisar meus produtos ou clientes…"><button class="round" id="clearSearch" title="Limpar" style="box-shadow:none;width:30px;height:30px"><i class="fa-solid fa-xmark"></i></button></div>
   <div class="brand"><div class="logo"><i class="fa-solid fa-location-crosshairs"></i></div><div><b>Radar Centrobor</b><span>Meu mapa de vendas</span></div></div>
-  <div class="top-actions"><button class="round" id="configMap" title="Configurar fonte de dados e vendedor"><i class="fa-solid fa-gear"></i></button><button class="round" id="locate" title="Centralizar Brasil"><i class="fa-solid fa-crosshairs"></i></button><button class="round" id="refresh" title="Consultar servidor"><i class="fa-solid fa-rotate"></i></button></div>
+  <div class="top-actions"><button class="round" id="locate" title="Centralizar Brasil"><i class="fa-solid fa-crosshairs"></i></button><button class="round" id="refresh" title="Consultar servidor"><i class="fa-solid fa-rotate"></i></button></div>
 </div>
 <button class="mobile-fab" id="mobileToggle"><i class="fa-solid fa-sliders"></i></button>
 <aside class="side" id="side">
@@ -1024,25 +1024,14 @@ button{cursor:pointer}
 // IMPORTANTE: para esta ferramenta o filtro no navegador organiza a visualização dedicada, mas não é
 // uma barreira de segurança; restrinja os dados na API.
 // ======================================================================
-const DEFAULT_CONFIG = { nome: 'Luan Dantas', codigo: '61', jsonName: 'faturados_luan' };
-let MAP_CONFIG = (()=>{
-  try {
-    const saved=JSON.parse(localStorage.getItem('radarMapaConfigLuan_v1')||'{}');
-    // Compatibilidade com configurações antigas que guardavam a URL inteira.
-    if(!saved.jsonName && saved.jsonUrl){ saved.jsonName=saved.jsonUrl.split('/').pop().replace(/\.json(?:\?.*)?$/i,''); }
-    return {...DEFAULT_CONFIG,...saved};
-  } catch(e) { return {...DEFAULT_CONFIG}; }
-})();
-function getSalesJsonUrl(){
-  const file=String(MAP_CONFIG.jsonName||'').trim().replace(/\.json$/i,'');
-  return 'https://centrobor.github.io/radarcentrobor/dados/'+encodeURIComponent(file)+'.json';
-}
-const COLABORADOR = MAP_CONFIG;
+const COLABORADOR = { nome: 'Luan Dantas', codigo: '61' };
 // ======================================================================
 
 
 
-const SHEET_URL=getSalesJsonUrl();
+const JSON_FILE='faturados_luan'; // Informe somente o nome do arquivo dentro de /dados, sem .json
+const DATA_BASE_URL='https://centrobor.github.io/radarcentrobor/dados/';
+const SHEET_URL=DATA_BASE_URL+encodeURIComponent(JSON_FILE)+'.json';
 const CLIENT_SHEET_URL='https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes';
 const stateNames={AC:'Acre',AL:'Alagoas',AP:'Amapá',AM:'Amazonas',BA:'Bahia',CE:'Ceará',DF:'Distrito Federal',ES:'Espírito Santo',GO:'Goiás',MA:'Maranhão',MT:'Mato Grosso',MS:'Mato Grosso do Sul',MG:'Minas Gerais',PA:'Pará',PB:'Paraíba',PR:'Paraná',PE:'Pernambuco',PI:'Piauí',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',RS:'Rio Grande do Sul',RO:'Rondônia',RR:'Roraima',SC:'Santa Catarina',SP:'São Paulo',SE:'Sergipe',TO:'Tocantins'};
 const centers={SP:[-23.55,-46.63],RJ:[-22.9,-43.2],MG:[-19.9,-44],PR:[-25.4,-49.3],SC:[-27.6,-48.5],RS:[-30,-51.2],BA:[-12.9,-38.5],PE:[-8.05,-34.9],CE:[-3.7,-38.5],GO:[-16.7,-49.25],ES:[-20.3,-40.3],DF:[-15.8,-47.9],MT:[-15.6,-56.1],MS:[-20.5,-54.6],PA:[-1.45,-48.5],AM:[-3.1,-60],MA:[-2.5,-44.3],PB:[-7.1,-34.9],RN:[-5.8,-35.2],AL:[-9.65,-35.7],SE:[-10.9,-37.1],PI:[-5.1,-42.8],RO:[-8.76,-63.9],AC:[-9.97,-67.8],AP:[0.03,-51.05],RR:[2.82,-60.67],TO:[-10.18,-48.33]};
@@ -1101,7 +1090,7 @@ function normClient(c){
   for(let i=0;i<keys.length;i++){const k=keys[i];idx.set(normText(k),k)}
   const val=names=>{for(let i=0;i<names.length;i++){const k=idx.get(normText(names[i]));if(k&&String(c[k]??'').trim())return String(c[k]).trim()}return ''};
   const rua=val(['Endereço','Endereco']), numero=val(['Número','Numero']), complemento=val(['Complemento']);
-  return {raw:c,fields:keys,lat:numCoord(val(['Latitude','Lat','Coordenada Latitude'])),lng:numCoord(val(['Longitude','Lng','Coordenada Longitude'])),codigo:val(['Código','Codigo']),nomeChave:val(['Nome Chave','NomeChave']),razao:val(['Nome/Razão Social','Razão Social','Razao Social','Nome']),cnpj:val(['CPF/CGC','CPF/CNPJ','CNPJ','Documento']).replace(/\D/g,''),cidade:val(['Cidade','Município','Municipio']),uf:val(['UF','Estado']).toUpperCase(),bairro:val(['Bairro']),endereco:rua,numero,complemento,cep:val(['CEP']),representante:val(['Representante']),situacao:val(['ATivo/Inativo','Ativo/Inativo','Situação','Situacao'])};
+  return {raw:c,fields:keys,codigo:val(['Código','Codigo']),nomeChave:val(['Nome Chave','NomeChave']),razao:val(['Nome/Razão Social','Razão Social','Razao Social','Nome']),cnpj:val(['CPF/CGC','CPF/CNPJ','CNPJ','Documento']).replace(/\D/g,''),cidade:val(['Cidade','Município','Municipio']),uf:val(['UF','Estado']).toUpperCase(),bairro:val(['Bairro']),endereco:rua,numero,complemento,cep:val(['CEP']),representante:val(['Representante']),situacao:val(['ATivo/Inativo','Ativo/Inativo','Situação','Situacao'])};
 }
 function findClients(nameOrRecord,saleRecord){if(!clients.length)return [];let x;if(typeof nameOrRecord==='string'){x={empresa:nameOrRecord,nomeChave:nameOrRecord,cnpj:'',codigo:'',cidade:'',uf:''};if(saleRecord)x=Object.assign({},saleRecord,x)}else{x=nameOrRecord||{}}const xc=String(x.cnpj||'').replace(/\D/g,'');const code=normText(x.codigo);const name=normText(x.empresa||x.nomeChave||'');const city=normText(x.cidade);const uf=normText(x.uf);let hits=clients.filter(c=>{if(xc&&c.cnpj&&c.cnpj===xc)return true;if(code&&c.codigo&&normText(c.codigo)===code)return true;if(name&&c.nomeChave&&normText(c.nomeChave)===name)return true;if(name&&c.razao&&normText(c.razao)===name)return true;return false});if(!hits.length&&name){hits=clients.filter(c=>{const nk=normText(c.nomeChave),rz=normText(c.razao);const matchName=(nk&&nk.includes(name))||(rz&&rz.includes(name));const matchCity=!city||normText(c.cidade)===city;const matchUF=!uf||normText(c.uf)===uf;return matchName&&matchCity&&matchUF})}return hits.slice(0,20)}
 
@@ -1532,13 +1521,17 @@ function contextMapData(d){
   for(const [key,o] of m.entries()){
     let lat,lng;
     if(o.coordN>0){lat=o.latSum/o.coordN;lng=o.lngSum/o.coordN;}
-    // Compatibilidade com o comportamento anterior: quando não há coordenadas do cadastro/venda,
-    // posiciona o agrupamento de forma aproximada no centro da UF para manter o mapa utilizável.
-    if(!validCoord(lat,lng)){
-      const centers={AC:[-9.97,-67.81],AL:[-9.65,-35.735],AP:[0.035,-51.07],AM:[-3.1,-60.02],BA:[-12.97,-38.51],CE:[-3.73,-38.52],DF:[-15.79,-47.88],ES:[-20.315,-40.312],GO:[-16.68,-49.25],MA:[-2.53,-44.30],MT:[-15.60,-56.10],MS:[-20.45,-54.62],MG:[-19.92,-43.94],PA:[-1.45,-48.50],PB:[-7.12,-34.86],PR:[-25.43,-49.27],PE:[-8.05,-34.90],PI:[-5.09,-42.80],RJ:[-22.91,-43.20],RN:[-5.79,-35.21],RS:[-30.03,-51.23],RO:[-8.76,-63.90],RR:[2.82,-60.67],SC:[-27.59,-48.55],SP:[-23.55,-46.63],SE:[-10.91,-37.07],TO:[-10.18,-48.33]};
-      const center=centers[o.uf]; if(center){lat=center[0];lng=center[1];}
+    else if(centers[o.uf]){
+      /* FIX: hash unsigned + jitter confinado a ±0.275° do centro do estado */
+      let h=0;for(let i=0;i<key.length;i++)h=((h<<5)-h+key.charCodeAt(i))|0;
+      h=h>>>0;
+      const j1=((h%1000)/1000)-0.5;
+      const j2=((Math.floor(h/1000)%1000)/1000)-0.5;
+      const spread=(o.kind==='estado')?0:0.55;
+      lat=centers[o.uf][0]+j1*spread;
+      lng=centers[o.uf][1]+j2*spread;
     }
-    out.push({key,label,kind,lat,lng,o});
+    out.push({key,label:o.label,kind:o.kind,lat,lng,o});
   }
   return out;
 }
@@ -2565,23 +2558,6 @@ function openProductRanking(){
      </div>`);
 }
 
-
-function configureMapSource(){
-  const atual=String(MAP_CONFIG.jsonName||'faturados_luan').replace(/\.json$/i,'');
-  const arquivo=prompt('Nome do arquivo JSON (somente o nome antes de .json, sem link e sem extensão):',atual);
-  if(arquivo===null)return;
-  const jsonName=arquivo.trim().replace(/\.json$/i,'');
-  if(!/^[a-zA-Z0-9_-]+$/.test(jsonName)){toast('Use somente letras, números, hífen ou underline no nome do arquivo.');return;}
-  const nome=prompt('Nome do vendedor:',MAP_CONFIG.nome||''); if(nome===null)return;
-  const codigo=prompt('Código do vendedor:',MAP_CONFIG.codigo||''); if(codigo===null)return;
-  if(!nome.trim()||!codigo.trim()){toast('Nome e código são obrigatórios.');return;}
-  delete MAP_CONFIG.jsonUrl;
-  Object.assign(MAP_CONFIG,{jsonName,nome:nome.trim(),codigo:codigo.trim()});
-  try{localStorage.setItem('radarMapaConfigLuan_v1',JSON.stringify(MAP_CONFIG));}catch(e){}
-  toast('Configuração salva. Recarregando o JSON da nuvem…');
-  setTimeout(()=>fetchServer(),250);
-}
-
 /* ============================================================
    FETCH
    ============================================================ */
@@ -2592,11 +2568,10 @@ async function fetchServer(){
     $('loadMsg').textContent='Preencha COLABORADOR.nome e COLABORADOR.codigo no início do código.';
     $('loading').classList.add('show');return;
   }
-  if(!String(MAP_CONFIG.jsonName||'').trim()){$('status').textContent='Configure o nome do JSON da nuvem';toast('Abra a engrenagem e informe o nome do arquivo JSON.');return;}
-  showLoading('Carregando JSON da nuvem…');
+  showLoading('Carregando suas vendas…');
   try{
     const [salesRes,clientRes]=await Promise.all([
-      fetch(getSalesJsonUrl(),{cache:'no-store'}),
+      fetch(SHEET_URL,{cache:'no-store'}),
       fetch(CLIENT_SHEET_URL,{cache:'no-store'}).catch(()=>null)
     ]);
     if(!salesRes.ok)throw Error('OpenSheet faturados HTTP '+salesRes.status);
@@ -2622,10 +2597,9 @@ async function fetchServer(){
       for(let j=i;j<end;j++){
         const x=raw[j],c=findClientFast(x);
         if(!c)continue;
-        // Prioriza os dados do cadastro, mas preserva os dados da venda quando a ficha estiver incompleta.
-        x.cidade=c.cidade||x.cidade||''; x.bairro=c.bairro||x.bairro||''; x.uf=c.uf||x.uf||'';
-        // Usa coordenadas do cadastro; se não houver, mantém as coordenadas que vieram no faturamento.
-        if(validCoord(c.lat,c.lng)){x.lat=c.lat;x.lng=c.lng;} else if(!validCoord(x.lat,x.lng)){x.lat=NaN;x.lng=NaN;}
+        if(!x.cidade&&c.cidade)x.cidade=c.cidade;
+        if(!x.bairro&&c.bairro)x.bairro=c.bairro;
+        if(!x.uf&&c.uf)x.uf=c.uf;
         if(!x.cnpj&&c.cnpj)x.cnpj=c.cnpj;
         x.endereco=c.endereco||'';x.numero=c.numero||'';x.complemento=c.complemento||'';x.cep=c.cep||'';x.representante=c.representante||'';x.situacao=c.situacao||'';x.clientMatch=c;
       }
@@ -2642,11 +2616,10 @@ async function fetchServer(){
     $('globalSearch').value='';
     document.querySelectorAll('.analysis').forEach(b=>{b.classList.toggle('active',b.dataset.analysis==='produto');b.disabled=b.dataset.analysis!=='produto';});
     setPeriod('all');
-    $('status').textContent=`☁ Carregado da nuvem • ${int(raw.length)} vendas`;
-    $('mapStatus').querySelector('.status-context').textContent='☁ JSON da nuvem • '+int(raw.length)+' vendas';
+    $('status').textContent=`Meu mapa • ${int(raw.length)} vendas`;
     setProgress(100,'Consulta concluída ✓',`${int(raw.length)} vendas prontas para exploração`);
     hideLoading();
-    toast(`☁ Dados carregados da nuvem: ${raw.length.toLocaleString('pt-BR')} vendas.`);
+    toast(`Consulta concluída. ${raw.length.toLocaleString('pt-BR')} vendas carregadas.`);
   }catch(e){
     console.error(e);
     $('status').textContent='Falha na consulta';
@@ -2688,7 +2661,6 @@ function wire(){
     contextPath={produto:'',estado:'',cidade:'',bairro:'',empresa:'',vendedor:'',cnpj:'',grupoEmpresa:''};
     refreshAnalysis();saveViewState();
   });
-  if($('configMap'))$('configMap').onclick=configureMapSource;
   $('rankingMode').onchange=()=>{
     rankingMode=$('rankingMode').value==='all'?'all':'top';
     $('rankingLimit').disabled=rankingMode==='all';
