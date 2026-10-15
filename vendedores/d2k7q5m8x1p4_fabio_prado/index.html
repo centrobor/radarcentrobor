@@ -396,6 +396,23 @@
             justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
         }
         .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+
+        /* Indicadores de atualização dos dados */
+        #connection-status { display:none; align-items:center; gap:10px; flex-wrap:wrap; padding:10px 14px; margin:-8px 0 18px; border-radius:14px; border:1px solid #f2d28b; background:#fff8e7; color:#795512; font-size:.78rem; line-height:1.4; }
+        #connection-status.visible { display:flex; }
+        #connection-status .status-icon { font-size:1rem; }
+        #connection-status button { margin-left:auto; border:1px solid currentColor; border-radius:20px; background:transparent; color:inherit; padding:5px 10px; font:inherit; font-weight:700; cursor:pointer; }
+        .section-sync-status { display:inline-flex; align-items:center; gap:5px; margin-left:auto; font-size:.64rem; font-weight:600; color:#526274; background:#f4f7fa; border:1px solid #dce4ec; border-radius:20px; padding:4px 8px; white-space:nowrap; vertical-align:middle; max-width:100%; }
+        .section-sync-status.cloud { color:#287443; background:#edf8ef; border-color:#c6e7cc; }
+        .section-sync-status.loading { color:#875d0b; background:#fff8e7; border-color:#f0dba5; }
+        .section-sync-status.offline { color:#9b3d38; background:#fff0ef; border-color:#f2cfcc; }
+        .section-sync-status i { font-size:.7rem; }
+        .sync-spin { animation: syncSpin 1.2s linear infinite; }
+        .sync-pulse { animation: syncPulse 1.6s ease-in-out infinite; }
+        @keyframes syncSpin { to { transform:rotate(360deg); } }
+        @keyframes syncPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
+        @media (prefers-reduced-motion: reduce) { .section-sync-status .sync-spin, .section-sync-status .sync-pulse { animation:none; } }
+
         .loading-spinner {
             width: 60px; height: 60px;
             border: 6px solid rgba(30,58,95,0.2); border-top: 6px solid var(--primary);
@@ -552,6 +569,12 @@
             <button class="icon-btn notification-bell" id="notification-bell" title="Notificações"><i class="fas fa-bell"></i><span class="badge" id="notification-badge" style="display:none;">0</span></button>
             <button class="icon-btn logout-btn" id="logout-btn" title="Sair"><i class="fas fa-sign-out-alt"></i></button>
         </div>
+    </div>
+
+    <div id="connection-status" role="status" aria-live="polite">
+        <i class="fas fa-cloud-arrow-up status-icon sync-pulse"></i>
+        <span id="connection-status-text">Atualizando os dados da nuvem. Você pode continuar usando a página.</span>
+        <button type="button" id="connection-retry">Tentar novamente</button>
     </div>
 
     <div class="carousel-section" id="carousel-section">
@@ -975,13 +998,95 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
+    const statusFontes = new Map();
+    const endpointsComFalha = new Set();
+    const urlParaFonte = new Map();
+    let atualizacoesEmAndamento = 0;
+
+    function statusFonte(url, estado) {
+        statusFontes.set(url, estado);
+        if (estado === 'cloud') endpointsComFalha.delete(url);
+        if (estado === 'offline') endpointsComFalha.add(url);
+        atualizarAvisoNuvem();
+        atualizarMarcadoresNuvem();
+    }
+
+    function atualizarAvisoNuvem() {
+        const banner = document.getElementById('connection-status');
+        const texto = document.getElementById('connection-status-text');
+        if (!banner || !texto) return;
+        const atualizando = atualizacoesEmAndamento > 0;
+        banner.classList.toggle('visible', atualizando || endpointsComFalha.size > 0);
+        const icon = banner.querySelector('.status-icon');
+        if (atualizando && endpointsComFalha.size === 0) {
+            texto.textContent = 'Atualizando os dados da nuvem. Você pode continuar usando a página.';
+            if (icon) icon.className = 'fas fa-cloud-arrow-up status-icon sync-pulse';
+        } else if (endpointsComFalha.size > 0) {
+            texto.textContent = `${endpointsComFalha.size} fonte(s) não atualizaram. Verifique a conexão e tente novamente.`;
+            if (icon) icon.className = 'fas fa-cloud-bolt status-icon';
+        }
+    }
+
+    function atualizarMarcadoresNuvem() {
+        const grupos = [
+            { id:'metas-panel', urls:[BASES.meta, BASES.metasGlobais] },
+            { id:'grafico-tops-panel', urls:[BASES.faturados, BASES.cotacoes] },
+            { id:'campanhas-especiais-panel', urls:[BASES.campanhas_especiais] },
+            { id:'tabela-aprovados', urls:[BASES.aprovados] },
+            { id:'tabela-faturados', urls:[BASES.faturados] },
+            { id:'tabela-aprovadosfaturados', urls:[BASES.aprovadosfaturados] },
+            { id:'tabela-cotacoes', urls:[BASES.cotacoes] },
+            { id:'carteira-detalhes', urls:[BASES.carteira] }
+        ];
+        grupos.forEach(g => {
+            const el = document.getElementById(g.id);
+            if (!el) return;
+            const states = g.urls.map(url => statusFontes.get(url));
+            let cls = 'loading', icon = 'fa-arrows-rotate sync-spin', label = 'Atualizando…';
+            if (states.includes('offline')) { cls='offline'; icon='fa-cloud-bolt'; label='Falha ao atualizar'; }
+            else if (states.length && states.every(st => st === 'cloud')) { cls='cloud'; icon='fa-cloud-arrow-down sync-pulse'; label='Baixado da nuvem'; }
+            const badgeId = `sync-status-${g.id}`;
+            let badge = document.getElementById(badgeId);
+            if (!badge) {
+                badge = document.createElement('span'); badge.id=badgeId; badge.className='section-sync-status';
+                badge.setAttribute('role','status'); badge.setAttribute('aria-live','polite');
+                const heading = el.querySelector('.section-title, h2, h3') || el.closest('.card-panel')?.querySelector('.section-title, h2, h3') || el.previousElementSibling?.querySelector('.section-title, h2, h3');
+                if (heading) { heading.style.display='flex'; heading.style.alignItems='center'; heading.style.gap='8px'; heading.style.flexWrap='wrap'; heading.appendChild(badge); }
+                else { el.style.position=el.style.position || 'relative'; el.insertAdjacentElement('afterbegin', badge); badge.style.margin='0 0 8px auto'; }
+            }
+            badge.className=`section-sync-status ${cls}`;
+            badge.innerHTML=`<i class="fas ${icon}" aria-hidden="true"></i><span>${label}</span>`;
+            badge.title='Status da última consulta dos dados desta seção.';
+        });
+    }
+
     async function carregarJSON(url) {
+        atualizacoesEmAndamento++;
+        statusFonte(url, 'loading');
         const separador = url.includes('?') ? '&' : '?';
         const versao = window.RADAR_DADOS_VERSAO || '20261015';
-        const r = await fetch(`${url}${separador}v=${encodeURIComponent(versao)}`, { cache: 'no-cache' });
-        if (!r.ok) throw new Error(`Erro ${r.status} ao carregar ${url}`);
-        return r.json();
+        try {
+            const r = await fetch(`${url}${separador}v=${encodeURIComponent(versao)}`, { cache: 'no-cache' });
+            if (!r.ok) throw new Error(`Erro ${r.status} ao carregar ${url}`);
+            const data = await r.json();
+            statusFonte(url, 'cloud');
+            return data;
+        } catch (e) {
+            statusFonte(url, 'offline');
+            throw e;
+        } finally {
+            atualizacoesEmAndamento = Math.max(0, atualizacoesEmAndamento - 1);
+            atualizarAvisoNuvem();
+        }
     }
+
+    document.getElementById('connection-retry')?.addEventListener('click', () => {
+        const urls = [...endpointsComFalha];
+        endpointsComFalha.clear();
+        urls.forEach(url => carregarJSON(url).catch(() => {}));
+    });
+
+    document.addEventListener("DOMContentLoaded", atualizarMarcadoresNuvem);
 
     async function carregarInfoAtualizacao() {
         try {
