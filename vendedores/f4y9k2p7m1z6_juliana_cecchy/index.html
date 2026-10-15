@@ -1318,7 +1318,7 @@
     async function carregarNotificacoes() { try { notificacoes = await carregarJSON(BASES.postagens); } catch(e) { notificacoes = []; } }
 
     function atualizarBadgeNotificacoes() {
-        const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+        const unread = notificacoes.filter(n => !readNotifications.some(x => String(x) === String(n.id))).length;
         const badge = document.getElementById('notification-badge');
         const bbDot = document.getElementById('bb-badge-dot');
         const menuCount = document.getElementById('menu-notif-count');
@@ -1328,7 +1328,7 @@
     }
 
     function marcarTodasComoLido() {
-        notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); });
+        notificacoes.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
         localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
         atualizarBadgeNotificacoes();
         abrirModalNotificacoes();
@@ -1345,33 +1345,76 @@
         }
     }
 
-    function preencherListaNotificacoes(modal, body) {
-        const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+    function dataNotificacaoParaOrdenacao(valor) {
+        if (!valor) return 0;
+        const texto = String(valor).trim();
+        const br = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+        if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1])).getTime() || 0;
+        const data = new Date(texto);
+        return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+    }
+
+    function preencherListaNotificacoes(modal, body, filtroLeitura = 'todas') {
+        const ordenadas = [...notificacoes].sort((a, b) => {
+            const lidaA = readNotifications.some(x => String(x) === String(a.id));
+            const lidaB = readNotifications.some(x => String(x) === String(b.id));
+            if (lidaA !== lidaB) return lidaA ? 1 : -1;
+            return dataNotificacaoParaOrdenacao(b.data) - dataNotificacaoParaOrdenacao(a.data);
+        });
+        const filtradas = ordenadas.filter(n => {
+            const lida = readNotifications.some(x => String(x) === String(n.id));
+            return filtroLeitura === 'nao-lidas' ? !lida : filtroLeitura === 'lidas' ? lida : true;
+        });
+        const exibidas = filtradas.slice(0, 5);
+        const unreadCount = notificacoes.filter(n => !readNotifications.some(x => String(x) === String(n.id))).length;
+        const feedItem = MENU_ITENS.find(item => item.id === 'feed');
+        const feedUrl = feedItem?.desktop || 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html';
+        const botaoFechar = '<button id="fechar-notif-modal" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;" aria-label="Fechar">&times;</button>';
+        let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><h2><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}${botaoFechar}</div></div>`;
+        html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="farol-btn notif-filter-btn" data-filtro="todas" style="${filtroLeitura === 'todas' ? 'background:var(--primary);color:white;' : ''}">Todas</button>
+            <button class="farol-btn notif-filter-btn" data-filtro="nao-lidas" style="${filtroLeitura === 'nao-lidas' ? 'background:var(--primary);color:white;' : ''}">Não lidas</button>
+            <button class="farol-btn notif-filter-btn" data-filtro="lidas" style="${filtroLeitura === 'lidas' ? 'background:var(--primary);color:white;' : ''}">Lidas</button>
+        </div>`;
         if (!notificacoes.length) {
-            body.innerHTML = `<div style="display:flex; justify-content:flex-end;"><button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div><p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
+            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta recente.</p>';
+        } else if (!exibidas.length) {
+            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhuma notificação nesta categoria.</p>';
         } else {
-            let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h2><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex; gap:10px;">${unreadCount>0?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div></div>`;
-            notificacoes.forEach(n => {
-                const isRead = readNotifications.includes(n.id);
+            exibidas.forEach(n => {
+                const isRead = readNotifications.some(x => String(x) === String(n.id));
                 const tipo = n.tipo || 'informativo';
-                const bg = tipo==='alerta'?'#fee2e2':'#e0f2fe';
-                const col = tipo==='alerta'?'#991b1b':'#0369a1';
-                html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div><span class="notif-type" style="background:${bg};color:${col}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${(n.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div><span style="font-size:0.75rem;color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span></div></div>`;
-            });
-            body.innerHTML = html;
-            const btn = document.getElementById('btn-mark-all-read');
-            if (btn) btn.addEventListener('click', marcarTodasComoLido);
-            body.querySelectorAll('.notif-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = card.dataset.id;
-                    if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
-                    const post = notificacoes.find(p => p.id == id);
-                    if (post) exibirPostagemDetalhe(post);
-                });
+                const bg = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+                const col = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+                const titulo = String(n.titulo || 'Sem título').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const resumo = String(n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120);
+                html += `<div class="notif-card" data-id="${String(n.id).replace(/"/g, '&quot;')}" style="${isRead ? 'opacity:.78;' : 'background:#f0f7ff;border:1px solid #dbeafe;'}"><img src="${n.imagem || 'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div style="min-width:0;flex:1;"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data || '—'} &nbsp; <i class="fas fa-user"></i> ${n.autor || '—'}</div><div class="notif-excerpt">${resumo}${resumo ? '…' : ''}</div><span style="font-size:.75rem;color:${isRead ? 'var(--muted)' : 'var(--primary)'};font-weight:${isRead ? '400' : '700'};">${isRead ? '✓ Lida' : '● Não lida'}</span></div></div>`;
             });
         }
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding-top:14px;"><span style="font-size:.75rem;color:var(--muted);">Exibindo ${exibidas.length} de ${filtradas.length} notificações (máximo de 5).</span><a href="${feedUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--primary);color:white;text-decoration:none;font-weight:700;font-size:.8rem;"><i class="fas fa-newspaper"></i> Abrir Feed completo <i class="fas fa-external-link-alt"></i></a></div>`;
+        body.innerHTML = html;
+        const fechar = document.getElementById('fechar-notif-modal');
+        if (fechar) fechar.addEventListener('click', () => modal.classList.remove('active'));
+        const marcar = document.getElementById('btn-mark-all-read');
+        if (marcar) marcar.addEventListener('click', marcarTodasComoLido);
+        body.querySelectorAll('.notif-filter-btn').forEach(btn => btn.addEventListener('click', () => preencherListaNotificacoes(modal, body, btn.dataset.filtro)));
+        body.querySelectorAll('.notif-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.id;
+                if (!readNotifications.some(x => String(x) === String(id))) {
+                    readNotifications.push(id);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                    atualizarBadgeNotificacoes();
+                }
+                const post = notificacoes.find(p => String(p.id) === String(id));
+                if (post) exibirPostagemDetalhe(post);
+            });
+        });
         modal.classList.add('active');
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+        if (!modal.dataset.outsideListener) {
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
+            modal.dataset.outsideListener = 'true';
+        }
     }
 
     function exibirPostagemDetalhe(post) {
