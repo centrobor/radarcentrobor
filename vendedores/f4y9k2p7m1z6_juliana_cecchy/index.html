@@ -389,13 +389,9 @@
         .footer-social a { color: var(--footer-text); font-size:1.3rem; text-decoration: none; }
         .footer-bottom { text-align: center; margin-top:20px; font-size:0.7rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; }
         #print-header { display: none; }
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.35); backdrop-filter: blur(6px);
-            z-index: 9999; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
-        }
-        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        /* A tela global de carregamento foi desativada para nunca bloquear a página.
+           O andamento da sincronização continua indicado nos status locais. */
+        .loading-overlay, .loading-overlay.hidden { display: none !important; }
         /* Estado de conexão: nunca bloqueia a página inteira */
         #connection-status {
             display:none; align-items:center; gap:10px; flex-wrap:wrap;
@@ -732,6 +728,8 @@
     const NOME_EXIBICAO = "Juliana Cecchy";
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
 
+    let ATALHOS_DINAMICOS = [];
+
     const MENU_ITENS = [
         {
             id: "dashboard",
@@ -753,7 +751,8 @@
             opensheet: "../../dados/postagens.json",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "custos-vendas",
@@ -764,7 +763,8 @@
             opensheet: "",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "calculadora-correias",
@@ -793,43 +793,99 @@
     ];
     // ===========================================================================
 
+    async function carregarAtalhosPersonalizados() {
+        try {
+            const registros = await carregarJSON(BASES.atalhos);
+            const normalizar = valor => removeAcentos(String(valor || '').trim().toLowerCase());
+            const nomeConfig = normalizar(NOME_EXIBICAO);
+            const codigoConfig = String(COD_VENDEDOR).trim();
+
+            ATALHOS_DINAMICOS = (Array.isArray(registros) ? registros : [])
+                .filter(item =>
+                    String(item.codigo_vendedor || '').trim() === codigoConfig &&
+                    normalizar(item.nome_vendedor) === nomeConfig
+                )
+                .map((item, indice) => {
+                    let url;
+                    try { url = new URL(String(item.link || '').trim()); } catch (_) { return null; }
+                    if (!['https:', 'http:'].includes(url.protocol)) return null;
+
+                    const icon = String(item.icon || 'fas fa-link').trim();
+                    let iconImagem = '';
+                    try {
+                        const iconUrl = new URL(icon);
+                        if (iconUrl.protocol === 'https:' || iconUrl.protocol === 'http:') iconImagem = iconUrl.href;
+                    } catch (_) {}
+
+                    const iconSeguro = /^[a-zA-Z0-9 _-]{1,100}$/.test(icon) ? icon : 'fas fa-link';
+                    const nome = String(item.nome_atalho || item.nome || item.titulo || 'Atalho externo').trim().slice(0, 70);
+                    return {
+                        id: `atalho-externo-${indice}`,
+                        nome: nome || 'Atalho externo',
+                        icon: iconImagem ? 'fas fa-link' : iconSeguro,
+                        iconImagem,
+                        desktop: url.href,
+                        mobile: url.href,
+                        desktopVisible: true,
+                        mobileVisible: true,
+                        bottom: false,
+                        novaGuia: true,
+                        externo: true
+                    };
+                })
+                .filter(Boolean);
+        } catch (e) {
+            console.warn('Não foi possível carregar os atalhos personalizados:', e);
+            ATALHOS_DINAMICOS = [];
+        }
+    }
+
     function renderizarMenus() {
+        const iconeHTML = item => {
+            if (item.iconImagem) {
+                const src = String(item.iconImagem).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const alt = String(item.nome || 'Atalho').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<img src="${src}" alt="${alt}" loading="lazy" style="width:1.35em;height:1.35em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"><i class="fas fa-link" style="display:none"></i>`;
+            }
+            const cls = /^[a-zA-Z0-9 _-]{1,100}$/.test(String(item.icon || '')) ? item.icon : 'fas fa-link';
+            return `<i class="${cls}"></i>`;
+        };
+
         const mobile = document.getElementById('dynamic-mobile-menu');
         const desktop = document.getElementById('desktop-tools-menu');
         const bottom = document.getElementById('dynamic-bottom-menu');
+        const todosItensMenu = [...MENU_ITENS, ...ATALHOS_DINAMICOS];
 
         if (mobile) {
-            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
+            mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         if (desktop) {
-            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
+            desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    <div class="tool-icon"><i class="${item.icon}"></i></div>
+                    <div class="tool-icon">${iconeHTML(item)}</div>
                     <div class="tool-label">${item.nome}</div>
                 </a>
             `).join('');
         }
 
         if (bottom) {
-            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
-            bottom.innerHTML = bottomItems.map(item => `
+            bottom.innerHTML = todosItensMenu.filter(item => item.bottom && item.mobileVisible !== false).map(item => `
                 <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         const navegar = (item, fecharMobile = false) => {
-            if (!item || !item.mobile && !item.desktop) return;
+            if (!item || !(item.mobile || item.desktop)) return;
             if (fecharMobile) closeHamburgerMenu();
             const destino = item.mobile || item.desktop;
             if (item.novaGuia) {
-                // Abre diretamente a partir do clique do usuário para evitar bloqueio de pop-up.
                 const link = document.createElement('a');
                 link.href = destino;
                 link.target = '_blank';
@@ -843,7 +899,7 @@
             }
         };
 
-        MENU_ITENS.forEach(item => {
+        todosItensMenu.forEach(item => {
             const mobileBtn = document.getElementById(`menu-${item.id}`);
             if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
 
@@ -853,13 +909,13 @@
 
         if (desktop) {
             desktop.querySelectorAll('.tool-card').forEach(card => {
-                card.addEventListener('click', (event) => {
-                    const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
-                    if (item?.novaGuia) {
-                        // O link já possui target="_blank"; deixa o navegador abrir a nova guia.
-                        return;
+                card.addEventListener('click', event => {
+                    const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
+                    if (item?.novaGuia) return;
+                    if (item?.desktop) {
+                        event.preventDefault();
+                        window.location.href = item.desktop;
                     }
-                    if (item?.desktop) window.location.href = item.desktop;
                 });
             });
         }
@@ -899,9 +955,9 @@
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
     // Dados compartilhados ficam na pasta /dados/ da raiz do repositório.
-    // Esta página pertence ao vendedor Luan Dantas (código 61).
+    // Esta página pertence à vendedora Juliana Cecchy (código 20).
     // O faturamento é individualizado para reduzir o tamanho dos arquivos carregados.
-    // O gerador ZIP deverá criar dados/faturados_luan.json filtrando o código 61.
+    // O gerador ZIP deverá criar dados/faturados_juliana.json filtrando o código 20.
     // Como este HTML está em /vendedores/<pasta-do-vendedor>/, subimos dois níveis.
     const BASE_DADOS = new URL('../../dados/', window.location.href).href;
     const BASES = {
@@ -925,7 +981,8 @@
         banners: BASE_DADOS + 'banners.json',
         postagens: BASE_DADOS + 'postagens.json',
         campanhas_especiais: BASE_DADOS + 'campanhas_especiais.json',
-        informacoes: BASE_DADOS + 'informacoes.json'
+        informacoes: BASE_DADOS + 'informacoes.json',
+        atalhos: BASE_DADOS + 'atalhos.json'
     };
 
     let codVendedor = COD_VENDEDOR;
@@ -2510,9 +2567,8 @@
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
         if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
-        // A tela só bloqueia durante a primeira montagem visual, não durante novas tentativas.
-        const primeiraRenderizacao = !document.body.dataset.radarRendered;
-        if (primeiraRenderizacao) mostrarLoading();
+        // Nunca exibir uma tela global de carregamento: a página permanece acessível
+        // enquanto os dados são montados/atualizados em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
@@ -2560,6 +2616,7 @@
         const closeHamburger = ()=>{ document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
         document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
         document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+        await carregarAtalhosPersonalizados();
         renderizarMenus();
         document.getElementById('menu-notifications-side').addEventListener('click', ()=>{ closeHamburger(); abrirModalNotificacoes(); });
         document.getElementById('menu-logout').addEventListener('click', ()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
