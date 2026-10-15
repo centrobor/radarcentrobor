@@ -998,6 +998,7 @@
     let globalFat = [];
     let globalCot = [];
     let globalAprovFat = [];
+    let globalAprovFatTodoPeriodo = [];
 
     window._kpiColunas = null;
     window._kpiColunaTotal = null;
@@ -1584,7 +1585,8 @@
         let titulo = '', dados = [], colunaTotal = '', colunas = [];
         switch(tipo) {
             case 'faturamento': titulo = `Faturamento do Mês (${monthLabel})`; dados = globalFat; colunaTotal = 'Valor Mercadoria'; colunas = ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria']; break;
-            case 'aprovados_fat': titulo = `Aprovados + Faturados (${monthLabel})`; dados = globalAprovFat; colunaTotal = 'Total Bruto'; colunas = ['Competência','Cliente','Produto','Quantidade','Total Bruto']; break;
+            case 'aprovados_fat': titulo = `Aprovados + Faturados (${monthLabel})`; dados = globalAprovFat; colunaTotal = 'Total Bruto'; colunas = ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor']; break;
+            case 'aprovados_fat_todo_periodo': titulo = 'Aprovados + Faturados — Todo o período'; dados = globalAprovFatTodoPeriodo; colunaTotal = 'Total Bruto'; colunas = ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor']; break;
             case 'itens': titulo = `Itens Vendidos (${monthLabel})`; dados = [...globalAprov.map(i=>({...i,tipo:'Aprovado'})),...globalFat.map(i=>({...i,tipo:'Faturado'}))]; colunaTotal = null; colunas = ['Data','Cliente','Produto','Quantidade','tipo']; break;
             case 'cotacoes': titulo = `Cotações Ativas (${monthLabel})`; dados = globalCot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])); colunaTotal = 'Valor Total'; colunas = ['Número','Razão Social','Data Criação','Valor Total','Situação Versão']; break;
             case 'clientes': {
@@ -1687,6 +1689,7 @@
             return { ...item, 'idade_dias': d ? Math.floor((hojeRef-d)/(1000*60*60*24))+' dias' : 'N/A' };
         });
         const aprovFat = filterByMonth(aprovFatFull, 'Data');
+        const aprovFatTodoPeriodo = [...aprovFatFull].sort((a,b) => (parseDataBR(b['Data'])||0) - (parseDataBR(a['Data'])||0));
 
         const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
         const totalFaturadoTime = fatTimeRaw.reduce((acc, item) => {
@@ -1697,6 +1700,7 @@
         }, 0);
 
         const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
+        const totalAprovFatTodoPeriodo = aprovFatTodoPeriodo.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
         const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
         const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
         const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
@@ -1704,14 +1708,15 @@
         const monthLabel = selectedMonth || formatMonthKey(new Date());
         document.getElementById('kpi-cards').innerHTML = `
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('faturamento','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value green">${formatarMoeda(totalFaturado)}</div><div class="label">Faturamento Mês</div></div>
-            <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_fat','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div><div class="value blue">${formatarMoeda(totalAprovFat)}</div><div class="label">Aprovados + Fat.</div></div>
+            <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_fat','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div><div class="value blue">${formatarMoeda(totalAprovFat)}</div><div class="label">Aprovados + Fat. (${monthLabel})</div></div>
+            <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_fat_todo_periodo','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-chart-column"></i></div><div class="value blue">${formatarMoeda(totalAprovFatTodoPeriodo)}</div><div class="label">Aprovados + Fat. — Todo período</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('itens','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-boxes"></i></div><div class="value blue">${itensVendidos}</div><div class="label">Itens Vendidos</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('cotacoes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-file-invoice"></i></div><div class="value purple">${cotAtivas}</div><div class="label">Cotações Ativas</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="value">${totalClientes}</div><div class="label">Clientes Atendidos</div></div>
         `;
         renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
 
-        globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat;
+        globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat; globalAprovFatTodoPeriodo = aprovFatTodoPeriodo;
 
         const today = new Date(); today.setHours(0,0,0,0);
         let cutoffDate = new Date();
@@ -1819,7 +1824,51 @@
 
         document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov', null, 'Total Bruto');
         document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat', null, 'Valor Mercadoria');
-        document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat', null, 'Total Bruto');
+        const aprovFatToolbar = `
+            <div class="table-toolbar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                    <label for="filtro-idade-aprovfat" style="font-weight:700;font-size:.78rem;">Filtrar pedidos:</label>
+                    <select id="filtro-idade-aprovfat" class="farol-select" style="min-width:190px;">
+                        <option value="todos">Todos os períodos</option>
+                        <option value="mes">Até 30 dias</option>
+                        <option value="mais_mes">Mais de 30 dias até 3 meses</option>
+                        <option value="mais_tres">Mais de 3 meses (90 dias)</option>
+                    </select>
+                </div>
+                <div class="farol-legend" style="display:flex;gap:10px;flex-wrap:wrap;font-size:.75rem;">
+                    <span><span class="farol-dot green"></span> Até 30 dias</span>
+                    <span><span class="farol-dot yellow"></span> 31 a 90 dias</span>
+                    <span><span class="farol-dot red"></span> Mais de 90 dias</span>
+                </div>
+            </div>`;
+        document.getElementById('tabela-aprovadosfaturados').innerHTML = aprovFatToolbar + gerarTabela(aprovFatTodoPeriodo, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat', classPedidoAprovFat, 'Total Bruto');
+        const filtroIdadeAprovFat = document.getElementById('filtro-idade-aprovfat');
+        if (filtroIdadeAprovFat) filtroIdadeAprovFat.addEventListener('change', function() {
+            const modo = this.value;
+            const tabela = document.querySelector('#tabela-aprovadosfaturados table');
+            if (!tabela) return;
+            let totalVisivel = 0;
+            tabela.querySelectorAll('tbody tr').forEach(tr => {
+                let item = {};
+                try { item = JSON.parse(tr.dataset.row.replace(/&quot;/g, '"')); } catch (_) {}
+                const d = parseDataBR(item['Data']);
+                const dias = d ? Math.floor((hojeRef - d) / (1000*60*60*24)) : null;
+                let mostrar = true;
+                if (modo === 'mes') mostrar = dias !== null && dias <= 30;
+                else if (modo === 'mais_mes') mostrar = dias !== null && dias > 30 && dias <= 90;
+                else if (modo === 'mais_tres') mostrar = dias !== null && dias > 90;
+                tr.style.display = mostrar ? '' : 'none';
+                if (mostrar) totalVisivel += cleanNumber(item['Total Bruto']);
+            });
+            const badge = document.querySelector('#tabela-aprovadosfaturados .total-badge');
+            if (badge) badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalVisivel)}`;
+        });
+        function classPedidoAprovFat(item) {
+            const d = parseDataBR(item['Data']);
+            if (!d) return '';
+            const diffDays = Math.floor((hojeRef-d)/(1000*60*60*24));
+            return diffDays <= 30 ? 'row-green' : (diffDays <= 90 ? 'row-yellow' : 'row-red');
+        }
         function classCotacao(item) {
             const dataStr = item['Data Criação']; if (!dataStr) return '';
             const partes = String(dataStr).split(' ')[0].split('/');
