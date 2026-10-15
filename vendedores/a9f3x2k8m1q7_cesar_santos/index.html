@@ -1343,33 +1343,75 @@
         }
     }
 
-    function preencherListaNotificacoes(modal, body) {
-        const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-        if (!notificacoes.length) {
-            body.innerHTML = `<div style="display:flex; justify-content:flex-end;"><button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div><p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
+    function converterDataNotificacao(valor) {
+        if (!valor) return 0;
+        // Aceita datas dd/mm/aaaa, ISO e datas com horário.
+        const texto = String(valor).trim();
+        const br = texto.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
+        let data;
+        if (br) {
+            let ano = Number(br[3]);
+            if (ano < 100) ano += ano < 70 ? 2000 : 1900;
+            data = new Date(ano, Number(br[2])-1, Number(br[1]), Number(br[4]||0), Number(br[5]||0));
         } else {
-            let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h2><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex; gap:10px;">${unreadCount>0?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div></div>`;
-            notificacoes.forEach(n => {
-                const isRead = readNotifications.includes(n.id);
+            data = new Date(texto);
+        }
+        return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+    }
+
+    function preencherListaNotificacoes(modal, body, filtroLeitura = 'todos') {
+        const ordenadas = [...notificacoes].sort((a, b) => {
+            const aLida = readNotifications.includes(String(a.id)) || readNotifications.includes(a.id);
+            const bLida = readNotifications.includes(String(b.id)) || readNotifications.includes(b.id);
+            // Não lidas primeiro; dentro de cada grupo, mais recentes primeiro.
+            if (aLida !== bLida) return aLida ? 1 : -1;
+            return converterDataNotificacao(b.data) - converterDataNotificacao(a.data);
+        });
+        const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id) && !readNotifications.includes(String(n.id))).length;
+        const filtradas = ordenadas.filter(n => {
+            const lida = readNotifications.includes(n.id) || readNotifications.includes(String(n.id));
+            return filtroLeitura === 'nao-lidas' ? !lida : filtroLeitura === 'lidas' ? lida : true;
+        });
+        const recentes = filtradas.slice(0, 5);
+        const feedUrl = (MENU_ITENS.find(item => item.id === 'feed') || {}).desktop || 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html';
+        const fechar = `<button onclick="document.getElementById('notif-modal').classList.remove('active')" aria-label="Fechar" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button>`;
+        let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px;"><h2><i class="fas fa-bell"></i> Notificações</h2><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">${unreadCount>0?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar todas como lidas</button>':''}${fechar}</div></div>`;
+        html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px;"><label for="notif-read-filter" style="font-size:.78rem;font-weight:700;color:var(--text-soft);">Filtrar por leitura</label><select id="notif-read-filter" style="padding:8px 12px;border:1px solid var(--line);border-radius:12px;background:#fff;color:var(--text-dark);font:inherit;font-size:.8rem;"><option value="todos" ${filtroLeitura==='todos'?'selected':''}>Todas</option><option value="nao-lidas" ${filtroLeitura==='nao-lidas'?'selected':''}>Não lidas (${unreadCount})</option><option value="lidas" ${filtroLeitura==='lidas'?'selected':''}>Lidas</option></select></div>`;
+        html += `<div style="font-size:.78rem;color:var(--muted);margin-bottom:12px;">Exibindo ${recentes.length} de ${filtradas.length} notificações neste filtro · Máximo de 5 · Não lidas e mais recentes primeiro</div>`;
+        if (!recentes.length) {
+            html += `<p style="text-align:center;padding:28px;">Nenhuma notificação disponível.</p>`;
+        } else {
+            recentes.forEach(n => {
+                const isRead = readNotifications.includes(n.id) || readNotifications.includes(String(n.id));
                 const tipo = n.tipo || 'informativo';
                 const bg = tipo==='alerta'?'#fee2e2':'#e0f2fe';
                 const col = tipo==='alerta'?'#991b1b':'#0369a1';
-                html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div><span class="notif-type" style="background:${bg};color:${col}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${(n.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div><span style="font-size:0.75rem;color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span></div></div>`;
-            });
-            body.innerHTML = html;
-            const btn = document.getElementById('btn-mark-all-read');
-            if (btn) btn.addEventListener('click', marcarTodasComoLido);
-            body.querySelectorAll('.notif-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = card.dataset.id;
-                    if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
-                    const post = notificacoes.find(p => p.id == id);
-                    if (post) exibirPostagemDetalhe(post);
-                });
+                html += `<div class="notif-card ${isRead?'notif-read':'notif-unread'}" data-id="${n.id}" style="${isRead?'opacity:.78;':'background:#f0f6ff;border:1px solid #c7dcff;'}"><img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;"><span class="notif-type" style="background:${bg};color:${col}">${tipo.toUpperCase()}</span>${isRead?'<span style="font-size:.68rem;color:var(--muted);">LIDA</span>':'<span style="font-size:.68rem;font-weight:800;color:#1d4ed8;">● NÃO LIDA</span>'}</div><div class="notif-title" style="margin-top:5px;">${n.titulo||'Sem título'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||''} &nbsp; <i class="fas fa-user"></i> ${n.autor||''}</div><div class="notif-excerpt">${(n.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div></div></div>`;
             });
         }
+        html += `<a href="${feedUrl}" target="_blank" rel="noopener noreferrer" style="display:flex;justify-content:center;align-items:center;gap:9px;margin-top:16px;padding:13px 16px;border-radius:14px;background:var(--primary);color:#fff;text-decoration:none;font-weight:700;font-size:.85rem;"><i class="fas fa-newspaper"></i> Ver todas no Feed <i class="fas fa-arrow-up-right-from-square" style="font-size:.75rem;"></i></a>`;
+        body.innerHTML = html;
+        const btn = document.getElementById('btn-mark-all-read');
+        if (btn) btn.addEventListener('click', marcarTodasComoLido);
+        const filtro = document.getElementById('notif-read-filter');
+        if (filtro) filtro.addEventListener('change', () => preencherListaNotificacoes(modal, body, filtro.value));
+        body.querySelectorAll('.notif-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.id;
+                if (!readNotifications.includes(id)) {
+                    readNotifications.push(id);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                    atualizarBadgeNotificacoes();
+                }
+                const post = notificacoes.find(p => String(p.id) === String(id));
+                if (post) exibirPostagemDetalhe(post);
+            });
+        });
         modal.classList.add('active');
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+        if (!modal.dataset.outsideListener) {
+            modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+            modal.dataset.outsideListener = 'true';
+        }
     }
 
     function exibirPostagemDetalhe(post) {
