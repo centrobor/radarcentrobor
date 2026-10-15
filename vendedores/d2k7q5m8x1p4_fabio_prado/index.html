@@ -664,7 +664,7 @@
     // Tudo que normalmente precisa ser alterado fica concentrado aqui:
     // • vendedor: código + nome exibido
     // • planilha: ID usado pelos endpoints OpenSheet
-    // • menu: nome + ícone + links de cada item
+    // • menu: ferramentas fixas + atalhos personalizados de dados/atalhos.json
     //
     // Para adicionar um novo item ao menu, copie um objeto dentro de MENU_ITENS.
     // "desktop" = link usado nos cards/versão desktop
@@ -676,6 +676,8 @@
     const COD_VENDEDOR = "33";
     const NOME_EXIBICAO = "Fábio Prado";
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
+
+    let ATALHOS_DINAMICOS = [];
 
     const MENU_ITENS = [
         {
@@ -698,7 +700,8 @@
             opensheet: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "custos-vendas",
@@ -709,7 +712,8 @@
             opensheet: "",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "calculadora-correias",
@@ -738,33 +742,84 @@
     ];
     // ===========================================================================
 
+    async function carregarAtalhosPersonalizados() {
+        try {
+            const registros = await carregarJSON(BASES.atalhos);
+            const normalizar = valor => removeAcentos(String(valor || '').trim().toLowerCase());
+            const nomeConfig = normalizar(NOME_EXIBICAO);
+            const codigoConfig = String(COD_VENDEDOR).trim();
+            ATALHOS_DINAMICOS = (Array.isArray(registros) ? registros : [])
+                .filter(item => String(item.codigo_vendedor || '').trim() === codigoConfig && normalizar(item.nome_vendedor) === nomeConfig)
+                .map((item, indice) => {
+                    let url;
+                    try { url = new URL(String(item.link || '').trim()); } catch (_) { return null; }
+                    if (!['https:', 'http:'].includes(url.protocol)) return null;
+                    const icon = String(item.icon || 'fas fa-link').trim();
+                    let iconImagem = '';
+                    try {
+                        const iconUrl = new URL(icon);
+                        if (iconUrl.protocol === 'https:' || iconUrl.protocol === 'http:') iconImagem = iconUrl.href;
+                    } catch (_) {}
+                    const iconSeguro = /^[a-zA-Z0-9 _-]{1,100}$/.test(icon) ? icon : 'fas fa-link';
+                    const nome = String(item.nome_atalho || item.nome || item.titulo || 'Atalho externo').trim().slice(0, 70);
+                    return {
+                        id: `atalho-externo-${indice}`,
+                        nome: nome || 'Atalho externo',
+                        icon: iconImagem ? 'fas fa-link' : iconSeguro,
+                        iconImagem,
+                        desktop: url.href,
+                        mobile: url.href,
+                        desktopVisible: true,
+                        mobileVisible: true,
+                        bottom: false,
+                        novaGuia: true,
+                        externo: true
+                    };
+                })
+                .filter(Boolean);
+        } catch (e) {
+            console.warn('Não foi possível carregar os atalhos personalizados:', e);
+            ATALHOS_DINAMICOS = [];
+        }
+    }
+
     function renderizarMenus() {
+        const iconeHTML = (item) => {
+            if (item.iconImagem) {
+                const src = String(item.iconImagem).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const alt = String(item.nome || 'Atalho').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<img src="${src}" alt="${alt}" loading="lazy" style="width:1.35em;height:1.35em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"><i class="fas fa-link" style="display:none"></i>`;
+            }
+            const cls = /^[a-zA-Z0-9 _-]{1,100}$/.test(String(item.icon || '')) ? item.icon : 'fas fa-link';
+            return `<i class="${cls}"></i>`;
+        };
         const mobile = document.getElementById('dynamic-mobile-menu');
         const desktop = document.getElementById('desktop-tools-menu');
         const bottom = document.getElementById('dynamic-bottom-menu');
+        const todosItensMenu = [...MENU_ITENS, ...ATALHOS_DINAMICOS];
 
         if (mobile) {
-            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
+            mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         if (desktop) {
-            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
+            desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    <div class="tool-icon"><i class="${item.icon}"></i></div>
+                    <div class="tool-icon">${iconeHTML(item)}</div>
                     <div class="tool-label">${item.nome}</div>
                 </a>
             `).join('');
         }
 
         if (bottom) {
-            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
+            const bottomItems = todosItensMenu.filter(item => item.bottom && item.mobileVisible !== false);
             bottom.innerHTML = bottomItems.map(item => `
                 <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
@@ -788,7 +843,7 @@
             }
         };
 
-        MENU_ITENS.forEach(item => {
+        todosItensMenu.forEach(item => {
             const mobileBtn = document.getElementById(`menu-${item.id}`);
             if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
 
@@ -799,7 +854,7 @@
         if (desktop) {
             desktop.querySelectorAll('.tool-card').forEach(card => {
                 card.addEventListener('click', (event) => {
-                    const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
+                    const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
                     if (item?.novaGuia) {
                         // O link já possui target="_blank"; deixa o navegador abrir a nova guia.
                         return;
@@ -843,18 +898,22 @@
     }
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
+    // Dados locais publicados na pasta /dados da raiz do Radar.
+    // O carregamento paralelo abaixo evita consultas lentas ao OpenSheet.
+    const DADOS_DIR = new URL('../../dados/', window.location.href).href;
     const BASES = {
-        meta: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
-        metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
-        aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
-        faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
-        aprovadosfaturados: `https://opensheet.elk.sh/${SHEET_ID}/aprovadosfaturados`,
-        carteira: `https://opensheet.elk.sh/${SHEET_ID}/carteiraclientes`,
-        cotacoes: `https://opensheet.elk.sh/${SHEET_ID}/cotacoes`,
-        banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
-        postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
-        campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
-        informacoes: `https://opensheet.elk.sh/${SHEET_ID}/informacoes`
+        meta: `${DADOS_DIR}meta_faturamento.json`,
+        metasGlobais: `${DADOS_DIR}metas.json`,
+        aprovados: `${DADOS_DIR}aprovados.json`,
+        faturados: `${DADOS_DIR}faturados.json`,
+        aprovadosfaturados: `${DADOS_DIR}aprovadosfaturados.json`,
+        carteira: `${DADOS_DIR}carteiraclientes.json`,
+        cotacoes: `${DADOS_DIR}cotacoes.json`,
+        banners: `${DADOS_DIR}banners.json`,
+        postagens: `${DADOS_DIR}postagens.json`,
+        campanhas_especiais: `${DADOS_DIR}campanhas_especiais.json`,
+        informacoes: `${DADOS_DIR}informacoes.json`,
+        atalhos: `${DADOS_DIR}atalhos.json`
     };
 
     let codVendedor = COD_VENDEDOR;
@@ -916,7 +975,13 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    async function carregarJSON(url) { const r=await fetch(url); if(!r.ok) throw new Error(`Erro ${r.status}`); return r.json(); }
+    async function carregarJSON(url) {
+        const separador = url.includes('?') ? '&' : '?';
+        const versao = window.RADAR_DADOS_VERSAO || '20261015';
+        const r = await fetch(`${url}${separador}v=${encodeURIComponent(versao)}`, { cache: 'no-cache' });
+        if (!r.ok) throw new Error(`Erro ${r.status} ao carregar ${url}`);
+        return r.json();
+    }
 
     async function carregarInfoAtualizacao() {
         try {
@@ -974,33 +1039,76 @@
         }
     }
 
-    function preencherListaNotificacoes(modal, body) {
-        const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+    function dataNotificacaoParaOrdenacao(valor) {
+        if (!valor) return 0;
+        const texto = String(valor).trim();
+        const br = texto.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+        if (br) return new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1])).getTime() || 0;
+        const data = new Date(texto);
+        return Number.isNaN(data.getTime()) ? 0 : data.getTime();
+    }
+
+    function preencherListaNotificacoes(modal, body, filtroLeitura = 'todas') {
+        const ordenadas = [...notificacoes].sort((a, b) => {
+            const lidaA = readNotifications.some(x => String(x) === String(a.id));
+            const lidaB = readNotifications.some(x => String(x) === String(b.id));
+            if (lidaA !== lidaB) return lidaA ? 1 : -1;
+            return dataNotificacaoParaOrdenacao(b.data) - dataNotificacaoParaOrdenacao(a.data);
+        });
+        const filtradas = ordenadas.filter(n => {
+            const lida = readNotifications.some(x => String(x) === String(n.id));
+            return filtroLeitura === 'nao-lidas' ? !lida : filtroLeitura === 'lidas' ? lida : true;
+        });
+        const exibidas = filtradas.slice(0, 5);
+        const unreadCount = notificacoes.filter(n => !readNotifications.some(x => String(x) === String(n.id))).length;
+        const feedItem = MENU_ITENS.find(item => item.id === 'feed');
+        const feedUrl = feedItem?.desktop || 'https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html';
+        const botaoFechar = '<button id="fechar-notif-modal" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;" aria-label="Fechar">&times;</button>';
+        let html = `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><h2><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">${unreadCount > 0 ? '<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>' : ''}${botaoFechar}</div></div>`;
+        html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+            <button class="farol-btn notif-filter-btn" data-filtro="todas" style="${filtroLeitura === 'todas' ? 'background:var(--primary);color:white;' : ''}">Todas</button>
+            <button class="farol-btn notif-filter-btn" data-filtro="nao-lidas" style="${filtroLeitura === 'nao-lidas' ? 'background:var(--primary);color:white;' : ''}">Não lidas</button>
+            <button class="farol-btn notif-filter-btn" data-filtro="lidas" style="${filtroLeitura === 'lidas' ? 'background:var(--primary);color:white;' : ''}">Lidas</button>
+        </div>`;
         if (!notificacoes.length) {
-            body.innerHTML = `<div style="display:flex; justify-content:flex-end;"><button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div><p style="text-align:center;padding:40px;">Nenhum alerta recente.</p>`;
+            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta recente.</p>';
+        } else if (!exibidas.length) {
+            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhuma notificação nesta categoria.</p>';
         } else {
-            let html = `<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;"><h2><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex; gap:10px;">${unreadCount>0?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button onclick="document.getElementById('notif-modal').classList.remove('active')" style="background:none;border:none;font-size:1.6rem;color:var(--muted);cursor:pointer;">&times;</button></div></div>`;
-            notificacoes.forEach(n => {
-                const isRead = readNotifications.includes(n.id);
+            exibidas.forEach(n => {
+                const isRead = readNotifications.some(x => String(x) === String(n.id));
                 const tipo = n.tipo || 'informativo';
-                const bg = tipo==='alerta'?'#fee2e2':'#e0f2fe';
-                const col = tipo==='alerta'?'#991b1b':'#0369a1';
-                html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div><span class="notif-type" style="background:${bg};color:${col}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${(n.texto_html||'').replace(/<[^>]*>/g,'').substring(0,120)}...</div><span style="font-size:0.75rem;color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span></div></div>`;
-            });
-            body.innerHTML = html;
-            const btn = document.getElementById('btn-mark-all-read');
-            if (btn) btn.addEventListener('click', marcarTodasComoLido);
-            body.querySelectorAll('.notif-card').forEach(card => {
-                card.addEventListener('click', () => {
-                    const id = card.dataset.id;
-                    if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); }
-                    const post = notificacoes.find(p => p.id == id);
-                    if (post) exibirPostagemDetalhe(post);
-                });
+                const bg = tipo === 'alerta' ? '#fee2e2' : '#e0f2fe';
+                const col = tipo === 'alerta' ? '#991b1b' : '#0369a1';
+                const titulo = String(n.titulo || 'Sem título').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const resumo = String(n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120);
+                html += `<div class="notif-card" data-id="${String(n.id).replace(/"/g, '&quot;')}" style="${isRead ? 'opacity:.78;' : 'background:#f0f7ff;border:1px solid #dbeafe;'}"><img src="${n.imagem || 'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div style="min-width:0;flex:1;"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data || '—'} &nbsp; <i class="fas fa-user"></i> ${n.autor || '—'}</div><div class="notif-excerpt">${resumo}${resumo ? '…' : ''}</div><span style="font-size:.75rem;color:${isRead ? 'var(--muted)' : 'var(--primary)'};font-weight:${isRead ? '400' : '700'};">${isRead ? '✓ Lida' : '● Não lida'}</span></div></div>`;
             });
         }
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding-top:14px;"><span style="font-size:.75rem;color:var(--muted);">Exibindo ${exibidas.length} de ${filtradas.length} notificações (máximo de 5).</span><a href="${feedUrl}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--primary);color:white;text-decoration:none;font-weight:700;font-size:.8rem;"><i class="fas fa-newspaper"></i> Abrir Feed completo <i class="fas fa-external-link-alt"></i></a></div>`;
+        body.innerHTML = html;
+        const fechar = document.getElementById('fechar-notif-modal');
+        if (fechar) fechar.addEventListener('click', () => modal.classList.remove('active'));
+        const marcar = document.getElementById('btn-mark-all-read');
+        if (marcar) marcar.addEventListener('click', marcarTodasComoLido);
+        body.querySelectorAll('.notif-filter-btn').forEach(btn => btn.addEventListener('click', () => preencherListaNotificacoes(modal, body, btn.dataset.filtro)));
+        body.querySelectorAll('.notif-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const id = card.dataset.id;
+                if (!readNotifications.some(x => String(x) === String(id))) {
+                    readNotifications.push(id);
+                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                    atualizarBadgeNotificacoes();
+                }
+                const post = notificacoes.find(p => String(p.id) === String(id));
+                if (post) exibirPostagemDetalhe(post);
+            });
+        });
         modal.classList.add('active');
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+        if (!modal.dataset.outsideListener) {
+            modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
+            modal.dataset.outsideListener = 'true';
+        }
     }
 
     function exibirPostagemDetalhe(post) {
@@ -2187,6 +2295,7 @@
         const closeHamburger = ()=>{ document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
         document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
         document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+        await carregarAtalhosPersonalizados();
         renderizarMenus();
         document.getElementById('menu-notifications-side').addEventListener('click', ()=>{ closeHamburger(); abrirModalNotificacoes(); });
         document.getElementById('menu-logout').addEventListener('click', ()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
