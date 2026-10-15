@@ -117,7 +117,7 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
       <div class="notice" id="notice" role="status"></div>
     </section>
     <section class="panel">
-      <div class="selection-head"><div><h2>Arquivos para gerar</h2><p style="margin:5px 0 0">A aba faturados será separada automaticamente em arquivos por código de vendedor; as demais fontes continuam compartilhadas.</p></div><div class="small-actions"><button id="selectAll" type="button">Selecionar todos</button><button id="selectNone" type="button">Desmarcar todos</button></div></div>
+      <div class="selection-head"><div><h2>Arquivos para gerar</h2><p style="margin:5px 0 0">Além dos dados do Radar, selecione os catálogos Ammega/Continental e a configuração de imagens/reajustes. Cada fonte de catálogo consulta sua própria planilha e gera um JSON em dados/.</p></div><div class="small-actions"><button id="selectAll" type="button">Selecionar todos</button><button id="selectNone" type="button">Desmarcar todos</button></div></div>
       <div class="list" id="sourceList"></div>
     </section>
   </section><!-- /pane-interface -->
@@ -143,7 +143,22 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
     {file:'informacoes.json', tab:'informacoes', label:'Informações gerais'},
     {file:'meta_faturamento_consolidado_meses.json', tab:'meta_faturamento_consolidado_meses', label:'Faturamento consolidado por mês'},
     {file:'cadastro.json', tab:'cadastro', label:'Cadastro de usuários para o login (OpenSheet → dados/cadastro.json)'},
-    {file:'atalhos.json', tab:'atalhos', label:'Atalhos personalizados do menu por vendedor (ícone Font Awesome ou URL de imagem)'}
+    {file:'atalhos.json', tab:'atalhos', label:'Atalhos personalizados do menu por vendedor (ícone Font Awesome ou URL de imagem)'},
+    {file:'catalogo_vlisas.json', tab:'V LISAS', label:'Catálogo Ammega · V Lisas', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_vdentada.json', tab:'V DENTADA', label:'Catálogo Ammega · V Dentada', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_duplov.json', tab:'DUPLO V', label:'Catálogo Ammega · Duplo V', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_bandas.json', tab:'BANDAS EM V', label:'Catálogo Ammega · Bandas em V', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_acculink.json', tab:'ACCULINK', label:'Catálogo Ammega · Acculink', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_moinho.json', tab:'MOINHO', label:'Catálogo Ammega · Moinho', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_megalinear.json', tab:'megalinear', label:'Catálogo Ammega · Megalinear', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_megapower.json', tab:'MEGAPOWER', label:'Catálogo Ammega · Megapower', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_sincrobor.json', tab:'SINCRO BOR. MEGADYNE', label:'Catálogo Ammega · Sincro Bor.', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_megarib.json', tab:'MEGARIB', label:'Catálogo Ammega · Megarib', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q'},
+    {file:'catalogo_polyv.json', tab:'POLY V', label:'Catálogo Ammega · Poly V', sheetId:'1k9xfhDwG8kamb4T7NH0xsHKmhM1HIrUWMmxo8_Acr_Q', needsWidth:true},
+    {file:'catalogo_mangueiras.json', tab:'Mangueiras', label:'Catálogo Continental · Mangueiras', sheetId:'1hrLx08a8_wm17LxLOrj5-OxtmUytb_oei2GMxXxinZk'},
+    {file:'catalogo_correias_ind.json', tab:'Correias Ind.', label:'Catálogo Continental · Correias industriais', sheetId:'1hrLx08a8_wm17LxLOrj5-OxtmUytb_oei2GMxXxinZk'},
+    {file:'catalogo_correias_sinc.json', tab:'Correias Sinc.', label:'Catálogo Continental · Correias sincronizadas', sheetId:'1hrLx08a8_wm17LxLOrj5-OxtmUytb_oei2GMxXxinZk'},
+    {file:'config_catalogo.json', tab:'config', label:'Configuração do catálogo · imagens e reajustes', sheetId:'18ahHlXOVOnxHr5h5RWXtCMvkDEd3SYkdz77RlL_OrGg'}
   ];
   // O código é a chave de separação mais confiável. Os nomes abaixo definem os arquivos gerados.
   const SELLERS = [
@@ -175,7 +190,8 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
   function getSelected(){return [...document.querySelectorAll('.source-check:checked')].map(el=>Number(el.dataset.index));}
   async function fetchSource(i, sheetId, baseUrl){
     const s=SOURCES[i]; setStatus(i,'loading','Consultando OpenSheet…'); if(typeof terminalLine==='function')terminalLine(`[CONSULTA] ${s.tab} → OpenSheet`, 'term-warn');
-    const url=`${baseUrl.replace(/\/+$/,'')}/${encodeURIComponent(sheetId)}/${encodeURIComponent(s.tab)}`;
+    const sourceSheetId=s.sheetId || sheetId;
+    const url=`${baseUrl.replace(/\/+$/,'')}/${encodeURIComponent(sourceSheetId)}/${encodeURIComponent(s.tab)}`;
     try{
       const response=await fetch(url,{cache:'no-store',headers:{'Accept':'application/json'}});
       if(!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
@@ -243,7 +259,7 @@ body{background:#090b10;color:#e8e8eb;font-family:ui-monospace,SFMono-Regular,Me
     try{
       const zip=new JSZip();const folder=zip.folder('dados');
       valid.forEach(([i,r])=>r.files.forEach(f=>folder.file(f.file,f.json)));
-      const manifest={projeto:'Radar Centrobor',gerado_em:new Date().toISOString(),planilha_id:document.getElementById('sheetId').value.trim(),fonte:'OpenSheet',observacao:'Somente arquivos consultados com sucesso e validados foram incluídos. A aba faturados é separada por código de vendedor. A aba atalhos é exportada como dados/atalhos.json. Arquivos com falha ou resposta vazia foram omitidos para proteger versões anteriores.',arquivos:valid.flatMap(([i,r])=>r.files.map(f=>({arquivo:f.file,aba:SOURCES[i].tab,registros:f.rows,url:r.url,gerado_em:r.updatedAt,...(f.seller?{vendedor:f.seller,codigo_vendedor:f.code,coluna_codigo:r.codeKey}:{})}))) };
+      const manifest={projeto:'Radar Centrobor',gerado_em:new Date().toISOString(),planilha_id:document.getElementById('sheetId').value.trim(),fonte:'OpenSheet', catalogos_incluidos:true,observacao:'Somente arquivos consultados com sucesso e validados foram incluídos. A aba faturados é separada por código de vendedor. A aba atalhos é exportada como dados/atalhos.json. Arquivos com falha ou resposta vazia foram omitidos para proteger versões anteriores.',arquivos:valid.flatMap(([i,r])=>r.files.map(f=>({arquivo:f.file,aba:SOURCES[i].tab,registros:f.rows,url:r.url,gerado_em:r.updatedAt,...(f.seller?{vendedor:f.seller,codigo_vendedor:f.code,coluna_codigo:r.codeKey}:{})}))) };
       folder.file('_manifest.json',JSON.stringify(manifest,null,2)+'\n');
       const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
       const link=document.createElement('a');const objectUrl=URL.createObjectURL(blob);link.href=objectUrl;link.download=`radarcentrobor_dados_${new Date().toISOString().slice(0,10)}.zip`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(objectUrl),30000);
