@@ -198,6 +198,28 @@
         .main-split { display: grid; grid-template-columns: 1fr 1fr; gap:24px; margin-bottom:32px; }
         @media (max-width:1000px) { .main-split { grid-template-columns:1fr; } }
         .card-panel { background: var(--card-bg); backdrop-filter: var(--blur); border-radius: var(--radius-lg); padding:22px; border:1px solid var(--border-light); box-shadow: var(--shadow-sm); }
+        
+        .approved-orders-panel {
+            background: linear-gradient(135deg, #edf7ff 0%, #f8fbff 100%);
+            border: 1px solid #c8e3fb;
+            border-left: 5px solid #60a5fa;
+            border-radius: 18px;
+            padding: 20px;
+            margin: 10px 0 28px;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, .07);
+        }
+        .approved-orders-panel .section-title { color: #174a7e; margin-bottom: 7px; }
+        .approved-orders-panel .section-title i { color: #2878c8; }
+        .approved-orders-subtitle { color: #426786; font-size: .86rem; margin: 0 0 14px; }
+        .approved-orders-controls { display:flex; align-items:center; flex-wrap:wrap; gap:10px 16px; margin:0 0 14px; color:#315d80; font-size:.86rem; }
+        .approved-orders-controls select { border:1px solid #b9d9f5; border-radius:9px; background:#fff; color:#174a7e; padding:8px 10px; max-width:100%; }
+        .approved-orders-legend { display:flex; align-items:center; flex-wrap:wrap; gap:8px 14px; }
+        .approved-orders-legend span { display:inline-flex; align-items:center; gap:6px; white-space:nowrap; }
+        .legend-dot { width:10px; height:10px; border-radius:50%; display:inline-block; }
+        .legend-dot.green { background:#22c55e; } .legend-dot.yellow { background:#facc15; } .legend-dot.red { background:#ef4444; }
+        .approved-orders-panel .table-wrapper { background:rgba(255,255,255,.8); border-radius:12px; }
+        @media (max-width:640px) { .approved-orders-panel { padding:14px; border-radius:14px; } .approved-orders-controls { align-items:flex-start; flex-direction:column; } }
+    
         .section-title { font-size:1.05rem; font-weight:700; margin-bottom:16px; display: flex; align-items: center; gap:10px; color: var(--text-dark); }
         .section-title i { color: var(--primary); }
         .meta-card-full { background: white; border-radius: var(--radius-sm); padding:18px; margin-bottom:14px; border:1px solid var(--line); }
@@ -616,8 +638,25 @@
         <div id="campanhas-especiais-container"></div>
     </div>
 
-    <div class="section-title"><i class="fas fa-check-circle"></i> Pedidos Aprovados</div>
-    <div class="table-wrapper" id="tabela-aprovados"></div>
+    <div class="approved-orders-panel">
+        <div class="section-title"><i class="fas fa-check-circle"></i> Pedidos Aprovados (Todo o período)</div>
+        <div class="approved-orders-subtitle">Histórico completo disponível para este vendedor, com farol por tempo desde a aprovação.</div>
+        <div class="approved-orders-controls">
+            <label for="filtro-aprovados-periodo">Filtrar pedidos:</label>
+            <select id="filtro-aprovados-periodo" onchange="window.filtrarPedidosAprovados && window.filtrarPedidosAprovados()">
+                <option value="todos">Todos os pedidos</option>
+                <option value="30">Até 30 dias</option>
+                <option value="31-90">De 31 a 90 dias</option>
+                <option value="90+">Mais de 90 dias</option>
+            </select>
+            <div class="approved-orders-legend">
+                <span><i class="legend-dot green"></i> Até 30 dias</span>
+                <span><i class="legend-dot yellow"></i> 31–90 dias</span>
+                <span><i class="legend-dot red"></i> Mais de 90 dias</span>
+            </div>
+        </div>
+        <div class="table-wrapper" id="tabela-aprovados"></div>
+    </div>
     <div class="section-title"><i class="fas fa-dollar-sign"></i> Pedidos Faturados</div>
     <div class="table-wrapper" id="tabela-faturados"></div>
     <div class="section-title"><i class="fas fa-clipboard-list"></i> Pedidos (Aprovados + Faturados)</div>
@@ -954,6 +993,8 @@
     let globalFat = [];
     let globalCot = [];
     let globalAprovFat = [];
+    let globalAprovTodoPeriodoKPI = [];
+    let globalAprovTodoPeriodoKPITitulo = 'Aprovados a faturar (todo período)';
 
     window._kpiColunas = null;
     window._kpiColunaTotal = null;
@@ -1376,6 +1417,7 @@
         switch(tipo) {
             case 'faturamento': titulo = `Faturamento do Mês (${monthLabel})`; dados = globalFat; colunaTotal = 'Valor Mercadoria'; colunas = ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria']; break;
             case 'aprovados_fat': titulo = `Aprovados + Faturados (${monthLabel})`; dados = globalAprovFat; colunaTotal = 'Total Bruto'; colunas = ['Competência','Cliente','Produto','Quantidade','Total Bruto']; break;
+            case 'aprovados_todo_periodo': titulo = globalAprovTodoPeriodoKPITitulo; dados = globalAprovTodoPeriodoKPI; colunaTotal = 'Total Bruto'; colunas = ['Origem','Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor']; break;
             case 'itens': titulo = `Itens Vendidos (${monthLabel})`; dados = [...globalAprov.map(i=>({...i,tipo:'Aprovado'})),...globalFat.map(i=>({...i,tipo:'Faturado'}))]; colunaTotal = null; colunas = ['Data','Cliente','Produto','Quantidade','tipo']; break;
             case 'cotacoes': titulo = `Cotações Ativas (${monthLabel})`; dados = globalCot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])); colunaTotal = 'Valor Total'; colunas = ['Número','Razão Social','Data Criação','Valor Total','Situação Versão']; break;
             case 'clientes': {
@@ -1465,6 +1507,7 @@
             return lista.filter(item => { const d = parseDataBR(item[campo]); return d ? formatMonthKey(d)===selectedMonth : false; });
         };
         const aprov = filterByMonth(aprovFull, 'Data');
+        const aprovTodoPeriodo = [...aprovFull].sort((a,b) => (parseDataBR(b['Data'] || b['Competência']) || 0) - (parseDataBR(a['Data'] || a['Competência']) || 0));
         const fat = filterByMonth(fatFull, 'Data');
         let cot = cotFull;
         cot.sort((a,b) => (parseDataBR(b['Data Criação'])||0) - (parseDataBR(a['Data Criação'])||0));
@@ -1484,6 +1527,21 @@
         }, 0);
 
         const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
+        const mesCalendarioAtual = formatMonthKey(new Date());
+        const mesSelecionadoEhAtual = !selectedMonth || selectedMonth === mesCalendarioAtual;
+        const aprovadosTodoPeriodoValor = aprovTodoPeriodo.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
+        const faturadosMesCalendarioAtual = fatFull.filter(i => { const d=parseDataBR(i['Data']); return d && formatMonthKey(d)===mesCalendarioAtual; });
+        const totalFaturadosMesCalendarioAtual = faturadosMesCalendarioAtual.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+        const totalAprovTodoPeriodoKPI = mesSelecionadoEhAtual ? aprovadosTodoPeriodoValor + totalFaturadosMesCalendarioAtual : aprovadosTodoPeriodoValor;
+        const tituloAprovTodoPeriodoKPI = mesSelecionadoEhAtual
+            ? `Aprovados a faturar (todo período) + Faturados (${mesCalendarioAtual})`
+            : 'Aprovados a faturar (todo período)';
+        const detalheAprovTodoPeriodoKPI = mesSelecionadoEhAtual
+            ? [
+                ...aprovTodoPeriodo.map(i => ({'Origem':'Aprovado a faturar','Data':i['Data'] || i['Competência'] || '', 'Cliente':i['Cliente'] || '', 'Produto':i['Produto'] || '', 'Quantidade':i['Quantidade'] || '', 'Total Bruto':cleanNumber(i['Total Bruto']), 'Vendedor':i['Vendedor'] || NOME_EXIBICAO})),
+                ...faturadosMesCalendarioAtual.map(i => ({'Origem':'Faturado (mês atual)','Data':i['Data'] || '', 'Cliente':i['Nome Chave'] || i['Cliente'] || i['Empresa'] || '', 'Produto':i['Produto'] || '', 'Quantidade':i['Quantidade'] || '', 'Total Bruto':cleanNumber(i['Valor Mercadoria']), 'Vendedor':i['Vendedor'] || NOME_EXIBICAO}))
+            ]
+            : aprovTodoPeriodo.map(i => ({'Origem':'Aprovado a faturar','Data':i['Data'] || i['Competência'] || '', 'Cliente':i['Cliente'] || '', 'Produto':i['Produto'] || '', 'Quantidade':i['Quantidade'] || '', 'Total Bruto':cleanNumber(i['Total Bruto']), 'Vendedor':i['Vendedor'] || NOME_EXIBICAO}));
         const itensVendidos = aprov.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0) + fat.reduce((s,i)=>s+cleanNumber(i['Quantidade']),0);
         const cotAtivas = cot.filter(c=>['Em Aprovação','Confirmado'].includes(c['Situação Versão'])).length;
         const totalClientes = new Set([...aprov.map(i=>i['Cliente']),...fat.map(i=>i['Nome Chave'])]).size;
@@ -1492,6 +1550,7 @@
         document.getElementById('kpi-cards').innerHTML = `
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('faturamento','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-hand-holding-usd"></i></div><div class="value green">${formatarMoeda(totalFaturado)}</div><div class="label">Faturamento Mês</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_fat','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-clipboard-check"></i></div><div class="value blue">${formatarMoeda(totalAprovFat)}</div><div class="label">Aprovados + Fat.</div></div>
+            <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('aprovados_todo_periodo','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-history"></i></div><div class="value blue">${formatarMoeda(totalAprovTodoPeriodoKPI)}</div><div class="label">${tituloAprovTodoPeriodoKPI}</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('itens','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-boxes"></i></div><div class="value blue">${itensVendidos}</div><div class="label">Itens Vendidos</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('cotacoes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-file-invoice"></i></div><div class="value purple">${cotAtivas}</div><div class="label">Cotações Ativas</div></div>
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="value">${totalClientes}</div><div class="label">Clientes Atendidos</div></div>
@@ -1499,6 +1558,7 @@
         renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
 
         globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat;
+        globalAprovTodoPeriodoKPI = detalheAprovTodoPeriodoKPI; globalAprovTodoPeriodoKPITitulo = tituloAprovTodoPeriodoKPI;
 
         const today = new Date(); today.setHours(0,0,0,0);
         let cutoffDate = new Date();
@@ -1604,7 +1664,37 @@
             return html;
         }
 
-        document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprov, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov', null, 'Total Bruto');
+        function classPedidoAprovado(item) {
+            const dataAprovacao = parseDataBR(item['Data'] || item['Competência']);
+            if (!dataAprovacao) return '';
+            const hojeAprovacao = new Date(); hojeAprovacao.setHours(0,0,0,0);
+            const dataLimpa = new Date(dataAprovacao); dataLimpa.setHours(0,0,0,0);
+            const dias = Math.floor((hojeAprovacao - dataLimpa) / 86400000);
+            return dias <= 30 ? 'row-green' : (dias <= 90 ? 'row-yellow' : 'row-red');
+        }
+        document.getElementById('tabela-aprovados').innerHTML = gerarTabela(aprovTodoPeriodo, ['Competência','Cliente','Produto','Quantidade','Total Bruto','Total Líquido'], 'aprov', classPedidoAprovado, 'Total Bruto');
+        window.filtrarPedidosAprovados = function() {
+            const container = document.getElementById('tabela-aprovados');
+            const select = document.getElementById('filtro-aprovados-periodo');
+            if (!container || !select) return;
+            const modo = select.value;
+            const busca = (container.querySelector('.table-search')?.value || '').toLowerCase();
+            const table = container.querySelector('table');
+            if (!table) return;
+            const ths = Array.from(table.querySelectorAll('thead th')).map(th=>th.textContent.trim());
+            const idxTotal = ths.indexOf('Total Bruto');
+            let totalFiltrado = 0;
+            table.querySelectorAll('tbody tr').forEach(row => {
+                const ageClass = row.classList.contains('row-green') ? '30' : (row.classList.contains('row-yellow') ? '31-90' : (row.classList.contains('row-red') ? '90+' : 'sem-data'));
+                const passaIdade = modo === 'todos' || ageClass === modo;
+                const passaBusca = row.textContent.toLowerCase().includes(busca);
+                const mostrar = passaIdade && passaBusca;
+                row.style.display = mostrar ? '' : 'none';
+                if (mostrar && idxTotal >= 0) totalFiltrado += cleanNumber(row.querySelectorAll('td')[idxTotal]?.textContent);
+            });
+            const badge = container.querySelector('.total-badge');
+            if (badge) badge.innerHTML = `<i class="fas fa-calculator"></i> Total: ${formatarMoeda(totalFiltrado)}`;
+        };
         document.getElementById('tabela-faturados').innerHTML = gerarTabela(fat, ['Data','Nome Chave','Empresa','Quantidade','Valor Mercadoria','Custo','Margem'], 'fat', null, 'Valor Mercadoria');
         document.getElementById('tabela-aprovadosfaturados').innerHTML = gerarTabela(aprovFat, ['Data','Cliente','Produto','Quantidade','Total Bruto','Vendedor'], 'aprovfat', null, 'Total Bruto');
         function classCotacao(item) {
@@ -1620,6 +1710,8 @@
 
         document.querySelectorAll('.table-toolbar .table-search').forEach(input => {
             input.addEventListener('input', function() {
+                const approvedContainer = this.closest('#tabela-aprovados');
+                if (approvedContainer && window.filtrarPedidosAprovados) { window.filtrarPedidosAprovados(); return; }
                 const term = this.value.toLowerCase();
                 const wrapper = this.closest('.table-toolbar');
                 const table = wrapper.parentElement.querySelector('table');
