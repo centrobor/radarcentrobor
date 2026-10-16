@@ -1992,15 +1992,19 @@
 
         const registrarInteracaoVendedor = (lista, campoNome, campoData) => {
             lista.forEach(item => {
-                const nome = normalizarNomeCliente(item[campoNome] || extrairNomeClienteRegistro(item));
                 const d = parseDataBR(item[campoData]);
-                if (!nome || !d) return;
-                if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) interacoesVendedor.set(nome, d);
-                const codigo = extrairCodigoClienteRegistro(item);
-                if (codigo) {
-                    const chaveCodigo = `COD:${codigo}`;
-                    if (!interacoesVendedor.has(chaveCodigo) || d > interacoesVendedor.get(chaveCodigo)) interacoesVendedor.set(chaveCodigo, d);
-                }
+                if (!d) return;
+                // O vínculo com a carteira é pela razão social; o código do pedido
+                // não é o código oficial do cliente e nunca deve ser usado para cruzar.
+                const nomes = [
+                    item['Razão Social'], item['Nome/Razão Social'], item['Empresa'],
+                    item[campoNome], item['Nome Chave'], extrairNomeClienteRegistro(item)
+                ].map(normalizarNomeCliente).filter(Boolean);
+                nomes.forEach(nome => {
+                    if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) {
+                        interacoesVendedor.set(nome, d);
+                    }
+                });
             });
         };
 
@@ -2180,76 +2184,90 @@
         aprovFull.forEach(item => registrarInteracaoCnpj(item['Cliente'], parseDataBR(item['Data'])));
         fatFull.forEach(item => registrarInteracaoCnpj(item['Nome Chave'], parseDataBR(item['Data'])));
 
-        // União de faturamentos + carteira: cliente faturado por este vendedor não
-        // pode desaparecer do Farol só porque o cadastro o atribui a outro representante.
-        const codigosJaNoFarol = new Set(clientesConsolidados.map(c => normalizarCodigoCliente(c['Código'])).filter(Boolean));
-        const cnpjsJaNoFarol = new Set(clientesConsolidados.map(c => normalizarCnpj(c['CPF/CGC'])).filter(Boolean));
-        const nomesJaNoFarol = new Set(clientesConsolidados.flatMap(c =>
-            [c['Nome Chave'], c['Nome/Razão Social']].map(normalizarNomeCliente).filter(Boolean)
-        ));
+        // União de faturamentos + carteira: o vínculo é feito exclusivamente
+        // pela RAZÃO SOCIAL. O campo "Código" dos pedidos/faturamentos não é
+        // o código oficial do cliente; o código oficial vem somente da carteira.
+        const razaoDaCarteira = cli => normalizarNomeCliente(cli && cli['Nome/Razão Social']);
+        const razaoDoFaturamento = item => {
+            // Cruzamento exclusivo por razão social. Não usar código do pedido,
+            // CNPJ ou nome fantasia como chave de associação à carteira.
+            return normalizarNomeCliente(item && (item['Razão Social'] || item['Nome/Razão Social'] || item['Empresa'] || item['Nome Chave']));
+        };
+        const razoesJaNoFarol = new Set(clientesConsolidados
+            .map(c => razaoDaCarteira(c) || normalizarNomeCliente(c['Nome/Razão Social']))
+            .filter(Boolean));
+
+        // Se a razão social faturada existir na carteira completa, usa o cadastro
+        // oficial (incluindo o código oficial), mesmo que esteja atribuído a outro representante.
         fatFull.forEach(item => {
-            const codigoFaturado = normalizarCodigoCliente(item['Código']);
-            if (!codigoFaturado) return;
+            const razaoFat = razaoDoFaturamento(item);
+            if (!razaoFat) return;
+            const cadastro = carteiraRaw.find(cli => razaoDaCarteira(cli) === razaoFat);
+            if (!cadastro) return;
+            const razaoOficial = razaoDaCarteira(cadastro);
+            if (razaoOficial && razoesJaNoFarol.has(razaoOficial)) return;
 
-            // Único vínculo entre faturamento e carteira: código do cliente.
-            const cadastro = carteiraRaw.find(cli =>
-                normalizarCodigoCliente(cli['Código']) === codigoFaturado
-            );
-            if (!cadastro) return; // será incluído como cadastro provisório abaixo
-
-            const codigo = normalizarCodigoCliente(cadastro['Código']);
-            if (codigo && codigosJaNoFarol.has(codigo)) return;
-
-            // Quando o código existe na carteira, a ficha usa os dados cadastrais
-            // oficiais; o faturamento serve para registrar a interação/atividade.
             const registro = { ...cadastro };
-            const cnpj = normalizarCnpj(cadastro['CPF/CGC']);
             clientesConsolidados.push({
                 ...registro,
-                __cnpj: cnpj,
+                __cnpj: normalizarCnpj(cadastro['CPF/CGC']),
                 __aliases: [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].filter(Boolean),
                 __registros: [registro],
                 __incluidoPorFaturamento: true
             });
-            if (codigo) codigosJaNoFarol.add(codigo);
+            if (razaoOficial) razoesJaNoFarol.add(razaoOficial);
         });
 
-        // REGISTRO DE EXCEÇÃO: faturado sem correspondência segura na carteira.
-        // Não esconder esse cliente do Farol. Criar ficha provisória com os dados
-        // existentes no faturamento e sinalizar que o administrador deve revisar.
+        // Cadastro provisório: cada razão social faturada que não exista na carteira
+        // aparece no Farol, sem usar o código do pedido como código cadastral.
         const faturadosSemCarteira = [];
+        const provisoriaPorRazao = new Map();
         fatFull.forEach(item => {
-            const nomeFaturadoOriginal = String(item['Nome Chave'] || item['Razão Social'] || item['Empresa'] || item['Cliente'] || '').trim();
-            const nomeFaturado = normalizarNomeCliente(nomeFaturadoOriginal);
-            const razaoFaturada = normalizarNomeCliente(item['Empresa'] || item['Razão Social']);
-            const codigo = normalizarCodigoCliente(item['Código']);
-            const cnpjPedido = normalizarCnpj(item['CPF/CGC'] || item['CNPJ'] || item['CGC']);
-            // Não usar nome/CNPJ como chave de vínculo. Só evita duplicar o mesmo código.
-            const jaExiste = codigo
-                ? clientesConsolidados.some(c => normalizarCodigoCliente(c['Código']) === codigo)
-                : false;
-            if (jaExiste) return;
+            const razaoOriginal = String(item['Empresa'] || item['Razão Social'] || item['Nome/Razão Social'] || item['Nome Chave'] || item['Cliente'] || '').trim();
+            const razaoNorm = razaoDoFaturamento(item);
+            if (!razaoNorm) return;
 
-            const registroProvisorio = {
-                'Código': codigo || '',
-                'Nome Chave': item['Nome Chave'] || nomeFaturadoOriginal,
-                'Nome/Razão Social': item['Empresa'] || item['Razão Social'] || nomeFaturadoOriginal,
-                'CPF/CGC': item['CPF/CGC'] || item['CNPJ'] || item['CGC'] || '',
-                'ATivo/Inativo': 'Não localizado na carteira',
-                'Cidade': item['Cidade'] || '',
-                'UF': item['UF'] || '',
-                'Telefone': item['Telefone'] || '',
-                'Fone': item['Fone'] || '',
-                'E-Mail': item['E-Mail'] || '',
-                '__semCarteira': true,
-                '__cadastroProvisorio': true,
-                '__motivoProvisorio': 'Faturamento não localizado na carteira: possível alteração cadastral, razão social antiga ou cliente novo ainda não atualizado.',
-                '__origemFaturamento': { ...item }
-            };
+            const cadastro = carteiraRaw.find(cli => razaoDaCarteira(cli) === razaoNorm);
+            if (cadastro) return;
+
+            // Evita gerar várias fichas provisórias para a mesma razão social.
+            // Conserva o registro faturado mais recente como fonte dos dados exibidos.
+            const dataItem = parseDataBR(item['Data']);
+            const existente = provisoriaPorRazao.get(razaoNorm);
+            if (existente) {
+                const dataExistente = parseDataBR(existente.__origemFaturamento && existente.__origemFaturamento['Data']);
+                if (dataItem && (!dataExistente || dataItem > dataExistente)) {
+                    Object.assign(existente, criarRegistroProvisorio(item, razaoOriginal));
+                }
+                return;
+            }
+
+            function criarRegistroProvisorio(faturamento, razao) {
+                return {
+                    // Não copiar o código do pedido para o campo de código oficial do cliente.
+                    'Código': '',
+                    'Nome Chave': faturamento['Nome Chave'] || razao,
+                    'Nome/Razão Social': razao,
+                    'CPF/CGC': faturamento['CPF/CGC'] || faturamento['CNPJ'] || faturamento['CGC'] || '',
+                    'ATivo/Inativo': 'Não localizado na carteira',
+                    'Cidade': faturamento['Cidade'] || '',
+                    'UF': faturamento['UF'] || '',
+                    'Telefone': faturamento['Telefone'] || '',
+                    'Fone': faturamento['Fone'] || '',
+                    'E-Mail': faturamento['E-Mail'] || '',
+                    '__semCarteira': true,
+                    '__cadastroProvisorio': true,
+                    '__motivoProvisorio': 'Razão social faturada não localizada na carteira: possível atualização cadastral, alteração da razão social ou cliente novo ainda não incluído.',
+                    '__origemFaturamento': { ...faturamento }
+                };
+            }
+
+            const registroProvisorio = criarRegistroProvisorio(item, razaoOriginal);
+            provisoriaPorRazao.set(razaoNorm, registroProvisorio);
             faturadosSemCarteira.push(registroProvisorio);
             clientesConsolidados.push({
                 ...registroProvisorio,
-                __cnpj: cnpjPedido,
+                __cnpj: normalizarCnpj(registroProvisorio['CPF/CGC']),
                 __aliases: [registroProvisorio['Nome Chave'], registroProvisorio['Nome/Razão Social']].filter(Boolean),
                 __registros: [registroProvisorio],
                 __incluidoPorFaturamento: true,
@@ -2259,9 +2277,6 @@
 
             const nomeNorm = normalizarNomeCliente(registroProvisorio['Nome Chave']);
             if (nomeNorm && !carteiraMap.has(nomeNorm)) carteiraMap.set(nomeNorm, {
-                ...registroProvisorio, nome: registroProvisorio['Nome Chave'], cadastrado: false, ativo: true
-            });
-            if (codigo && !carteiraByCodigo.has(codigo)) carteiraByCodigo.set(codigo, {
                 ...registroProvisorio, nome: registroProvisorio['Nome Chave'], cadastrado: false, ativo: true
             });
         });
@@ -2276,10 +2291,9 @@
                 ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime())))
                 : null;
 
-            const codigoCliente = normalizarCodigoCliente(dados['Código']);
-            const ultimaPorCodigo = codigoCliente ? (interacoesVendedor.get(`COD:${codigoCliente}`) || null) : null;
-            const ultimaPorCnpj = dados.__cnpj ? (interPorCnpj.get(dados.__cnpj) || null) : null;
-            const ultima = ultimaPorCodigo || ultimaPorCnpj || ultimaPorAlias || null;
+            // A atividade também é calculada pela razão social/aliases textuais,
+            // nunca pelo código do pedido nem por associação via CNPJ.
+            const ultima = ultimaPorAlias || null;
             const dias = ultima
                 ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
                 : Infinity;
@@ -2308,7 +2322,7 @@
                 semCarteira: !!dados.__semCarteira,
                 nomeDivergenteFaturamento: !!dados.__nomeDivergenteFaturamento,
                 observacaoFarol: dados.__semCarteira
-                    ? 'Cadastro provisório gerado com os dados disponíveis no faturamento porque o código não foi localizado na carteira. Pode ter ocorrido uma atualização cadastral, mudança de razão social ou ser um cliente novo. Vendedor: por favor, contate o administrador do sistema para conferir e atualizar a carteira na nuvem.'
+                    ? 'Cadastro provisório gerado com os dados disponíveis no faturamento porque a razão social não foi localizada na carteira. Pode ter ocorrido uma atualização cadastral, mudança de razão social ou ser um cliente novo. Vendedor: por favor, contate o administrador do sistema para conferir e atualizar a carteira na nuvem.'
                     : (dados.__nomeDivergenteFaturamento
                         ? 'O nome/razão social apresentado é o do faturamento mais recente. A divergência com a carteira pode indicar razão social antiga ou atualização cadastral; contate o administrador para confirmar.'
                         : ''),
@@ -2599,7 +2613,7 @@
                             data-cliente-idx="${cidx}" title="Clique para ver a ficha completa">
                             <td>
                                 <div class="farol-cliente-nome">${c.nome}${novidade}</div>
-                                ${c.semCarteira ? '<div style="margin-top:4px;color:#b91c1c;font-size:.68rem;font-style:italic;">Cadastro provisório · faturado fora da carteira</div><div style="margin-top:2px;color:#b91c1c;font-size:.64rem;font-style:italic;">Por favor, conferir com o administrador: possível atualização cadastral ou cliente novo.</div>' : ''}
+                                ${c.semCarteira ? '<div style="margin-top:4px;color:#b91c1c;font-size:.68rem;font-style:italic;">Cadastro provisório · razão social fora da carteira</div><div style="margin-top:2px;color:#b91c1c;font-size:.64rem;font-style:italic;">Por favor, conferir com o administrador: possível atualização cadastral ou cliente novo.</div>' : ''}
                                 ${c.nomeDivergenteFaturamento && !c.semCarteira ? '<div style="margin-top:3px;color:#b91c1c;font-size:.66rem;font-style:italic;">Possível razão social antiga</div>' : ''}
                                 ${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}
                             </td>
