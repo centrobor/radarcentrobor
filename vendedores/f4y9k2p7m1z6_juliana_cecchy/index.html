@@ -411,14 +411,8 @@
         .footer-social a { color: var(--footer-text); font-size:1.3rem; text-decoration: none; }
         .footer-bottom { text-align: center; margin-top:20px; font-size:0.7rem; border-top:1px solid rgba(255,255,255,0.1); padding-top:14px; }
         #print-header { display: none; }
-        .loading-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(255,255,255,0.35); backdrop-filter: blur(6px);
-            z-index: 9999; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
-        }
-        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
-        /* A página permanece acessível enquanto os dados são carregados em segundo plano. */
+        /* A tela global de carregamento foi desativada para nunca bloquear a página.
+           O andamento da sincronização continua indicado nos status locais. */
         .loading-overlay, .loading-overlay.hidden { display: none !important; }
         /* Estado de conexão: nunca bloqueia a página inteira */
         #connection-status {
@@ -773,6 +767,8 @@
     const NOME_EXIBICAO = "Juliana Cecchy";
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
 
+    let ATALHOS_DINAMICOS = [];
+
     const MENU_ITENS = [
         {
             id: "dashboard",
@@ -794,7 +790,8 @@
             opensheet: "../../dados/postagens.json",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "custos-vendas",
@@ -805,7 +802,8 @@
             opensheet: "",
             desktopVisible: true,
             mobileVisible: true,
-            bottom: true
+            bottom: true,
+            novaGuia: true
         },
         {
             id: "calculadora-correias",
@@ -834,43 +832,99 @@
     ];
     // ===========================================================================
 
+    async function carregarAtalhosPersonalizados() {
+        try {
+            const registros = await carregarJSON(BASES.atalhos);
+            const normalizar = valor => removeAcentos(String(valor || '').trim().toLowerCase());
+            const nomeConfig = normalizar(NOME_EXIBICAO);
+            const codigoConfig = String(COD_VENDEDOR).trim();
+
+            ATALHOS_DINAMICOS = (Array.isArray(registros) ? registros : [])
+                .filter(item =>
+                    String(item.codigo_vendedor || '').trim() === codigoConfig &&
+                    normalizar(item.nome_vendedor) === nomeConfig
+                )
+                .map((item, indice) => {
+                    let url;
+                    try { url = new URL(String(item.link || '').trim()); } catch (_) { return null; }
+                    if (!['https:', 'http:'].includes(url.protocol)) return null;
+
+                    const icon = String(item.icon || 'fas fa-link').trim();
+                    let iconImagem = '';
+                    try {
+                        const iconUrl = new URL(icon);
+                        if (iconUrl.protocol === 'https:' || iconUrl.protocol === 'http:') iconImagem = iconUrl.href;
+                    } catch (_) {}
+
+                    const iconSeguro = /^[a-zA-Z0-9 _-]{1,100}$/.test(icon) ? icon : 'fas fa-link';
+                    const nome = String(item.nome_atalho || item.nome || item.titulo || 'Atalho externo').trim().slice(0, 70);
+                    return {
+                        id: `atalho-externo-${indice}`,
+                        nome: nome || 'Atalho externo',
+                        icon: iconImagem ? 'fas fa-link' : iconSeguro,
+                        iconImagem,
+                        desktop: url.href,
+                        mobile: url.href,
+                        desktopVisible: true,
+                        mobileVisible: true,
+                        bottom: false,
+                        novaGuia: true,
+                        externo: true
+                    };
+                })
+                .filter(Boolean);
+        } catch (e) {
+            console.warn('Não foi possível carregar os atalhos personalizados:', e);
+            ATALHOS_DINAMICOS = [];
+        }
+    }
+
     function renderizarMenus() {
+        const iconeHTML = item => {
+            if (item.iconImagem) {
+                const src = String(item.iconImagem).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const alt = String(item.nome || 'Atalho').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `<img src="${src}" alt="${alt}" loading="lazy" style="width:1.35em;height:1.35em;object-fit:contain;vertical-align:middle;" onerror="this.style.display='none';this.nextElementSibling.style.display='inline-block'"><i class="fas fa-link" style="display:none"></i>`;
+            }
+            const cls = /^[a-zA-Z0-9 _-]{1,100}$/.test(String(item.icon || '')) ? item.icon : 'fas fa-link';
+            return `<i class="${cls}"></i>`;
+        };
+
         const mobile = document.getElementById('dynamic-mobile-menu');
         const desktop = document.getElementById('desktop-tools-menu');
         const bottom = document.getElementById('dynamic-bottom-menu');
+        const todosItensMenu = [...MENU_ITENS, ...ATALHOS_DINAMICOS];
 
         if (mobile) {
-            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
+            mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         if (desktop) {
-            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
+            desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    <div class="tool-icon"><i class="${item.icon}"></i></div>
+                    <div class="tool-icon">${iconeHTML(item)}</div>
                     <div class="tool-label">${item.nome}</div>
                 </a>
             `).join('');
         }
 
         if (bottom) {
-            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
-            bottom.innerHTML = bottomItems.map(item => `
+            bottom.innerHTML = todosItensMenu.filter(item => item.bottom && item.mobileVisible !== false).map(item => `
                 <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
 
         const navegar = (item, fecharMobile = false) => {
-            if (!item || !item.mobile && !item.desktop) return;
+            if (!item || !(item.mobile || item.desktop)) return;
             if (fecharMobile) closeHamburgerMenu();
             const destino = item.mobile || item.desktop;
             if (item.novaGuia) {
-                // Abre diretamente a partir do clique do usuário para evitar bloqueio de pop-up.
                 const link = document.createElement('a');
                 link.href = destino;
                 link.target = '_blank';
@@ -884,7 +938,7 @@
             }
         };
 
-        MENU_ITENS.forEach(item => {
+        todosItensMenu.forEach(item => {
             const mobileBtn = document.getElementById(`menu-${item.id}`);
             if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
 
@@ -894,13 +948,13 @@
 
         if (desktop) {
             desktop.querySelectorAll('.tool-card').forEach(card => {
-                card.addEventListener('click', (event) => {
-                    const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
-                    if (item?.novaGuia) {
-                        // O link já possui target="_blank"; deixa o navegador abrir a nova guia.
-                        return;
+                card.addEventListener('click', event => {
+                    const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
+                    if (item?.novaGuia) return;
+                    if (item?.desktop) {
+                        event.preventDefault();
+                        window.location.href = item.desktop;
                     }
-                    if (item?.desktop) window.location.href = item.desktop;
                 });
             });
         }
@@ -913,10 +967,6 @@
     }
 
     const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    // Chave canônica compartilhada por carteira, Farol, busca e faturamentos.
-    const normalizarNomeCliente = (valor) => removeAcentos(String(valor || '')).toUpperCase()
-        .replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-
 
     // Atualiza toda a interface com o nome do vendedor
     document.title = `Radar Centrobor – ${NOME_EXIBICAO}`;
@@ -944,9 +994,9 @@
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
     // Dados compartilhados ficam na pasta /dados/ da raiz do repositório.
-    // Esta página pertence ao vendedor Luan Dantas (código 61).
+    // Esta página pertence à vendedora Juliana Cecchy (código 20).
     // O faturamento é individualizado para reduzir o tamanho dos arquivos carregados.
-    // O gerador ZIP deverá criar dados/faturados_luan.json filtrando o código 61.
+    // O gerador ZIP deverá criar dados/faturados_juliana.json filtrando o código 20.
     // Como este HTML está em /vendedores/<pasta-do-vendedor>/, subimos dois níveis.
     const BASE_DADOS = new URL('../../dados/', window.location.href).href;
     const BASES = {
@@ -970,7 +1020,8 @@
         banners: BASE_DADOS + 'banners.json',
         postagens: BASE_DADOS + 'postagens.json',
         campanhas_especiais: BASE_DADOS + 'campanhas_especiais.json',
-        informacoes: BASE_DADOS + 'informacoes.json'
+        informacoes: BASE_DADOS + 'informacoes.json',
+        atalhos: BASE_DADOS + 'atalhos.json'
     };
 
     let codVendedor = COD_VENDEDOR;
@@ -1034,10 +1085,9 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    // Estratégia v3: dados JSON ficam apenas em memória durante a sessão.
-    // localStorage fica reservado para preferências pequenas da interface.
-    const endpointsSemCache = new Set();
-    const dadosEmMemoria = new Map();
+    // Cache-first (stale-while-revalidate): mostra os dados locais imediatamente
+    // e atualiza cada fonte em segundo plano sem bloquear a navegação.
+    const CACHE_PREFIX = 'radar_cache_v3:';
     const endpointsComFalha = new Set();
     const statusFontes = new Map();
     let retryTimer = null;
@@ -1045,18 +1095,23 @@
     let ultimoMesSolicitado = null;
     let renderEmAndamento = false;
     let atualizacaoBackgroundPendente = false;
-    let timerRenderBackground = null;
-    const TIMEOUT_FONTE_MS = 15000;
+    const TIMEOUT_FONTE_MS = 9000;
 
-    // Compatibilidade com os indicadores de status existentes: não lê nem grava
-    // os grandes JSONs no localStorage. O dado carregado é mantido em RAM.
     function lerCacheEndpoint(url) {
-        return null;
+        try {
+            const raw = localStorage.getItem(CACHE_PREFIX + url);
+            if (!raw) return null;
+            const parsed = JSON.parse(raw);
+            return parsed && Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed : null;
+        } catch (_) { return null; }
     }
 
     function salvarCacheEndpoint(url, data) {
-        dadosEmMemoria.set(url, data);
-        return false;
+        try {
+            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
+        } catch (e) {
+            console.warn('Não foi possível atualizar o cache local:', e);
+        }
     }
 
     function formatarHorarioCache(savedAt) {
@@ -1094,12 +1149,12 @@
         if (estados.includes('offline')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
             return cache
-                ? {cls:'local', icon:'fa-database sync-pulse', text:'Dados mantidos na sessão'}
+                ? {cls:'local', icon:'fa-floppy-disk sync-pulse', text:`Cache local${formatarHorarioCache(cache.savedAt)}`}
                 : {cls:'offline', icon:'fa-cloud-bolt sync-pulse', text:'Indisponível'};
         }
         if (estados.includes('local')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
-            return {cls:'local', icon:'fa-database', text:'Dados mantidos na sessão'};
+            return {cls:'local', icon:'fa-floppy-disk', text:`Carregado localmente${formatarHorarioCache(cache?.savedAt)}`};
         }
         const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
         return {cls:'cloud', icon:'fa-cloud-check sync-pulse', text:`Atualizado da nuvem${formatarHorarioCache(cache?.savedAt)}`};
@@ -1161,7 +1216,7 @@
                 }, TIMEOUT_FONTE_MS);
             });
             const fetchPromise = fetch(url, {
-                cache: 'no-cache',
+                cache: 'no-store',
                 ...(controller ? {signal: controller.signal} : {})
             }).then(r => {
                 if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
@@ -1177,19 +1232,13 @@
     }
 
     async function carregarJSON(url) {
-        if (dadosEmMemoria.has(url)) {
-            const statusAtual = statusFontes.get(url)?.estado;
-            if (!statusAtual) definirStatusFonte(url, 'local');
-            if (statusAtual !== 'cloud' && statusAtual !== 'loading') agendarAtualizacaoFonte(url);
-            return dadosEmMemoria.get(url);
-        }
         const cache = lerCacheEndpoint(url);
         if (cache) {
-            // Os dados persistidos não são usados: sem memória, consulta a fonte JSON.
+            // O cache aparece na primeira renderização; a nuvem é consultada em paralelo.
             const statusAtual = statusFontes.get(url)?.estado;
             if (!statusAtual) definirStatusFonte(url, 'local', cache.savedAt);
             atualizarIndicadoresSecoes();
-            // A resposta em memória evita novos downloads durante filtros e redesenhos.
+            // Não inicia um novo fetch em cada redesenho: evita ciclos de atualização.
             if (statusAtual !== 'cloud' && statusAtual !== 'loading') agendarAtualizacaoFonte(url);
             return cache.data;
         }
@@ -1205,28 +1254,16 @@
     }
 
     const fontesEmAtualizacao = new Set();
-
-    // Agrupa várias respostas em uma única reconstrução do dashboard.
-    // Sem debounce, cada JSON concluído podia disparar um renderAll completo,
-    // causando engasgos principalmente em celulares.
-    function agendarRenderBackground() {
-        atualizacaoBackgroundPendente = true;
-        if (timerRenderBackground) clearTimeout(timerRenderBackground);
-        timerRenderBackground = setTimeout(() => {
-            timerRenderBackground = null;
-            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
-                atualizarRenderComDadosNovos();
-            }
-        }, 1200);
-    }
-
     function agendarAtualizacaoFonte(url) {
         if (fontesEmAtualizacao.has(url)) return;
         fontesEmAtualizacao.add(url);
         definirStatusFonte(url, 'loading', lerCacheEndpoint(url)?.savedAt);
         buscarFonteNuvem(url).then((dados) => {
             if (url === BASES.banners && Array.isArray(dados) && dados.length) { BANNERS = dados; currentCarouselIndex = 0; renderCarrossel(); }
-            agendarRenderBackground();
+            atualizacaoBackgroundPendente = true;
+            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
+                atualizarRenderComDadosNovos();
+            }
         }).catch(e => {
             console.warn('Atualização em segundo plano não concluída:', url, e);
             definirStatusFonte(url, 'offline', lerCacheEndpoint(url)?.savedAt);
@@ -1645,16 +1682,12 @@
     }
 
     async function renderAll(selectedMonth) {
-        const fontesPrincipais = [
-            BASES.meta, BASES.metasGlobais, BASES.aprovados, BASES.faturados,
-            BASES.aprovadosfaturados, BASES.carteira, BASES.cotacoes
-        ];
-        const resultadosPrincipais = await Promise.allSettled(fontesPrincipais.map(url => carregarJSON(url)));
-        const dadosPrincipais = resultadosPrincipais.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
-        // O faturamento global do time é auxiliar: falha em um vendedor não deve derrubar o painel.
-        const resultadosTime = await Promise.allSettled(BASES.faturadosTime.map(url => carregarJSON(url)));
-        const faturadosTimePorVendedor = resultadosTime.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
-        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = dadosPrincipais;
+        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw, faturadosTimePorVendedor] = await Promise.all([
+            carregarJSON(BASES.meta), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.aprovados),
+            carregarJSON(BASES.faturados), carregarJSON(BASES.aprovadosfaturados),
+            carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes),
+            Promise.all(BASES.faturadosTime.map(url => carregarJSON(url)))
+        ]);
         // O KPI Meta do Time soma os faturamentos de todos os vendedores cadastrados,
         // enquanto os demais KPIs e tabelas do vendedor continuam usando apenas seu JSON individual.
         const fatTimeRaw = faturadosTimePorVendedor.flat();
@@ -2106,7 +2139,7 @@
         aprovFull.forEach(item => registrarInteracaoCnpj(item['Cliente'], parseDataBR(item['Data'])));
         fatFull.forEach(item => registrarInteracaoCnpj(item['Nome Chave'], parseDataBR(item['Data'])));
 
-        let clientesStatus = clientesConsolidados.map(dados => {
+        const clientesStatus = clientesConsolidados.map(dados => {
             const aliases = dados.__aliases || [];
             const datasAliases = aliases
                 .map(alias => interacoesVendedor.get(removeAcentos(alias).toUpperCase()))
@@ -2152,203 +2185,6 @@
                 aliases
             };
         });
-
-        // CLIENTES FATURADOS FORA DA CARTEIRA: cria um registro provisório
-        // somente para o Farol desta página, usando os dados do próprio pedido.
-        // O cadastro oficial permanece em carteiraclientes.json e deve ser validado pelo administrador.
-        const chavesCarteiraCnpj = new Set(clientesStatus.map(c => normalizarCnpj(c.cnpj || (c.original && c.original['CPF/CGC']))).filter(Boolean));
-        const chavesCarteiraNome = new Set();
-        clientesStatus.forEach(c => {
-            [c.nome, ...(c.aliases || [])].forEach(n => {
-                const k = removeAcentos(String(n || '')).toUpperCase().trim();
-                if (k) chavesCarteiraNome.add(k);
-            });
-        });
-        const provisoriaPorChave = new Map();
-        fatFull.forEach(pedido => {
-            const nomePedido = String(pedido['Nome Chave'] || pedido['Razão Social'] || pedido['Cliente'] || '').trim();
-            if (!nomePedido) return;
-            const cnpjPedido = normalizarCnpj(pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF']);
-            const nomeKey = removeAcentos(nomePedido).toUpperCase().trim();
-            const nomeTokens = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length > 2);
-            // Correspondência conservadora: exacta, nome contido com evidência forte ou
-            // tokens empresariais compartilhados. Não escolhe arbitrariamente em empate.
-            const candidatos = clientesStatus.filter(c => c.cadastrado && !c.provisório);
-            const pontuarFicha = c => {
-                const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']]
-                    .filter(Boolean).map(normalizarNomeCliente).filter(Boolean);
-                let melhor = 0;
-                for (const n of nomes) {
-                    if (n === nomeKey) melhor = Math.max(melhor, 100);
-                    else if (n && (n.includes(nomeKey) || nomeKey.includes(n))) {
-                        const menor = Math.min(n.length, nomeKey.length);
-                        const maior = Math.max(n.length, nomeKey.length);
-                        if (menor >= 5 && menor / maior >= 0.55) melhor = Math.max(melhor, 80 + menor / maior * 10);
-                    }
-                    const tokensExistentes = n.split(' ').filter(t => t.length > 2);
-                    const comuns = [...new Set(nomeTokens.filter(t => tokensExistentes.includes(t)))];
-                    const denominador = Math.min(new Set(nomeTokens).size || 1, new Set(tokensExistentes).size || 1);
-                    if (comuns.length >= 2 && comuns.length / denominador >= 0.6)
-                        melhor = Math.max(melhor, 60 + comuns.length / denominador * 20);
-                    // Sigla curta só vale se for token completo e não houver mais de uma ficha candidata.
-                    const siglas = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length >= 2 && t.length <= 4);
-                    if (siglas.some(t => tokensExistentes.includes(t)) && candidatos.length === 1) melhor = Math.max(melhor, 62);
-                }
-                return melhor;
-            };
-            let clienteRelacionado = null;
-            if (cnpjPedido) clienteRelacionado = candidatos.find(c => normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === cnpjPedido) || null;
-            if (!clienteRelacionado) {
-                const ranqueados = candidatos.map(c => ({ c, score: pontuarFicha(c) })).filter(x => x.score >= 75).sort((a,b) => b.score-a.score);
-                if (ranqueados.length && (ranqueados.length === 1 || ranqueados[0].score > ranqueados[1].score)) clienteRelacionado = ranqueados[0].c;
-            }
-            const mesmoCnpj = cnpjPedido && chavesCarteiraCnpj.has(cnpjPedido);
-            const mesmoNome = chavesCarteiraNome.has(nomeKey);
-            // Se o nome do pedido for uma variação de uma empresa já cadastrada,
-            // manter essa variação visível como provisória e vinculada à ficha encontrada.
-            // Só ignorar quando o nome/CNPJ já estiver representado diretamente.
-            if (mesmoCnpj || mesmoNome) return;
-            const chave = cnpjPedido ? 'CNPJ:' + cnpjPedido : 'NOME:' + nomeKey;
-            const dataPedido = parseDataBR(pedido['Data']);
-            const atual = provisoriaPorChave.get(chave);
-            if (!atual || (dataPedido && (!atual.data || dataPedido > atual.data))) {
-                provisoriaPorChave.set(chave, { pedido, nomePedido, cnpjPedido, data: dataPedido, clienteRelacionado: clienteRelacionado || null });
-            }
-        });
-        provisoriaPorChave.forEach(({pedido, nomePedido, cnpjPedido, data, clienteRelacionado}) => {
-            // Usa a ficha existente como base quando houver correspondência aproximada;
-            // os campos do pedido e o nome alternativo ficam preservados para identificação.
-            const original = {
-                ...pedido,
-                ...((clienteRelacionado && clienteRelacionado.original) || {}),
-                // Mantém a variação faturada visível no Farol, mas usa a ficha oficial
-                // encontrada como fonte dos dados cadastrais, sem deixar campos vazios
-                // do pedido sobrescreverem telefone, endereço, CNPJ etc.
-                'Nome Chave': nomePedido,
-                'Nome/Razão Social': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Nome/Razão Social']) || pedido['Razão Social'] || nomePedido,
-                'CPF/CGC': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['CPF/CGC']) || (clienteRelacionado && clienteRelacionado.cnpj) || pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || '',
-                'Cidade': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Cidade']) || pedido['Cidade'] || pedido['Município'] || '',
-                'UF': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['UF']) || pedido['UF'] || ''
-            };
-            // Cadastro provisório NÃO implica cliente ativo. Calcular o Farol
-            // pela data real do pedido, com a mesma régua dos clientes cadastrados.
-            // Datas futuras são inválidas para atividade e não podem virar 0 dias.
-            const hojeFarol = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-            const dataPedidoValida = data && !Number.isNaN(new Date(data).getTime())
-                && new Date(data.getFullYear(), data.getMonth(), data.getDate()) <= hojeFarol;
-            const ultimaProvisoria = dataPedidoValida ? data : null;
-            const diasProvisorio = ultimaProvisoria
-                ? Math.floor((hojeFarol - new Date(ultimaProvisoria.getFullYear(), ultimaProvisoria.getMonth(), ultimaProvisoria.getDate())) / (1000 * 60 * 60 * 24))
-                : Infinity;
-            const statusProvisorio = diasProvisorio <= 30 ? 'green' : (diasProvisorio < 180 ? 'yellow' : 'red');
-            clientesStatus.push({
-                nome: nomePedido,
-                status: statusProvisorio,
-                ultima: ultimaProvisoria ? formatarData(ultimaProvisoria) : (data ? 'Data futura inválida' : 'Sem interação'),
-                ultimaInteracao: ultimaProvisoria,
-                dias: diasProvisorio,
-                cidade: original['Cidade'],
-                uf: original['UF'],
-                ativo: false,
-                cadastrado: false,
-                provisório: true,
-                original,
-                nomeUpper: removeAcentos(nomePedido).toUpperCase(),
-                cnpj: cnpjPedido,
-                aliases: [nomePedido, original['Nome/Razão Social']].filter(Boolean),
-                fichaRelacionada: clienteRelacionado ? { nome: clienteRelacionado.nome, cnpj: clienteRelacionado.cnpj || '' } : null
-            });
-            // Evita duplicar o mesmo cliente quando houver mais de um pedido.
-            if (cnpjPedido) chavesCarteiraCnpj.add(cnpjPedido);
-            chavesCarteiraNome.add(removeAcentos(nomePedido).toUpperCase().trim());
-        });
-
-        // RESOLUÇÃO CENTRAL DE CLIENTES: a ficha oficial e as variações de faturamento
-        // compartilham a mesma identidade lógica durante toda a página.
-        const aliasesCliente = new Map();
-        const provisoriaPorNome = new Map();
-        const indexarAlias = (nome, cliente) => {
-            const chave = normalizarNomeCliente(nome);
-            if (chave && cliente && !aliasesCliente.has(chave)) aliasesCliente.set(chave, cliente);
-        };
-        clientesStatus.forEach(c => {
-            if (c.provisório) provisoriaPorNome.set(normalizarNomeCliente(c.nome), c);
-            else {
-                indexarAlias(c.nome, c);
-                (c.aliases || []).forEach(n => indexarAlias(n, c));
-                indexarAlias(c.original?.['Nome/Razão Social'], c);
-            }
-        });
-
-        // Índices reutilizáveis: evita varrer a carteira e o faturamento a cada clique.
-        const clienteStatusPorCnpj = new Map();
-        const clienteStatusPorCodigo = new Map();
-        const faturadosPorCnpj = new Map();
-        const faturadosPorNome = new Map();
-        const adicionarIndiceLista = (mapa, chave, item) => {
-            if (!chave) return;
-            if (!mapa.has(chave)) mapa.set(chave, []);
-            mapa.get(chave).push(item);
-        };
-        clientesStatus.forEach(c => {
-            if (c.provisório) return;
-            const cn = normalizarCnpj(c.cnpj || c.original?.['CPF/CGC'] || c.original?.['CNPJ']);
-            const cd = String(c.original?.['Código'] || c.original?.['Codigo'] || '').trim();
-            if (cn && !clienteStatusPorCnpj.has(cn)) clienteStatusPorCnpj.set(cn, c);
-            if (cd && !clienteStatusPorCodigo.has(cd)) clienteStatusPorCodigo.set(cd, c);
-        });
-        (Array.isArray(fatFull) ? fatFull : []).forEach(p => {
-            const cn = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
-            const nm = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Nome/Razão Social'] || p['Cliente'] || p['Empresa']);
-            adicionarIndiceLista(faturadosPorCnpj, cn, p);
-            adicionarIndiceLista(faturadosPorNome, nm, p);
-        });
-
-        function resolverClienteComFicha(nomeOuRegistro) {
-            const registro = nomeOuRegistro && typeof nomeOuRegistro === 'object' ? nomeOuRegistro : null;
-            const nomeOriginal = registro
-                ? String(registro['Nome Chave'] || registro['Razão Social'] || registro['Nome/Razão Social'] || registro['Cliente'] || registro['Empresa'] || '').trim()
-                : String(nomeOuRegistro || '').trim();
-            const cnpj = normalizarCnpj(registro && (registro['CPF/CGC'] || registro['CNPJ'] || registro['CNPJ/CPF']));
-            const codigo = registro && String(registro['Código'] || registro['Cliente'] || '').trim();
-            let ficha = null;
-            if (cnpj) ficha = clienteStatusPorCnpj.get(cnpj) || null;
-            if (!ficha && codigo) ficha = clienteStatusPorCodigo.get(codigo) || null;
-            const chave = normalizarNomeCliente(nomeOriginal);
-            if (!ficha && chave) ficha = aliasesCliente.get(chave) || null;
-            const provisoria = provisoriaPorNome.get(chave) || null;
-            if (!ficha && provisoria?.fichaRelacionada) {
-                const rel = normalizarNomeCliente(provisoria.fichaRelacionada.nome);
-                ficha = aliasesCliente.get(rel) || clienteStatusPorCnpj.get(normalizarCnpj(provisoria.fichaRelacionada.cnpj)) || null;
-            }
-            if (!ficha && chave) {
-                // Última tentativa apenas com evidência nominal forte e resultado único.
-                const tokens = chave.split(' ').filter(t => t.length > 2);
-                const matches = clientesStatus.filter(c => !c.provisório).map(c => {
-                    const nomes = [c.nome, ...(c.aliases || []), c.original?.['Nome/Razão Social']].filter(Boolean).map(normalizarNomeCliente);
-                    let score = 0;
-                    nomes.forEach(n => {
-                        if (n === chave) score = Math.max(score, 100);
-                        else if (n && Math.min(n.length, chave.length) >= 5 && (n.includes(chave) || chave.includes(n))) score = Math.max(score, 85);
-                        const t = n.split(' ').filter(x => x.length > 2);
-                        const comuns = [...new Set(tokens.filter(x => t.includes(x)))];
-                        if (comuns.length >= 2 && comuns.length / Math.min(new Set(tokens).size || 1, new Set(t).size || 1) >= .6) score = Math.max(score, 75);
-                    });
-                    return {c,score};
-                }).filter(x => x.score >= 75).sort((a,b)=>b.score-a.score);
-                if (matches.length && (matches.length === 1 || matches[0].score > matches[1].score)) ficha = matches[0].c;
-            }
-            const registroFarol = provisoria || (chave ? clientesStatus.find(c => c.nomeUpper === removeAcentos(nomeOriginal).toUpperCase()) : null) || null;
-            const oficial = ficha?.original || null;
-            const faturamentosSet = new Set();
-            const cnpjFichaIndex = normalizarCnpj(ficha?.cnpj || oficial?.['CPF/CGC']);
-            if (cnpjFichaIndex) (faturadosPorCnpj.get(cnpjFichaIndex) || []).forEach(p => faturamentosSet.add(p));
-            const chavesFaturamento = new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente), ...(ficha ? [normalizarNomeCliente(ficha.nome), normalizarNomeCliente(ficha.original?.['Nome Chave']), normalizarNomeCliente(ficha.original?.['Nome/Razão Social'])] : []), ...(provisoria ? [normalizarNomeCliente(provisoria.nome)] : [])].filter(Boolean));
-            chavesFaturamento.forEach(k => (faturadosPorNome.get(k) || []).forEach(p => faturamentosSet.add(p)));
-            const faturamentos = [...faturamentosSet];
-            return { ficha: oficial, clienteResolvido: ficha, nomeOriginal: nomeOriginal, provisoria: !!(provisoria && ficha), chaves: [...new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente)].filter(Boolean))], variacoes: [nomeOriginal].filter(Boolean), faturamentos };
-        }
-        window.resolverClienteComFicha = resolverClienteComFicha;
 
         /*
          * AGRUPAMENTO INTELIGENTE DE GRUPOS EMPRESARIAIS
@@ -2563,23 +2399,18 @@
             const gruposOrdenados = ordenarGrupos(gruposFiltrados, ordem);
             const clientesFiltrados = clientesStatus.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
             const clientesOrdenados = ordenarClientes(clientesFiltrados, ordem);
-            const avisoCadastroProvisorio = clientesFiltrados.some(c => c.provisório)
-                ? '<div style="margin:0 0 12px;padding:9px 12px;border:1px solid #f3dfb3;border-radius:12px;background:#fffbeb;color:#795512;font-size:.76rem;line-height:1.45;"><i class="fas fa-cloud-arrow-up" style="margin-right:6px;"></i>Cadastro provisório em nuvem — será atualizado para efetivo em breve. Contate o administrador para validar, se necessário.</div>'
-                : '';
 
             if (modo === 'filiais') {
-                container.innerHTML = avisoCadastroProvisorio + `<div class="table-wrapper" style="margin:0;">
+                container.innerHTML = `<div class="table-wrapper" style="margin:0;">
                     <table class="carteira-antiga-table"><thead><tr><th>Cliente / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th></tr></thead><tbody>
                     ${clientesOrdenados.map(c => {
-                        const cadastro = c.provisório
-                            ? '<span style="color:#9a3412;font-weight:800;"><i class="fas fa-triangle-exclamation"></i> Provisório</span>'
-                            : (c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success)"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger)"></i> Inativo');
+                        const cadastro = c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success)"></i> Ativo' : '<i class="fas fa-times-circle" style="color:var(--danger)"></i> Inativo';
                         const ultima = c.ultimaInteracao ? `${formatarData(c.ultimaInteracao)} <small style="color:var(--muted)">(${c.dias}d)</small>` : '<em style="color:var(--danger)">sem interação</em>';
                         const badge = `<span class="farol-status-badge ${c.status}">${c.status==='green'?'🟢 Ativo':c.status==='yellow'?'🟡 Esfriando':'🔴 Inativo'}</span>`;
                         return `<tr class="carteira-row-${c.status}" data-nome="${c.nomeUpper}" title="Clique para ver a ficha completa"><td><strong>${c.nome}</strong>${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>`:''}</td><td>${c.cidade||'—'}${c.uf?'/'+c.uf:''}</td><td>${cadastro}</td><td>${ultima}</td><td>${badge}</td></tr>`;
                     }).join('')}
                     </tbody></table></div>`;
-                container.querySelectorAll('tbody tr[data-nome]').forEach(row => row.addEventListener('click', e => { e.stopPropagation(); if (window.abrirFichaCliente) { const c = clientesStatus.find(x => x.nomeUpper === row.dataset.nome); window.abrirFichaCliente(row.dataset.nome, c?.cnpj || '', c?.provisório ? c.original : null, true); } }));
+                container.querySelectorAll('tbody tr[data-nome]').forEach(row => row.addEventListener('click', e => { e.stopPropagation(); if (window.abrirFichaCliente) window.abrirFichaCliente(row.dataset.nome); }));
                 return;
             }
 
@@ -2592,7 +2423,7 @@
                 return;
             }
 
-            container.innerHTML = avisoCadastroProvisorio + gruposOrdenados.map((g, idx) => {
+            container.innerHTML = gruposOrdenados.map((g, idx) => {
                 const icone = g.status === 'green' ? 'fa-check-circle'
                     : g.status === 'yellow' ? 'fa-exclamation-circle'
                     : 'fa-times-circle';
@@ -2622,13 +2453,11 @@
                         ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
                         : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
 
-                    const novidade = c.provisório
-                        ? '<span title="Cadastro provisório em nuvem; será atualizado para efetivo em breve. Contate o administrador para validar, se necessário." style="font-size:.58rem;background:#fff7ed;color:#9a3412;padding:2px 6px;border-radius:7px;margin-left:5px;font-weight:700;">Provisório</span>'
-                        : (!c.cadastrado
-                            ? (c.ultimaInteracao && c.dias <= 30
-                                ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>'
-                                : '<span style="font-size:.6rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:5px;">Atribuído</span>')
-                            : '');
+                    const novidade = !c.cadastrado
+                        ? (c.ultimaInteracao && c.dias <= 30
+                            ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>'
+                            : '<span style="font-size:.6rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:5px;">Atribuído</span>')
+                        : '';
 
                     return `
                         <tr class="carteira-row-${c.status}" data-nome="${c.nomeUpper}"
@@ -2701,7 +2530,7 @@
                 row.addEventListener('click', e => {
                     e.stopPropagation();
                     const nome = row.dataset.nome;
-                    if (nome && window.abrirFichaCliente) { const c = clientesStatus.find(x => x.nomeUpper === nome); window.abrirFichaCliente(nome, c?.cnpj || '', c?.provisório ? c.original : null, true); }
+                    if (nome && window.abrirFichaCliente) window.abrirFichaCliente(nome);
                 });
             });
         }
@@ -2759,8 +2588,7 @@
             window.fichaPedidoData = pedidoData;
             mostrarLoadingModal();
             setTimeout(() => {
-                const resolucaoCentral = resolverClienteComFicha(pedidoData || nomeUpper);
-                let cliente = resolucaoCentral.ficha ? { ...resolucaoCentral.ficha, nome: resolucaoCentral.clienteResolvido?.nome || resolucaoCentral.ficha['Nome Chave'] || nomeUpper, _nomePedidoOriginal: resolucaoCentral.nomeOriginal } : null;
+                let cliente = null;
                 if (!cliente && pedidoData && pedidoData['Cliente']) cliente = carteiraByCodigo.get(String(pedidoData['Cliente']).trim());
                 const nomeBusca = removeAcentos(nomeUpper||'').toUpperCase();
                 if (!cliente) cliente = carteiraMap.get(nomeBusca);
@@ -2770,23 +2598,9 @@
                     }
                 }
                 if (!cliente && nomeBusca && permitirBuscaAproximada) {
-                    const resolvida = resolverClienteComFicha(nomeBusca);
-                    if (resolvida.ficha) cliente = { ...resolvida.ficha, nome: resolvida.clienteResolvido?.nome || resolvida.ficha['Nome Chave'] || nomeUpper };
-                }
-                // Para uma variação provisória do Farol, abrir a ficha cadastral relacionada
-                // como referência: não deixar a tela cair no resumo incompleto do pedido.
-                if (!cliente) {
-                    const provisoria = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
-                    const rel = provisoria && provisoria.fichaRelacionada;
-                    if (rel) {
-                        const nomeRel = removeAcentos(String(rel.nome || '')).toUpperCase().trim();
-                        if (nomeRel) cliente = carteiraMap.get(nomeRel) || null;
-                        const cnpjRel = String(rel.cnpj || '').replace(/\D/g, '');
-                        if (!cliente && cnpjRel) {
-                            for (const val of carteiraMap.values()) {
-                                if (String(val['CPF/CGC'] || '').replace(/\D/g, '') === cnpjRel) { cliente = val; break; }
-                            }
-                        }
+                    const palavras = nomeBusca.split(/\s+/).filter(p=>p.length>2);
+                    for (let [key, val] of carteiraMap.entries()) {
+                        if (palavras.some(p=>key.includes(p))) { cliente = val; break; }
                     }
                 }
                 if (!cliente) {
@@ -2801,112 +2615,13 @@
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
                     return;
                 }
-                // Completa campos vazios com dados do pedido/faturamento atual.
-                // A ficha oficial sempre tem prioridade; dados da operação servem como
-                // cadastro provisório apenas para os campos que não existem na carteira.
-                if (pedidoData && typeof pedidoData === 'object') {
-                    const primeiroValor = (...valores) => valores.find(v => v !== undefined && v !== null && String(v).trim() !== '');
-                    const aliasesPedido = {
-                        'Código': ['Código','Codigo','Código Cliente','Cod. Cliente','Cod Cliente'],
-                        'Nome Chave': ['Nome Chave','Cliente','Razão Social','Nome/Razão Social','Empresa'],
-                        'Nome/Razão Social': ['Empresa','Nome/Razão Social','Razão Social','Nome Fantasia','Nome Chave','Cliente'],
-                        'Física/Juridica': ['Física/Juridica','Física/Jurídica','Tipo Pessoa','Pessoa'],
-                        'CPF/CGC': ['CPF/CGC','CNPJ','CNPJ/CPF','CPF','CGC'],
-                        'RG/IE': ['RG/IE','IE','Inscrição Estadual','RG'],
-                        'Ramo': ['Ramo','Segmento','Atividade'],
-                        'Dt.Cadastro': ['Dt.Cadastro','Data Cadastro','Cadastro'],
-                        'ATivo/Inativo': ['ATivo/Inativo','Ativo/Inativo','Status Cliente'],
-                        'Transportadora': ['Transportadora'],
-                        'Limite de Crédito': ['Limite de Crédito','Limite Crédito'],
-                        'Endereço': ['Endereço','Endereco','Logradouro','Rua'],
-                        'Número': ['Número','Numero','Nº'],
-                        'Complemento': ['Complemento'],
-                        'Bairro': ['Bairro'],
-                        'Cidade': ['Cidade','Município','Municipio'],
-                        'UF': ['UF','Estado'],
-                        'País': ['País','Pais'],
-                        'CEP': ['CEP','Código Postal'],
-                        'Telefone': ['Telefone','Telefone Empresa','Tel.'],
-                        'Fax': ['Fax'],
-                        'Contato': ['Contato','Nome Contato','Responsável','Responsavel'],
-                        'Departamento': ['Departamento'],
-                        'Cargo': ['Cargo'],
-                        'Dt. Aniversário': ['Dt. Aniversário','Data Aniversário'],
-                        'Fone': ['Fone','Celular','WhatsApp','Telefone 2'],
-                        'E-Mail': ['E-Mail','Email','E-mail','E-mail Cliente']
-                    };
-                    Object.entries(aliasesPedido).forEach(([campo, chaves]) => {
-                        if (cliente[campo] === undefined || cliente[campo] === null || String(cliente[campo]).trim() === '') {
-                            const valor = primeiroValor(...chaves.map(k => pedidoData[k]));
-                            if (valor !== undefined) cliente[campo] = valor;
-                        }
-                    });
-                    // Para clientes sem ficha, o nome da empresa exibido no pedido é
-                    // também o melhor nome/razão social provisório disponível.
-                    const nomeEmpresaPedido = primeiroValor(pedidoData['Empresa'], pedidoData['Nome/Razão Social'], pedidoData['Razão Social'], pedidoData['Nome Chave'], pedidoData['Cliente']);
-                    // Para a ficha provisória, Empresa é a fonte preferencial da razão social,
-                    // pois é o nome empresarial completo exibido nos detalhes do pedido.
-                    // Só substitui um valor abreviado quando não há cadastro oficial resolvido.
-                    const temFichaOficialResolvida = !!(resolucaoCentral && resolucaoCentral.ficha);
-                    if (pedidoData['Empresa'] && (!temFichaOficialResolvida || !cliente['Nome/Razão Social'])) {
-                        cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
-                    } else if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) {
-                        cliente['Nome/Razão Social'] = nomeEmpresaPedido;
-                    }
-                    if (!cliente['Nome Chave'] && nomeEmpresaPedido) cliente['Nome Chave'] = nomeEmpresaPedido;
-                    cliente._dadosProvisoriosPedido = true;
-                }
-
-                // Se a ficha aberta foi resolvida a partir de uma variação provisória,
-                // preserve o nome faturado como alias para vincular também os pedidos dela.
-                const registroProvisorioAberto = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
-                if (registroProvisorioAberto && registroProvisorioAberto.fichaRelacionada) {
-                    cliente = { ...cliente, _aliasProvisorioFarol: registroProvisorioAberto.nome };
-                }
                 window.clienteFichaAtual = cliente;
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
                 const similares = Array.from(carteiraMap.values()).filter(c=>c.nome&&c.nome.toUpperCase()!==cliente.nome.toUpperCase()&&palavras.some(p=>c.nome.toUpperCase().includes(p)));
-                let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente._nomePedidoOriginal || cliente.nome || nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
+                let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente.nome||nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">${['Código','Nome Chave','Nome/Razão Social','Física/Juridica','CPF/CGC','RG/IE','Ramo','Dt.Cadastro','ATivo/Inativo','Transportadora','Limite de Crédito'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Código'?'fa-hashtag':c==='Nome Chave'?'fa-tag':c==='Nome/Razão Social'?'fa-file-signature':c==='Física/Juridica'?'fa-venus-mars':c==='CPF/CGC'?'fa-id-card':c==='RG/IE'?'fa-passport':c==='Ramo'?'fa-industry':c==='Dt.Cadastro'?'fa-calendar-check':c==='ATivo/Inativo'?'fa-check-circle':c==='Transportadora'?'fa-truck':'fa-dollar-sign'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${['Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Endereço'?'fa-road':c==='Número'?'fa-home':c==='Complemento'?'fa-plus-circle':c==='Bairro'?'fa-map':c==='Cidade'?'fa-city':c==='UF'?'fa-map-pin':c==='País'?'fa-globe-americas':'fa-mail-bulk'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${['Telefone','Fax','Contato','Departamento','Cargo','Dt. Aniversário','Fone','E-Mail'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Telefone'?'fa-phone':c==='Fax'?'fa-fax':c==='Contato'?'fa-user':c==='Departamento'?'fa-building':c==='Cargo'?'fa-briefcase':c==='Dt. Aniversário'?'fa-calendar-day':c==='Fone'?'fa-phone-volume':'fa-envelope'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
-                // Resumo dos pedidos faturados deste cliente, disponível na ficha do Farol
-                // mesmo quando o usuário não abriu a ficha a partir de uma linha de pedido.
-                const resolucaoFicha = resolverClienteComFicha(registroProvisorioAberto?.nome || nomeUpper || cliente['Nome Chave'] || cliente['Nome/Razão Social']);
-                const fichaResolvida = resolucaoFicha.clienteResolvido || clientesStatus.find(c => !c.provisório && c.original && (
-                    normalizarNomeCliente(c.original['Nome Chave']) === normalizarNomeCliente(cliente['Nome Chave']) ||
-                    normalizarCnpj(c.original['CPF/CGC']) === normalizarCnpj(cliente['CPF/CGC'])
-                )) || null;
-                const chavesFicha = new Set([normalizarNomeCliente(nomeUpper), normalizarNomeCliente(registroProvisorioAberto?.nome),
-                    normalizarNomeCliente(cliente['Nome Chave']), normalizarNomeCliente(cliente['Nome/Razão Social']),
-                    ...(fichaResolvida?.aliases || []).map(normalizarNomeCliente)].filter(Boolean));
-                const cnpjFicha = normalizarCnpj(cliente['CPF/CGC']);
-                const pedidosCandidatos = new Set();
-                if (cnpjFicha) (faturadosPorCnpj.get(cnpjFicha) || []).forEach(p => pedidosCandidatos.add(p));
-                chavesFicha.forEach(k => (faturadosPorNome.get(k) || []).forEach(p => pedidosCandidatos.add(p)));
-                // Compatibilidade para aliases empresariais já resolvidos: tenta o índice de aliases,
-                // sem recalcular a resolução completa para cada linha de faturamento.
-                if (fichaResolvida) {
-                    (fichaResolvida.aliases || []).forEach(alias => (faturadosPorNome.get(normalizarNomeCliente(alias)) || []).forEach(p => pedidosCandidatos.add(p)));
-                }
-                const idsPedidos = new Set();
-                const pedidosFaturadosCliente = [...pedidosCandidatos].filter(p => {
-                    const id = [p['Pedido'] || p['Nº Pedido'] || p['Nota Fiscal'] || p['NF'] || '', p['Data'] || '', p['Nome Chave'] || '', p['Produto'] || p['Descrição'] || p['Descricao'] || '', p['Quantidade'] || p['Qtd'] || '', p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total'] || ''].join('|');
-                    if (idsPedidos.has(id)) return false;
-                    idsPedidos.add(id);
-                    return true;
-                }).sort((a,b) => (parseDataBR(b['Data']) || new Date(0)) - (parseDataBR(a['Data']) || new Date(0)));
-                if (pedidosFaturadosCliente.length) {
-                    const totalFaturado = pedidosFaturadosCliente.reduce((s,p) => s + cleanNumber(p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total']), 0);
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-file-invoice-dollar"></i> Pedidos Faturados (${pedidosFaturadosCliente.length})</h4><div style="font-size:.8rem;color:var(--muted);margin-bottom:8px;">Total listado: <strong>${totalFaturado.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</strong></div><div style="overflow-x:auto;"><table style="font-size:.76rem;min-width:420px;"><thead><tr><th>Data</th><th>Pedido/Nota</th><th>Produto</th><th>Qtd.</th><th>Valor</th></tr></thead><tbody>`;
-                    pedidosFaturadosCliente.slice(0, 10).forEach(p => {
-                        const valor = cleanNumber(p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total']);
-                        html += `<tr><td>${p['Data'] || '—'}</td><td>${p['Pedido'] || p['Nº Pedido'] || p['Nota Fiscal'] || p['NF'] || '—'}</td><td>${p['Produto'] || p['Descrição'] || p['Descricao'] || '—'}</td><td>${p['Quantidade'] || p['Qtd'] || '—'}</td><td>${valor.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})}</td></tr>`;
-                    });
-                    html += `</tbody></table></div>${pedidosFaturadosCliente.length > 10 ? `<div style="font-size:.72rem;color:var(--muted);margin-top:6px;">Exibindo os 10 faturamentos mais recentes.</div>` : ''}</div>`;
-                } else {
-                    html += `<div class="ficha-secao"><h4><i class="fas fa-file-invoice-dollar"></i> Pedidos Faturados</h4><p style="font-size:.8rem;color:var(--muted);">Nenhum pedido faturado relacionado foi localizado nesta base para esta ficha.</p></div>`;
-                }
                 if (pedidoData) {
                     html += `<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido</h4><table style="font-size:0.75rem;"><tbody>`;
                     Object.keys(pedidoData).forEach(key => html += `<tr${['Total Bruto','Total Líquido','Valor Total','Valor Mercadoria'].includes(key)?' class="row-importante"':''}><td><strong>${key}</strong></td><td>${pedidoData[key]||'—'}</td></tr>`);
@@ -2987,7 +2702,8 @@
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
         if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
-        // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
+        // Nunca exibir uma tela global de carregamento: a página permanece acessível
+        // enquanto os dados são montados/atualizados em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
@@ -3003,7 +2719,7 @@
             }
         } finally {
             renderEmAndamento = false;
-            // Não exibe tela global de carregamento ao concluir.
+            esconderLoading();
             atualizarAvisoConexao();
             if (atualizacaoBackgroundPendente) setTimeout(atualizarRenderComDadosNovos, 100);
             if (endpointsComFalha.size) {
@@ -3035,6 +2751,7 @@
         const closeHamburger = ()=>{ document.getElementById('hamburger-menu').classList.remove('active'); document.getElementById('hamburger-overlay').classList.remove('active'); document.body.style.overflow=''; };
         document.getElementById('menu-close-btn').addEventListener('click', closeHamburger);
         document.getElementById('hamburger-overlay').addEventListener('click', closeHamburger);
+        await carregarAtalhosPersonalizados();
         renderizarMenus();
         document.getElementById('menu-notifications-side').addEventListener('click', ()=>{ closeHamburger(); abrirModalNotificacoes(); });
         document.getElementById('menu-logout').addEventListener('click', ()=>{ closeHamburger(); localStorage.setItem('radar_logged_out','true'); localStorage.removeItem('radar_usuario'); window.location.href='../../index.html?reason=logged_out'; });
