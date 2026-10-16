@@ -2151,7 +2151,7 @@
             const nomeTokens = nomeKey.split(/[^A-Z0-9]+/).filter(t => t.length > 2);
             // Considera variações de razão social/nome-chave como o mesmo cliente quando
             // compartilham uma identificação nominal forte (ex.: LIE LOGISTICA x LIE LOGISTICA INDUSTRIAL...).
-            const nomeRelacionado = clientesStatus.some(c => {
+            const clienteRelacionado = clientesStatus.find(c => {
                 const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']].filter(Boolean)
                     .map(n => removeAcentos(String(n)).toUpperCase().trim());
                 return nomes.some(n => {
@@ -2162,23 +2162,30 @@
                     return comuns.length >= 2 && comuns.length / Math.min(nomeTokens.length || 1, tokensExistentes.length || 1) >= 0.6;
                 });
             });
-            const encontrado = (cnpjPedido && chavesCarteiraCnpj.has(cnpjPedido)) || chavesCarteiraNome.has(nomeKey) || nomeRelacionado;
-            if (encontrado) return;
+            const mesmoCnpj = cnpjPedido && chavesCarteiraCnpj.has(cnpjPedido);
+            const mesmoNome = chavesCarteiraNome.has(nomeKey);
+            // Se o nome do pedido for uma variação de uma empresa já cadastrada,
+            // manter essa variação visível como provisória e vinculada à ficha encontrada.
+            // Só ignorar quando o nome/CNPJ já estiver representado diretamente.
+            if (mesmoCnpj || mesmoNome) return;
             const chave = cnpjPedido ? 'CNPJ:' + cnpjPedido : 'NOME:' + nomeKey;
             const dataPedido = parseDataBR(pedido['Data']);
             const atual = provisoriaPorChave.get(chave);
             if (!atual || (dataPedido && (!atual.data || dataPedido > atual.data))) {
-                provisoriaPorChave.set(chave, { pedido, nomePedido, cnpjPedido, data: dataPedido });
+                provisoriaPorChave.set(chave, { pedido, nomePedido, cnpjPedido, data: dataPedido, clienteRelacionado: clienteRelacionado || null });
             }
         });
-        provisoriaPorChave.forEach(({pedido, nomePedido, cnpjPedido, data}) => {
+        provisoriaPorChave.forEach(({pedido, nomePedido, cnpjPedido, data, clienteRelacionado}) => {
+            // Usa a ficha existente como base quando houver correspondência aproximada;
+            // os campos do pedido e o nome alternativo ficam preservados para identificação.
             const original = {
+                ...((clienteRelacionado && clienteRelacionado.original) || {}),
                 ...pedido,
                 'Nome Chave': nomePedido,
                 'Nome/Razão Social': pedido['Razão Social'] || nomePedido,
-                'CPF/CGC': pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || '',
-                'Cidade': pedido['Cidade'] || pedido['Município'] || '',
-                'UF': pedido['UF'] || '',
+                'CPF/CGC': pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || (clienteRelacionado && clienteRelacionado.cnpj) || ((clienteRelacionado && clienteRelacionado.original) ? clienteRelacionado.original['CPF/CGC'] : '') || '',
+                'Cidade': pedido['Cidade'] || pedido['Município'] || (clienteRelacionado && clienteRelacionado.cidade) || '',
+                'UF': pedido['UF'] || (clienteRelacionado && clienteRelacionado.uf) || '',
                 'ATivo/Inativo': 'Ativo'
             };
             clientesStatus.push({
@@ -2195,7 +2202,8 @@
                 original,
                 nomeUpper: removeAcentos(nomePedido).toUpperCase(),
                 cnpj: cnpjPedido,
-                aliases: [nomePedido, original['Nome/Razão Social']].filter(Boolean)
+                aliases: [nomePedido, original['Nome/Razão Social']].filter(Boolean),
+                fichaRelacionada: clienteRelacionado ? { nome: clienteRelacionado.nome, cnpj: clienteRelacionado.cnpj || '' } : null
             });
             // Evita duplicar o mesmo cliente quando houver mais de um pedido.
             if (cnpjPedido) chavesCarteiraCnpj.add(cnpjPedido);
@@ -2472,7 +2480,7 @@
                         : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
 
                     const novidade = c.provisório
-                        ? '<span title="Dados do pedido; o cadastro pode ser atualizado em novembro. Contate o administrador para verificar a ficha correta." style="font-size:.6rem;background:#ffedd5;color:#9a3412;padding:3px 7px;border-radius:8px;margin-left:5px;font-weight:800;">⚠ PROVISÓRIO</span>'
+                        ? '<span title="Cadastro provisório baseado no pedido e relacionado a uma ficha existente quando identificada. Pode haver dados atualizados em novembro; contate o administrador para confirmar o vínculo." style="font-size:.6rem;background:#ffedd5;color:#9a3412;padding:3px 7px;border-radius:8px;margin-left:5px;font-weight:800;">⚠ PROVISÓRIO</span>'
                         : (!c.cadastrado
                             ? (c.ultimaInteracao && c.dias <= 30
                                 ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>'
@@ -2484,7 +2492,7 @@
                             data-cliente-idx="${cidx}" title="Clique para ver a ficha completa">
                             <td>
                                 <div class="farol-cliente-nome">${c.nome}${novidade}</div>
-                                ${c.provisório ? '<div style="font-size:.66rem;color:#9a3412;white-space:normal;max-width:340px;margin-top:3px;"><i class="fas fa-triangle-exclamation"></i> Dados do pedido; o cadastro pode ser atualizado em novembro. Contate o administrador para verificar a ficha correta.</div>' : ''}
+                                ${c.provisório ? '<div style="font-size:.66rem;color:#9a3412;white-space:normal;max-width:340px;margin-top:3px;"><i class="fas fa-triangle-exclamation"></i> Cadastro provisório baseado no pedido e relacionado a uma ficha existente quando identificada. Pode haver dados atualizados em novembro; contate o administrador para confirmar o vínculo.</div>' : ''}
                                 ${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}
                             </td>
                             <td class="farol-cidade">${c.cidade || '—'}${c.uf ? '/' + c.uf : ''}</td>
