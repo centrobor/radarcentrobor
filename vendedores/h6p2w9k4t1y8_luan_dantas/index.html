@@ -1921,12 +1921,14 @@
 
         const registrarInteracaoVendedor = (lista, campoNome, campoData) => {
             lista.forEach(item => {
-                const nome = removeAcentos((item[campoNome] || '').toUpperCase().trim());
-                if (!nome) return;
+                const nome = normalizarNomeCliente(item[campoNome] || extrairNomeClienteRegistro(item));
                 const d = parseDataBR(item[campoData]);
-                if (!d) return;
-                if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) {
-                    interacoesVendedor.set(nome, d);
+                if (!nome || !d) return;
+                if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) interacoesVendedor.set(nome, d);
+                const codigo = extrairCodigoClienteRegistro(item);
+                if (codigo) {
+                    const chaveCodigo = `COD:${codigo}`;
+                    if (!interacoesVendedor.has(chaveCodigo) || d > interacoesVendedor.get(chaveCodigo)) interacoesVendedor.set(chaveCodigo, d);
                 }
             });
         };
@@ -1951,6 +1953,30 @@
         const cnpjPorNome = new Map();
         const clientesSemCnpj = [];
         const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
+        const normalizarNomeCliente = nome => removeAcentos(String(nome || ''))
+            .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+        const normalizarCodigoCliente = codigo => {
+            const digitos = String(codigo ?? '').trim().replace(/\.0$/, '');
+            return /^\d+$/.test(digitos) ? String(Number(digitos)) : digitos.toUpperCase();
+        };
+        // Os arquivos de pedidos usam esquemas diferentes para identificar o cliente.
+        const extrairCodigoClienteRegistro = registro => {
+            if (!registro || typeof registro !== 'object') return '';
+            const chaves = Object.keys(registro).filter(k =>
+                /^(c[oó]digo|c[oó]d\.?\s*(cliente|empresa)|cliente\s*(c[oó]digo|id)|cod\.?\s*cliente|id\s*cliente)$/i.test(k.trim())
+            );
+            for (const k of chaves) {
+                const valor = normalizarCodigoCliente(registro[k]);
+                if (valor && /^\d+$/.test(valor)) return valor;
+            }
+            const cliente = normalizarCodigoCliente(registro['Cliente']);
+            return /^\d+$/.test(cliente) ? cliente : '';
+        };
+        const extrairNomeClienteRegistro = registro => {
+            if (!registro) return '';
+            return registro['Nome Chave'] || registro['Razão Social'] || registro['Nome/Razão Social'] || registro['Empresa'] ||
+                (String(registro['Cliente'] || '').match(/^\d+$/) ? '' : registro['Cliente']) || '';
+        };
 
         /* carteiraFull também já contém somente a carteira deste vendedor. */
         carteiraFull.forEach(cli => {
@@ -1959,8 +1985,8 @@
             const nomePrincipal = nomeChave || razaoSocial;
             if (!nomePrincipal) return;
 
-            const nomeUpper = removeAcentos(nomeChave).toUpperCase();
-            const razaoUpper = removeAcentos(razaoSocial).toUpperCase();
+            const nomeUpper = normalizarNomeCliente(nomeChave);
+            const razaoUpper = normalizarNomeCliente(razaoSocial);
             const cnpj = normalizarCnpj(cli['CPF/CGC']);
 
             /* Mantém o mapa antigo disponível para outras partes da página. */
@@ -1981,7 +2007,7 @@
                 }
             });
 
-            const codigo = String(cli['Código'] || '').trim();
+            const codigo = normalizarCodigoCliente(cli['Código']);
             if (codigo && !carteiraByCodigo.has(codigo)) {
                 carteiraByCodigo.set(codigo, {
                     ...cli,
@@ -2020,7 +2046,7 @@
             });
 
             [nomeChave, razaoSocial].forEach(n => {
-                const k = removeAcentos(n).toUpperCase();
+                const k = normalizarNomeCliente(n);
                 if (k) cnpjPorNome.set(k, cnpj);
             });
         });
@@ -2028,7 +2054,7 @@
         /* Nomes sem CNPJ continuam independentes. */
         clientesSemCnpj.forEach(cli => {
             [cli['Nome Chave'], cli['Nome/Razão Social']].forEach(n => {
-                const k = removeAcentos(n).toUpperCase();
+                const k = normalizarNomeCliente(n);
                 if (k) cnpjPorNome.set(k, null);
             });
         });
@@ -2072,7 +2098,7 @@
         const interPorCnpj = new Map();
         const registrarInteracaoCnpj = (nome, data) => {
             if (!nome || !data) return;
-            const k = removeAcentos(nome).toUpperCase().trim();
+            const k = normalizarNomeCliente(nome);
             if (!k) return;
             const cnpj = cnpjPorNome.get(k);
             if (!cnpj) return;
@@ -2087,18 +2113,17 @@
         const clientesStatus = clientesConsolidados.map(dados => {
             const aliases = dados.__aliases || [];
             const datasAliases = aliases
-                .map(alias => interacoesVendedor.get(removeAcentos(alias).toUpperCase()))
+                .map(alias => interacoesVendedor.get(normalizarNomeCliente(alias)))
                 .filter(Boolean);
 
             const ultimaPorAlias = datasAliases.length
                 ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime())))
                 : null;
 
-            const ultimaPorCnpj = dados.__cnpj
-                ? (interPorCnpj.get(dados.__cnpj) || null)
-                : null;
-
-            const ultima = ultimaPorCnpj || ultimaPorAlias || null;
+            const codigoCliente = normalizarCodigoCliente(dados['Código']);
+            const ultimaPorCodigo = codigoCliente ? (interacoesVendedor.get(`COD:${codigoCliente}`) || null) : null;
+            const ultimaPorCnpj = dados.__cnpj ? (interPorCnpj.get(dados.__cnpj) || null) : null;
+            const ultima = ultimaPorCodigo || ultimaPorCnpj || ultimaPorAlias || null;
             const dias = ultima
                 ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
                 : Infinity;
@@ -2534,19 +2559,38 @@
             mostrarLoadingModal();
             setTimeout(() => {
                 let cliente = null;
-                if (!cliente && pedidoData && pedidoData['Cliente']) cliente = carteiraByCodigo.get(String(pedidoData['Cliente']).trim());
-                const nomeBusca = removeAcentos(nomeUpper||'').toUpperCase();
+                // Resolve primeiro pelo código cadastral, chave estável entre as tabelas.
+                if (pedidoData) {
+                    const codigoPedido = extrairCodigoClienteRegistro(pedidoData);
+                    if (codigoPedido) cliente = carteiraByCodigo.get(codigoPedido) || null;
+                    if (!cliente && pedidoData['Cliente']) {
+                        const codigoCliente = normalizarCodigoCliente(pedidoData['Cliente']);
+                        if (/^\d+$/.test(codigoCliente)) cliente = carteiraByCodigo.get(codigoCliente) || null;
+                    }
+                }
+                const nomeBusca = normalizarNomeCliente(nomeUpper || extrairNomeClienteRegistro(pedidoData));
                 if (!cliente) cliente = carteiraMap.get(nomeBusca);
-                if (!cliente && cnpj && cnpj.length>=11) {
-                    for (let [key, val] of carteiraMap.entries()) {
-                        if ((val['CPF/CGC']||'').replace(/[^\d]/g,'') === cnpj) { cliente = val; break; }
+                if (!cliente && cnpj && normalizarCnpj(cnpj).length >= 11) {
+                    const docBusca = normalizarCnpj(cnpj);
+                    for (const val of carteiraMap.values()) {
+                        if (normalizarCnpj(val['CPF/CGC']) === docBusca) { cliente = val; break; }
                     }
                 }
                 if (!cliente && nomeBusca && permitirBuscaAproximada) {
-                    const palavras = nomeBusca.split(/\s+/).filter(p=>p.length>2);
-                    for (let [key, val] of carteiraMap.entries()) {
-                        if (palavras.some(p=>key.includes(p))) { cliente = val; break; }
+                    const palavras = nomeBusca.split(/\s+/).filter(p => p.length > 2);
+                    let melhor = null, melhorPontuacao = 0;
+                    for (const val of carteiraMap.values()) {
+                        const nomes = [val['Nome Chave'], val['Nome/Razão Social'], val.nome].map(normalizarNomeCliente).filter(Boolean);
+                        let pontuacao = 0;
+                        for (const nome of nomes) {
+                            if (nome === nomeBusca) pontuacao = Math.max(pontuacao, 1000);
+                            else if (nome.includes(nomeBusca) || nomeBusca.includes(nome)) pontuacao = Math.max(pontuacao, 500 + Math.min(nome.length, nomeBusca.length));
+                            else pontuacao = Math.max(pontuacao, palavras.filter(p => nome.split(' ').includes(p)).length * 10);
+                        }
+                        if (pontuacao > melhorPontuacao) { melhorPontuacao = pontuacao; melhor = val; }
                     }
+                    // Não associar cadastro por uma palavra genérica isolada.
+                    if (melhorPontuacao >= 20) cliente = melhor;
                 }
                 if (!cliente) {
                     if (pedidoData) {
