@@ -1052,10 +1052,50 @@
     }
 
     function salvarCacheEndpoint(url, data) {
+        const chaveAtual = CACHE_PREFIX + url;
+        let payload;
         try {
-            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
+            payload = JSON.stringify({ savedAt: Date.now(), data });
         } catch (e) {
-            console.warn('Não foi possível atualizar o cache local:', e);
+            console.warn('Dados não puderam ser serializados para o cache local:', e);
+            return false;
+        }
+
+        try {
+            localStorage.setItem(chaveAtual, payload);
+            return true;
+        } catch (erroInicial) {
+            // localStorage costuma ter limite pequeno. Remove primeiro caches Radar
+            // antigos, preservando configurações e dados de outras aplicações.
+            try {
+                const caches = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const chave = localStorage.key(i);
+                    if (!chave || !chave.startsWith(CACHE_PREFIX) || chave === chaveAtual) continue;
+                    try {
+                        const item = JSON.parse(localStorage.getItem(chave) || '{}');
+                        caches.push({ chave, savedAt: Number(item.savedAt) || 0 });
+                    } catch (_) {
+                        caches.push({ chave, savedAt: 0 });
+                    }
+                }
+                caches.sort((a, b) => a.savedAt - b.savedAt);
+                for (const item of caches) {
+                    localStorage.removeItem(item.chave);
+                    try {
+                        localStorage.setItem(chaveAtual, payload);
+                        console.info('Cache Radar antigo removido para liberar espaço.');
+                        return true;
+                    } catch (_) {}
+                }
+                // Uma única base pode ser maior que toda a quota disponível.
+                // Não interrompe o carregamento online por causa do cache.
+                console.warn('Cache local cheio; dados carregados da nuvem, mas não salvos localmente:', url);
+                return false;
+            } catch (erroLimpeza) {
+                console.warn('Cache local indisponível; a página continuará sem atualizar o cache:', url, erroLimpeza || erroInicial);
+                return false;
+            }
         }
     }
 
@@ -1919,6 +1959,32 @@
            ===================================================================== */
         const interacoesVendedor = new Map();
 
+        const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
+        const normalizarNomeCliente = nome => removeAcentos(String(nome || ''))
+            .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+        const normalizarCodigoCliente = codigo => {
+            const digitos = String(codigo ?? '').trim().replace(/\.0$/, '');
+            return /^\d+$/.test(digitos) ? String(Number(digitos)) : digitos.toUpperCase();
+        };
+        // Os arquivos de pedidos usam esquemas diferentes para identificar o cliente.
+        const extrairCodigoClienteRegistro = registro => {
+            if (!registro || typeof registro !== 'object') return '';
+            const chaves = Object.keys(registro).filter(k =>
+                /^(c[oó]digo|c[oó]d\.?\s*(cliente|empresa)|cliente\s*(c[oó]digo|id)|cod\.?\s*cliente|id\s*cliente)$/i.test(k.trim())
+            );
+            for (const k of chaves) {
+                const valor = normalizarCodigoCliente(registro[k]);
+                if (valor && /^\d+$/.test(valor)) return valor;
+            }
+            const cliente = normalizarCodigoCliente(registro['Cliente']);
+            return /^\d+$/.test(cliente) ? cliente : '';
+        };
+        const extrairNomeClienteRegistro = registro => {
+            if (!registro) return '';
+            return registro['Nome Chave'] || registro['Razão Social'] || registro['Nome/Razão Social'] || registro['Empresa'] ||
+                (String(registro['Cliente'] || '').match(/^\d+$/) ? '' : registro['Cliente']) || '';
+        };
+
         const registrarInteracaoVendedor = (lista, campoNome, campoData) => {
             lista.forEach(item => {
                 const nome = normalizarNomeCliente(item[campoNome] || extrairNomeClienteRegistro(item));
@@ -1952,31 +2018,7 @@
         const clientePorCnpj = new Map();
         const cnpjPorNome = new Map();
         const clientesSemCnpj = [];
-        const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
-        const normalizarNomeCliente = nome => removeAcentos(String(nome || ''))
-            .toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
-        const normalizarCodigoCliente = codigo => {
-            const digitos = String(codigo ?? '').trim().replace(/\.0$/, '');
-            return /^\d+$/.test(digitos) ? String(Number(digitos)) : digitos.toUpperCase();
-        };
-        // Os arquivos de pedidos usam esquemas diferentes para identificar o cliente.
-        const extrairCodigoClienteRegistro = registro => {
-            if (!registro || typeof registro !== 'object') return '';
-            const chaves = Object.keys(registro).filter(k =>
-                /^(c[oó]digo|c[oó]d\.?\s*(cliente|empresa)|cliente\s*(c[oó]digo|id)|cod\.?\s*cliente|id\s*cliente)$/i.test(k.trim())
-            );
-            for (const k of chaves) {
-                const valor = normalizarCodigoCliente(registro[k]);
-                if (valor && /^\d+$/.test(valor)) return valor;
-            }
-            const cliente = normalizarCodigoCliente(registro['Cliente']);
-            return /^\d+$/.test(cliente) ? cliente : '';
-        };
-        const extrairNomeClienteRegistro = registro => {
-            if (!registro) return '';
-            return registro['Nome Chave'] || registro['Razão Social'] || registro['Nome/Razão Social'] || registro['Empresa'] ||
-                (String(registro['Cliente'] || '').match(/^\d+$/) ? '' : registro['Cliente']) || '';
-        };
+
 
         /* carteiraFull também já contém somente a carteira deste vendedor. */
         carteiraFull.forEach(cli => {
