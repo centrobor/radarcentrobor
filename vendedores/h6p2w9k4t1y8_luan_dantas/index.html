@@ -1976,6 +1976,11 @@
                 const valor = normalizarCodigoCliente(registro[k]);
                 if (valor && /^\d+$/.test(valor)) return valor;
             }
+            // Nesta página, o campo "Código" do detalhe do pedido corresponde ao
+            // código cadastral do cliente (confirmado pelo usuário). Só usa "Cliente"
+            // como fallback quando Código não estiver disponível.
+            const codigoDireto = normalizarCodigoCliente(registro['Código']);
+            if (codigoDireto && /^\d+$/.test(codigoDireto)) return codigoDireto;
             const cliente = normalizarCodigoCliente(registro['Cliente']);
             return /^\d+$/.test(cliente) ? cliente : '';
         };
@@ -2186,27 +2191,99 @@
             const nomeFaturado = normalizarNomeCliente(item['Nome Chave'] || item['Razão Social'] || item['Empresa']);
             const razaoFaturada = normalizarNomeCliente(item['Empresa'] || item['Razão Social']);
             if (!nomeFaturado && !razaoFaturada) return;
-            let cadastro = carteiraRaw.find(cli => {
+            const codigoFaturado = extrairCodigoClienteRegistro(item) || normalizarCodigoCliente(item['Código']);
+            let cadastro = codigoFaturado
+                ? carteiraRaw.find(cli => normalizarCodigoCliente(cli['Código']) === codigoFaturado)
+                : null;
+            if (!cadastro) cadastro = carteiraRaw.find(cli => {
                 const nomes = [cli['Nome Chave'], cli['Nome/Razão Social']].map(normalizarNomeCliente);
                 return (nomeFaturado && nomes.includes(nomeFaturado)) || (razaoFaturada && nomes.includes(razaoFaturada));
             });
-            if (!cadastro) return; // não inventa campos cadastrais quando não há correspondência segura
+            if (!cadastro) return; // no loop seguinte entram como exceção com ficha provisória
+            const nomesCadastro = [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].map(normalizarNomeCliente).filter(Boolean);
+            const nomeDivergente = !!((nomeFaturado && !nomesCadastro.includes(nomeFaturado)) ||
+                (razaoFaturada && !nomesCadastro.includes(razaoFaturada)));
+            if (nomeDivergente) cadastro.__nomeDivergenteFaturamento = true;
             const cnpj = normalizarCnpj(cadastro['CPF/CGC']);
             const codigo = normalizarCodigoCliente(cadastro['Código']);
             if ((cnpj && cnpjsJaNoFarol.has(cnpj)) ||
                 (codigo && codigosJaNoFarol.has(codigo)) ||
-                [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].some(n => nomesJaNoFarol.has(normalizarNomeCliente(n)))) return;
+                [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].some(n => nomesJaNoFarol.has(normalizarNomeCliente(n)))) {
+                if (nomeDivergente) {
+                    const existente = clientesConsolidados.find(c =>
+                        (codigoFaturado && normalizarCodigoCliente(c['Código']) === codigoFaturado) ||
+                        (cnpj && normalizarCnpj(c['CPF/CGC']) === cnpj)
+                    );
+                    if (existente) existente.__nomeDivergenteFaturamento = true;
+                }
+                return;
+            }
             const registro = { ...cadastro };
             clientesConsolidados.push({
                 ...registro,
                 __cnpj: cnpj,
                 __aliases: [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].filter(Boolean),
                 __registros: [registro],
-                __incluidoPorFaturamento: true
+                __incluidoPorFaturamento: true,
+                __nomeDivergenteFaturamento: !!cadastro.__nomeDivergenteFaturamento
             });
             if (cnpj) cnpjsJaNoFarol.add(cnpj);
             if (codigo) codigosJaNoFarol.add(codigo);
             [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].map(normalizarNomeCliente).filter(Boolean).forEach(n => nomesJaNoFarol.add(n));
+        });
+
+        // REGISTRO DE EXCEÇÃO: faturado sem correspondência segura na carteira.
+        // Não esconder esse cliente do Farol. Criar ficha provisória com os dados
+        // existentes no faturamento e sinalizar que o administrador deve revisar.
+        const faturadosSemCarteira = [];
+        fatFull.forEach(item => {
+            const nomeFaturadoOriginal = String(item['Nome Chave'] || item['Razão Social'] || item['Empresa'] || item['Cliente'] || '').trim();
+            const nomeFaturado = normalizarNomeCliente(nomeFaturadoOriginal);
+            const razaoFaturada = normalizarNomeCliente(item['Empresa'] || item['Razão Social']);
+            const codigo = extrairCodigoClienteRegistro(item) || normalizarCodigoCliente(item['Código']);
+            const cnpjPedido = normalizarCnpj(item['CPF/CGC'] || item['CNPJ'] || item['CGC']);
+            const jaExiste = clientesConsolidados.some(c => {
+                const cod = normalizarCodigoCliente(c['Código']);
+                const doc = normalizarCnpj(c['CPF/CGC']);
+                const nomes = [c['Nome Chave'], c['Nome/Razão Social']].map(normalizarNomeCliente);
+                return (codigo && cod === codigo) ||
+                    (cnpjPedido && doc === cnpjPedido) ||
+                    (nomeFaturado && nomes.includes(nomeFaturado)) ||
+                    (razaoFaturada && nomes.includes(razaoFaturada));
+            });
+            if (jaExiste) return;
+
+            const registroProvisorio = {
+                'Código': codigo || '',
+                'Nome Chave': item['Nome Chave'] || nomeFaturadoOriginal,
+                'Nome/Razão Social': item['Empresa'] || item['Razão Social'] || nomeFaturadoOriginal,
+                'CPF/CGC': item['CPF/CGC'] || item['CNPJ'] || item['CGC'] || '',
+                'ATivo/Inativo': 'Não localizado na carteira',
+                'Cidade': item['Cidade'] || '',
+                'UF': item['UF'] || '',
+                'Telefone': item['Telefone'] || '',
+                'Fone': item['Fone'] || '',
+                'E-Mail': item['E-Mail'] || '',
+                '__semCarteira': true,
+                '__origemFaturamento': { ...item }
+            };
+            faturadosSemCarteira.push(registroProvisorio);
+            clientesConsolidados.push({
+                ...registroProvisorio,
+                __cnpj: cnpjPedido,
+                __aliases: [registroProvisorio['Nome Chave'], registroProvisorio['Nome/Razão Social']].filter(Boolean),
+                __registros: [registroProvisorio],
+                __incluidoPorFaturamento: true,
+                __semCarteira: true
+            });
+
+            const nomeNorm = normalizarNomeCliente(registroProvisorio['Nome Chave']);
+            if (nomeNorm && !carteiraMap.has(nomeNorm)) carteiraMap.set(nomeNorm, {
+                ...registroProvisorio, nome: registroProvisorio['Nome Chave'], cadastrado: false, ativo: true
+            });
+            if (codigo && !carteiraByCodigo.has(codigo)) carteiraByCodigo.set(codigo, {
+                ...registroProvisorio, nome: registroProvisorio['Nome Chave'], cadastrado: false, ativo: true
+            });
         });
 
         const clientesStatus = clientesConsolidados.map(dados => {
@@ -2247,7 +2324,14 @@
                 cidade: dados['Cidade'] || '',
                 uf: dados['UF'] || '',
                 ativo: String(dados['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                cadastrado: true,
+                cadastrado: !dados.__semCarteira,
+                semCarteira: !!dados.__semCarteira,
+                nomeDivergenteFaturamento: !!dados.__nomeDivergenteFaturamento,
+                observacaoFarol: dados.__semCarteira
+                    ? 'Cliente possui faturamento, mas não foi localizado na carteira. Contate o administrador do sistema para verificar possível alteração de razão social, cadastro antigo ou divergência cadastral.'
+                    : (dados.__nomeDivergenteFaturamento
+                        ? 'O código do cliente coincide, mas o nome/razão social do faturamento difere do cadastro atual. Pode ser uma razão social antiga ou uma atualização cadastral; contate o administrador para confirmar.'
+                        : ''),
                 original: dados,
                 nomeUpper,
                 cnpj: dados.__cnpj || '',
@@ -2518,9 +2602,11 @@
                         ? `${formatarData(c.ultimaInteracao)} <small style="color:var(--muted)">(${c.dias}d)</small>`
                         : '<em style="color:var(--danger)">sem interação</em>';
 
-                    const cadastro = c.ativo
-                        ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
-                        : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
+                    const cadastro = c.semCarteira
+                        ? '<i class="fas fa-triangle-exclamation" style="color:#b7791f" title="Faturado, mas ausente na carteira"></i>'
+                        : (c.ativo
+                            ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
+                            : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>');
 
                     const novidade = !c.cadastrado
                         ? (c.ultimaInteracao && c.dias <= 30
@@ -2533,6 +2619,8 @@
                             data-cliente-idx="${cidx}" title="Clique para ver a ficha completa">
                             <td>
                                 <div class="farol-cliente-nome">${c.nome}${novidade}</div>
+                                ${c.semCarteira ? '<div style="margin-top:4px;"><span style="display:inline-block;background:#fff3cd;color:#7a4b00;border:1px solid #f0d98a;border-radius:6px;padding:3px 6px;font-size:.62rem;font-weight:800;">⚠ FATURADO · FORA DA CARTEIRA</span></div>' : ''}
+                                ${c.nomeDivergenteFaturamento ? '<div style="margin-top:4px;"><span style="display:inline-block;background:#e8f1ff;color:#1d4e89;border:1px solid #b7d0f5;border-radius:6px;padding:3px 6px;font-size:.62rem;font-weight:800;">↔ POSSÍVEL RAZÃO SOCIAL ANTIGA</span></div>' : ''}
                                 ${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}
                             </td>
                             <td class="farol-cidade">${c.cidade || '—'}${c.uf ? '/' + c.uf : ''}</td>
@@ -2660,8 +2748,12 @@
                 let cliente = null;
                 // Resolve primeiro pelo código cadastral, chave estável entre as tabelas.
                 if (pedidoData) {
+                    const codigoPedidoDireto = normalizarCodigoCliente(pedidoData['Código']);
+                    if (codigoPedidoDireto && /^\d+$/.test(codigoPedidoDireto)) {
+                        cliente = carteiraByCodigo.get(codigoPedidoDireto) || null;
+                    }
                     const codigoPedido = extrairCodigoClienteRegistro(pedidoData);
-                    if (codigoPedido) cliente = carteiraByCodigo.get(codigoPedido) || null;
+                    if (!cliente && codigoPedido) cliente = carteiraByCodigo.get(codigoPedido) || null;
                     if (!cliente && pedidoData['Cliente']) {
                         const codigoCliente = normalizarCodigoCliente(pedidoData['Cliente']);
                         if (/^\d+$/.test(codigoCliente)) cliente = carteiraByCodigo.get(codigoCliente) || null;
@@ -2707,6 +2799,11 @@
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
                 const similares = Array.from(carteiraMap.values()).filter(c=>c.nome&&c.nome.toUpperCase()!==cliente.nome.toUpperCase()&&palavras.some(p=>c.nome.toUpperCase().includes(p)));
                 let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente.nome||nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
+                if (cliente.__semCarteira || cliente.cadastrado === false || String(cliente['ATivo/Inativo'] || '').toLowerCase().includes('não localizado')) {
+                    html += `<div class="ficha-secao" style="border:1px solid #e6bd55;background:#fff9e8;"><h4 style="color:#7a4b00;"><i class="fas fa-triangle-exclamation"></i> Faturado, mas não localizado na carteira</h4><p style="margin:8px 0;color:#624b16;">Este cliente possui registro de faturamento, mas não foi possível confirmar uma correspondência segura no cadastro atual. A razão social pode ter mudado ou o registro pode pertencer a um cadastro antigo. <strong>Orientação ao vendedor:</strong> contate o administrador do sistema para verificar e corrigir o vínculo cadastral.</p></div>`;
+                } else if (cliente.__nomeDivergenteFaturamento) {
+                    html += `<div class="ficha-secao" style="border:1px solid #8bb8ef;background:#eef6ff;"><h4 style="color:#1d4e89;"><i class="fas fa-circle-info"></i> Possível razão social antiga ou cadastro atualizado</h4><p style="margin:8px 0;color:#24466f;">O código do cliente coincide com o cadastro, mas o nome/razão social informado no faturamento é diferente do nome atual. Confira se houve alteração cadastral e, se necessário, solicite ao administrador do sistema a revisão do vínculo.</p></div>`;
+                }
                 html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">${['Código','Nome Chave','Nome/Razão Social','Física/Juridica','CPF/CGC','RG/IE','Ramo','Dt.Cadastro','ATivo/Inativo','Transportadora','Limite de Crédito'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Código'?'fa-hashtag':c==='Nome Chave'?'fa-tag':c==='Nome/Razão Social'?'fa-file-signature':c==='Física/Juridica'?'fa-venus-mars':c==='CPF/CGC'?'fa-id-card':c==='RG/IE'?'fa-passport':c==='Ramo'?'fa-industry':c==='Dt.Cadastro'?'fa-calendar-check':c==='ATivo/Inativo'?'fa-check-circle':c==='Transportadora'?'fa-truck':'fa-dollar-sign'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${['Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Endereço'?'fa-road':c==='Número'?'fa-home':c==='Complemento'?'fa-plus-circle':c==='Bairro'?'fa-map':c==='Cidade'?'fa-city':c==='UF'?'fa-map-pin':c==='País'?'fa-globe-americas':'fa-mail-bulk'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${['Telefone','Fax','Contato','Departamento','Cargo','Dt. Aniversário','Fone','E-Mail'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Telefone'?'fa-phone':c==='Fax'?'fa-fax':c==='Contato'?'fa-user':c==='Departamento'?'fa-building':c==='Cargo'?'fa-briefcase':c==='Dt. Aniversário'?'fa-calendar-day':c==='Fone'?'fa-phone-volume':'fa-envelope'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
