@@ -2744,43 +2744,40 @@
             mostrarLoadingModal();
             setTimeout(() => {
                 let cliente = null;
-                // Resolve primeiro pelo código cadastral, chave estável entre as tabelas.
-                if (pedidoData) {
-                    const codigoPedidoDireto = normalizarCodigoCliente(pedidoData['Código']);
-                    if (codigoPedidoDireto && /^\d+$/.test(codigoPedidoDireto)) {
-                        cliente = carteiraByCodigo.get(codigoPedidoDireto) || null;
-                    }
-                    const codigoPedido = extrairCodigoClienteRegistro(pedidoData);
-                    if (!cliente && codigoPedido) cliente = carteiraByCodigo.get(codigoPedido) || null;
-                    if (!cliente && pedidoData['Cliente']) {
-                        const codigoCliente = normalizarCodigoCliente(pedidoData['Cliente']);
-                        if (/^\d+$/.test(codigoCliente)) cliente = carteiraByCodigo.get(codigoCliente) || null;
-                    }
-                }
                 const nomeBusca = normalizarNomeCliente(nomeUpper || extrairNomeClienteRegistro(pedidoData));
-                if (!cliente) cliente = carteiraMap.get(nomeBusca);
-                if (!cliente && cnpj && normalizarCnpj(cnpj).length >= 11) {
-                    const docBusca = normalizarCnpj(cnpj);
-                    for (const val of carteiraMap.values()) {
-                        if (normalizarCnpj(val['CPF/CGC']) === docBusca) { cliente = val; break; }
-                    }
+                // REGRA DO FAROL: a carteira oficial só pode ser localizada pela
+                // razão social. Código do pedido, CNPJ e semelhança de nomes não
+                // são chaves válidas para vincular um pedido a um cadastro.
+                const razaoPedido = normalizarNomeCliente(pedidoData && (
+                    pedidoData['Razão Social'] || pedidoData['Nome/Razão Social'] ||
+                    pedidoData['Empresa'] || pedidoData['Nome Chave']
+                ));
+                const razaoParaBuscar = razaoPedido || nomeBusca;
+
+                // Primeiro procura a razão social exata na base oficial da carteira.
+                const cadastroOficial = (carteiraRaw || []).find(cli =>
+                    normalizarNomeCliente(cli['Nome/Razão Social']) === razaoParaBuscar && razaoParaBuscar
+                );
+                if (cadastroOficial) {
+                    cliente = {
+                        ...cadastroOficial,
+                        nome: cadastroOficial['Nome/Razão Social'] || cadastroOficial['Nome Chave'],
+                        cidade: cadastroOficial['Cidade'] || '',
+                        uf: cadastroOficial['UF'] || '',
+                        ativo: String(cadastroOficial['ATivo/Inativo'] || '').trim().toLowerCase() === 'ativo',
+                        cadastrado: true
+                    };
                 }
-                if (!cliente && nomeBusca && permitirBuscaAproximada) {
-                    const palavras = nomeBusca.split(/\s+/).filter(p => p.length > 2);
-                    let melhor = null, melhorPontuacao = 0;
-                    for (const val of carteiraMap.values()) {
-                        const nomes = [val['Nome Chave'], val['Nome/Razão Social'], val.nome].map(normalizarNomeCliente).filter(Boolean);
-                        let pontuacao = 0;
-                        for (const nome of nomes) {
-                            if (nome === nomeBusca) pontuacao = Math.max(pontuacao, 1000);
-                            else if (nome.includes(nomeBusca) || nomeBusca.includes(nome)) pontuacao = Math.max(pontuacao, 500 + Math.min(nome.length, nomeBusca.length));
-                            else pontuacao = Math.max(pontuacao, palavras.filter(p => nome.split(' ').includes(p)).length * 10);
-                        }
-                        if (pontuacao > melhorPontuacao) { melhorPontuacao = pontuacao; melhor = val; }
-                    }
-                    // Não associar cadastro por uma palavra genérica isolada.
-                    if (melhorPontuacao >= 20) cliente = melhor;
+
+                // Se não existir na carteira, só reutiliza um registro que já esteja
+                // marcado como provisório e cuja razão social corresponda exatamente.
+                if (!cliente && razaoParaBuscar) {
+                    cliente = clientesConsolidados.find(cli => cli.__cadastroProvisorio &&
+                        normalizarNomeCliente(cli['Nome/Razão Social']) === razaoParaBuscar) || null;
                 }
+
+                // Para pedidos que não correspondem a nenhum cadastro, o bloco abaixo
+                // exibe os dados do próprio pedido sem associá-lo a outro cliente.
                 if (!cliente) {
                     if (pedidoData) {
                         let htmlFallback = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social']||pedidoData['Cliente']||pedidoData['Nome Chave']||'Cotação'}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div><div class="ficha-secao"><h4><i class="fas fa-info-circle"></i> Cliente não localizado na carteira</h4><p style="color:var(--muted);">Dados apenas da cotação/pedido.</p></div><div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes</h4><table style="font-size:0.75rem;"><tbody>`;
