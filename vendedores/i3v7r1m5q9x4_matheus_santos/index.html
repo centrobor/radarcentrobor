@@ -2279,6 +2279,31 @@
                 indexarAlias(c.original?.['Nome/Razão Social'], c);
             }
         });
+
+        // Índices reutilizáveis: evita varrer a carteira e o faturamento a cada clique.
+        const clienteStatusPorCnpj = new Map();
+        const clienteStatusPorCodigo = new Map();
+        const faturadosPorCnpj = new Map();
+        const faturadosPorNome = new Map();
+        const adicionarIndiceLista = (mapa, chave, item) => {
+            if (!chave) return;
+            if (!mapa.has(chave)) mapa.set(chave, []);
+            mapa.get(chave).push(item);
+        };
+        clientesStatus.forEach(c => {
+            if (c.provisório) return;
+            const cn = normalizarCnpj(c.cnpj || c.original?.['CPF/CGC'] || c.original?.['CNPJ']);
+            const cd = String(c.original?.['Código'] || c.original?.['Codigo'] || '').trim();
+            if (cn && !clienteStatusPorCnpj.has(cn)) clienteStatusPorCnpj.set(cn, c);
+            if (cd && !clienteStatusPorCodigo.has(cd)) clienteStatusPorCodigo.set(cd, c);
+        });
+        (Array.isArray(fatFull) ? fatFull : []).forEach(p => {
+            const cn = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
+            const nm = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Nome/Razão Social'] || p['Cliente'] || p['Empresa']);
+            adicionarIndiceLista(faturadosPorCnpj, cn, p);
+            adicionarIndiceLista(faturadosPorNome, nm, p);
+        });
+
         function resolverClienteComFicha(nomeOuRegistro) {
             const registro = nomeOuRegistro && typeof nomeOuRegistro === 'object' ? nomeOuRegistro : null;
             const nomeOriginal = registro
@@ -2287,17 +2312,14 @@
             const cnpj = normalizarCnpj(registro && (registro['CPF/CGC'] || registro['CNPJ'] || registro['CNPJ/CPF']));
             const codigo = registro && String(registro['Código'] || registro['Cliente'] || '').trim();
             let ficha = null;
-            if (cnpj) ficha = clientesStatus.find(c => !c.provisório && normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === cnpj) || null;
-            if (!ficha && codigo && carteiraByCodigo.has(codigo)) {
-                const porCodigo = carteiraByCodigo.get(codigo);
-                ficha = clientesStatus.find(c => !c.provisório && (c.original === porCodigo || String(c.original?.['Código'] || '') === codigo)) || null;
-            }
+            if (cnpj) ficha = clienteStatusPorCnpj.get(cnpj) || null;
+            if (!ficha && codigo) ficha = clienteStatusPorCodigo.get(codigo) || null;
             const chave = normalizarNomeCliente(nomeOriginal);
             if (!ficha && chave) ficha = aliasesCliente.get(chave) || null;
             const provisoria = provisoriaPorNome.get(chave) || null;
             if (!ficha && provisoria?.fichaRelacionada) {
                 const rel = normalizarNomeCliente(provisoria.fichaRelacionada.nome);
-                ficha = aliasesCliente.get(rel) || clientesStatus.find(c => !c.provisório && normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === normalizarCnpj(provisoria.fichaRelacionada.cnpj)) || null;
+                ficha = aliasesCliente.get(rel) || clienteStatusPorCnpj.get(normalizarCnpj(provisoria.fichaRelacionada.cnpj)) || null;
             }
             if (!ficha && chave) {
                 // Última tentativa apenas com evidência nominal forte e resultado único.
@@ -2318,13 +2340,12 @@
             }
             const registroFarol = provisoria || (chave ? clientesStatus.find(c => c.nomeUpper === removeAcentos(nomeOriginal).toUpperCase()) : null) || null;
             const oficial = ficha?.original || null;
-            const faturamentos = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
-                const pk = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa']);
-                const pc = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
-                if (ficha && pc && normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC']) && pc === normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC'])) return true;
-                if (pk && (pk === chave || (ficha && aliasesCliente.get(pk) === ficha))) return true;
-                return !!(provisoria && pk === normalizarNomeCliente(provisoria.nome));
-            });
+            const faturamentosSet = new Set();
+            const cnpjFichaIndex = normalizarCnpj(ficha?.cnpj || oficial?.['CPF/CGC']);
+            if (cnpjFichaIndex) (faturadosPorCnpj.get(cnpjFichaIndex) || []).forEach(p => faturamentosSet.add(p));
+            const chavesFaturamento = new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente), ...(ficha ? [normalizarNomeCliente(ficha.nome), normalizarNomeCliente(ficha.original?.['Nome Chave']), normalizarNomeCliente(ficha.original?.['Nome/Razão Social'])] : []), ...(provisoria ? [normalizarNomeCliente(provisoria.nome)] : [])].filter(Boolean));
+            chavesFaturamento.forEach(k => (faturadosPorNome.get(k) || []).forEach(p => faturamentosSet.add(p)));
+            const faturamentos = [...faturamentosSet];
             return { ficha: oficial, clienteResolvido: ficha, nomeOriginal: nomeOriginal, provisoria: !!(provisoria && ficha), chaves: [...new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente)].filter(Boolean))], variacoes: [nomeOriginal].filter(Boolean), faturamentos };
         }
         window.resolverClienteComFicha = resolverClienteComFicha;
@@ -2860,17 +2881,20 @@
                     normalizarNomeCliente(cliente['Nome Chave']), normalizarNomeCliente(cliente['Nome/Razão Social']),
                     ...(fichaResolvida?.aliases || []).map(normalizarNomeCliente)].filter(Boolean));
                 const cnpjFicha = normalizarCnpj(cliente['CPF/CGC']);
-                const pedidosFaturadosCliente = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
-                    const cnpjP = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
-                    if (cnpjFicha && cnpjP && cnpjFicha === cnpjP) return true;
-                    const nomeP = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa']);
-                    if (!nomeP) return false;
-                    if (chavesFicha.has(nomeP)) return true;
-                    const rp = resolverClienteComFicha(p);
-                    return !!(fichaResolvida && rp.clienteResolvido && rp.clienteResolvido.nomeUpper === fichaResolvida.nomeUpper);
-                }).filter((p, idx, arr) => {
+                const pedidosCandidatos = new Set();
+                if (cnpjFicha) (faturadosPorCnpj.get(cnpjFicha) || []).forEach(p => pedidosCandidatos.add(p));
+                chavesFicha.forEach(k => (faturadosPorNome.get(k) || []).forEach(p => pedidosCandidatos.add(p)));
+                // Compatibilidade para aliases empresariais já resolvidos: tenta o índice de aliases,
+                // sem recalcular a resolução completa para cada linha de faturamento.
+                if (fichaResolvida) {
+                    (fichaResolvida.aliases || []).forEach(alias => (faturadosPorNome.get(normalizarNomeCliente(alias)) || []).forEach(p => pedidosCandidatos.add(p)));
+                }
+                const idsPedidos = new Set();
+                const pedidosFaturadosCliente = [...pedidosCandidatos].filter(p => {
                     const id = [p['Pedido'] || p['Nº Pedido'] || p['Nota Fiscal'] || p['NF'] || '', p['Data'] || '', p['Nome Chave'] || '', p['Produto'] || p['Descrição'] || p['Descricao'] || '', p['Quantidade'] || p['Qtd'] || '', p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total'] || ''].join('|');
-                    return arr.findIndex(q => [q['Pedido'] || q['Nº Pedido'] || q['Nota Fiscal'] || q['NF'] || '', q['Data'] || '', q['Nome Chave'] || '', q['Produto'] || q['Descrição'] || q['Descricao'] || '', q['Quantidade'] || q['Qtd'] || '', q['Valor Mercadoria'] || q['Total Bruto'] || q['Valor Total'] || ''].join('|') === id) === idx;
+                    if (idsPedidos.has(id)) return false;
+                    idsPedidos.add(id);
+                    return true;
                 }).sort((a,b) => (parseDataBR(b['Data']) || new Date(0)) - (parseDataBR(a['Data']) || new Date(0)));
                 if (pedidosFaturadosCliente.length) {
                     const totalFaturado = pedidosFaturadosCliente.reduce((s,p) => s + cleanNumber(p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total']), 0);
