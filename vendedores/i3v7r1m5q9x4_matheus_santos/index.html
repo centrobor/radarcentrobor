@@ -1034,11 +1034,8 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    // Cache-first (stale-while-revalidate), com limite para não lotar o localStorage.
-    // Arquivos grandes são usados normalmente em memória, mas não persistidos no cache.
-    const CACHE_PREFIX = 'radar_cache_v3:';
-    const CACHE_MAX_ITEM_BYTES = 350 * 1024; // limite por arquivo: 350 KB
-    const CACHE_MAX_TOTAL_BYTES = 2 * 1024 * 1024; // alvo máximo: 2 MB
+    // Estratégia v3: dados JSON ficam apenas em memória durante a sessão.
+    // localStorage fica reservado para preferências pequenas da interface.
     const endpointsSemCache = new Set();
     const dadosEmMemoria = new Map();
     const endpointsComFalha = new Set();
@@ -1049,86 +1046,17 @@
     let renderEmAndamento = false;
     let atualizacaoBackgroundPendente = false;
     let timerRenderBackground = null;
-    const TIMEOUT_FONTE_MS = 12000;
+    const TIMEOUT_FONTE_MS = 15000;
 
-    // Remove entradas antigas excessivas, incluindo caches grandes de versões anteriores.
-    function limparCacheExcessivo() {
-        try {
-            const entradas = [];
-            let total = 0;
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (!key || !key.startsWith(CACHE_PREFIX)) continue;
-                const raw = localStorage.getItem(key);
-                const bytes = raw ? new Blob([raw]).size : 0;
-                let savedAt = 0;
-                try { savedAt = JSON.parse(raw || '{}').savedAt || 0; } catch (_) {}
-                if (bytes > CACHE_MAX_ITEM_BYTES) {
-                    localStorage.removeItem(key);
-                    i--;
-                    continue;
-                }
-                entradas.push({key, bytes, savedAt});
-                total += bytes;
-            }
-            entradas.sort((a,b) => a.savedAt - b.savedAt);
-            while (total > CACHE_MAX_TOTAL_BYTES && entradas.length) {
-                const antiga = entradas.shift();
-                try { localStorage.removeItem(antiga.key); } catch (_) {}
-                total -= antiga.bytes;
-            }
-        } catch (e) {
-            console.warn('Não foi possível fazer a limpeza preventiva do cache:', e);
-        }
-    }
-    limparCacheExcessivo();
-
+    // Compatibilidade com os indicadores de status existentes: não lê nem grava
+    // os grandes JSONs no localStorage. O dado carregado é mantido em RAM.
     function lerCacheEndpoint(url) {
-        if (endpointsSemCache.has(url)) return null;
-        try {
-            const raw = localStorage.getItem(CACHE_PREFIX + url);
-            if (!raw) return null;
-            if (raw.length * 2 > CACHE_MAX_ITEM_BYTES) {
-                localStorage.removeItem(CACHE_PREFIX + url);
-                endpointsSemCache.add(url);
-                return null;
-            }
-            const parsed = JSON.parse(raw);
-            return parsed && Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed : null;
-        } catch (_) { return null; }
+        return null;
     }
 
     function salvarCacheEndpoint(url, data) {
-        // Mantém a resposta em memória mesmo quando ela é grande demais para persistir.
         dadosEmMemoria.set(url, data);
-        try {
-            const payload = JSON.stringify({ savedAt: Date.now(), data });
-            // Não persiste itens grandes: evita quota excedida e escrita síncrona pesada.
-            if (payload.length * 2 > CACHE_MAX_ITEM_BYTES) {
-                endpointsSemCache.add(url);
-                try { localStorage.removeItem(CACHE_PREFIX + url); } catch (_) {}
-                return false;
-            }
-            try {
-                localStorage.setItem(CACHE_PREFIX + url, payload);
-                return true;
-            } catch (e) {
-                // Limpa caches antigos e tenta uma única vez, sem bloquear a aplicação.
-                limparCacheExcessivo();
-                try {
-                    localStorage.setItem(CACHE_PREFIX + url, payload);
-                    return true;
-                } catch (_) {
-                    endpointsSemCache.add(url);
-                    console.warn('Cache local cheio; fonte será usada sem persistência:', url);
-                    return false;
-                }
-            }
-        } catch (e) {
-            endpointsSemCache.add(url);
-            console.warn('Não foi possível preparar o cache local; usando dados em memória:', url);
-            return false;
-        }
+        return false;
     }
 
     function formatarHorarioCache(savedAt) {
@@ -1166,12 +1094,12 @@
         if (estados.includes('offline')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
             return cache
-                ? {cls:'local', icon:'fa-floppy-disk sync-pulse', text:`Cache local${formatarHorarioCache(cache.savedAt)}`}
+                ? {cls:'local', icon:'fa-database sync-pulse', text:'Dados mantidos na sessão'}
                 : {cls:'offline', icon:'fa-cloud-bolt sync-pulse', text:'Indisponível'};
         }
         if (estados.includes('local')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
-            return {cls:'local', icon:'fa-floppy-disk', text:`Carregado localmente${formatarHorarioCache(cache?.savedAt)}`};
+            return {cls:'local', icon:'fa-database', text:'Dados mantidos na sessão'};
         }
         const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
         return {cls:'cloud', icon:'fa-cloud-check sync-pulse', text:`Atualizado da nuvem${formatarHorarioCache(cache?.savedAt)}`};
@@ -1233,7 +1161,7 @@
                 }, TIMEOUT_FONTE_MS);
             });
             const fetchPromise = fetch(url, {
-                cache: 'no-store',
+                cache: 'no-cache',
                 ...(controller ? {signal: controller.signal} : {})
             }).then(r => {
                 if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
@@ -1257,11 +1185,11 @@
         }
         const cache = lerCacheEndpoint(url);
         if (cache) {
-            // O cache aparece na primeira renderização; a nuvem é consultada em paralelo.
+            // Os dados persistidos não são usados: sem memória, consulta a fonte JSON.
             const statusAtual = statusFontes.get(url)?.estado;
             if (!statusAtual) definirStatusFonte(url, 'local', cache.savedAt);
             atualizarIndicadoresSecoes();
-            // Não inicia um novo fetch em cada redesenho: evita ciclos de atualização.
+            // A resposta em memória evita novos downloads durante filtros e redesenhos.
             if (statusAtual !== 'cloud' && statusAtual !== 'loading') agendarAtualizacaoFonte(url);
             return cache.data;
         }
