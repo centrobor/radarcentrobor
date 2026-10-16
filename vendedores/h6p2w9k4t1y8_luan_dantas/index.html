@@ -2179,14 +2179,16 @@
             // Usa a ficha existente como base quando houver correspondência aproximada;
             // os campos do pedido e o nome alternativo ficam preservados para identificação.
             const original = {
-                ...((clienteRelacionado && clienteRelacionado.original) || {}),
                 ...pedido,
+                ...((clienteRelacionado && clienteRelacionado.original) || {}),
+                // Mantém a variação faturada visível no Farol, mas usa a ficha oficial
+                // encontrada como fonte dos dados cadastrais, sem deixar campos vazios
+                // do pedido sobrescreverem telefone, endereço, CNPJ etc.
                 'Nome Chave': nomePedido,
-                'Nome/Razão Social': pedido['Razão Social'] || nomePedido,
-                'CPF/CGC': pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || (clienteRelacionado && clienteRelacionado.cnpj) || ((clienteRelacionado && clienteRelacionado.original) ? clienteRelacionado.original['CPF/CGC'] : '') || '',
-                'Cidade': pedido['Cidade'] || pedido['Município'] || (clienteRelacionado && clienteRelacionado.cidade) || '',
-                'UF': pedido['UF'] || (clienteRelacionado && clienteRelacionado.uf) || '',
-                'ATivo/Inativo': 'Ativo'
+                'Nome/Razão Social': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Nome/Razão Social']) || pedido['Razão Social'] || nomePedido,
+                'CPF/CGC': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['CPF/CGC']) || (clienteRelacionado && clienteRelacionado.cnpj) || pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || '',
+                'Cidade': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Cidade']) || pedido['Cidade'] || pedido['Município'] || '',
+                'UF': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['UF']) || pedido['UF'] || ''
             };
             clientesStatus.push({
                 nome: nomePedido,
@@ -2480,7 +2482,7 @@
                         : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
 
                     const novidade = c.provisório
-                        ? '<span title="Cadastro provisório baseado no pedido e relacionado a uma ficha existente quando identificada. Pode haver dados atualizados em novembro; contate o administrador para confirmar o vínculo." style="font-size:.6rem;background:#ffedd5;color:#9a3412;padding:3px 7px;border-radius:8px;margin-left:5px;font-weight:800;">⚠ PROVISÓRIO</span>'
+                        ? '<span title="Cadastro provisório em nuvem; será atualizado para efetivo em breve. Contate o administrador para validar, se necessário." style="font-size:.58rem;background:#fff7ed;color:#9a3412;padding:2px 6px;border-radius:7px;margin-left:5px;font-weight:700;">Provisório</span>'
                         : (!c.cadastrado
                             ? (c.ultimaInteracao && c.dias <= 30
                                 ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>'
@@ -2492,7 +2494,6 @@
                             data-cliente-idx="${cidx}" title="Clique para ver a ficha completa">
                             <td>
                                 <div class="farol-cliente-nome">${c.nome}${novidade}</div>
-                                ${c.provisório ? '<div style="font-size:.66rem;color:#9a3412;white-space:normal;max-width:340px;margin-top:3px;"><i class="fas fa-triangle-exclamation"></i> Cadastro provisório baseado no pedido e relacionado a uma ficha existente quando identificada. Pode haver dados atualizados em novembro; contate o administrador para confirmar o vínculo.</div>' : ''}
                                 ${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}
                             </td>
                             <td class="farol-cidade">${c.cidade || '—'}${c.uf ? '/' + c.uf : ''}</td>
@@ -2648,7 +2649,6 @@
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
                 const similares = Array.from(carteiraMap.values()).filter(c=>c.nome&&c.nome.toUpperCase()!==cliente.nome.toUpperCase()&&palavras.some(p=>c.nome.toUpperCase().includes(p)));
                 let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente.nome||nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
-                if (pedidoData) html += `<div style="padding:10px 12px;margin-bottom:12px;border-radius:10px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:.82rem;"><strong><i class="fas fa-triangle-exclamation"></i> Registro provisório relacionado a esta ficha</strong><br>Os dados exibidos abaixo são do cadastro encontrado na carteira. O nome do pedido pode estar diferente; contate o administrador para confirmar se esta é a ficha correta.</div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">${['Código','Nome Chave','Nome/Razão Social','Física/Juridica','CPF/CGC','RG/IE','Ramo','Dt.Cadastro','ATivo/Inativo','Transportadora','Limite de Crédito'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Código'?'fa-hashtag':c==='Nome Chave'?'fa-tag':c==='Nome/Razão Social'?'fa-file-signature':c==='Física/Juridica'?'fa-venus-mars':c==='CPF/CGC'?'fa-id-card':c==='RG/IE'?'fa-passport':c==='Ramo'?'fa-industry':c==='Dt.Cadastro'?'fa-calendar-check':c==='ATivo/Inativo'?'fa-check-circle':c==='Transportadora'?'fa-truck':'fa-dollar-sign'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${['Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Endereço'?'fa-road':c==='Número'?'fa-home':c==='Complemento'?'fa-plus-circle':c==='Bairro'?'fa-map':c==='Cidade'?'fa-city':c==='UF'?'fa-map-pin':c==='País'?'fa-globe-americas':'fa-mail-bulk'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${['Telefone','Fax','Contato','Departamento','Cargo','Dt. Aniversário','Fone','E-Mail'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Telefone'?'fa-phone':c==='Fax'?'fa-fax':c==='Contato'?'fa-user':c==='Departamento'?'fa-building':c==='Cargo'?'fa-briefcase':c==='Dt. Aniversário'?'fa-calendar-day':c==='Fone'?'fa-phone-volume':'fa-envelope'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
