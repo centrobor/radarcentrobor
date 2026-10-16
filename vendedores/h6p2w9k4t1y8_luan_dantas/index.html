@@ -913,6 +913,10 @@
     }
 
     const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    // Chave canônica compartilhada por carteira, Farol, busca e faturamentos.
+    const normalizarNomeCliente = (valor) => removeAcentos(String(valor || '')).toUpperCase()
+        .replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+
 
     // Atualiza toda a interface com o nome do vendedor
     document.title = `Radar Centrobor – ${NOME_EXIBICAO}`;
@@ -2148,20 +2152,38 @@
             if (!nomePedido) return;
             const cnpjPedido = normalizarCnpj(pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF']);
             const nomeKey = removeAcentos(nomePedido).toUpperCase().trim();
-            const nomeTokens = nomeKey.split(/[^A-Z0-9]+/).filter(t => t.length > 2);
-            // Considera variações de razão social/nome-chave como o mesmo cliente quando
-            // compartilham uma identificação nominal forte (ex.: LIE LOGISTICA x LIE LOGISTICA INDUSTRIAL...).
-            const clienteRelacionado = clientesStatus.find(c => {
-                const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']].filter(Boolean)
-                    .map(n => removeAcentos(String(n)).toUpperCase().trim());
-                return nomes.some(n => {
-                    if (!n) return false;
-                    if (n === nomeKey || n.includes(nomeKey) || nomeKey.includes(n)) return true;
-                    const tokensExistentes = n.split(/[^A-Z0-9]+/).filter(t => t.length > 2);
-                    const comuns = nomeTokens.filter(t => tokensExistentes.includes(t));
-                    return comuns.length >= 2 && comuns.length / Math.min(nomeTokens.length || 1, tokensExistentes.length || 1) >= 0.6;
-                });
-            });
+            const nomeTokens = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length > 2);
+            // Correspondência conservadora: exacta, nome contido com evidência forte ou
+            // tokens empresariais compartilhados. Não escolhe arbitrariamente em empate.
+            const candidatos = clientesStatus.filter(c => c.cadastrado && !c.provisório);
+            const pontuarFicha = c => {
+                const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']]
+                    .filter(Boolean).map(normalizarNomeCliente).filter(Boolean);
+                let melhor = 0;
+                for (const n of nomes) {
+                    if (n === nomeKey) melhor = Math.max(melhor, 100);
+                    else if (n && (n.includes(nomeKey) || nomeKey.includes(n))) {
+                        const menor = Math.min(n.length, nomeKey.length);
+                        const maior = Math.max(n.length, nomeKey.length);
+                        if (menor >= 5 && menor / maior >= 0.55) melhor = Math.max(melhor, 80 + menor / maior * 10);
+                    }
+                    const tokensExistentes = n.split(' ').filter(t => t.length > 2);
+                    const comuns = [...new Set(nomeTokens.filter(t => tokensExistentes.includes(t)))];
+                    const denominador = Math.min(new Set(nomeTokens).size || 1, new Set(tokensExistentes).size || 1);
+                    if (comuns.length >= 2 && comuns.length / denominador >= 0.6)
+                        melhor = Math.max(melhor, 60 + comuns.length / denominador * 20);
+                    // Sigla curta só vale se for token completo e não houver mais de uma ficha candidata.
+                    const siglas = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length >= 2 && t.length <= 4);
+                    if (siglas.some(t => tokensExistentes.includes(t)) && candidatos.length === 1) melhor = Math.max(melhor, 62);
+                }
+                return melhor;
+            };
+            let clienteRelacionado = null;
+            if (cnpjPedido) clienteRelacionado = candidatos.find(c => normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === cnpjPedido) || null;
+            if (!clienteRelacionado) {
+                const ranqueados = candidatos.map(c => ({ c, score: pontuarFicha(c) })).filter(x => x.score >= 75).sort((a,b) => b.score-a.score);
+                if (ranqueados.length && (ranqueados.length === 1 || ranqueados[0].score > ranqueados[1].score)) clienteRelacionado = ranqueados[0].c;
+            }
             const mesmoCnpj = cnpjPedido && chavesCarteiraCnpj.has(cnpjPedido);
             const mesmoNome = chavesCarteiraNome.has(nomeKey);
             // Se o nome do pedido for uma variação de uma empresa já cadastrada,
@@ -2211,6 +2233,72 @@
             if (cnpjPedido) chavesCarteiraCnpj.add(cnpjPedido);
             chavesCarteiraNome.add(removeAcentos(nomePedido).toUpperCase().trim());
         });
+
+        // RESOLUÇÃO CENTRAL DE CLIENTES: a ficha oficial e as variações de faturamento
+        // compartilham a mesma identidade lógica durante toda a página.
+        const aliasesCliente = new Map();
+        const provisoriaPorNome = new Map();
+        const indexarAlias = (nome, cliente) => {
+            const chave = normalizarNomeCliente(nome);
+            if (chave && cliente && !aliasesCliente.has(chave)) aliasesCliente.set(chave, cliente);
+        };
+        clientesStatus.forEach(c => {
+            if (c.provisório) provisoriaPorNome.set(normalizarNomeCliente(c.nome), c);
+            else {
+                indexarAlias(c.nome, c);
+                (c.aliases || []).forEach(n => indexarAlias(n, c));
+                indexarAlias(c.original?.['Nome/Razão Social'], c);
+            }
+        });
+        function resolverClienteComFicha(nomeOuRegistro) {
+            const registro = nomeOuRegistro && typeof nomeOuRegistro === 'object' ? nomeOuRegistro : null;
+            const nomeOriginal = registro
+                ? String(registro['Nome Chave'] || registro['Razão Social'] || registro['Nome/Razão Social'] || registro['Cliente'] || registro['Empresa'] || '').trim()
+                : String(nomeOuRegistro || '').trim();
+            const cnpj = normalizarCnpj(registro && (registro['CPF/CGC'] || registro['CNPJ'] || registro['CNPJ/CPF']));
+            const codigo = registro && String(registro['Código'] || registro['Cliente'] || '').trim();
+            let ficha = null;
+            if (cnpj) ficha = clientesStatus.find(c => !c.provisório && normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === cnpj) || null;
+            if (!ficha && codigo && carteiraByCodigo.has(codigo)) {
+                const porCodigo = carteiraByCodigo.get(codigo);
+                ficha = clientesStatus.find(c => !c.provisório && (c.original === porCodigo || String(c.original?.['Código'] || '') === codigo)) || null;
+            }
+            const chave = normalizarNomeCliente(nomeOriginal);
+            if (!ficha && chave) ficha = aliasesCliente.get(chave) || null;
+            const provisoria = provisoriaPorNome.get(chave) || null;
+            if (!ficha && provisoria?.fichaRelacionada) {
+                const rel = normalizarNomeCliente(provisoria.fichaRelacionada.nome);
+                ficha = aliasesCliente.get(rel) || clientesStatus.find(c => !c.provisório && normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === normalizarCnpj(provisoria.fichaRelacionada.cnpj)) || null;
+            }
+            if (!ficha && chave) {
+                // Última tentativa apenas com evidência nominal forte e resultado único.
+                const tokens = chave.split(' ').filter(t => t.length > 2);
+                const matches = clientesStatus.filter(c => !c.provisório).map(c => {
+                    const nomes = [c.nome, ...(c.aliases || []), c.original?.['Nome/Razão Social']].filter(Boolean).map(normalizarNomeCliente);
+                    let score = 0;
+                    nomes.forEach(n => {
+                        if (n === chave) score = Math.max(score, 100);
+                        else if (n && Math.min(n.length, chave.length) >= 5 && (n.includes(chave) || chave.includes(n))) score = Math.max(score, 85);
+                        const t = n.split(' ').filter(x => x.length > 2);
+                        const comuns = [...new Set(tokens.filter(x => t.includes(x)))];
+                        if (comuns.length >= 2 && comuns.length / Math.min(new Set(tokens).size || 1, new Set(t).size || 1) >= .6) score = Math.max(score, 75);
+                    });
+                    return {c,score};
+                }).filter(x => x.score >= 75).sort((a,b)=>b.score-a.score);
+                if (matches.length && (matches.length === 1 || matches[0].score > matches[1].score)) ficha = matches[0].c;
+            }
+            const registroFarol = provisoria || (chave ? clientesStatus.find(c => c.nomeUpper === removeAcentos(nomeOriginal).toUpperCase()) : null) || null;
+            const oficial = ficha?.original || null;
+            const faturamentos = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
+                const pk = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa']);
+                const pc = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
+                if (ficha && pc && normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC']) && pc === normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC'])) return true;
+                if (pk && (pk === chave || (ficha && aliasesCliente.get(pk) === ficha))) return true;
+                return !!(provisoria && pk === normalizarNomeCliente(provisoria.nome));
+            });
+            return { ficha: oficial, clienteResolvido: ficha, nomeOriginal: nomeOriginal, provisoria: !!(provisoria && ficha), chaves: [...new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente)].filter(Boolean))], variacoes: [nomeOriginal].filter(Boolean), faturamentos };
+        }
+        window.resolverClienteComFicha = resolverClienteComFicha;
 
         /*
          * AGRUPAMENTO INTELIGENTE DE GRUPOS EMPRESARIAIS
@@ -2425,9 +2513,12 @@
             const gruposOrdenados = ordenarGrupos(gruposFiltrados, ordem);
             const clientesFiltrados = clientesStatus.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
             const clientesOrdenados = ordenarClientes(clientesFiltrados, ordem);
+            const avisoCadastroProvisorio = clientesFiltrados.some(c => c.provisório)
+                ? '<div style="margin:0 0 12px;padding:9px 12px;border:1px solid #f3dfb3;border-radius:12px;background:#fffbeb;color:#795512;font-size:.76rem;line-height:1.45;"><i class="fas fa-cloud-arrow-up" style="margin-right:6px;"></i>Cadastro provisório em nuvem — será atualizado para efetivo em breve. Contate o administrador para validar, se necessário.</div>'
+                : '';
 
             if (modo === 'filiais') {
-                container.innerHTML = `<div class="table-wrapper" style="margin:0;">
+                container.innerHTML = avisoCadastroProvisorio + `<div class="table-wrapper" style="margin:0;">
                     <table class="carteira-antiga-table"><thead><tr><th>Cliente / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th></tr></thead><tbody>
                     ${clientesOrdenados.map(c => {
                         const cadastro = c.provisório
@@ -2451,7 +2542,7 @@
                 return;
             }
 
-            container.innerHTML = gruposOrdenados.map((g, idx) => {
+            container.innerHTML = avisoCadastroProvisorio + gruposOrdenados.map((g, idx) => {
                 const icone = g.status === 'green' ? 'fa-check-circle'
                     : g.status === 'yellow' ? 'fa-exclamation-circle'
                     : 'fa-times-circle';
@@ -2618,7 +2709,8 @@
             window.fichaPedidoData = pedidoData;
             mostrarLoadingModal();
             setTimeout(() => {
-                let cliente = null;
+                const resolucaoCentral = resolverClienteComFicha(pedidoData || nomeUpper);
+                let cliente = resolucaoCentral.ficha ? { ...resolucaoCentral.ficha, nome: resolucaoCentral.clienteResolvido?.nome || resolucaoCentral.ficha['Nome Chave'] || nomeUpper, _nomePedidoOriginal: resolucaoCentral.nomeOriginal } : null;
                 if (!cliente && pedidoData && pedidoData['Cliente']) cliente = carteiraByCodigo.get(String(pedidoData['Cliente']).trim());
                 const nomeBusca = removeAcentos(nomeUpper||'').toUpperCase();
                 if (!cliente) cliente = carteiraMap.get(nomeBusca);
@@ -2628,10 +2720,8 @@
                     }
                 }
                 if (!cliente && nomeBusca && permitirBuscaAproximada) {
-                    const palavras = nomeBusca.split(/\s+/).filter(p=>p.length>2);
-                    for (let [key, val] of carteiraMap.entries()) {
-                        if (palavras.some(p=>key.includes(p))) { cliente = val; break; }
-                    }
+                    const resolvida = resolverClienteComFicha(nomeBusca);
+                    if (resolvida.ficha) cliente = { ...resolvida.ficha, nome: resolvida.clienteResolvido?.nome || resolvida.ficha['Nome Chave'] || nomeUpper };
                 }
                 // Para uma variação provisória do Farol, abrir a ficha cadastral relacionada
                 // como referência: não deixar a tela cair no resumo incompleto do pedido.
@@ -2670,25 +2760,32 @@
                 window.clienteFichaAtual = cliente;
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
                 const similares = Array.from(carteiraMap.values()).filter(c=>c.nome&&c.nome.toUpperCase()!==cliente.nome.toUpperCase()&&palavras.some(p=>c.nome.toUpperCase().includes(p)));
-                let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente.nome||nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
+                let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-id-card"></i> ${cliente._nomePedidoOriginal || cliente.nome || nomeUpper}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">${['Código','Nome Chave','Nome/Razão Social','Física/Juridica','CPF/CGC','RG/IE','Ramo','Dt.Cadastro','ATivo/Inativo','Transportadora','Limite de Crédito'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Código'?'fa-hashtag':c==='Nome Chave'?'fa-tag':c==='Nome/Razão Social'?'fa-file-signature':c==='Física/Juridica'?'fa-venus-mars':c==='CPF/CGC'?'fa-id-card':c==='RG/IE'?'fa-passport':c==='Ramo'?'fa-industry':c==='Dt.Cadastro'?'fa-calendar-check':c==='ATivo/Inativo'?'fa-check-circle':c==='Transportadora'?'fa-truck':'fa-dollar-sign'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${['Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Endereço'?'fa-road':c==='Número'?'fa-home':c==='Complemento'?'fa-plus-circle':c==='Bairro'?'fa-map':c==='Cidade'?'fa-city':c==='UF'?'fa-map-pin':c==='País'?'fa-globe-americas':'fa-mail-bulk'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${['Telefone','Fax','Contato','Departamento','Cargo','Dt. Aniversário','Fone','E-Mail'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Telefone'?'fa-phone':c==='Fax'?'fa-fax':c==='Contato'?'fa-user':c==='Departamento'?'fa-building':c==='Cargo'?'fa-briefcase':c==='Dt. Aniversário'?'fa-calendar-day':c==='Fone'?'fa-phone-volume':'fa-envelope'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 // Resumo dos pedidos faturados deste cliente, disponível na ficha do Farol
                 // mesmo quando o usuário não abriu a ficha a partir de uma linha de pedido.
-                const cnpjFicha = String(cliente['CPF/CGC'] || '').replace(/\D/g, '');
-                const nomesFicha = [cliente['Nome Chave'], cliente['Nome/Razão Social'], cliente.nome, cliente._aliasProvisorioFarol, nomeUpper]
-                    .filter(Boolean).map(n => removeAcentos(String(n)).toUpperCase().trim());
-                const tokensFicha = nomesFicha.flatMap(n => n.split(/[^A-Z0-9]+/).filter(t => t.length > 2));
+                const resolucaoFicha = resolverClienteComFicha(registroProvisorioAberto?.nome || nomeUpper || cliente['Nome Chave'] || cliente['Nome/Razão Social']);
+                const fichaResolvida = resolucaoFicha.clienteResolvido || clientesStatus.find(c => !c.provisório && c.original && (
+                    normalizarNomeCliente(c.original['Nome Chave']) === normalizarNomeCliente(cliente['Nome Chave']) ||
+                    normalizarCnpj(c.original['CPF/CGC']) === normalizarCnpj(cliente['CPF/CGC'])
+                )) || null;
+                const chavesFicha = new Set([normalizarNomeCliente(nomeUpper), normalizarNomeCliente(registroProvisorioAberto?.nome),
+                    normalizarNomeCliente(cliente['Nome Chave']), normalizarNomeCliente(cliente['Nome/Razão Social']),
+                    ...(fichaResolvida?.aliases || []).map(normalizarNomeCliente)].filter(Boolean));
+                const cnpjFicha = normalizarCnpj(cliente['CPF/CGC']);
                 const pedidosFaturadosCliente = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
-                    const cnpjP = String(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF'] || '').replace(/\D/g, '');
+                    const cnpjP = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
                     if (cnpjFicha && cnpjP && cnpjFicha === cnpjP) return true;
-                    const nomeP = removeAcentos(String(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa'] || '')).toUpperCase().trim();
+                    const nomeP = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa']);
                     if (!nomeP) return false;
-                    if (nomesFicha.includes(nomeP) || nomesFicha.some(n => n && (n.includes(nomeP) || nomeP.includes(n)))) return true;
-                    const tp = nomeP.split(/[^A-Z0-9]+/).filter(t => t.length > 2);
-                    const comuns = [...new Set(tp.filter(t => tokensFicha.includes(t)))];
-                    return comuns.length >= 2 && comuns.length / Math.min(tp.length || 1, new Set(tokensFicha).size || 1) >= 0.6;
+                    if (chavesFicha.has(nomeP)) return true;
+                    const rp = resolverClienteComFicha(p);
+                    return !!(fichaResolvida && rp.clienteResolvido && rp.clienteResolvido.nomeUpper === fichaResolvida.nomeUpper);
+                }).filter((p, idx, arr) => {
+                    const id = [p['Pedido'] || p['Nº Pedido'] || p['Nota Fiscal'] || p['NF'] || '', p['Data'] || '', p['Nome Chave'] || '', p['Produto'] || p['Descrição'] || p['Descricao'] || '', p['Quantidade'] || p['Qtd'] || '', p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total'] || ''].join('|');
+                    return arr.findIndex(q => [q['Pedido'] || q['Nº Pedido'] || q['Nota Fiscal'] || q['NF'] || '', q['Data'] || '', q['Nome Chave'] || '', q['Produto'] || q['Descrição'] || q['Descricao'] || '', q['Quantidade'] || q['Qtd'] || '', q['Valor Mercadoria'] || q['Total Bruto'] || q['Valor Total'] || ''].join('|') === id) === idx;
                 }).sort((a,b) => (parseDataBR(b['Data']) || new Date(0)) - (parseDataBR(a['Data']) || new Date(0)));
                 if (pedidosFaturadosCliente.length) {
                     const totalFaturado = pedidosFaturadosCliente.reduce((s,p) => s + cleanNumber(p['Valor Mercadoria'] || p['Total Bruto'] || p['Valor Total']), 0);
