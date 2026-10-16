@@ -2182,6 +2182,78 @@
             };
         });
 
+        // Resolução central de clientes: cadastro oficial primeiro; depois aliases
+        // seguros por CNPJ/código/nome normalizado e, por último, dados provisórios do pedido.
+        const normalizarNomeResolucao = valor => removeAcentos(String(valor || ''))
+            .toUpperCase().replace(/[^A-Z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+        const resolverClienteComFicha = (nomeOuRegistro, pedidoAtual = null) => {
+            const registro = nomeOuRegistro && typeof nomeOuRegistro === 'object' ? nomeOuRegistro : null;
+            const pedido = pedidoAtual || registro || null;
+            const nomeOriginal = typeof nomeOuRegistro === 'string' ? nomeOuRegistro :
+                (registro?.['Nome Chave'] || registro?.['Empresa'] || registro?.['Razão Social'] || registro?.['Cliente'] || '');
+            const cnpjBusca = normalizarCnpj(registro?.['CPF/CGC'] || registro?.['CNPJ'] || registro?.['CNPJ/CPF'] || pedido?.['CPF/CGC'] || pedido?.['CNPJ'] || '');
+            const codigoBusca = String(registro?.['Código'] || registro?.['Cod. Cliente'] || pedido?.['Código Cliente'] || '').trim();
+            const nomeBusca = normalizarNomeResolucao(nomeOriginal || pedido?.['Empresa'] || pedido?.['Razão Social'] || pedido?.['Cliente']);
+            let ficha = null;
+            if (cnpjBusca) ficha = clientesConsolidados.find(c => normalizarCnpj(c['CPF/CGC']) === cnpjBusca) || null;
+            if (!ficha && codigoBusca) ficha = clientesConsolidados.find(c => String(c['Código'] || '').trim() === codigoBusca) || null;
+            if (!ficha && nomeBusca) ficha = carteiraMap.get(nomeBusca) || null;
+            if (!ficha && nomeBusca) {
+                const candidatos = clientesConsolidados.filter(c => (c.__aliases || [c['Nome Chave'], c['Nome/Razão Social']]).some(a => normalizarNomeResolucao(a) === nomeBusca));
+                if (candidatos.length === 1) ficha = candidatos[0];
+            }
+            // Fuzzy match apenas se houver correspondência forte e única (marca + sufixo societário ignorado).
+            if (!ficha && nomeBusca) {
+                const tokens = nomeBusca.split(' ').filter(t => t.length > 3 && !['LTDA','EIRELI','ME','EPP','SA','S A','COMERCIO','COMERCIAL','INDUSTRIA','INDUSTRIAL'].includes(t));
+                const candidatos = clientesConsolidados.filter(c => {
+                    const nomes = (c.__aliases || [c['Nome Chave'], c['Nome/Razão Social']]).map(normalizarNomeResolucao);
+                    return tokens.length >= 2 && nomes.some(n => tokens.filter(t => n.split(' ').includes(t)).length >= Math.min(2, tokens.length) && tokens.filter(t => n.split(' ').includes(t)).length / tokens.length >= .75);
+                });
+                if (candidatos.length === 1) ficha = candidatos[0];
+            }
+            const nomePedido = String(pedido?.['Empresa'] || pedido?.['Razão Social'] || pedido?.['Nome/Razão Social'] || pedido?.['Nome Chave'] || pedido?.['Cliente'] || nomeOriginal || '').trim();
+            const dadosProvisorios = {};
+            if (pedido) {
+                const mapCampos = {
+                    'Nome/Razão Social':['Empresa','Nome/Razão Social','Razão Social','Nome Chave','Cliente'],
+                    'Nome Chave':['Nome Chave','Empresa','Razão Social','Cliente'],
+                    'CPF/CGC':['CPF/CGC','CNPJ','CNPJ/CPF','CPF'], 'Código':['Código','Código Cliente','Cod. Cliente'],
+                    'Endereço':['Endereço','Endereco','Logradouro','Rua'], 'Número':['Número','Numero'],
+                    'Complemento':['Complemento'], 'Bairro':['Bairro'], 'Cidade':['Cidade','Município'], 'UF':['UF','Estado'], 'CEP':['CEP'],
+                    'Telefone':['Telefone','Telefone Empresa','Tel.'], 'Fone':['Fone','Celular','WhatsApp'], 'Contato':['Contato','Nome Contato','Responsável'],
+                    'E-Mail':['E-Mail','Email','E-mail'], 'Ramo':['Ramo','Segmento'], 'RG/IE':['RG/IE','IE','Inscrição Estadual']
+                };
+                Object.entries(mapCampos).forEach(([campo, chaves]) => { const v = chaves.map(k => pedido[k]).find(v => v != null && String(v).trim()); if (v != null) dadosProvisorios[campo] = v; });
+            }
+            const fichaFinal = ficha ? {...ficha} : {...dadosProvisorios, nome: nomePedido, cidade: dadosProvisorios['Cidade'] || '', uf: dadosProvisorios['UF'] || '', cadastrado: false, ativo: false};
+            Object.entries(dadosProvisorios).forEach(([campo, valor]) => { if (!fichaFinal[campo]) fichaFinal[campo] = valor; });
+            if (pedido?.['Empresa'] && !ficha) fichaFinal['Nome/Razão Social'] = String(pedido['Empresa']).trim();
+            fichaFinal.nome = nomePedido || fichaFinal.nome || fichaFinal['Nome Chave'] || fichaFinal['Nome/Razão Social'] || '';
+            return { ficha: fichaFinal, fichaOficial: ficha, nomeOriginal: nomeOriginal || nomePedido, nomePedido, provisoria: !ficha, chaves: Array.from(new Set([nomeOriginal, nomePedido, fichaFinal['Nome Chave'], fichaFinal['Nome/Razão Social']].filter(Boolean))), faturamentos: fatFull.filter(f => {
+                const n = normalizarNomeResolucao(f['Nome Chave'] || f['Empresa'] || f['Razão Social']);
+                return n && [nomeBusca, normalizarNomeResolucao(nomePedido), ...((fichaFinal.__aliases || []).map(normalizarNomeResolucao))].includes(n);
+            }) };
+        };
+        window.resolverClienteComFicha = resolverClienteComFicha;
+
+        // Acrescenta ao Farol variações faturadas sem ficha própria, sem marcá-las
+        // automaticamente como ativas. A data futura nunca conta como interação recente.
+        const aliasesJaNoFarol = new Set(clientesStatus.flatMap(c => [c.nome, ...(c.aliases || [])].map(normalizarNomeResolucao)));
+        const provisoriaPorNome = new Map();
+        fatFull.forEach(pedido => {
+            const nome = String(pedido['Nome Chave'] || pedido['Empresa'] || pedido['Razão Social'] || '').trim();
+            const chave = normalizarNomeResolucao(nome);
+            if (!chave || aliasesJaNoFarol.has(chave) || provisoriaPorNome.has(chave)) return;
+            const resolucao = resolverClienteComFicha(nome, pedido);
+            if (resolucao.fichaOficial) return; // aliases oficiais não viram uma ficha provisória separada
+            const data = parseDataBR(pedido['Data']);
+            const dataValida = data && data <= today ? data : null;
+            const dias = dataValida ? Math.floor((today - dataValida) / 86400000) : Infinity;
+            const status = dias <= 30 ? 'green' : dias < 180 ? 'yellow' : 'red';
+            provisoriaPorNome.set(chave, { nome, status, ultima: dataValida ? formatarData(dataValida) : (data ? 'Data futura inválida' : 'Sem interação'), ultimaInteracao: dataValida, dias, cidade: resolucao.ficha['Cidade'] || '', uf: resolucao.ficha['UF'] || '', ativo: false, cadastrado: false, provisório: true, original: resolucao.ficha, nomeUpper: chave, cnpj: normalizarCnpj(pedido['CPF/CGC'] || pedido['CNPJ']), aliases: [nome], pedidoOriginal: pedido });
+        });
+        clientesStatus.push(...provisoriaPorNome.values());
+
         /*
          * AGRUPAMENTO INTELIGENTE DE GRUPOS EMPRESARIAIS
          *
@@ -2394,6 +2466,7 @@
             const gruposFiltrados = gruposCarteira.filter(g => filtroStatus === 'todos' || g.clientes.some(c => c.status === filtroStatus));
             const gruposOrdenados = ordenarGrupos(gruposFiltrados, ordem);
             const clientesFiltrados = clientesStatus.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
+            const avisoProvisorio = clientesFiltrados.some(c => c.provisório) ? '<div style="margin:0 0 12px;padding:9px 12px;border:1px solid #f3dfb3;border-radius:12px;background:#fffbeb;color:#795512;font-size:.76rem;line-height:1.45;">Cadastro provisório em nuvem — será atualizado para efetivo em breve. Contate o administrador para validar, se necessário.</div>' : '';
             const clientesOrdenados = ordenarClientes(clientesFiltrados, ordem);
 
             if (modo === 'filiais') {
@@ -2419,7 +2492,7 @@
                 return;
             }
 
-            container.innerHTML = gruposOrdenados.map((g, idx) => {
+            container.innerHTML = avisoProvisorio + gruposOrdenados.map((g, idx) => {
                 const icone = g.status === 'green' ? 'fa-check-circle'
                     : g.status === 'yellow' ? 'fa-exclamation-circle'
                     : 'fa-times-circle';
@@ -2585,6 +2658,8 @@
             mostrarLoadingModal();
             setTimeout(() => {
                 let cliente = null;
+                const resolucaoCentral = resolverClienteComFicha(nomeUpper || pedidoData || '', pedidoData);
+                if (resolucaoCentral && (resolucaoCentral.fichaOficial || pedidoData)) cliente = resolucaoCentral.ficha;
                 if (!cliente && pedidoData && pedidoData['Cliente']) cliente = carteiraByCodigo.get(String(pedidoData['Cliente']).trim());
                 const nomeBusca = removeAcentos(nomeUpper||'').toUpperCase();
                 if (!cliente) cliente = carteiraMap.get(nomeBusca);
@@ -2610,6 +2685,18 @@
                     }
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
                     return;
+                }
+                if (pedidoData) {
+                    const camposPedido = {
+                        'Nome/Razão Social':['Empresa','Nome/Razão Social','Razão Social','Nome Chave','Cliente'], 'Nome Chave':['Nome Chave','Empresa','Razão Social','Cliente'],
+                        'CPF/CGC':['CPF/CGC','CNPJ','CNPJ/CPF','CPF'], 'Código':['Código','Código Cliente','Cod. Cliente'], 'Endereço':['Endereço','Endereco','Logradouro','Rua'],
+                        'Número':['Número','Numero'], 'Complemento':['Complemento'], 'Bairro':['Bairro'], 'Cidade':['Cidade','Município'], 'UF':['UF','Estado'], 'CEP':['CEP'],
+                        'Telefone':['Telefone','Telefone Empresa','Tel.'], 'Fone':['Fone','Celular','WhatsApp'], 'Contato':['Contato','Nome Contato','Responsável'], 'E-Mail':['E-Mail','Email','E-mail'], 'Ramo':['Ramo','Segmento'], 'RG/IE':['RG/IE','IE','Inscrição Estadual']
+                    };
+                    Object.entries(camposPedido).forEach(([campo,chaves])=>{ if(!cliente[campo]) { const v=chaves.map(k=>pedidoData[k]).find(v=>v!=null&&String(v).trim()); if(v!=null) cliente[campo]=v; }});
+                    if (!resolucaoCentral.fichaOficial && pedidoData['Empresa']) cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
+                    cliente._nomePedidoOriginal = pedidoData['Empresa'] || pedidoData['Nome Chave'] || nomeUpper;
+                    cliente._provisorio = !resolucaoCentral.fichaOficial;
                 }
                 window.clienteFichaAtual = cliente;
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
