@@ -1970,7 +1970,7 @@
         const extrairCodigoClienteRegistro = registro => {
             if (!registro || typeof registro !== 'object') return '';
             const chaves = Object.keys(registro).filter(k =>
-                /^(c[oó]digo|c[oó]d\.?\s*(cliente|empresa)|cliente\s*(c[oó]digo|id)|cod\.?\s*cliente|id\s*cliente)$/i.test(k.trim())
+                /^(c[oó]d\.?\s*(cliente|empresa)|c[oó]digo\s*(do\s*)?cliente|cliente\s*(c[oó]digo|id)|cod\.?\s*cliente|id\s*cliente)$/i.test(k.trim())
             );
             for (const k of chaves) {
                 const valor = normalizarCodigoCliente(registro[k]);
@@ -2116,6 +2116,29 @@
             }))
         ];
 
+        // Fichas cadastrais podem pertencer a outro representante no cadastro, mas
+        // ainda assim aparecer em um faturamento deste vendedor. Disponibiliza a base
+        // completa apenas para resolver a ficha; não muda o filtro da carteira original.
+        carteiraRaw.forEach(cli => {
+            const nomeChave = String(cli['Nome Chave'] || '').trim();
+            const razaoSocial = String(cli['Nome/Razão Social'] || '').trim();
+            const nome = razaoSocial || nomeChave;
+            const registro = {
+                ...cli,
+                nome,
+                cidade: cli['Cidade'] || '',
+                uf: cli['UF'] || '',
+                ativo: String(cli['ATivo/Inativo'] || '').trim().toLowerCase() === 'ativo',
+                cadastrado: true
+            };
+            [nomeChave, razaoSocial].forEach(n => {
+                const chave = normalizarNomeCliente(n);
+                if (chave && !carteiraMap.has(chave)) carteiraMap.set(chave, registro);
+            });
+            const codigo = normalizarCodigoCliente(cli['Código']);
+            if (codigo && !carteiraByCodigo.has(codigo)) carteiraByCodigo.set(codigo, registro);
+        });
+
         carteiraMapGlobal = carteiraMap;
 
         /* Clientes fora da carteira que tiveram interação recente com este vendedor. */
@@ -2151,6 +2174,40 @@
 
         aprovFull.forEach(item => registrarInteracaoCnpj(item['Cliente'], parseDataBR(item['Data'])));
         fatFull.forEach(item => registrarInteracaoCnpj(item['Nome Chave'], parseDataBR(item['Data'])));
+
+        // União de faturamentos + carteira: cliente faturado por este vendedor não
+        // pode desaparecer do Farol só porque o cadastro o atribui a outro representante.
+        const codigosJaNoFarol = new Set(clientesConsolidados.map(c => normalizarCodigoCliente(c['Código'])).filter(Boolean));
+        const cnpjsJaNoFarol = new Set(clientesConsolidados.map(c => normalizarCnpj(c['CPF/CGC'])).filter(Boolean));
+        const nomesJaNoFarol = new Set(clientesConsolidados.flatMap(c =>
+            [c['Nome Chave'], c['Nome/Razão Social']].map(normalizarNomeCliente).filter(Boolean)
+        ));
+        fatFull.forEach(item => {
+            const nomeFaturado = normalizarNomeCliente(item['Nome Chave'] || item['Razão Social'] || item['Empresa']);
+            const razaoFaturada = normalizarNomeCliente(item['Empresa'] || item['Razão Social']);
+            if (!nomeFaturado && !razaoFaturada) return;
+            let cadastro = carteiraRaw.find(cli => {
+                const nomes = [cli['Nome Chave'], cli['Nome/Razão Social']].map(normalizarNomeCliente);
+                return (nomeFaturado && nomes.includes(nomeFaturado)) || (razaoFaturada && nomes.includes(razaoFaturada));
+            });
+            if (!cadastro) return; // não inventa campos cadastrais quando não há correspondência segura
+            const cnpj = normalizarCnpj(cadastro['CPF/CGC']);
+            const codigo = normalizarCodigoCliente(cadastro['Código']);
+            if ((cnpj && cnpjsJaNoFarol.has(cnpj)) ||
+                (codigo && codigosJaNoFarol.has(codigo)) ||
+                [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].some(n => nomesJaNoFarol.has(normalizarNomeCliente(n)))) return;
+            const registro = { ...cadastro };
+            clientesConsolidados.push({
+                ...registro,
+                __cnpj: cnpj,
+                __aliases: [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].filter(Boolean),
+                __registros: [registro],
+                __incluidoPorFaturamento: true
+            });
+            if (cnpj) cnpjsJaNoFarol.add(cnpj);
+            if (codigo) codigosJaNoFarol.add(codigo);
+            [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].map(normalizarNomeCliente).filter(Boolean).forEach(n => nomesJaNoFarol.add(n));
+        });
 
         const clientesStatus = clientesConsolidados.map(dados => {
             const aliases = dados.__aliases || [];
