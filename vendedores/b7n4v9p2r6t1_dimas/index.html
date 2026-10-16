@@ -1864,7 +1864,41 @@
                         </div>
                     `;
 
-                    if (pedidoData) {
+                    
+                    // Complementa provisoriamente a ficha com os dados do pedido sem sobrescrever cadastro existente.
+                    if (pedidoData && cliente) {
+                        const primeiroValorPedido = (...chaves) => {
+                            for (const chave of chaves) {
+                                const valor = pedidoData[chave];
+                                if (valor !== undefined && valor !== null && String(valor).trim() !== '' && String(valor).trim() !== '—') return String(valor).trim();
+                            }
+                            return '';
+                        };
+                        const preencherSeVazio = (campo, ...origens) => {
+                            if (!cliente[campo] || !String(cliente[campo]).trim() || String(cliente[campo]).trim() === '—') {
+                                const valor = primeiroValorPedido(...origens);
+                                if (valor) cliente[campo] = valor;
+                            }
+                        };
+                        preencherSeVazio('Nome/Razão Social', 'Empresa', 'Nome/Razão Social', 'Razão Social', 'Razao Social', 'Nome Empresa');
+                        preencherSeVazio('Nome Chave', 'Nome Chave', 'Cliente', 'Nome Cliente', 'Empresa', 'Nome/Razão Social', 'Razão Social');
+                        preencherSeVazio('CPF/CGC', 'CPF/CGC', 'CNPJ', 'CNPJ/CPF', 'CPF/CNPJ');
+                        preencherSeVazio('Endereço', 'Endereço', 'Endereco', 'Logradouro');
+                        preencherSeVazio('Número', 'Número', 'Numero', 'Nº');
+                        preencherSeVazio('Complemento', 'Complemento');
+                        preencherSeVazio('Bairro', 'Bairro');
+                        preencherSeVazio('Cidade', 'Cidade', 'Município', 'Municipio');
+                        preencherSeVazio('UF', 'UF', 'Estado');
+                        preencherSeVazio('CEP', 'CEP');
+                        preencherSeVazio('País', 'País', 'Pais');
+                        preencherSeVazio('Telefone', 'Telefone', 'Fone', 'Telefone Cliente');
+                        preencherSeVazio('Fone', 'Fone', 'Telefone', 'Telefone Cliente');
+                        preencherSeVazio('E-Mail', 'E-Mail', 'Email', 'E-mail', 'E-mail Cliente');
+                        preencherSeVazio('Contato', 'Contato', 'Nome Contato');
+                        preencherSeVazio('Ramo', 'Ramo', 'Atividade', 'Segmento');
+                    }
+
+if (pedidoData) {
                         html += `
                             <div class="ficha-secao">
                                 <h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4>

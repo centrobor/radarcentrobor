@@ -1665,6 +1665,40 @@
                     html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${fichaCampo('fa-road', 'Endereço', cliente['Endereço'])}${fichaCampo('fa-home', 'Número', cliente['Número'])}${fichaCampo('fa-plus-circle', 'Complemento', cliente['Complemento'])}${fichaCampo('fa-map', 'Bairro', cliente['Bairro'])}${fichaCampo('fa-city', 'Cidade', cliente['Cidade'])}${fichaCampo('fa-map-pin', 'UF', cliente['UF'])}${fichaCampo('fa-globe-americas', 'País', cliente['País'])}${fichaCampo('fa-mail-bulk', 'CEP', cliente['CEP'])}</div></div>`;
                     html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${fichaCampo('fa-phone', 'Telefone', cliente['Telefone'])}${fichaCampo('fa-fax', 'Fax', cliente['Fax'])}${fichaCampo('fa-user', 'Contato', cliente['Contato'])}${fichaCampo('fa-building', 'Departamento', cliente['Departamento'])}${fichaCampo('fa-briefcase', 'Cargo', cliente['Cargo'])}${fichaCampo('fa-calendar-day', 'Dt. Aniversário', cliente['Dt. Aniversário'])}${fichaCampo('fa-phone-volume', 'Fone', cliente['Fone'])}${fichaCampo('fa-envelope', 'E-Mail', cliente['E-Mail'])}</div></div>`;
                     if (pedidoData) {
+                // Complementa provisoriamente a ficha com os dados que já existem no pedido,
+                // sem sobrescrever valores preenchidos no cadastro oficial.
+                if (pedidoData && cliente) {
+                    const primeiroValorPedido = (...chaves) => {
+                        for (const chave of chaves) {
+                            const valor = pedidoData[chave];
+                            if (valor !== undefined && valor !== null && String(valor).trim() !== '' && String(valor).trim() !== '—') return String(valor).trim();
+                        }
+                        return '';
+                    };
+                    const preencherSeVazio = (campo, ...origens) => {
+                        if (!cliente[campo] || !String(cliente[campo]).trim() || String(cliente[campo]).trim() === '—') {
+                            const valor = primeiroValorPedido(...origens);
+                            if (valor) cliente[campo] = valor;
+                        }
+                    };
+                    preencherSeVazio('Nome/Razão Social', 'Empresa', 'Nome/Razão Social', 'Razão Social', 'Razao Social', 'Nome Empresa');
+                    preencherSeVazio('Nome Chave', 'Nome Chave', 'Cliente', 'Nome Cliente', 'Empresa', 'Nome/Razão Social', 'Razão Social');
+                    preencherSeVazio('CPF/CGC', 'CPF/CGC', 'CNPJ', 'CNPJ/CPF', 'CPF/CNPJ');
+                    preencherSeVazio('Endereço', 'Endereço', 'Endereco', 'Logradouro');
+                    preencherSeVazio('Número', 'Número', 'Numero', 'Nº');
+                    preencherSeVazio('Complemento', 'Complemento');
+                    preencherSeVazio('Bairro', 'Bairro');
+                    preencherSeVazio('Cidade', 'Cidade', 'Município', 'Municipio');
+                    preencherSeVazio('UF', 'UF', 'Estado');
+                    preencherSeVazio('CEP', 'CEP');
+                    preencherSeVazio('País', 'País', 'Pais');
+                    preencherSeVazio('Telefone', 'Telefone', 'Fone', 'Telefone Cliente');
+                    preencherSeVazio('Fone', 'Fone', 'Telefone', 'Telefone Cliente');
+                    preencherSeVazio('E-Mail', 'E-Mail', 'Email', 'E-mail', 'E-mail Cliente');
+                    preencherSeVazio('Contato', 'Contato', 'Nome Contato');
+                    preencherSeVazio('Ramo', 'Ramo', 'Atividade', 'Segmento');
+                }
+
                         html += `<div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes do Pedido / Cotação</h4><table style="font-size:0.75rem; width:100%;"><thead><tr><th>Campo</th><th>Valor</th></tr></thead><tbody>`;
                         Object.keys(pedidoData).forEach(key => { html += `<tr${['Total Bruto','Total Líquido','Valor Mercadoria','Valor Total'].includes(key)?' style="background:#f0fdf4;"':''}><td><strong>${key}</strong></td><td>${pedidoData[key] || '—'}</td></tr>`; });
                         html += `</tbody></table></div>`;
