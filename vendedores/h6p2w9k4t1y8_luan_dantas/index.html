@@ -2762,6 +2762,54 @@
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
                     return;
                 }
+                // Completa campos vazios com dados do pedido/faturamento atual.
+                // A ficha oficial sempre tem prioridade; dados da operação servem como
+                // cadastro provisório apenas para os campos que não existem na carteira.
+                if (pedidoData && typeof pedidoData === 'object') {
+                    const primeiroValor = (...valores) => valores.find(v => v !== undefined && v !== null && String(v).trim() !== '');
+                    const aliasesPedido = {
+                        'Código': ['Código','Codigo','Código Cliente','Cod. Cliente','Cod Cliente'],
+                        'Nome Chave': ['Nome Chave','Cliente','Razão Social','Nome/Razão Social','Empresa'],
+                        'Nome/Razão Social': ['Nome/Razão Social','Razão Social','Empresa','Nome Fantasia','Nome Chave','Cliente'],
+                        'Física/Juridica': ['Física/Juridica','Física/Jurídica','Tipo Pessoa','Pessoa'],
+                        'CPF/CGC': ['CPF/CGC','CNPJ','CNPJ/CPF','CPF','CGC'],
+                        'RG/IE': ['RG/IE','IE','Inscrição Estadual','RG'],
+                        'Ramo': ['Ramo','Segmento','Atividade'],
+                        'Dt.Cadastro': ['Dt.Cadastro','Data Cadastro','Cadastro'],
+                        'ATivo/Inativo': ['ATivo/Inativo','Ativo/Inativo','Status Cliente'],
+                        'Transportadora': ['Transportadora'],
+                        'Limite de Crédito': ['Limite de Crédito','Limite Crédito'],
+                        'Endereço': ['Endereço','Endereco','Logradouro','Rua'],
+                        'Número': ['Número','Numero','Nº'],
+                        'Complemento': ['Complemento'],
+                        'Bairro': ['Bairro'],
+                        'Cidade': ['Cidade','Município','Municipio'],
+                        'UF': ['UF','Estado'],
+                        'País': ['País','Pais'],
+                        'CEP': ['CEP','Código Postal'],
+                        'Telefone': ['Telefone','Telefone Empresa','Tel.'],
+                        'Fax': ['Fax'],
+                        'Contato': ['Contato','Nome Contato','Responsável','Responsavel'],
+                        'Departamento': ['Departamento'],
+                        'Cargo': ['Cargo'],
+                        'Dt. Aniversário': ['Dt. Aniversário','Data Aniversário'],
+                        'Fone': ['Fone','Celular','WhatsApp','Telefone 2'],
+                        'E-Mail': ['E-Mail','Email','E-mail','E-mail Cliente']
+                    };
+                    Object.entries(aliasesPedido).forEach(([campo, chaves]) => {
+                        if (cliente[campo] === undefined || cliente[campo] === null || String(cliente[campo]).trim() === '') {
+                            const valor = primeiroValor(...chaves.map(k => pedidoData[k]));
+                            if (valor !== undefined) cliente[campo] = valor;
+                        }
+                    });
+                    // Para clientes sem ficha, o nome da empresa exibido no pedido é
+                    // também o melhor nome/razão social provisório disponível.
+                    const nomeEmpresaPedido = primeiroValor(pedidoData['Empresa'], pedidoData['Razão Social'], pedidoData['Nome/Razão Social'], pedidoData['Nome Chave'], pedidoData['Cliente']);
+                    if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) cliente['Nome/Razão Social'] = nomeEmpresaPedido;
+                    if (!cliente['Nome Chave'] && nomeEmpresaPedido) cliente['Nome Chave'] = nomeEmpresaPedido;
+                    cliente._dadosProvisoriosPedido = true;
+                }
+
                 // Se a ficha aberta foi resolvida a partir de uma variação provisória,
                 // preserve o nome faturado como alias para vincular também os pedidos dela.
                 const registroProvisorioAberto = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
