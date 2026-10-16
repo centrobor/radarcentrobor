@@ -2210,8 +2210,10 @@
                 [cadastro['Nome Chave'], cadastro['Nome/Razão Social']].some(n => nomesJaNoFarol.has(normalizarNomeCliente(n)))) {
                 if (nomeDivergente) {
                     const existente = clientesConsolidados.find(c =>
-                        (codigoFaturado && normalizarCodigoCliente(c['Código']) === codigoFaturado) ||
-                        (cnpj && normalizarCnpj(c['CPF/CGC']) === cnpj)
+                        (cnpj && normalizarCnpj(c['CPF/CGC']) === cnpj) ||
+                        [c['Nome Chave'], c['Nome/Razão Social']]
+                            .map(normalizarNomeCliente)
+                            .some(nome => nome && (nome === nomeFaturado || nome === razaoFaturada))
                     );
                     if (existente) existente.__nomeDivergenteFaturamento = true;
                 }
