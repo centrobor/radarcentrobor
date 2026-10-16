@@ -1048,7 +1048,8 @@
     let ultimoMesSolicitado = null;
     let renderEmAndamento = false;
     let atualizacaoBackgroundPendente = false;
-    const TIMEOUT_FONTE_MS = 9000;
+    let timerRenderBackground = null;
+    const TIMEOUT_FONTE_MS = 12000;
 
     // Remove entradas antigas excessivas, incluindo caches grandes de versões anteriores.
     function limparCacheExcessivo() {
@@ -1276,16 +1277,28 @@
     }
 
     const fontesEmAtualizacao = new Set();
+
+    // Agrupa várias respostas em uma única reconstrução do dashboard.
+    // Sem debounce, cada JSON concluído podia disparar um renderAll completo,
+    // causando engasgos principalmente em celulares.
+    function agendarRenderBackground() {
+        atualizacaoBackgroundPendente = true;
+        if (timerRenderBackground) clearTimeout(timerRenderBackground);
+        timerRenderBackground = setTimeout(() => {
+            timerRenderBackground = null;
+            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
+                atualizarRenderComDadosNovos();
+            }
+        }, 1200);
+    }
+
     function agendarAtualizacaoFonte(url) {
         if (fontesEmAtualizacao.has(url)) return;
         fontesEmAtualizacao.add(url);
         definirStatusFonte(url, 'loading', lerCacheEndpoint(url)?.savedAt);
         buscarFonteNuvem(url).then((dados) => {
             if (url === BASES.banners && Array.isArray(dados) && dados.length) { BANNERS = dados; currentCarouselIndex = 0; renderCarrossel(); }
-            atualizacaoBackgroundPendente = true;
-            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
-                atualizarRenderComDadosNovos();
-            }
+            agendarRenderBackground();
         }).catch(e => {
             console.warn('Atualização em segundo plano não concluída:', url, e);
             definirStatusFonte(url, 'offline', lerCacheEndpoint(url)?.savedAt);
@@ -1704,12 +1717,16 @@
     }
 
     async function renderAll(selectedMonth) {
-        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw, faturadosTimePorVendedor] = await Promise.all([
-            carregarJSON(BASES.meta), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.aprovados),
-            carregarJSON(BASES.faturados), carregarJSON(BASES.aprovadosfaturados),
-            carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes),
-            Promise.all(BASES.faturadosTime.map(url => carregarJSON(url)))
-        ]);
+        const fontesPrincipais = [
+            BASES.meta, BASES.metasGlobais, BASES.aprovados, BASES.faturados,
+            BASES.aprovadosfaturados, BASES.carteira, BASES.cotacoes
+        ];
+        const resultadosPrincipais = await Promise.allSettled(fontesPrincipais.map(url => carregarJSON(url)));
+        const dadosPrincipais = resultadosPrincipais.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
+        // O faturamento global do time é auxiliar: falha em um vendedor não deve derrubar o painel.
+        const resultadosTime = await Promise.allSettled(BASES.faturadosTime.map(url => carregarJSON(url)));
+        const faturadosTimePorVendedor = resultadosTime.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
+        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = dadosPrincipais;
         // O KPI Meta do Time soma os faturamentos de todos os vendedores cadastrados,
         // enquanto os demais KPIs e tabelas do vendedor continuam usando apenas seu JSON individual.
         const fatTimeRaw = faturadosTimePorVendedor.flat();
