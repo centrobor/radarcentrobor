@@ -970,9 +970,9 @@
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
     // Dados compartilhados ficam na pasta /dados/ da raiz do repositório.
-    // Esta página pertence ao vendedor Luan Dantas (código 61).
+    // Esta página pertence ao vendedor César Santos (código 55).
     // O faturamento é individualizado para reduzir o tamanho dos arquivos carregados.
-    // O gerador ZIP deverá criar dados/faturados_luan.json filtrando o código 61.
+    // O gerador ZIP deverá criar dados/faturados_cesar.json filtrando o código 55.
     // Como este HTML está em /vendedores/<pasta-do-vendedor>/, subimos dois níveis.
     const BASE_DADOS = new URL('../../dados/', window.location.href).href;
     const BASES = {
@@ -1975,7 +1975,9 @@
                 const nome = removeAcentos((item[campoNome] || '').toUpperCase().trim());
                 if (!nome) return;
                 const d = parseDataBR(item[campoData]);
-                if (!d) return;
+                // Datas futuras não representam interações já realizadas e não podem
+                // deixar o cliente artificialmente ativo no Farol.
+                if (!d || d > today) return;
                 if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) {
                     interacoesVendedor.set(nome, d);
                 }
@@ -2122,7 +2124,7 @@
          */
         const interPorCnpj = new Map();
         const registrarInteracaoCnpj = (nome, data) => {
-            if (!nome || !data) return;
+            if (!nome || !data || data > today) return;
             const k = removeAcentos(nome).toUpperCase().trim();
             if (!k) return;
             const cnpj = cnpjPorNome.get(k);
@@ -2149,13 +2151,13 @@
                 ? (interPorCnpj.get(dados.__cnpj) || null)
                 : null;
 
-            const ultimaEncontrada = ultimaPorCnpj || ultimaPorAlias || null;
-            // Datas futuras são descartadas: não podem tornar um cliente verde.
-            const ultima = ultimaEncontrada && ultimaEncontrada <= today ? ultimaEncontrada : null;
-            const dias = ultima ? Math.floor((today - ultima) / 86400000) : Infinity;
+            const ultima = ultimaPorCnpj || ultimaPorAlias || null;
+            const dias = ultima
+                ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
+                : Infinity;
 
             let status = 'red';
-            let ultimaStr = ultimaEncontrada && ultimaEncontrada > today ? 'Data futura inválida' : 'Sem interação';
+            let ultimaStr = 'Sem interação';
             if (ultima) {
                 ultimaStr = formatarData(ultima);
                 if (dias <= 30) status = 'green';
@@ -2229,22 +2231,10 @@
             Object.entries(dadosProvisorios).forEach(([campo, valor]) => { if (!fichaFinal[campo]) fichaFinal[campo] = valor; });
             if (pedido?.['Empresa'] && !ficha) fichaFinal['Nome/Razão Social'] = String(pedido['Empresa']).trim();
             fichaFinal.nome = nomePedido || fichaFinal.nome || fichaFinal['Nome Chave'] || fichaFinal['Nome/Razão Social'] || '';
-            const chavesRelacionadas = new Set([nomeBusca, normalizarNomeResolucao(nomePedido), normalizarNomeResolucao(fichaFinal['Nome Chave']), normalizarNomeResolucao(fichaFinal['Nome/Razão Social']), ...((ficha?.__aliases || []).map(normalizarNomeResolucao))].filter(Boolean));
-            const cnpjFicha = normalizarCnpj(ficha?.['CPF/CGC'] || fichaFinal['CPF/CGC'] || cnpjBusca);
-            const faturamentosRelacionados = fatFull.filter(f => {
-                const cnpjFat = normalizarCnpj(f['CPF/CGC'] || f['CNPJ'] || f['CNPJ/CPF']);
-                if (cnpjFicha && cnpjFat && cnpjFicha === cnpjFat) return true;
-                const n = normalizarNomeResolucao(f['Nome Chave'] || f['Empresa'] || f['Razão Social'] || f['Cliente']);
-                if (n && chavesRelacionadas.has(n)) return true;
-                if (ficha) {
-                    const res = normalizarNomeResolucao(f['Nome Chave'] || f['Empresa'] || f['Razão Social'] || f['Cliente']);
-                    const tokens = res.split(' ').filter(t => t.length > 3 && !['LTDA','EIRELI','COMERCIO','COMERCIAL','INDUSTRIA','INDUSTRIAL'].includes(t));
-                    const nomesFicha = (ficha.__aliases || [ficha['Nome Chave'],ficha['Nome/Razão Social']]).filter(Boolean).map(normalizarNomeResolucao);
-                    return tokens.length >= 2 && nomesFicha.some(nf => tokens.filter(t => nf.split(' ').includes(t)).length >= 2 && tokens.filter(t => nf.split(' ').includes(t)).length / tokens.length >= .75);
-                }
-                return false;
-            }).filter((f,i,a) => a.findIndex(g => [g['Pedido']||g['Nº Pedido']||g['Nota Fiscal']||g['NF']||'',g['Data']||'',g['Nome Chave']||g['Empresa']||'',g['Valor Mercadoria']||g['Total Bruto']||g['Valor Total']||''].join('|') === [f['Pedido']||f['Nº Pedido']||f['Nota Fiscal']||f['NF']||'',f['Data']||'',f['Nome Chave']||f['Empresa']||'',f['Valor Mercadoria']||f['Total Bruto']||f['Valor Total']||''].join('|')) === i);
-            return { ficha: fichaFinal, fichaOficial: ficha, nomeOriginal: nomeOriginal || nomePedido, nomePedido, provisoria: !ficha, chaves: Array.from(new Set([nomeOriginal, nomePedido, fichaFinal['Nome Chave'], fichaFinal['Nome/Razão Social']].filter(Boolean))), faturamentos: faturamentosRelacionados };
+            return { ficha: fichaFinal, fichaOficial: ficha, nomeOriginal: nomeOriginal || nomePedido, nomePedido, provisoria: !ficha, chaves: Array.from(new Set([nomeOriginal, nomePedido, fichaFinal['Nome Chave'], fichaFinal['Nome/Razão Social']].filter(Boolean))), faturamentos: fatFull.filter(f => {
+                const n = normalizarNomeResolucao(f['Nome Chave'] || f['Empresa'] || f['Razão Social']);
+                return n && [nomeBusca, normalizarNomeResolucao(nomePedido), ...((fichaFinal.__aliases || []).map(normalizarNomeResolucao))].includes(n);
+            }) };
         };
         window.resolverClienteComFicha = resolverClienteComFicha;
 
@@ -2681,8 +2671,31 @@
                     }
                 }
                 if (!cliente && nomeBusca && permitirBuscaAproximada) {
-                    const resolvida = resolverClienteComFicha(nomeBusca, pedidoData);
-                    if (resolvida && resolvida.fichaOficial) cliente = resolvida.fichaOficial;
+                    const palavras = nomeBusca.split(/\s+/).filter(p=>p.length>2);
+                    for (let [key, val] of carteiraMap.entries()) {
+                        if (palavras.some(p=>key.includes(p))) { cliente = val; break; }
+                    }
+                }
+                // Se a entrada aberta no Farol for provisória, prioriza a ficha oficial
+                // relacionada por nome/CNPJ, em vez de exibir somente os dados do pedido.
+                if (!cliente) {
+                    const provisoria = clientesStatus.find(c =>
+                        c.provisório && c.nomeUpper === removeAcentos(String(nomeUpper || '')).toUpperCase().trim()
+                    );
+                    const rel = provisoria && provisoria.fichaRelacionada;
+                    if (rel) {
+                        const nomeRel = removeAcentos(String(rel.nome || '')).toUpperCase().trim();
+                        if (nomeRel) cliente = carteiraMap.get(nomeRel) || null;
+                        const cnpjRel = String(rel.cnpj || '').replace(/\\D/g, '');
+                        if (!cliente && cnpjRel) {
+                            for (const val of carteiraMap.values()) {
+                                if (String(val['CPF/CGC'] || '').replace(/\\D/g, '') === cnpjRel) {
+                                    cliente = val;
+                                    break;
+                                }
+                            }
+                        }
+                    }
                 }
                 if (!cliente) {
                     if (pedidoData) {
@@ -2690,10 +2703,7 @@
                         Object.keys(pedidoData).forEach(key => htmlFallback += `<tr${['Total Bruto','Total Líquido','Valor Total','Valor Mercadoria'].includes(key)?' class="row-importante"':''}><td><strong>${key}</strong></td><td>${pedidoData[key]||'—'}</td></tr>`);
                         htmlFallback += `</tbody></table></div><button onclick="window.copiarDadosCliente(true)" style="background:var(--primary);color:white;padding:10px 20px;border-radius:40px;border:none;font-weight:600;cursor:pointer;margin-top:16px;"><i class="fas fa-copy"></i> Copiar dados</button>`;
                         abrirModalConteudo(htmlFallback, `Cotação: ${pedidoData['Razão Social']||''}`);
-                        const fichaProvisoria = { nome: pedidoData['Empresa']||pedidoData['Razão Social']||pedidoData['Cliente']||pedidoData['Nome Chave']||'Cliente', 'Telefone':'', 'Fone':'', 'E-Mail':'' };
-                        Object.entries(pedidoData).forEach(([k,v]) => { if (v != null && String(v).trim() !== '') fichaProvisoria[k] = v; });
-                        fichaProvisoria['Nome/Razão Social'] = fichaProvisoria['Empresa'] || fichaProvisoria['Razão Social'] || fichaProvisoria['Nome/Razão Social'] || fichaProvisoria['Nome Chave'] || fichaProvisoria['Cliente'] || fichaProvisoria.nome;
-                        window.clienteFichaAtual = fichaProvisoria;
+                        window.clienteFichaAtual = { nome: pedidoData['Razão Social']||pedidoData['Cliente']||pedidoData['Nome Chave']||'Cliente', 'Telefone':'', 'Fone':'', 'E-Mail':'' };
                         return;
                     }
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
@@ -2701,32 +2711,14 @@
                 }
                 if (pedidoData) {
                     const camposPedido = {
-                        'Código':['Código','Codigo','Código Cliente','Cod. Cliente','Cod Cliente'],
-                        'Nome Chave':['Nome Chave','Cliente','Razão Social','Nome/Razão Social','Empresa'],
-                        'Nome/Razão Social':['Empresa','Nome/Razão Social','Razão Social','Nome Fantasia','Nome Chave','Cliente'],
-                        'Física/Juridica':['Física/Juridica','Física/Jurídica','Tipo Pessoa','Pessoa'],
-                        'CPF/CGC':['CPF/CGC','CNPJ','CNPJ/CPF','CPF','CGC'], 'RG/IE':['RG/IE','IE','Inscrição Estadual','RG'],
-                        'Ramo':['Ramo','Segmento','Atividade'], 'Dt.Cadastro':['Dt.Cadastro','Data Cadastro','Cadastro'],
-                        'ATivo/Inativo':['ATivo/Inativo','Ativo/Inativo','Status Cliente'], 'Transportadora':['Transportadora'],
-                        'Limite de Crédito':['Limite de Crédito','Limite Crédito'], 'Endereço':['Endereço','Endereco','Logradouro','Rua'],
-                        'Número':['Número','Numero','Nº'], 'Complemento':['Complemento'], 'Bairro':['Bairro'],
-                        'Cidade':['Cidade','Município','Municipio'], 'UF':['UF','Estado'], 'País':['País','Pais'],
-                        'CEP':['CEP','Código Postal'], 'Telefone':['Telefone','Telefone Empresa','Tel.'], 'Fax':['Fax'],
-                        'Contato':['Contato','Nome Contato','Responsável','Responsavel'], 'Departamento':['Departamento'],
-                        'Cargo':['Cargo'], 'Dt. Aniversário':['Dt. Aniversário','Data Aniversário'],
-                        'Fone':['Fone','Celular','WhatsApp','Telefone 2'], 'E-Mail':['E-Mail','Email','E-mail','E-mail Cliente']
+                        'Nome/Razão Social':['Empresa','Nome/Razão Social','Razão Social','Nome Chave','Cliente'], 'Nome Chave':['Nome Chave','Empresa','Razão Social','Cliente'],
+                        'CPF/CGC':['CPF/CGC','CNPJ','CNPJ/CPF','CPF'], 'Código':['Código','Código Cliente','Cod. Cliente'], 'Endereço':['Endereço','Endereco','Logradouro','Rua'],
+                        'Número':['Número','Numero'], 'Complemento':['Complemento'], 'Bairro':['Bairro'], 'Cidade':['Cidade','Município'], 'UF':['UF','Estado'], 'CEP':['CEP'],
+                        'Telefone':['Telefone','Telefone Empresa','Tel.'], 'Fone':['Fone','Celular','WhatsApp'], 'Contato':['Contato','Nome Contato','Responsável'], 'E-Mail':['E-Mail','Email','E-mail'], 'Ramo':['Ramo','Segmento'], 'RG/IE':['RG/IE','IE','Inscrição Estadual']
                     };
-                    const primeiroValor = (...valores) => valores.find(v => v !== undefined && v !== null && String(v).trim() !== '');
-                    Object.entries(camposPedido).forEach(([campo,chaves])=>{
-                        if (cliente[campo] === undefined || cliente[campo] === null || String(cliente[campo]).trim() === '') {
-                            const v = primeiroValor(...chaves.map(k=>pedidoData[k]));
-                            if (v !== undefined) cliente[campo] = v;
-                        }
-                    });
-                    const empresaPedido = primeiroValor(pedidoData['Empresa'],pedidoData['Razão Social'],pedidoData['Nome/Razão Social'],pedidoData['Nome Chave'],pedidoData['Cliente']);
-                    if (!resolucaoCentral.fichaOficial && empresaPedido) cliente['Nome/Razão Social'] = String(empresaPedido).trim();
-                    if (!cliente.nome) cliente.nome = empresaPedido || nomeUpper;
-                    cliente._nomePedidoOriginal = empresaPedido || nomeUpper;
+                    Object.entries(camposPedido).forEach(([campo,chaves])=>{ if(!cliente[campo]) { const v=chaves.map(k=>pedidoData[k]).find(v=>v!=null&&String(v).trim()); if(v!=null) cliente[campo]=v; }});
+                    if (!resolucaoCentral.fichaOficial && pedidoData['Empresa']) cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
+                    cliente._nomePedidoOriginal = pedidoData['Empresa'] || pedidoData['Nome Chave'] || nomeUpper;
                     cliente._provisorio = !resolucaoCentral.fichaOficial;
                 }
                 window.clienteFichaAtual = cliente;
