@@ -2745,34 +2745,59 @@
             setTimeout(() => {
                 let cliente = null;
                 const nomeBusca = normalizarNomeCliente(nomeUpper || extrairNomeClienteRegistro(pedidoData));
-                // REGRA DO FAROL: a carteira oficial só pode ser localizada pela
-                // razão social. Código do pedido, CNPJ e semelhança de nomes não
-                // são chaves válidas para vincular um pedido a um cadastro.
+                // IMPORTANTE: quando o clique vem do Farol, pedidoData é o próprio
+                // registro que originou aquela linha. Se ele é oficial, resolvemos
+                // primeiro pelo CÓDIGO OFICIAL já existente nesse registro da carteira
+                // (nunca pelo código do pedido/faturamento). Isso impede que várias
+                // linhas abram acidentalmente a ficha de outro cliente.
+                const registroVeioDoFarol = !!(pedidoData &&
+                    (Object.prototype.hasOwnProperty.call(pedidoData, '__registros') ||
+                     Object.prototype.hasOwnProperty.call(pedidoData, '__aliases') ||
+                     Object.prototype.hasOwnProperty.call(pedidoData, '__incluidoPorFaturamento') ||
+                     Object.prototype.hasOwnProperty.call(pedidoData, '__semCarteira') ||
+                     Object.prototype.hasOwnProperty.call(pedidoData, '__cadastroProvisorio')));
+                const ehProvisorio = !!(pedidoData && (pedidoData.__semCarteira || pedidoData.__cadastroProvisorio));
+                const codigoOficialOrigem = registroVeioDoFarol && !ehProvisorio
+                    ? normalizarCodigoCliente(pedidoData['Código']) : '';
+                if (codigoOficialOrigem) {
+                    const porCodigoOficial = (carteiraRaw || []).find(cli =>
+                        normalizarCodigoCliente(cli['Código']) === codigoOficialOrigem
+                    );
+                    if (porCodigoOficial) cliente = { ...porCodigoOficial };
+                }
+
+                // Para pedidos/faturamentos, a associação com a carteira é feita
+                // exclusivamente pela razão social exata. Não usar código do pedido,
+                // CNPJ ou semelhança parcial de nomes.
                 const razaoPedido = normalizarNomeCliente(pedidoData && (
-                    pedidoData['Razão Social'] || pedidoData['Nome/Razão Social'] ||
+                    pedidoData['Nome/Razão Social'] || pedidoData['Razão Social'] ||
                     pedidoData['Empresa'] || pedidoData['Nome Chave']
                 ));
                 const razaoParaBuscar = razaoPedido || nomeBusca;
-
-                // Primeiro procura a razão social exata na base oficial da carteira.
-                const cadastroOficial = (carteiraRaw || []).find(cli =>
-                    normalizarNomeCliente(cli['Nome/Razão Social']) === razaoParaBuscar && razaoParaBuscar
-                );
-                if (cadastroOficial) {
+                if (!cliente && !ehProvisorio && razaoParaBuscar) {
+                    const cadastroOficial = (carteiraRaw || []).find(cli =>
+                        normalizarNomeCliente(cli['Nome/Razão Social']) === razaoParaBuscar
+                    );
+                    if (cadastroOficial) cliente = { ...cadastroOficial };
+                }
+                if (cliente && !cliente.__semCarteira && !cliente.__cadastroProvisorio) {
                     cliente = {
-                        ...cadastroOficial,
-                        nome: cadastroOficial['Nome/Razão Social'] || cadastroOficial['Nome Chave'],
-                        cidade: cadastroOficial['Cidade'] || '',
-                        uf: cadastroOficial['UF'] || '',
-                        ativo: String(cadastroOficial['ATivo/Inativo'] || '').trim().toLowerCase() === 'ativo',
+                        ...cliente,
+                        nome: cliente['Nome/Razão Social'] || cliente['Nome Chave'],
+                        cidade: cliente['Cidade'] || '',
+                        uf: cliente['UF'] || '',
+                        ativo: String(cliente['ATivo/Inativo'] || '').trim().toLowerCase() === 'ativo',
                         cadastrado: true
                     };
                 }
 
                 // Se não existir na carteira, só reutiliza um registro que já esteja
                 // marcado como provisório e cuja razão social corresponda exatamente.
+                if (!cliente && ehProvisorio) {
+                    cliente = pedidoData;
+                }
                 if (!cliente && razaoParaBuscar) {
-                    cliente = clientesConsolidados.find(cli => cli.__cadastroProvisorio &&
+                    cliente = clientesConsolidados.find(cli => (cli.__cadastroProvisorio || cli.__semCarteira) &&
                         normalizarNomeCliente(cli['Nome/Razão Social']) === razaoParaBuscar) || null;
                 }
 
