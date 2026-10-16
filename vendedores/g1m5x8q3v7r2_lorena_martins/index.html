@@ -418,9 +418,7 @@
             justify-content: center; align-items: center; gap: 20px; transition: opacity 0.3s;
         }
         .loading-overlay.hidden { opacity: 0; pointer-events: none; }
-        /* A página permanece acessível enquanto os dados são carregados em segundo plano. */
         .loading-overlay, .loading-overlay.hidden { display: none !important; }
-        /* Estado de conexão: nunca bloqueia a página inteira */
         #connection-status {
             display:none; align-items:center; gap:10px; flex-wrap:wrap;
             padding:10px 14px; margin:-8px 0 18px; border-radius:14px;
@@ -757,80 +755,16 @@
     // ===========================================================================
     // ⚙️ CONFIGURAÇÃO CENTRAL DA PÁGINA
     // ===========================================================================
-    // Tudo que normalmente precisa ser alterado fica concentrado aqui:
-    // • vendedor: código + nome exibido
-    // • planilha: ID usado pelos endpoints OpenSheet
-    // • menu: nome + ícone + links de cada item
-    //
-    // Para adicionar um novo item ao menu, copie um objeto dentro de MENU_ITENS.
-    // "desktop" = link usado nos cards/versão desktop
-    // "mobile"  = link usado no menu mobile
-    // "opensheet" = endpoint OpenSheet relacionado ao item, se existir
-    // "bottom" = mostra também na barra inferior do celular
-    // ===========================================================================
-
     const COD_VENDEDOR = "51";
     const NOME_EXIBICAO = "Lorena Martins";
     const SHEET_ID = "1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI";
 
     const MENU_ITENS = [
-        {
-            id: "dashboard",
-            nome: "Dashboard",
-            icon: "fas fa-chart-pie",
-            desktop: "./index.html",
-            mobile: "./index.html",
-            opensheet: "",
-            desktopVisible: false,
-            mobileVisible: true,
-            bottom: true
-        },
-        {
-            id: "feed",
-            nome: "Feed",
-            icon: "fas fa-newspaper",
-            desktop: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html",
-            mobile: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html",
-            opensheet: "../../dados/postagens.json",
-            desktopVisible: true,
-            mobileVisible: true,
-            bottom: true
-        },
-        {
-            id: "custos-vendas",
-            nome: "Custos de Venda",
-            icon: "fas fa-calculator",
-            desktop: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html",
-            mobile: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html",
-            opensheet: "",
-            desktopVisible: true,
-            mobileVisible: true,
-            bottom: true
-        },
-        {
-            id: "calculadora-correias",
-            nome: "Calculadora Correias",
-            icon: "fas fa-ruler-combined",
-            desktop: "https://centrobor.github.io/CoreCalc/",
-            mobile: "https://centrobor.github.io/CoreCalc/",
-            opensheet: "",
-            desktopVisible: true,
-            mobileVisible: true,
-            bottom: true,
-            novaGuia: true
-        },
-        {
-            id: "mapa-vendas",
-            nome: "Mapas",
-            icon: "fas fa-map-marked-alt",
-            desktop: "https://centrobor.github.io/radarcentrobor/vendedores/g1m5x8q3v7r2_lorena_martins/maps_g1m5x8q3v7r2_lorena_martins.html",
-            mobile: "https://centrobor.github.io/radarcentrobor/vendedores/g1m5x8q3v7r2_lorena_martins/maps_g1m5x8q3v7r2_lorena_martins.html",
-            opensheet: "",
-            desktopVisible: true,
-            mobileVisible: true,
-            bottom: false,
-            novaGuia: true
-        }
+        { id: "dashboard", nome: "Dashboard", icon: "fas fa-chart-pie", desktop: "./index.html", mobile: "./index.html", opensheet: "", desktopVisible: false, mobileVisible: true, bottom: true },
+        { id: "feed", nome: "Feed", icon: "fas fa-newspaper", desktop: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html", mobile: "https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html", opensheet: "../../dados/postagens.json", desktopVisible: true, mobileVisible: true, bottom: true },
+        { id: "custos-vendas", nome: "Custos de Venda", icon: "fas fa-calculator", desktop: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html", mobile: "https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/consulta_vendas.html", opensheet: "", desktopVisible: true, mobileVisible: true, bottom: true },
+        { id: "calculadora-correias", nome: "Calculadora Correias", icon: "fas fa-ruler-combined", desktop: "https://centrobor.github.io/CoreCalc/", mobile: "https://centrobor.github.io/CoreCalc/", opensheet: "", desktopVisible: true, mobileVisible: true, bottom: true, novaGuia: true },
+        { id: "mapa-vendas", nome: "Mapas", icon: "fas fa-map-marked-alt", desktop: "https://centrobor.github.io/radarcentrobor/vendedores/g1m5x8q3v7r2_lorena_martins/maps_g1m5x8q3v7r2_lorena_martins.html", mobile: "https://centrobor.github.io/radarcentrobor/vendedores/g1m5x8q3v7r2_lorena_martins/maps_g1m5x8q3v7r2_lorena_martins.html", opensheet: "", desktopVisible: true, mobileVisible: true, bottom: false, novaGuia: true }
     ];
     // ===========================================================================
 
@@ -838,72 +772,35 @@
         const mobile = document.getElementById('dynamic-mobile-menu');
         const desktop = document.getElementById('desktop-tools-menu');
         const bottom = document.getElementById('dynamic-bottom-menu');
-
-        if (mobile) {
-            mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
-                <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
-                </button>
-            `).join('');
-        }
-
-        if (desktop) {
-            desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
-                <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
-                    <div class="tool-icon"><i class="${item.icon}"></i></div>
-                    <div class="tool-label">${item.nome}</div>
-                </a>
-            `).join('');
-        }
-
-        if (bottom) {
-            const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
-            bottom.innerHTML = bottomItems.map(item => `
-                <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
-                </button>
-            `).join('');
-        }
+        if (mobile) mobile.innerHTML = MENU_ITENS.filter(i => i.mobileVisible !== false).map(i => `<button class="menu-item" id="menu-${i.id}" data-menu-id="${i.id}"><i class="${i.icon}"></i><span>${i.nome}</span></button>`).join('');
+        if (desktop) desktop.innerHTML = MENU_ITENS.filter(i => i.desktopVisible !== false).map(i => `<a class="tool-card" href="${i.desktop || '#'}" data-menu-id="${i.id}" ${i.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}><div class="tool-icon"><i class="${i.icon}"></i></div><div class="tool-label">${i.nome}</div></a>`).join('');
+        if (bottom) bottom.innerHTML = MENU_ITENS.filter(i => i.bottom && i.mobileVisible !== false).map(i => `<button class="bb-item" data-menu-id="${i.id}"><i class="${i.icon}"></i><span>${i.nome}</span></button>`).join('');
 
         const navegar = (item, fecharMobile = false) => {
             if (!item || !item.mobile && !item.desktop) return;
             if (fecharMobile) closeHamburgerMenu();
             const destino = item.mobile || item.desktop;
             if (item.novaGuia) {
-                // Abre diretamente a partir do clique do usuário para evitar bloqueio de pop-up.
                 const link = document.createElement('a');
-                link.href = destino;
-                link.target = '_blank';
-                link.rel = 'noopener noreferrer';
+                link.href = destino; link.target = '_blank'; link.rel = 'noopener noreferrer';
                 link.style.display = 'none';
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-            } else {
-                window.location.href = destino;
-            }
+                document.body.appendChild(link); link.click(); link.remove();
+            } else { window.location.href = destino; }
         };
 
         MENU_ITENS.forEach(item => {
-            const mobileBtn = document.getElementById(`menu-${item.id}`);
-            if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
-
-            const bottomBtn = document.querySelector(`#dynamic-bottom-menu [data-menu-id="${item.id}"]`);
-            if (bottomBtn) bottomBtn.addEventListener('click', () => navegar(item, false));
+            const m = document.getElementById(`menu-${item.id}`);
+            if (m) m.addEventListener('click', () => navegar(item, true));
+            const b = document.querySelector(`#dynamic-bottom-menu [data-menu-id="${item.id}"]`);
+            if (b) b.addEventListener('click', () => navegar(item, false));
         });
-
-        if (desktop) {
-            desktop.querySelectorAll('.tool-card').forEach(card => {
-                card.addEventListener('click', (event) => {
-                    const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
-                    if (item?.novaGuia) {
-                        // O link já possui target="_blank"; deixa o navegador abrir a nova guia.
-                        return;
-                    }
-                    if (item?.desktop) window.location.href = item.desktop;
-                });
+        if (desktop) desktop.querySelectorAll('.tool-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const item = MENU_ITENS.find(x => x.id === card.dataset.menuId);
+                if (item?.novaGuia) return;
+                if (item?.desktop) window.location.href = item.desktop;
             });
-        }
+        });
     }
 
     function closeHamburgerMenu() {
@@ -913,12 +810,9 @@
     }
 
     const removeAcentos = (str) => (str || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    // Chave canônica compartilhada por carteira, Farol, busca e faturamentos.
     const normalizarNomeCliente = (valor) => removeAcentos(String(valor || '')).toUpperCase()
         .replace(/[^A-Z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
 
-
-    // Atualiza toda a interface com o nome do vendedor
     document.title = `Radar Centrobor – ${NOME_EXIBICAO}`;
     document.getElementById('greeting-name').textContent = NOME_EXIBICAO;
     document.getElementById('topbar-greeting').textContent = NOME_EXIBICAO.split(' ')[0];
@@ -926,14 +820,8 @@
     document.getElementById('print-vendor-name').textContent = NOME_EXIBICAO;
     document.getElementById('footer-vendor-name').textContent = `Radar Centrobor – ${NOME_EXIBICAO}`;
 
-    if (localStorage.getItem('radar_logged_out') === 'true') {
-        window.location.href = '../../index.html?reason=logged_out';
-        return;
-    }
-    if (!localStorage.getItem('radar_usuario')) {
-        window.location.href = '../../index.html?reason=expired';
-        return;
-    }
+    if (localStorage.getItem('radar_logged_out') === 'true') { window.location.href = '../../index.html?reason=logged_out'; return; }
+    if (!localStorage.getItem('radar_usuario')) { window.location.href = '../../index.html?reason=expired'; return; }
     const LAST_ACCESS = localStorage.getItem('ultimo_acesso_radar');
     const nowDate = Date.now();
     if (LAST_ACCESS && (nowDate - parseInt(LAST_ACCESS)) > 24 * 60 * 60 * 1000) {
@@ -943,18 +831,12 @@
     }
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
-    // Dados compartilhados ficam na pasta /dados/ da raiz do repositório.
-    // Esta página pertence ao vendedor Luan Dantas (código 61).
-    // O faturamento é individualizado para reduzir o tamanho dos arquivos carregados.
-    // O gerador ZIP deverá criar dados/faturados_luan.json filtrando o código 61.
-    // Como este HTML está em /vendedores/<pasta-do-vendedor>/, subimos dois níveis.
     const BASE_DADOS = new URL('../../dados/', window.location.href).href;
     const BASES = {
         meta: BASE_DADOS + 'meta_faturamento.json',
         metasGlobais: BASE_DADOS + 'metas.json',
         aprovados: BASE_DADOS + 'aprovados.json',
         faturados: BASE_DADOS + 'faturados_lorena.json',
-        // Fontes individuais usadas exclusivamente para calcular o KPI global da equipe.
         faturadosTime: [
             BASE_DADOS + 'faturados_fabio.json',
             BASE_DADOS + 'faturados_matheus.json',
@@ -984,19 +866,13 @@
     let carteiraMapGlobal = new Map();
     let ultimoModalKpiHTML = null;
 
-    let globalAprov = [];
-    let globalFat = [];
-    let globalCot = [];
-    let globalAprovFat = [];
+    let globalAprov = [], globalFat = [], globalCot = [], globalAprovFat = [];
     let globalAprovTodoPeriodoKPI = [];
     let globalAprovTodoPeriodoKPITitulo = 'Aprovados a faturar (todo período)';
 
-    window._kpiColunas = null;
-    window._kpiColunaTotal = null;
-    window._kpiModalStack = [];
-    window.fichaPedidoData = null;
-    window.clienteFichaAtual = null;
-    window._kpiDetailRowsGlobal = [];
+    window._kpiColunas = null; window._kpiColunaTotal = null;
+    window._kpiModalStack = []; window.fichaPedidoData = null;
+    window.clienteFichaAtual = null; window._kpiDetailRowsGlobal = [];
 
     const loadingOverlay = document.getElementById('loading-overlay');
     function mostrarLoading() { loadingOverlay.classList.remove('hidden'); }
@@ -1014,16 +890,8 @@
     const extrairCodigo = (str) => { const m = String(str||'').match(/^(\d+)/); return m ? m[1] : null; };
     const formatarMoeda = (v) => 'R$ ' + (Math.round(v*100)/100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
     const formatarData = (d) => d ? d.toLocaleDateString('pt-BR') : '';
-    const formatMonthKey = (date) => {
-        const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
-        return `${meses[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`;
-    };
-    const parseDataBR = (str) => {
-        if (!str) return null;
-        const partes = String(str).split(' ')[0].split('/');
-        if (partes.length===3) { const d = new Date(partes[2], partes[1]-1, partes[0]); return isNaN(d.getTime()) ? null : d; }
-        return null;
-    };
+    const formatMonthKey = (date) => { const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez']; return `${meses[date.getMonth()]}/${date.getFullYear().toString().slice(-2)}`; };
+    const parseDataBR = (str) => { if (!str) return null; const partes = String(str).split(' ')[0].split('/'); if (partes.length===3) { const d = new Date(partes[2], partes[1]-1, partes[0]); return isNaN(d.getTime()) ? null : d; } return null; };
     const isBusinessDay = (d) => d.getDay()!==0 && d.getDay()!==6;
     const businessDaysBetween = (s,e) => { let c=0, cur=new Date(s); cur.setHours(0,0,0,0); const end=new Date(e); end.setHours(23,59,59,999); while(cur<=end){ if(isBusinessDay(cur)) c++; cur.setDate(cur.getDate()+1); } return c; };
     const firstBusinessDayOfMonth = (y,m) => { let d=new Date(y,m,1); while(!isBusinessDay(d)) d.setDate(d.getDate()+1); return new Date(d); };
@@ -1034,9 +902,9 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    // Cache-first (stale-while-revalidate): mostra os dados locais imediatamente
-    // e atualiza cada fonte em segundo plano sem bloquear a navegação.
-    const CACHE_PREFIX = 'radar_cache_v3:';
+
+    // ✅ OTIMIZAÇÃO: cache versionado para evitar herdar cache corrompido / antigo
+    const CACHE_PREFIX = 'radar_cache_v4:';
     const endpointsComFalha = new Set();
     const statusFontes = new Map();
     let retryTimer = null;
@@ -1046,6 +914,18 @@
     let atualizacaoBackgroundPendente = false;
     const TIMEOUT_FONTE_MS = 9000;
 
+    // ✅ OTIMIZAÇÃO: debounce de render para não disparar N renderAll seguidos
+    let renderDebounceTimer = null;
+    function agendarRenderDebounced(delay = 700) {
+        if (renderEmAndamento) { atualizacaoBackgroundPendente = true; return; }
+        clearTimeout(renderDebounceTimer);
+        renderDebounceTimer = setTimeout(() => {
+            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
+                atualizarRenderComDadosNovos();
+            }
+        }, delay);
+    }
+
     function lerCacheEndpoint(url) {
         try {
             const raw = localStorage.getItem(CACHE_PREFIX + url);
@@ -1054,28 +934,21 @@
             return parsed && Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed : null;
         } catch (_) { return null; }
     }
-
     function salvarCacheEndpoint(url, data) {
-        try {
-            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
-        } catch (e) {
-            console.warn('Não foi possível atualizar o cache local:', e);
-        }
+        try { localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data })); }
+        catch (e) { console.warn('Não foi possível atualizar o cache local:', e); }
     }
-
     function formatarHorarioCache(savedAt) {
         if (!savedAt) return '';
         const d = new Date(savedAt);
         return ` às ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
     }
-
     function definirStatusFonte(url, estado, savedAt = null) {
         statusFontes.set(url, { estado, savedAt: savedAt || lerCacheEndpoint(url)?.savedAt || null });
         if (estado === 'cloud') endpointsComFalha.delete(url);
         if (estado === 'offline') endpointsComFalha.add(url);
         atualizarAvisoConexao();
     }
-
     function atualizarAvisoConexao() {
         const banner = document.getElementById('connection-status');
         const texto = document.getElementById('connection-status-text');
@@ -1083,23 +956,18 @@
             const falhas = endpointsComFalha.size;
             const atualizando = [...statusFontes.values()].some(v => v.estado === 'loading');
             banner.classList.toggle('visible', falhas > 0 || atualizando);
-            if (atualizando && falhas === 0) {
-                texto.innerHTML = '<i class="fas fa-cloud-arrow-up sync-pulse"></i> Atualizando dados em segundo plano. Você pode continuar usando a página.';
-            } else if (falhas > 0) {
-                texto.textContent = `${falhas} fonte(s) ainda não atualizaram. A página segue funcionando com os dados salvos localmente; novas tentativas serão feitas automaticamente.`;
-            }
+            if (atualizando && falhas === 0) texto.innerHTML = '<i class="fas fa-cloud-arrow-up sync-pulse"></i> Atualizando dados em segundo plano. Você pode continuar usando a página.';
+            else if (falhas > 0) texto.textContent = `${falhas} fonte(s) ainda não atualizaram. A página segue funcionando com os dados salvos localmente; novas tentativas serão feitas automaticamente.`;
         }
         atualizarIndicadoresSecoes();
     }
-
     function statusVisualDaSecao(urls) {
         const estados = urls.map(url => statusFontes.get(url)?.estado || (lerCacheEndpoint(url) ? 'local' : 'loading'));
         if (estados.includes('loading')) return {cls:'loading', icon:'fa-arrows-rotate sync-spin', text:'Atualizando…'};
         if (estados.includes('offline')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
-            return cache
-                ? {cls:'local', icon:'fa-floppy-disk sync-pulse', text:`Cache local${formatarHorarioCache(cache.savedAt)}`}
-                : {cls:'offline', icon:'fa-cloud-bolt sync-pulse', text:'Indisponível'};
+            return cache ? {cls:'local', icon:'fa-floppy-disk sync-pulse', text:`Cache local${formatarHorarioCache(cache.savedAt)}`}
+                         : {cls:'offline', icon:'fa-cloud-bolt sync-pulse', text:'Indisponível'};
         }
         if (estados.includes('local')) {
             const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
@@ -1108,7 +976,6 @@
         const cache = urls.map(lerCacheEndpoint).filter(Boolean).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0];
         return {cls:'cloud', icon:'fa-cloud-check sync-pulse', text:`Atualizado da nuvem${formatarHorarioCache(cache?.savedAt)}`};
     }
-
     function atualizarIndicadoresSecoes() {
         const grupos = [
             { id:'metas-panel', urls:[BASES.meta, BASES.metasGlobais] },
@@ -1136,13 +1003,10 @@
                     el.closest('.card-panel')?.querySelector('.section-title, h2, h3') ||
                     el.previousElementSibling?.querySelector('.section-title, h2, h3');
                 if (heading) {
-                    heading.style.display = 'flex';
-                    heading.style.alignItems = 'center';
-                    heading.style.gap = '8px';
-                    heading.style.flexWrap = 'wrap';
+                    heading.style.display = 'flex'; heading.style.alignItems = 'center';
+                    heading.style.gap = '8px'; heading.style.flexWrap = 'wrap';
                     heading.appendChild(badge);
                 } else {
-                    // Tabelas e detalhes sem título interno recebem marcador discreto no topo.
                     el.style.position = el.style.position || 'relative';
                     el.insertAdjacentElement('afterbegin', badge);
                     badge.style.margin = '0 0 8px auto';
@@ -1159,42 +1023,29 @@
         let timeoutId;
         try {
             const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => {
-                    try { controller?.abort(); } catch (_) {}
-                    reject(new Error('Tempo limite ao consultar a fonte'));
-                }, TIMEOUT_FONTE_MS);
+                timeoutId = setTimeout(() => { try { controller?.abort(); } catch (_) {} reject(new Error('Tempo limite ao consultar a fonte')); }, TIMEOUT_FONTE_MS);
             });
-            const fetchPromise = fetch(url, {
-                cache: 'no-store',
-                ...(controller ? {signal: controller.signal} : {})
-            }).then(r => {
-                if (!r.ok) throw new Error(`Erro HTTP ${r.status}`);
-                return r.json();
-            });
+            const fetchPromise = fetch(url, { cache: 'no-store', ...(controller ? {signal: controller.signal} : {}) })
+                .then(r => { if (!r.ok) throw new Error(`Erro HTTP ${r.status}`); return r.json(); });
             const data = await Promise.race([fetchPromise, timeoutPromise]);
             salvarCacheEndpoint(url, data);
             definirStatusFonte(url, 'cloud', Date.now());
             return data;
-        } finally {
-            clearTimeout(timeoutId);
-        }
+        } finally { clearTimeout(timeoutId); }
     }
 
     async function carregarJSON(url) {
         const cache = lerCacheEndpoint(url);
         if (cache) {
-            // O cache aparece na primeira renderização; a nuvem é consultada em paralelo.
             const statusAtual = statusFontes.get(url)?.estado;
             if (!statusAtual) definirStatusFonte(url, 'local', cache.savedAt);
             atualizarIndicadoresSecoes();
-            // Não inicia um novo fetch em cada redesenho: evita ciclos de atualização.
             if (statusAtual !== 'cloud' && statusAtual !== 'loading') agendarAtualizacaoFonte(url);
             return cache.data;
         }
         definirStatusFonte(url, 'loading');
-        try {
-            return await buscarFonteNuvem(url);
-        } catch (e) {
+        try { return await buscarFonteNuvem(url); }
+        catch (e) {
             console.warn('Fonte temporariamente indisponível:', url, e);
             definirStatusFonte(url, 'offline');
             atualizarAvisoConexao();
@@ -1210,9 +1061,8 @@
         buscarFonteNuvem(url).then((dados) => {
             if (url === BASES.banners && Array.isArray(dados) && dados.length) { BANNERS = dados; currentCarouselIndex = 0; renderCarrossel(); }
             atualizacaoBackgroundPendente = true;
-            if (!renderEmAndamento && document.body.dataset.radarRendered === 'true') {
-                atualizarRenderComDadosNovos();
-            }
+            // ✅ OTIMIZAÇÃO: em vez de render imediato, agenda render com debounce
+            agendarRenderDebounced();
         }).catch(e => {
             console.warn('Atualização em segundo plano não concluída:', url, e);
             definirStatusFonte(url, 'offline', lerCacheEndpoint(url)?.savedAt);
@@ -1230,14 +1080,13 @@
         if (renderEmAndamento || !ultimoMesSolicitado || !atualizacaoBackgroundPendente) return;
         atualizacaoBackgroundPendente = false;
         renderEmAndamento = true;
-        try {
-            await renderAll(ultimoMesSolicitado);
-        } catch (e) {
-            console.warn('Não foi possível redesenhar após atualização parcial:', e);
-        } finally {
+        try { await renderAll(ultimoMesSolicitado); }
+        catch (e) { console.warn('Não foi possível redesenhar após atualização parcial:', e); }
+        finally {
             renderEmAndamento = false;
             atualizarIndicadoresSecoes();
-            if (atualizacaoBackgroundPendente) setTimeout(atualizarRenderComDadosNovos, 100);
+            // ✅ OTIMIZAÇÃO: aumentei o delay para 800 ms para janelas com muitas atualizações simultâneas
+            if (atualizacaoBackgroundPendente) setTimeout(atualizarRenderComDadosNovos, 800);
         }
     }
 
@@ -1247,11 +1096,8 @@
         try {
             const urls = [...endpointsComFalha];
             await Promise.all(urls.map(async url => {
-                try {
-                    await buscarFonteNuvem(url);
-                } catch (e) {
-                    definirStatusFonte(url, 'offline', lerCacheEndpoint(url)?.savedAt);
-                }
+                try { await buscarFonteNuvem(url); }
+                catch (e) { definirStatusFonte(url, 'offline', lerCacheEndpoint(url)?.savedAt); }
             }));
             if (urls.some(url => !endpointsComFalha.has(url))) {
                 atualizacaoBackgroundPendente = true;
@@ -1291,8 +1137,7 @@
     async function carregarBanners() {
         const cache = lerCacheEndpoint(BASES.banners);
         if (cache && Array.isArray(cache.data) && cache.data.length) {
-            BANNERS = cache.data;
-            renderCarrossel();
+            BANNERS = cache.data; renderCarrossel();
             agendarAtualizacaoFonte(BASES.banners);
             return BANNERS;
         }
@@ -1304,7 +1149,6 @@
         renderCarrossel();
         return BANNERS;
     }
-
     async function carregarNotificacoes() { try { notificacoes = await carregarJSON(BASES.postagens); } catch(e) { notificacoes = []; } }
 
     function atualizarBadgeNotificacoes() {
@@ -1327,12 +1171,8 @@
     function abrirModalNotificacoes() {
         const modal = document.getElementById('notif-modal');
         const body = document.getElementById('notif-modal-body');
-        if (modal.classList.contains('active')) {
-            modal.classList.remove('active');
-            setTimeout(() => preencherListaNotificacoes(modal, body), 300);
-        } else {
-            preencherListaNotificacoes(modal, body);
-        }
+        if (modal.classList.contains('active')) { modal.classList.remove('active'); setTimeout(() => preencherListaNotificacoes(modal, body), 300); }
+        else preencherListaNotificacoes(modal, body);
     }
 
     function dataNotificacaoParaOrdenacao(valor) {
@@ -1366,11 +1206,9 @@
             <button class="farol-btn notif-filter-btn" data-filtro="nao-lidas" style="${filtroLeitura === 'nao-lidas' ? 'background:var(--primary);color:white;' : ''}">Não lidas</button>
             <button class="farol-btn notif-filter-btn" data-filtro="lidas" style="${filtroLeitura === 'lidas' ? 'background:var(--primary);color:white;' : ''}">Lidas</button>
         </div>`;
-        if (!notificacoes.length) {
-            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta recente.</p>';
-        } else if (!exibidas.length) {
-            html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhuma notificação nesta categoria.</p>';
-        } else {
+        if (!notificacoes.length) html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta recente.</p>';
+        else if (!exibidas.length) html += '<p style="text-align:center;padding:28px;color:var(--muted);">Nenhuma notificação nesta categoria.</p>';
+        else {
             exibidas.forEach(n => {
                 const isRead = readNotifications.some(x => String(x) === String(n.id));
                 const tipo = n.tipo || 'informativo';
@@ -1554,9 +1392,8 @@
             return;
         }
         modalHistory.pop();
-        if (modalHistory.length > 0) {
-            document.getElementById('modal-body').innerHTML = modalHistory[modalHistory.length-1].html;
-        } else {
+        if (modalHistory.length > 0) document.getElementById('modal-body').innerHTML = modalHistory[modalHistory.length-1].html;
+        else {
             document.getElementById('detail-modal').classList.remove('active');
             if (ultimoModalKpiHTML) {
                 const { html, colunas, colunaTotal } = ultimoModalKpiHTML;
@@ -1617,8 +1454,7 @@
     function renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, selectedMonthLabel) {
         const perc = metaTimeMensal > 0 ? (totalFaturadoTime / metaTimeMensal) * 100 : 0;
         const cor = perc >= 80 ? 'green' : (perc >= 50 ? 'orange' : '');
-        const kpiRow = document.getElementById('kpi-cards');
-        kpiRow.insertAdjacentHTML('beforeend', `
+        document.getElementById('kpi-cards').insertAdjacentHTML('beforeend', `
             <div class="mini-card-kpi meta-time-card" style="cursor:default;">
                 <div class="kpi-icon"><i class="fas fa-users"></i></div>
                 <div class="value ${cor}">${formatarMoeda(totalFaturadoTime)}</div>
@@ -1626,8 +1462,7 @@
                 <div style="font-size:0.7rem;color:var(--muted);margin-top:2px;">${perc.toFixed(1)}% da meta</div>
                 <div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${Math.min(perc,100)}%;background:${perc>=80?'var(--success)':(perc>=50?'var(--warning)':'var(--danger)')};"></div></div>
                 <div style="font-size:0.6rem;color:var(--muted);">Meta: ${formatarMoeda(metaTimeMensal)}</div>
-            </div>
-        `);
+            </div>`);
     }
 
     async function renderAll(selectedMonth) {
@@ -1637,8 +1472,6 @@
             carregarJSON(BASES.carteira), carregarJSON(BASES.cotacoes),
             Promise.all(BASES.faturadosTime.map(url => carregarJSON(url)))
         ]);
-        // O KPI Meta do Time soma os faturamentos de todos os vendedores cadastrados,
-        // enquanto os demais KPIs e tabelas do vendedor continuam usando apenas seu JSON individual.
         const fatTimeRaw = faturadosTimePorVendedor.flat();
 
         const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
@@ -1656,7 +1489,9 @@
             }
         }
 
-        const filtrarPorNome = (lista, campo) => lista.filter(i => removeAcentos(String(i[campo]||'').toLowerCase()).includes(removeAcentos(nomeVendedor.toLowerCase())));
+        // ✅ OTIMIZAÇÃO: pré-computa o nome normalizado do vendedor (antes era recalculado por registro)
+        const nomeVendedorLowerNorm = removeAcentos(nomeVendedor.toLowerCase());
+        const filtrarPorNome = (lista, campo) => lista.filter(i => removeAcentos(String(i[campo]||'').toLowerCase()).includes(nomeVendedorLowerNorm));
         const filtrarPorCod = (lista, campo) => lista.filter(i => String(i[campo]||'').trim() === codVendedor);
         const filtrarPorCodExtraido = (lista, campo) => lista.filter(i => extrairCodigo(i[campo]) === codVendedor);
 
@@ -1919,160 +1754,70 @@
         });
 
         /* =====================================================================
-           CARTEIRA / FAROL — filtrado exclusivamente para o vendedor configurado
+           CARTEIRA / FAROL
            ===================================================================== */
         const interacoesVendedor = new Map();
-
         const registrarInteracaoVendedor = (lista, campoNome, campoData) => {
             lista.forEach(item => {
                 const nome = removeAcentos((item[campoNome] || '').toUpperCase().trim());
                 if (!nome) return;
                 const d = parseDataBR(item[campoData]);
                 if (!d) return;
-                if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) {
-                    interacoesVendedor.set(nome, d);
-                }
+                if (!interacoesVendedor.has(nome) || d > interacoesVendedor.get(nome)) interacoesVendedor.set(nome, d);
             });
         };
-
-        /* aprovFull e fatFull já foram filtrados acima pelo vendedor configurado. */
         registrarInteracaoVendedor(aprovFull, 'Cliente', 'Data');
         registrarInteracaoVendedor(fatFull, 'Nome Chave', 'Data');
 
         const carteiraMap = new Map();
         const carteiraByCodigo = new Map();
-
-        /*
-         * CONSOLIDAÇÃO POR CNPJ
-         *
-         * O mesmo cliente pode aparecer várias vezes na carteira com nomes
-         * diferentes, mas com o mesmo CNPJ. Nesse caso ele passa a ser UM
-         * único cliente/filial no Farol. Todos os nomes encontrados ficam
-         * registrados como aliases para que uma compra lançada com qualquer
-         * uma das versões do nome atualize o mesmo CNPJ.
-         */
         const clientePorCnpj = new Map();
         const cnpjPorNome = new Map();
         const clientesSemCnpj = [];
         const normalizarCnpj = cnpj => String(cnpj || '').replace(/\D/g, '');
 
-        /* carteiraFull também já contém somente a carteira deste vendedor. */
         carteiraFull.forEach(cli => {
             const nomeChave = (cli['Nome Chave'] || '').trim();
             const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
             const nomePrincipal = nomeChave || razaoSocial;
             if (!nomePrincipal) return;
-
             const nomeUpper = removeAcentos(nomeChave).toUpperCase();
             const razaoUpper = removeAcentos(razaoSocial).toUpperCase();
             const cnpj = normalizarCnpj(cli['CPF/CGC']);
 
-            /* Mantém o mapa antigo disponível para outras partes da página. */
-            [
-                [nomeUpper, nomeChave],
-                [razaoUpper, razaoSocial]
-            ].forEach(([chave, nome]) => {
+            [[nomeUpper, nomeChave], [razaoUpper, razaoSocial]].forEach(([chave, nome]) => {
                 if (!chave) return;
                 if (!carteiraMap.has(chave)) {
-                    carteiraMap.set(chave, {
-                        ...cli,
-                        nome: nome || nomePrincipal,
-                        cidade: cli['Cidade'] || '',
-                        uf: cli['UF'] || '',
-                        ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                        cadastrado: true
-                    });
+                    carteiraMap.set(chave, { ...cli, nome: nome || nomePrincipal, cidade: cli['Cidade'] || '', uf: cli['UF'] || '', ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo', cadastrado: true });
                 }
             });
-
             const codigo = String(cli['Código'] || '').trim();
             if (codigo && !carteiraByCodigo.has(codigo)) {
-                carteiraByCodigo.set(codigo, {
-                    ...cli,
-                    nome: razaoSocial || nomeChave,
-                    nomeUpper: razaoUpper || nomeUpper,
-                    cidade: cli['Cidade'] || '',
-                    uf: cli['UF'] || '',
-                    ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                    cadastrado: true
-                });
+                carteiraByCodigo.set(codigo, { ...cli, nome: razaoSocial || nomeChave, nomeUpper: razaoUpper || nomeUpper, cidade: cli['Cidade'] || '', uf: cli['UF'] || '', ativo: String(cli['ATivo/Inativo'] || '').toLowerCase() === 'ativo', cadastrado: true });
             }
-
-            if (!cnpj) {
-                clientesSemCnpj.push(cli);
-                return;
-            }
-
-            if (!clientePorCnpj.has(cnpj)) {
-                clientePorCnpj.set(cnpj, {
-                    registro: { ...cli },
-                    aliases: new Set(),
-                    registros: []
-                });
-            }
-
+            if (!cnpj) { clientesSemCnpj.push(cli); return; }
+            if (!clientePorCnpj.has(cnpj)) clientePorCnpj.set(cnpj, { registro: { ...cli }, aliases: new Set(), registros: [] });
             const cliente = clientePorCnpj.get(cnpj);
-            cliente.aliases.add(nomeChave);
-            cliente.aliases.add(razaoSocial);
-            cliente.registros.push(cli);
-
-            /* Completa campos vazios do primeiro cadastro com outra duplicidade. */
-            Object.keys(cli).forEach(campo => {
-                if (!cliente.registro[campo] && cli[campo]) {
-                    cliente.registro[campo] = cli[campo];
-                }
-            });
-
-            [nomeChave, razaoSocial].forEach(n => {
-                const k = removeAcentos(n).toUpperCase();
-                if (k) cnpjPorNome.set(k, cnpj);
-            });
+            cliente.aliases.add(nomeChave); cliente.aliases.add(razaoSocial); cliente.registros.push(cli);
+            Object.keys(cli).forEach(campo => { if (!cliente.registro[campo] && cli[campo]) cliente.registro[campo] = cli[campo]; });
+            [nomeChave, razaoSocial].forEach(n => { const k = removeAcentos(n).toUpperCase(); if (k) cnpjPorNome.set(k, cnpj); });
         });
-
-        /* Nomes sem CNPJ continuam independentes. */
         clientesSemCnpj.forEach(cli => {
-            [cli['Nome Chave'], cli['Nome/Razão Social']].forEach(n => {
-                const k = removeAcentos(n).toUpperCase();
-                if (k) cnpjPorNome.set(k, null);
-            });
+            [cli['Nome Chave'], cli['Nome/Razão Social']].forEach(n => { const k = removeAcentos(n).toUpperCase(); if (k) cnpjPorNome.set(k, null); });
         });
 
         const clientesConsolidados = [
-            ...Array.from(clientePorCnpj.values()).map(item => ({
-                ...item.registro,
-                __cnpj: normalizarCnpj(item.registro['CPF/CGC']),
-                __aliases: Array.from(item.aliases).filter(Boolean),
-                __registros: item.registros
-            })),
-            ...clientesSemCnpj.map(cli => ({
-                ...cli,
-                __cnpj: '',
-                __aliases: [cli['Nome Chave'], cli['Nome/Razão Social']].filter(Boolean),
-                __registros: [cli]
-            }))
+            ...Array.from(clientePorCnpj.values()).map(item => ({ ...item.registro, __cnpj: normalizarCnpj(item.registro['CPF/CGC']), __aliases: Array.from(item.aliases).filter(Boolean), __registros: item.registros })),
+            ...clientesSemCnpj.map(cli => ({ ...cli, __cnpj: '', __aliases: [cli['Nome Chave'], cli['Nome/Razão Social']].filter(Boolean), __registros: [cli] }))
         ];
-
         carteiraMapGlobal = carteiraMap;
 
-        /* Clientes fora da carteira que tiveram interação recente com este vendedor. */
-        const umAnoAtras = new Date(hojeRef);
-        umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
-
+        const umAnoAtras = new Date(hojeRef); umAnoAtras.setFullYear(umAnoAtras.getFullYear() - 1);
         interacoesVendedor.forEach((data, nome) => {
             if (carteiraMap.has(nome) || data < umAnoAtras) return;
-            carteiraMap.set(nome, {
-                nome,
-                cidade: '',
-                uf: '',
-                ativo: true,
-                cadastrado: false
-            });
+            carteiraMap.set(nome, { nome, cidade: '', uf: '', ativo: true, cadastrado: false });
         });
 
-        /*
-         * Interação por nome e por CNPJ. Se uma compra estiver registrada com
-         * qualquer alias do mesmo CNPJ, ela atualiza o cliente consolidado.
-         */
         const interPorCnpj = new Map();
         const registrarInteracaoCnpj = (nome, data) => {
             if (!nome || !data) return;
@@ -2080,64 +1825,40 @@
             if (!k) return;
             const cnpj = cnpjPorNome.get(k);
             if (!cnpj) return;
-            if (!interPorCnpj.has(cnpj) || data > interPorCnpj.get(cnpj)) {
-                interPorCnpj.set(cnpj, data);
-            }
+            if (!interPorCnpj.has(cnpj) || data > interPorCnpj.get(cnpj)) interPorCnpj.set(cnpj, data);
         };
-
         aprovFull.forEach(item => registrarInteracaoCnpj(item['Cliente'], parseDataBR(item['Data'])));
         fatFull.forEach(item => registrarInteracaoCnpj(item['Nome Chave'], parseDataBR(item['Data'])));
 
         let clientesStatus = clientesConsolidados.map(dados => {
             const aliases = dados.__aliases || [];
-            const datasAliases = aliases
-                .map(alias => interacoesVendedor.get(removeAcentos(alias).toUpperCase()))
-                .filter(Boolean);
-
-            const ultimaPorAlias = datasAliases.length
-                ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime())))
-                : null;
-
-            const ultimaPorCnpj = dados.__cnpj
-                ? (interPorCnpj.get(dados.__cnpj) || null)
-                : null;
-
+            const datasAliases = aliases.map(alias => interacoesVendedor.get(removeAcentos(alias).toUpperCase())).filter(Boolean);
+            const ultimaPorAlias = datasAliases.length ? new Date(Math.max(...datasAliases.map(d => new Date(d).getTime()))) : null;
+            const ultimaPorCnpj = dados.__cnpj ? (interPorCnpj.get(dados.__cnpj) || null) : null;
             const ultima = ultimaPorCnpj || ultimaPorAlias || null;
-            const dias = ultima
-                ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24)))
-                : Infinity;
-
+            const dias = ultima ? Math.max(0, Math.floor((today - ultima) / (1000 * 60 * 60 * 24))) : Infinity;
             let status = 'red';
             let ultimaStr = 'Sem interação';
-            if (ultima) {
-                ultimaStr = formatarData(ultima);
-                if (dias <= 30) status = 'green';
-                else if (dias < 180) status = 'yellow';
-            }
-
+            if (ultima) { ultimaStr = formatarData(ultima); if (dias <= 30) status = 'green'; else if (dias < 180) status = 'yellow'; }
             const nomeChave = (dados['Nome Chave'] || dados['Nome/Razão Social'] || '').trim();
             const nomeUpper = removeAcentos(nomeChave).toUpperCase();
-
-            return {
-                nome: nomeChave,
-                status,
-                ultima: ultimaStr,
-                ultimaInteracao: ultima,
-                dias,
-                cidade: dados['Cidade'] || '',
-                uf: dados['UF'] || '',
-                ativo: String(dados['ATivo/Inativo'] || '').toLowerCase() === 'ativo',
-                cadastrado: true,
-                original: dados,
-                nomeUpper,
-                cnpj: dados.__cnpj || '',
-                aliases
-            };
+            return { nome: nomeChave, status, ultima: ultimaStr, ultimaInteracao: ultima, dias, cidade: dados['Cidade'] || '', uf: dados['UF'] || '', ativo: String(dados['ATivo/Inativo'] || '').toLowerCase() === 'ativo', cadastrado: true, original: dados, nomeUpper, cnpj: dados.__cnpj || '', aliases };
         });
 
-        // CLIENTES FATURADOS FORA DA CARTEIRA: cria um registro provisório
-        // somente para o Farol desta página, usando os dados do próprio pedido.
-        // O cadastro oficial permanece em carteiraclientes.json e deve ser validado pelo administrador.
+        // =====================================================================
+        // ✅ OTIMIZAÇÃO PRINCIPAL — Farol / clientes provisórios
+        // =====================================================================
+        // Antes: para CADA pedido faturado, montava o array de nomes normalizados
+        // de CADA cliente candidato e chamava pontuarFicha() para todos eles,
+        // mesmo quando o cliente já estava na carteira. Isso era O(F × C × N)
+        // e travava a thread principal com dados maiores.
+        //
+        // Agora:
+        //  1) Pré-computa os nomes/tokens de cada candidato UMA VEZ.
+        //  2) Sai cedo (early return) antes de qualquer pontuação quando o
+        //     pedido já corresponde a um cliente da carteira (nome ou CNPJ).
+        //  3) Cacheia o score por par (cliente × nome do pedido).
+        // =====================================================================
         const chavesCarteiraCnpj = new Set(clientesStatus.map(c => normalizarCnpj(c.cnpj || (c.original && c.original['CPF/CGC']))).filter(Boolean));
         const chavesCarteiraNome = new Set();
         clientesStatus.forEach(c => {
@@ -2146,50 +1867,82 @@
                 if (k) chavesCarteiraNome.add(k);
             });
         });
+
+        // ✅ Pré-cálculo: array de candidatos com nomes já normalizados e tokens prontos
+        const candidatosBase = clientesStatus
+            .filter(c => c.cadastrado && !c.provisório)
+            .map(c => {
+                const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']]
+                    .filter(Boolean).map(normalizarNomeCliente).filter(Boolean);
+                return {
+                    ref: c,
+                    nomesNorm: nomes,
+                    tokensPorNome: nomes.map(n => n.split(' ').filter(t => t.length > 2))
+                };
+            });
+
+        const pontuarCache = new Map(); // cache: `${cliente.nomeUpper}|${nomeKey}` → score
+        function pontuarFichaOtimizado(cand, nomeKey, nomeTokens, siglasPedido, totalCandidatos) {
+            const cacheKey = cand.ref.nomeUpper + '|' + nomeKey;
+            const cached = pontuarCache.get(cacheKey);
+            if (cached !== undefined) return cached;
+
+            let melhor = 0;
+            for (let i = 0; i < cand.nomesNorm.length; i++) {
+                const n = cand.nomesNorm[i];
+                if (n === nomeKey) { melhor = 100; break; }
+                if (n && (n.includes(nomeKey) || nomeKey.includes(n))) {
+                    const menor = Math.min(n.length, nomeKey.length);
+                    const maior = Math.max(n.length, nomeKey.length);
+                    if (menor >= 5 && menor / maior >= 0.55) melhor = Math.max(melhor, 80 + menor / maior * 10);
+                }
+                const tokensExistentes = cand.tokensPorNome[i];
+                let comuns = 0;
+                for (let t = 0; t < nomeTokens.length; t++) {
+                    if (tokensExistentes.includes(nomeTokens[t])) comuns++;
+                }
+                const denominador = Math.min(new Set(nomeTokens).size || 1, new Set(tokensExistentes).size || 1);
+                if (comuns >= 2 && comuns / denominador >= 0.6) melhor = Math.max(melhor, 60 + comuns / denominador * 20);
+                if (totalCandidatos === 1 && siglasPedido.some(t => tokensExistentes.includes(t))) melhor = Math.max(melhor, 62);
+            }
+            pontuarCache.set(cacheKey, melhor);
+            return melhor;
+        }
+
         const provisoriaPorChave = new Map();
         fatFull.forEach(pedido => {
             const nomePedido = String(pedido['Nome Chave'] || pedido['Razão Social'] || pedido['Cliente'] || '').trim();
             if (!nomePedido) return;
             const cnpjPedido = normalizarCnpj(pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF']);
             const nomeKey = removeAcentos(nomePedido).toUpperCase().trim();
-            const nomeTokens = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length > 2);
-            // Correspondência conservadora: exacta, nome contido com evidência forte ou
-            // tokens empresariais compartilhados. Não escolhe arbitrariamente em empate.
-            const candidatos = clientesStatus.filter(c => c.cadastrado && !c.provisório);
-            const pontuarFicha = c => {
-                const nomes = [c.nome, ...(c.aliases || []), c.original && c.original['Nome/Razão Social']]
-                    .filter(Boolean).map(normalizarNomeCliente).filter(Boolean);
-                let melhor = 0;
-                for (const n of nomes) {
-                    if (n === nomeKey) melhor = Math.max(melhor, 100);
-                    else if (n && (n.includes(nomeKey) || nomeKey.includes(n))) {
-                        const menor = Math.min(n.length, nomeKey.length);
-                        const maior = Math.max(n.length, nomeKey.length);
-                        if (menor >= 5 && menor / maior >= 0.55) melhor = Math.max(melhor, 80 + menor / maior * 10);
-                    }
-                    const tokensExistentes = n.split(' ').filter(t => t.length > 2);
-                    const comuns = [...new Set(nomeTokens.filter(t => tokensExistentes.includes(t)))];
-                    const denominador = Math.min(new Set(nomeTokens).size || 1, new Set(tokensExistentes).size || 1);
-                    if (comuns.length >= 2 && comuns.length / denominador >= 0.6)
-                        melhor = Math.max(melhor, 60 + comuns.length / denominador * 20);
-                    // Sigla curta só vale se for token completo e não houver mais de uma ficha candidata.
-                    const siglas = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length >= 2 && t.length <= 4);
-                    if (siglas.some(t => tokensExistentes.includes(t)) && candidatos.length === 1) melhor = Math.max(melhor, 62);
-                }
-                return melhor;
-            };
-            let clienteRelacionado = null;
-            if (cnpjPedido) clienteRelacionado = candidatos.find(c => normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === cnpjPedido) || null;
-            if (!clienteRelacionado) {
-                const ranqueados = candidatos.map(c => ({ c, score: pontuarFicha(c) })).filter(x => x.score >= 75).sort((a,b) => b.score-a.score);
-                if (ranqueados.length && (ranqueados.length === 1 || ranqueados[0].score > ranqueados[1].score)) clienteRelacionado = ranqueados[0].c;
-            }
+            if (!nomeKey) return;
+
+            // ✅ EARLY RETURN — antes de qualquer scoring pesado
             const mesmoCnpj = cnpjPedido && chavesCarteiraCnpj.has(cnpjPedido);
             const mesmoNome = chavesCarteiraNome.has(nomeKey);
-            // Se o nome do pedido for uma variação de uma empresa já cadastrada,
-            // manter essa variação visível como provisória e vinculada à ficha encontrada.
-            // Só ignorar quando o nome/CNPJ já estiver representado diretamente.
             if (mesmoCnpj || mesmoNome) return;
+
+            const nomeTokens = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length > 2);
+            const siglasPedido = normalizarNomeCliente(nomePedido).split(' ').filter(t => t.length >= 2 && t.length <= 4);
+            const totalCandidatos = candidatosBase.length;
+
+            let clienteRelacionado = null;
+            if (cnpjPedido) {
+                for (const cand of candidatosBase) {
+                    const cnpjCand = normalizarCnpj(cand.ref.cnpj || cand.ref.original?.['CPF/CGC']);
+                    if (cnpjCand && cnpjCand === cnpjPedido) { clienteRelacionado = cand.ref; break; }
+                }
+            }
+            if (!clienteRelacionado && totalCandidatos > 0) {
+                let melhorScore = 0, segundoScore = 0, melhorCand = null;
+                for (const cand of candidatosBase) {
+                    const s = pontuarFichaOtimizado(cand, nomeKey, nomeTokens, siglasPedido, totalCandidatos);
+                    if (s > melhorScore) { segundoScore = melhorScore; melhorScore = s; melhorCand = cand.ref; }
+                    else if (s > segundoScore) segundoScore = s;
+                }
+                if (melhorCand && melhorScore >= 75 && (totalCandidatos === 1 || melhorScore > segundoScore)) clienteRelacionado = melhorCand;
+            }
+
             const chave = cnpjPedido ? 'CNPJ:' + cnpjPedido : 'NOME:' + nomeKey;
             const dataPedido = parseDataBR(pedido['Data']);
             const atual = provisoriaPorChave.get(chave);
@@ -2197,24 +1950,18 @@
                 provisoriaPorChave.set(chave, { pedido, nomePedido, cnpjPedido, data: dataPedido, clienteRelacionado: clienteRelacionado || null });
             }
         });
+        // =====================================================================
+
         provisoriaPorChave.forEach(({pedido, nomePedido, cnpjPedido, data, clienteRelacionado}) => {
-            // Usa a ficha existente como base quando houver correspondência aproximada;
-            // os campos do pedido e o nome alternativo ficam preservados para identificação.
             const original = {
                 ...pedido,
                 ...((clienteRelacionado && clienteRelacionado.original) || {}),
-                // Mantém a variação faturada visível no Farol, mas usa a ficha oficial
-                // encontrada como fonte dos dados cadastrais, sem deixar campos vazios
-                // do pedido sobrescreverem telefone, endereço, CNPJ etc.
                 'Nome Chave': nomePedido,
                 'Nome/Razão Social': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Nome/Razão Social']) || pedido['Razão Social'] || nomePedido,
                 'CPF/CGC': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['CPF/CGC']) || (clienteRelacionado && clienteRelacionado.cnpj) || pedido['CPF/CGC'] || pedido['CNPJ'] || pedido['CNPJ/CPF'] || '',
                 'Cidade': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Cidade']) || pedido['Cidade'] || pedido['Município'] || '',
                 'UF': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['UF']) || pedido['UF'] || ''
             };
-            // Cadastro provisório NÃO implica cliente ativo. Calcular o Farol
-            // pela data real do pedido, com a mesma régua dos clientes cadastrados.
-            // Datas futuras são inválidas para atividade e não podem virar 0 dias.
             const hojeFarol = new Date(today.getFullYear(), today.getMonth(), today.getDate());
             const dataPedidoValida = data && !Number.isNaN(new Date(data).getTime())
                 && new Date(data.getFullYear(), data.getMonth(), data.getDate()) <= hojeFarol;
@@ -2224,29 +1971,19 @@
                 : Infinity;
             const statusProvisorio = diasProvisorio <= 30 ? 'green' : (diasProvisorio < 180 ? 'yellow' : 'red');
             clientesStatus.push({
-                nome: nomePedido,
-                status: statusProvisorio,
+                nome: nomePedido, status: statusProvisorio,
                 ultima: ultimaProvisoria ? formatarData(ultimaProvisoria) : (data ? 'Data futura inválida' : 'Sem interação'),
-                ultimaInteracao: ultimaProvisoria,
-                dias: diasProvisorio,
-                cidade: original['Cidade'],
-                uf: original['UF'],
-                ativo: false,
-                cadastrado: false,
-                provisório: true,
-                original,
-                nomeUpper: removeAcentos(nomePedido).toUpperCase(),
-                cnpj: cnpjPedido,
+                ultimaInteracao: ultimaProvisoria, dias: diasProvisorio,
+                cidade: original['Cidade'], uf: original['UF'],
+                ativo: false, cadastrado: false, provisório: true, original,
+                nomeUpper: removeAcentos(nomePedido).toUpperCase(), cnpj: cnpjPedido,
                 aliases: [nomePedido, original['Nome/Razão Social']].filter(Boolean),
                 fichaRelacionada: clienteRelacionado ? { nome: clienteRelacionado.nome, cnpj: clienteRelacionado.cnpj || '' } : null
             });
-            // Evita duplicar o mesmo cliente quando houver mais de um pedido.
             if (cnpjPedido) chavesCarteiraCnpj.add(cnpjPedido);
             chavesCarteiraNome.add(removeAcentos(nomePedido).toUpperCase().trim());
         });
 
-        // RESOLUÇÃO CENTRAL DE CLIENTES: a ficha oficial e as variações de faturamento
-        // compartilham a mesma identidade lógica durante toda a página.
         const aliasesCliente = new Map();
         const provisoriaPorNome = new Map();
         const indexarAlias = (nome, cliente) => {
@@ -2255,11 +1992,7 @@
         };
         clientesStatus.forEach(c => {
             if (c.provisório) provisoriaPorNome.set(normalizarNomeCliente(c.nome), c);
-            else {
-                indexarAlias(c.nome, c);
-                (c.aliases || []).forEach(n => indexarAlias(n, c));
-                indexarAlias(c.original?.['Nome/Razão Social'], c);
-            }
+            else { indexarAlias(c.nome, c); (c.aliases || []).forEach(n => indexarAlias(n, c)); indexarAlias(c.original?.['Nome/Razão Social'], c); }
         });
         function resolverClienteComFicha(nomeOuRegistro) {
             const registro = nomeOuRegistro && typeof nomeOuRegistro === 'object' ? nomeOuRegistro : null;
@@ -2282,7 +2015,6 @@
                 ficha = aliasesCliente.get(rel) || clientesStatus.find(c => !c.provisório && normalizarCnpj(c.cnpj || c.original?.['CPF/CGC']) === normalizarCnpj(provisoria.fichaRelacionada.cnpj)) || null;
             }
             if (!ficha && chave) {
-                // Última tentativa apenas com evidência nominal forte e resultado único.
                 const tokens = chave.split(' ').filter(t => t.length > 2);
                 const matches = clientesStatus.filter(c => !c.provisório).map(c => {
                     const nomes = [c.nome, ...(c.aliases || []), c.original?.['Nome/Razão Social']].filter(Boolean).map(normalizarNomeCliente);
@@ -2298,63 +2030,30 @@
                 }).filter(x => x.score >= 75).sort((a,b)=>b.score-a.score);
                 if (matches.length && (matches.length === 1 || matches[0].score > matches[1].score)) ficha = matches[0].c;
             }
-            const registroFarol = provisoria || (chave ? clientesStatus.find(c => c.nomeUpper === removeAcentos(nomeOriginal).toUpperCase()) : null) || null;
+            const provisoria2 = provisoria || (chave ? clientesStatus.find(c => c.nomeUpper === removeAcentos(nomeOriginal).toUpperCase()) : null) || null;
             const oficial = ficha?.original || null;
             const faturamentos = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
                 const pk = normalizarNomeCliente(p['Nome Chave'] || p['Razão Social'] || p['Cliente'] || p['Empresa']);
                 const pc = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
                 if (ficha && pc && normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC']) && pc === normalizarCnpj(ficha.cnpj || oficial?.['CPF/CGC'])) return true;
                 if (pk && (pk === chave || (ficha && aliasesCliente.get(pk) === ficha))) return true;
-                return !!(provisoria && pk === normalizarNomeCliente(provisoria.nome));
+                return !!(provisoria2 && pk === normalizarNomeCliente(provisoria2.nome));
             });
-            return { ficha: oficial, clienteResolvido: ficha, nomeOriginal: nomeOriginal, provisoria: !!(provisoria && ficha), chaves: [...new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente)].filter(Boolean))], variacoes: [nomeOriginal].filter(Boolean), faturamentos };
+            return { ficha: oficial, clienteResolvido: ficha, nomeOriginal: nomeOriginal, provisoria: !!(provisoria2 && ficha), chaves: [...new Set([chave, ...(ficha?.aliases || []).map(normalizarNomeCliente)].filter(Boolean))], variacoes: [nomeOriginal].filter(Boolean), faturamentos };
         }
         window.resolverClienteComFicha = resolverClienteComFicha;
 
-        /*
-         * AGRUPAMENTO INTELIGENTE DE GRUPOS EMPRESARIAIS
-         *
-         * A ideia é reconhecer a marca mesmo quando ela aparece escrita de
-         * formas diferentes nas filiais:
-         *   SAINT-GOBAIN
-         *   SAINT GOBAIN BELÉM
-         *   SAINT-GOBAIN-VINHEDO
-         *   SAINT
-         *
-         * Todas passam a compartilhar a raiz SAINT. O hífen deixa de ser
-         * considerado parte da palavra, evitando que cada filial vire um
-         * grupo diferente.
-         *
-         * Para não perder o comportamento antigo, nomes que não tenham uma
-         * regra especial continuam agrupados pela primeira palavra.
-         */
         function chaveGrupoInteligente(nome) {
-            const texto = String(nome || '')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .toUpperCase()
-                .replace(/[\-_/.,;:()]+/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
-
+            const texto = String(nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[\-_/.,;:()]+/g, ' ').replace(/\s+/g, ' ').trim();
             if (!texto) return 'SEM NOME';
-
             const palavras = texto.split(' ').filter(Boolean);
             const primeira = palavras[0];
-
-            // Marcas compostas conhecidas: qualquer variação da raiz é
-            // consolidada no mesmo grupo.
-            const marcasCompostas = {
-                'SAINT': 'SAINT-GOBAIN'
-            };
-
+            const marcasCompostas = { 'SAINT': 'SAINT-GOBAIN' };
             if (marcasCompostas[primeira]) return marcasCompostas[primeira];
-
             return primeira;
         }
 
         const gruposFarol = new Map();
-
         clientesStatus.forEach(c => {
             const chave = chaveGrupoInteligente(c.nome);
             if (!gruposFarol.has(chave)) gruposFarol.set(chave, []);
@@ -2364,57 +2063,23 @@
         const gruposCarteira = Array.from(gruposFarol, ([chave, clientes]) => {
             const contagem = { green: 0, yellow: 0, red: 0 };
             clientes.forEach(c => contagem[c.status]++);
-
-            const ultimaGrupo = clientes.reduce((maior, c) => {
-                if (!c.ultimaInteracao) return maior;
-                return !maior || c.ultimaInteracao > maior ? c.ultimaInteracao : maior;
-            }, null);
-
-            const diasGrupo = ultimaGrupo
-                ? Math.floor((today - ultimaGrupo) / (1000 * 60 * 60 * 24))
-                : Infinity;
-
-            /*
-             * No modo POR GRUPOS, o Farol do grupo representa a empresa como um todo:
-             * vale sempre a compra/interação mais recente de qualquer filial.
-             * Ex.: SAINT-GOBAIN Pará comprou há 6 meses, mas SAINT-GOBAIN Belém
-             * comprou este mês -> o grupo SAINT-GOBAIN fica 🟢 ATIVO.
-             * As filiais continuam mantendo seu Farol individual na tabela interna.
-             */
-            // Régua do Farol: até 30 dias = Ativo; 31 a 179 = Esfriando;
-            // 180 dias ou mais (6 meses) = Inativo.
-            const statusGrupo =
-                diasGrupo <= 30 ? 'green' :
-                diasGrupo < 180 ? 'yellow' : 'red';
-
+            const ultimaGrupo = clientes.reduce((maior, c) => { if (!c.ultimaInteracao) return maior; return !maior || c.ultimaInteracao > maior ? c.ultimaInteracao : maior; }, null);
+            const diasGrupo = ultimaGrupo ? Math.floor((today - ultimaGrupo) / (1000 * 60 * 60 * 24)) : Infinity;
+            const statusGrupo = diasGrupo <= 30 ? 'green' : diasGrupo < 180 ? 'yellow' : 'red';
             clientes.sort((a, b) => {
                 const ordemStatus = { green: 0, yellow: 1, red: 2 };
-                if (ordemStatus[a.status] !== ordemStatus[b.status]) {
-                    return ordemStatus[a.status] - ordemStatus[b.status];
-                }
+                if (ordemStatus[a.status] !== ordemStatus[b.status]) return ordemStatus[a.status] - ordemStatus[b.status];
                 const da = a.dias === Infinity ? 1e9 : a.dias;
                 const db = b.dias === Infinity ? 1e9 : b.dias;
                 if (da !== db) return da - db;
                 return a.nome.localeCompare(b.nome);
             });
-
-            return {
-                chave,
-                status: statusGrupo,
-                ultimaInteracao: ultimaGrupo,
-                dias: diasGrupo,
-                clientes,
-                contagem,
-                total: clientes.length
-            };
+            return { chave, status: statusGrupo, ultimaInteracao: ultimaGrupo, dias: diasGrupo, clientes, contagem, total: clientes.length };
         });
 
-        /* ORDEM OBRIGATÓRIA: verdes primeiro, amarelos depois, vermelhos por último. */
         const ordemFarol = { green: 0, yellow: 1, red: 2 };
         gruposCarteira.sort((a, b) => {
-            if (ordemFarol[a.status] !== ordemFarol[b.status]) {
-                return ordemFarol[a.status] - ordemFarol[b.status];
-            }
+            if (ordemFarol[a.status] !== ordemFarol[b.status]) return ordemFarol[a.status] - ordemFarol[b.status];
             const da = a.dias === Infinity ? 1e9 : a.dias;
             const db = b.dias === Infinity ? 1e9 : b.dias;
             if (da !== db) return da - db;
@@ -2427,18 +2092,10 @@
 
         document.getElementById('carteira-metricas').innerHTML = `
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;">
-                <div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;">
-                    <strong>${totalFiliais}</strong><br>Total
-                </div>
-                <div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;">
-                    <strong>${contagemGlobal.green}</strong><br>🟢 Ativos
-                </div>
-                <div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;">
-                    <strong>${contagemGlobal.yellow}</strong><br>🟡 Esfriando
-                </div>
-                <div style="background:rgba(211,47,47,0.1);padding:12px;border-radius:14px;text-align:center;">
-                    <strong>${contagemGlobal.red}</strong><br>🔴 Inativos
-                </div>
+                <div style="background:var(--primary-soft);padding:12px;border-radius:14px;text-align:center;"><strong>${totalFiliais}</strong><br>Total</div>
+                <div style="background:rgba(46,125,50,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${contagemGlobal.green}</strong><br>🟢 Ativos</div>
+                <div style="background:rgba(237,108,2,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${contagemGlobal.yellow}</strong><br>🟡 Esfriando</div>
+                <div style="background:rgba(211,47,47,0.1);padding:12px;border-radius:14px;text-align:center;"><strong>${contagemGlobal.red}</strong><br>🔴 Inativos</div>
             </div>`;
 
         document.getElementById('semaphore-summary').innerHTML = `
@@ -2455,14 +2112,10 @@
         const DEFAULT_VIEW_PREFS = { modo: 'grupos', ordem: 'ativos', status: 'todos' };
 
         function carregarPreferenciasCarteira() {
-            try {
-                const raw = localStorage.getItem(VIEW_STORAGE_KEY);
-                return { ...DEFAULT_VIEW_PREFS, ...(raw ? JSON.parse(raw) : {}) };
-            } catch (_) { return { ...DEFAULT_VIEW_PREFS }; }
+            try { const raw = localStorage.getItem(VIEW_STORAGE_KEY); return { ...DEFAULT_VIEW_PREFS, ...(raw ? JSON.parse(raw) : {}) }; }
+            catch (_) { return { ...DEFAULT_VIEW_PREFS }; }
         }
-        function salvarPreferenciasCarteira(prefs) {
-            localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(prefs));
-        }
+        function salvarPreferenciasCarteira(prefs) { localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(prefs)); }
         function ordenarClientes(clientes, ordem) {
             const peso = ordem === 'inativos' ? { red:0, yellow:1, green:2 } : { green:0, yellow:1, red:2 };
             return [...clientes].sort((a,b) => {
@@ -2495,21 +2148,10 @@
                 return a.chave.localeCompare(b.chave);
             });
         }
-
-        function carregarEstadoCarteira() {
-            try {
-                const raw = localStorage.getItem(STORAGE_KEY);
-                return raw ? JSON.parse(raw) : {};
-            } catch (_) {
-                return {};
-            }
-        }
-
+        function carregarEstadoCarteira() { try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? JSON.parse(raw) : {}; } catch (_) { return {}; } }
         function salvarEstadoCarteira() {
             const estado = {};
-            document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => {
-                estado[card.dataset.grupo] = card.classList.contains('expanded');
-            });
+            document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => { estado[card.dataset.grupo] = card.classList.contains('expanded'); });
             localStorage.setItem(STORAGE_KEY, JSON.stringify(estado));
         }
 
@@ -2517,9 +2159,7 @@
             const container = document.getElementById('carteira-detalhes');
             const estado = carregarEstadoCarteira();
             const prefs = carregarPreferenciasCarteira();
-            const modo = prefs.modo;
-            const ordem = prefs.ordem;
-            const filtroStatus = prefs.status || 'todos';
+            const modo = prefs.modo, ordem = prefs.ordem, filtroStatus = prefs.status || 'todos';
             const gruposFiltrados = gruposCarteira.filter(g => filtroStatus === 'todos' || g.clientes.some(c => c.status === filtroStatus));
             const gruposOrdenados = ordenarGrupos(gruposFiltrados, ordem);
             const clientesFiltrados = clientesStatus.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
@@ -2545,107 +2185,28 @@
             }
 
             if (!gruposCarteira.length) {
-                container.innerHTML = `
-                    <div style="padding:30px;text-align:center;color:var(--muted);">
-                        <i class="fas fa-search" style="font-size:2rem;opacity:.4;margin-bottom:10px;"></i>
-                        <p>Nenhum cliente encontrado para o vendedor configurado.</p>
-                    </div>`;
+                container.innerHTML = `<div style="padding:30px;text-align:center;color:var(--muted);"><i class="fas fa-search" style="font-size:2rem;opacity:.4;margin-bottom:10px;"></i><p>Nenhum cliente encontrado para o vendedor configurado.</p></div>`;
                 return;
             }
 
             container.innerHTML = avisoCadastroProvisorio + gruposOrdenados.map((g, idx) => {
-                const icone = g.status === 'green' ? 'fa-check-circle'
-                    : g.status === 'yellow' ? 'fa-exclamation-circle'
-                    : 'fa-times-circle';
-
+                const icone = g.status === 'green' ? 'fa-check-circle' : g.status === 'yellow' ? 'fa-exclamation-circle' : 'fa-times-circle';
                 const textoUltima = g.ultimaInteracao
                     ? `Última interação: <strong>${formatarData(g.ultimaInteracao)}</strong> (${g.dias} dias)`
                     : `<strong style="color:var(--danger)">Sem interação registrada</strong>`;
-
-                const resumo = `
-                    <span>🟢 ${g.contagem.green}</span>
-                    <span>🟡 ${g.contagem.yellow}</span>
-                    <span>🔴 ${g.contagem.red}</span>`;
-
+                const resumo = `<span>🟢 ${g.contagem.green}</span><span>🟡 ${g.contagem.yellow}</span><span>🔴 ${g.contagem.red}</span>`;
                 const clientesDoGrupo = g.clientes.filter(c => filtroStatus === 'todos' || c.status === filtroStatus);
                 const clientesHtml = ordenarClientes(clientesDoGrupo, ordem).map((c, cidx) => {
-                    const badge = `
-                        <span class="farol-status-badge ${c.status}">
-                            <i class="fas ${c.status === 'green' ? 'fa-check' : c.status === 'yellow' ? 'fa-clock' : 'fa-times'}"></i>
-                            ${c.status === 'green' ? 'Ativo' : c.status === 'yellow' ? 'Esfriando' : 'Inativo'}
-                        </span>`;
-
-                    const ultima = c.ultimaInteracao
-                        ? `${formatarData(c.ultimaInteracao)} <small style="color:var(--muted)">(${c.dias}d)</small>`
-                        : '<em style="color:var(--danger)">sem interação</em>';
-
-                    const cadastro = c.ativo
-                        ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>'
-                        : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
-
+                    const badge = `<span class="farol-status-badge ${c.status}"><i class="fas ${c.status === 'green' ? 'fa-check' : c.status === 'yellow' ? 'fa-clock' : 'fa-times'}"></i>${c.status === 'green' ? 'Ativo' : c.status === 'yellow' ? 'Esfriando' : 'Inativo'}</span>`;
+                    const ultima = c.ultimaInteracao ? `${formatarData(c.ultimaInteracao)} <small style="color:var(--muted)">(${c.dias}d)</small>` : '<em style="color:var(--danger)">sem interação</em>';
+                    const cadastro = c.ativo ? '<i class="fas fa-check-circle" style="color:var(--success)"></i>' : '<i class="fas fa-times-circle" style="color:var(--danger)"></i>';
                     const novidade = c.provisório
                         ? '<span title="Cadastro provisório em nuvem; será atualizado para efetivo em breve. Contate o administrador para validar, se necessário." style="font-size:.58rem;background:#fff7ed;color:#9a3412;padding:2px 6px;border-radius:7px;margin-left:5px;font-weight:700;">Provisório</span>'
-                        : (!c.cadastrado
-                            ? (c.ultimaInteracao && c.dias <= 30
-                                ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>'
-                                : '<span style="font-size:.6rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:5px;">Atribuído</span>')
-                            : '');
-
-                    return `
-                        <tr class="carteira-row-${c.status}" data-nome="${c.nomeUpper}"
-                            data-cliente-idx="${cidx}" title="Clique para ver a ficha completa">
-                            <td>
-                                <div class="farol-cliente-nome">${c.nome}${novidade}</div>
-                                ${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}
-                            </td>
-                            <td class="farol-cidade">${c.cidade || '—'}${c.uf ? '/' + c.uf : ''}</td>
-                            <td>${cadastro}</td>
-                            <td>${ultima}</td>
-                            <td>${badge}</td>
-                        </tr>`;
+                        : (!c.cadastrado ? (c.ultimaInteracao && c.dias <= 30 ? '<span style="font-size:.6rem;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:8px;margin-left:5px;">Novo</span>' : '<span style="font-size:.6rem;background:#e0f2fe;color:#0369a1;padding:2px 6px;border-radius:8px;margin-left:5px;">Atribuído</span>') : '');
+                    return `<tr class="carteira-row-${c.status}" data-nome="${c.nomeUpper}" data-cliente-idx="${cidx}" title="Clique para ver a ficha completa"><td><div class="farol-cliente-nome">${c.nome}${novidade}</div>${c.original && c.original['CPF/CGC'] ? `<div class="farol-cnpj">${c.original['CPF/CGC']}</div>` : ''}</td><td class="farol-cidade">${c.cidade || '—'}${c.uf ? '/' + c.uf : ''}</td><td>${cadastro}</td><td>${ultima}</td><td>${badge}</td></tr>`;
                 }).join('');
-
-                const deveExpandir = Object.prototype.hasOwnProperty.call(estado, g.chave)
-                    ? !!estado[g.chave]
-                    : true;
-
-                return `
-                    <div class="carteira-farol-group ${g.status}${deveExpandir ? ' expanded' : ''}"
-                         data-grupo="${g.chave.replace(/"/g, '&quot;')}" data-idx="${idx}">
-                        <div class="carteira-farol-header">
-                            <div class="carteira-farol-title">
-                                <i class="fas ${icone}" style="font-size:1.25rem;color:var(--${g.status === 'green' ? 'success' : g.status === 'yellow' ? 'warning' : 'danger'})"></i>
-                                <h4>
-                                    ${g.chave}
-                                    <span class="carteira-farol-status ${g.status}">
-                                        ${g.status === 'green' ? '🟢 Ativo' : g.status === 'yellow' ? '🟡 Esfriando' : '🔴 Inativo'}
-                                    </span>
-                                    ${g.total > 1 ? `<span style="font-size:.65rem;background:var(--primary-soft);color:var(--primary);padding:3px 8px;border-radius:14px;font-weight:700;">${g.total} clientes</span>` : ''}
-                                </h4>
-                            </div>
-                            <div class="carteira-farol-meta">
-                                <span>${textoUltima}</span>
-                                <span style="font-size:.8rem;letter-spacing:1px;">${resumo}</span>
-                                <button type="button" class="carteira-farol-toggle" title="Expandir/Recolher">
-                                    <i class="fas fa-chevron-down"></i>
-                                </button>
-                            </div>
-                        </div>
-                        <div class="carteira-farol-body">
-                            <table class="carteira-farol-table">
-                                <thead>
-                                    <tr>
-                                        <th>Cliente / CNPJ</th>
-                                        <th>Cidade/UF</th>
-                                        <th>Cadastro</th>
-                                        <th>Última Interação</th>
-                                        <th>Farol</th>
-                                    </tr>
-                                </thead>
-                                <tbody>${clientesHtml}</tbody>
-                            </table>
-                        </div>
-                    </div>`;
+                const deveExpandir = Object.prototype.hasOwnProperty.call(estado, g.chave) ? !!estado[g.chave] : true;
+                return `<div class="carteira-farol-group ${g.status}${deveExpandir ? ' expanded' : ''}" data-grupo="${g.chave.replace(/"/g, '&quot;')}" data-idx="${idx}"><div class="carteira-farol-header"><div class="carteira-farol-title"><i class="fas ${icone}" style="font-size:1.25rem;color:var(--${g.status === 'green' ? 'success' : g.status === 'yellow' ? 'warning' : 'danger'})"></i><h4>${g.chave}<span class="carteira-farol-status ${g.status}">${g.status === 'green' ? '🟢 Ativo' : g.status === 'yellow' ? '🟡 Esfriando' : '🔴 Inativo'}</span>${g.total > 1 ? `<span style="font-size:.65rem;background:var(--primary-soft);color:var(--primary);padding:3px 8px;border-radius:14px;font-weight:700;">${g.total} clientes</span>` : ''}</h4></div><div class="carteira-farol-meta"><span>${textoUltima}</span><span style="font-size:.8rem;letter-spacing:1px;">${resumo}</span><button type="button" class="carteira-farol-toggle" title="Expandir/Recolher"><i class="fas fa-chevron-down"></i></button></div></div><div class="carteira-farol-body"><table class="carteira-farol-table"><thead><tr><th>Cliente / CNPJ</th><th>Cidade/UF</th><th>Cadastro</th><th>Última Interação</th><th>Farol</th></tr></thead><tbody>${clientesHtml}</tbody></table></div></div>`;
             }).join('');
 
             container.querySelectorAll('.carteira-farol-header').forEach(header => {
@@ -2657,7 +2218,6 @@
                     }
                 });
             });
-
             container.querySelectorAll('.carteira-farol-table tbody tr').forEach(row => {
                 row.addEventListener('click', e => {
                     e.stopPropagation();
@@ -2667,21 +2227,12 @@
             });
         }
 
-        window._carteiraExpandirTudo = function() {
-            document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => card.classList.add('expanded'));
-            salvarEstadoCarteira();
-        };
-
-        window._carteiraRecolherTudo = function() {
-            document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => card.classList.remove('expanded'));
-            salvarEstadoCarteira();
-        };
-
+        window._carteiraExpandirTudo = function() { document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => card.classList.add('expanded')); salvarEstadoCarteira(); };
+        window._carteiraRecolherTudo = function() { document.querySelectorAll('#carteira-detalhes .carteira-farol-group').forEach(card => card.classList.remove('expanded')); salvarEstadoCarteira(); };
         renderCarteiraFarol();
 
         const btnExpandirCarteira = document.getElementById('btn-carteira-expandir');
         const btnRecolherCarteira = document.getElementById('btn-carteira-recolher');
-
         if (btnExpandirCarteira) btnExpandirCarteira.onclick = window._carteiraExpandirTudo;
         if (btnRecolherCarteira) btnRecolherCarteira.onclick = window._carteiraRecolherTudo;
 
@@ -2694,10 +2245,8 @@
         selOrdemCarteira.value = prefsIniciais.ordem;
         selStatusCarteira.value = prefsIniciais.status || 'todos';
         function atualizarPreferenciaCarteira(campo, valor) {
-            const prefs = carregarPreferenciasCarteira();
-            prefs[campo] = valor;
-            salvarPreferenciasCarteira(prefs);
-            renderCarteiraFarol();
+            const prefs = carregarPreferenciasCarteira(); prefs[campo] = valor;
+            salvarPreferenciasCarteira(prefs); renderCarteiraFarol();
         }
         selModoCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('modo', e.target.value));
         selOrdemCarteira.addEventListener('change', e => atualizarPreferenciaCarteira('ordem', e.target.value));
@@ -2705,9 +2254,7 @@
         if (btnResetarCarteira) btnResetarCarteira.addEventListener('click', () => {
             const padrao = { ...DEFAULT_VIEW_PREFS };
             salvarPreferenciasCarteira(padrao);
-            selModoCarteira.value = padrao.modo;
-            selOrdemCarteira.value = padrao.ordem;
-            selStatusCarteira.value = padrao.status;
+            selModoCarteira.value = padrao.modo; selOrdemCarteira.value = padrao.ordem; selStatusCarteira.value = padrao.status;
             renderCarteiraFarol();
         });
 
@@ -2726,16 +2273,12 @@
                 const nomeBusca = removeAcentos(nomeUpper||'').toUpperCase();
                 if (!cliente) cliente = carteiraMap.get(nomeBusca);
                 if (!cliente && cnpj && cnpj.length>=11) {
-                    for (let [key, val] of carteiraMap.entries()) {
-                        if ((val['CPF/CGC']||'').replace(/[^\d]/g,'') === cnpj) { cliente = val; break; }
-                    }
+                    for (let [key, val] of carteiraMap.entries()) { if ((val['CPF/CGC']||'').replace(/[^\d]/g,'') === cnpj) { cliente = val; break; } }
                 }
                 if (!cliente && nomeBusca && permitirBuscaAproximada) {
                     const resolvida = resolverClienteComFicha(nomeBusca);
                     if (resolvida.ficha) cliente = { ...resolvida.ficha, nome: resolvida.clienteResolvido?.nome || resolvida.ficha['Nome Chave'] || nomeUpper };
                 }
-                // Para uma variação provisória do Farol, abrir a ficha cadastral relacionada
-                // como referência: não deixar a tela cair no resumo incompleto do pedido.
                 if (!cliente) {
                     const provisoria = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
                     const rel = provisoria && provisoria.fichaRelacionada;
@@ -2743,11 +2286,7 @@
                         const nomeRel = removeAcentos(String(rel.nome || '')).toUpperCase().trim();
                         if (nomeRel) cliente = carteiraMap.get(nomeRel) || null;
                         const cnpjRel = String(rel.cnpj || '').replace(/\D/g, '');
-                        if (!cliente && cnpjRel) {
-                            for (const val of carteiraMap.values()) {
-                                if (String(val['CPF/CGC'] || '').replace(/\D/g, '') === cnpjRel) { cliente = val; break; }
-                            }
-                        }
+                        if (!cliente && cnpjRel) { for (const val of carteiraMap.values()) { if (String(val['CPF/CGC'] || '').replace(/\D/g, '') === cnpjRel) { cliente = val; break; } } }
                     }
                 }
                 if (!cliente) {
@@ -2762,9 +2301,6 @@
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
                     return;
                 }
-                // Completa campos vazios com dados do pedido/faturamento atual.
-                // A ficha oficial sempre tem prioridade; dados da operação servem como
-                // cadastro provisório apenas para os campos que não existem na carteira.
                 if (pedidoData && typeof pedidoData === 'object') {
                     const primeiroValor = (...valores) => valores.find(v => v !== undefined && v !== null && String(v).trim() !== '');
                     const aliasesPedido = {
@@ -2802,24 +2338,13 @@
                             if (valor !== undefined) cliente[campo] = valor;
                         }
                     });
-                    // Para clientes sem ficha, o nome da empresa exibido no pedido é
-                    // também o melhor nome/razão social provisório disponível.
                     const nomeEmpresaPedido = primeiroValor(pedidoData['Empresa'], pedidoData['Nome/Razão Social'], pedidoData['Razão Social'], pedidoData['Nome Chave'], pedidoData['Cliente']);
-                    // Para a ficha provisória, Empresa é a fonte preferencial da razão social,
-                    // pois é o nome empresarial completo exibido nos detalhes do pedido.
-                    // Só substitui um valor abreviado quando não há cadastro oficial resolvido.
                     const temFichaOficialResolvida = !!(resolucaoCentral && resolucaoCentral.ficha);
-                    if (pedidoData['Empresa'] && (!temFichaOficialResolvida || !cliente['Nome/Razão Social'])) {
-                        cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
-                    } else if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) {
-                        cliente['Nome/Razão Social'] = nomeEmpresaPedido;
-                    }
+                    if (pedidoData['Empresa'] && (!temFichaOficialResolvida || !cliente['Nome/Razão Social'])) cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
+                    else if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) cliente['Nome/Razão Social'] = nomeEmpresaPedido;
                     if (!cliente['Nome Chave'] && nomeEmpresaPedido) cliente['Nome Chave'] = nomeEmpresaPedido;
                     cliente._dadosProvisoriosPedido = true;
                 }
-
-                // Se a ficha aberta foi resolvida a partir de uma variação provisória,
-                // preserve o nome faturado como alias para vincular também os pedidos dela.
                 const registroProvisorioAberto = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
                 if (registroProvisorioAberto && registroProvisorioAberto.fichaRelacionada) {
                     cliente = { ...cliente, _aliasProvisorioFarol: registroProvisorioAberto.nome };
@@ -2831,16 +2356,9 @@
                 html += `<div class="ficha-secao"><h4><i class="fas fa-building"></i> Dados da Empresa</h4><div class="ficha-grid">${['Código','Nome Chave','Nome/Razão Social','Física/Juridica','CPF/CGC','RG/IE','Ramo','Dt.Cadastro','ATivo/Inativo','Transportadora','Limite de Crédito'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Código'?'fa-hashtag':c==='Nome Chave'?'fa-tag':c==='Nome/Razão Social'?'fa-file-signature':c==='Física/Juridica'?'fa-venus-mars':c==='CPF/CGC'?'fa-id-card':c==='RG/IE'?'fa-passport':c==='Ramo'?'fa-industry':c==='Dt.Cadastro'?'fa-calendar-check':c==='ATivo/Inativo'?'fa-check-circle':c==='Transportadora'?'fa-truck':'fa-dollar-sign'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-map-marker-alt"></i> Endereço</h4><div class="ficha-grid">${['Endereço','Número','Complemento','Bairro','Cidade','UF','País','CEP'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Endereço'?'fa-road':c==='Número'?'fa-home':c==='Complemento'?'fa-plus-circle':c==='Bairro'?'fa-map':c==='Cidade'?'fa-city':c==='UF'?'fa-map-pin':c==='País'?'fa-globe-americas':'fa-mail-bulk'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
                 html += `<div class="ficha-secao"><h4><i class="fas fa-phone-alt"></i> Contato</h4><div class="ficha-grid">${['Telefone','Fax','Contato','Departamento','Cargo','Dt. Aniversário','Fone','E-Mail'].map(c=>`<div class="ficha-campo"><i class="fas ${c==='Telefone'?'fa-phone':c==='Fax'?'fa-fax':c==='Contato'?'fa-user':c==='Departamento'?'fa-building':c==='Cargo'?'fa-briefcase':c==='Dt. Aniversário'?'fa-calendar-day':c==='Fone'?'fa-phone-volume':'fa-envelope'}"></i><span class="campo-label">${c}:</span><span class="campo-valor">${cliente[c]||'—'}</span></div>`).join('')}</div></div>`;
-                // Resumo dos pedidos faturados deste cliente, disponível na ficha do Farol
-                // mesmo quando o usuário não abriu a ficha a partir de uma linha de pedido.
                 const resolucaoFicha = resolverClienteComFicha(registroProvisorioAberto?.nome || nomeUpper || cliente['Nome Chave'] || cliente['Nome/Razão Social']);
-                const fichaResolvida = resolucaoFicha.clienteResolvido || clientesStatus.find(c => !c.provisório && c.original && (
-                    normalizarNomeCliente(c.original['Nome Chave']) === normalizarNomeCliente(cliente['Nome Chave']) ||
-                    normalizarCnpj(c.original['CPF/CGC']) === normalizarCnpj(cliente['CPF/CGC'])
-                )) || null;
-                const chavesFicha = new Set([normalizarNomeCliente(nomeUpper), normalizarNomeCliente(registroProvisorioAberto?.nome),
-                    normalizarNomeCliente(cliente['Nome Chave']), normalizarNomeCliente(cliente['Nome/Razão Social']),
-                    ...(fichaResolvida?.aliases || []).map(normalizarNomeCliente)].filter(Boolean));
+                const fichaResolvida = resolucaoFicha.clienteResolvido || clientesStatus.find(c => !c.provisório && c.original && (normalizarNomeCliente(c.original['Nome Chave']) === normalizarNomeCliente(cliente['Nome Chave']) || normalizarCnpj(c.original['CPF/CGC']) === normalizarCnpj(cliente['CPF/CGC']))) || null;
+                const chavesFicha = new Set([normalizarNomeCliente(nomeUpper), normalizarNomeCliente(registroProvisorioAberto?.nome), normalizarNomeCliente(cliente['Nome Chave']), normalizarNomeCliente(cliente['Nome/Razão Social']), ...(fichaResolvida?.aliases || []).map(normalizarNomeCliente)].filter(Boolean));
                 const cnpjFicha = normalizarCnpj(cliente['CPF/CGC']);
                 const pedidosFaturadosCliente = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
                     const cnpjP = normalizarCnpj(p['CPF/CGC'] || p['CNPJ'] || p['CNPJ/CPF']);
@@ -2945,7 +2463,6 @@
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
         if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
-        // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
@@ -2961,9 +2478,8 @@
             }
         } finally {
             renderEmAndamento = false;
-            // Não exibe tela global de carregamento ao concluir.
             atualizarAvisoConexao();
-            if (atualizacaoBackgroundPendente) setTimeout(atualizarRenderComDadosNovos, 100);
+            if (atualizacaoBackgroundPendente) setTimeout(atualizarRenderComDadosNovos, 800);
             if (endpointsComFalha.size) {
                 clearTimeout(retryTimer);
                 retryTimer = setTimeout(tentarAtualizarFontes, 30000);
@@ -2972,12 +2488,10 @@
     }
 
     async function init() {
-        // Essas fontes são auxiliares: falhas não impedem a abertura do dashboard.
         Promise.allSettled([carregarInfoAtualizacao(), carregarBanners(), carregarNotificacoes()])
             .then(() => atualizarBadgeNotificacoes());
         currentMonth = formatMonthKey(new Date());
         carregarDadosComRetry(currentMonth);
-        // O carregamento do carrossel é cache-first; o refresh da nuvem ocorre em segundo plano.
 
         document.getElementById('connection-retry')?.addEventListener('click', tentarAtualizarFontes);
         document.getElementById('gerar-pdf-btn').addEventListener('click', gerarPDF);
