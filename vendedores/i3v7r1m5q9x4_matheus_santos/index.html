@@ -1034,9 +1034,13 @@
     const businessDaysRemaining = (end) => { const t=new Date(); t.setHours(0,0,0,0); return t>end ? 0 : businessDaysBetween(t,end); };
     const businessDaysPassed = (start) => { const t=new Date(); t.setHours(23,59,59,999); return t<start ? 0 : businessDaysBetween(start,t); };
     const totalBusinessDays = (s,e) => businessDaysBetween(s,e);
-    // Cache-first (stale-while-revalidate): mostra os dados locais imediatamente
-    // e atualiza cada fonte em segundo plano sem bloquear a navegação.
+    // Cache-first (stale-while-revalidate), com limite para não lotar o localStorage.
+    // Arquivos grandes são usados normalmente em memória, mas não persistidos no cache.
     const CACHE_PREFIX = 'radar_cache_v3:';
+    const CACHE_MAX_ITEM_BYTES = 350 * 1024; // limite por arquivo: 350 KB
+    const CACHE_MAX_TOTAL_BYTES = 2 * 1024 * 1024; // alvo máximo: 2 MB
+    const endpointsSemCache = new Set();
+    const dadosEmMemoria = new Map();
     const endpointsComFalha = new Set();
     const statusFontes = new Map();
     let retryTimer = null;
@@ -1046,20 +1050,83 @@
     let atualizacaoBackgroundPendente = false;
     const TIMEOUT_FONTE_MS = 9000;
 
+    // Remove entradas antigas excessivas, incluindo caches grandes de versões anteriores.
+    function limparCacheExcessivo() {
+        try {
+            const entradas = [];
+            let total = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (!key || !key.startsWith(CACHE_PREFIX)) continue;
+                const raw = localStorage.getItem(key);
+                const bytes = raw ? new Blob([raw]).size : 0;
+                let savedAt = 0;
+                try { savedAt = JSON.parse(raw || '{}').savedAt || 0; } catch (_) {}
+                if (bytes > CACHE_MAX_ITEM_BYTES) {
+                    localStorage.removeItem(key);
+                    i--;
+                    continue;
+                }
+                entradas.push({key, bytes, savedAt});
+                total += bytes;
+            }
+            entradas.sort((a,b) => a.savedAt - b.savedAt);
+            while (total > CACHE_MAX_TOTAL_BYTES && entradas.length) {
+                const antiga = entradas.shift();
+                try { localStorage.removeItem(antiga.key); } catch (_) {}
+                total -= antiga.bytes;
+            }
+        } catch (e) {
+            console.warn('Não foi possível fazer a limpeza preventiva do cache:', e);
+        }
+    }
+    limparCacheExcessivo();
+
     function lerCacheEndpoint(url) {
+        if (endpointsSemCache.has(url)) return null;
         try {
             const raw = localStorage.getItem(CACHE_PREFIX + url);
             if (!raw) return null;
+            if (raw.length * 2 > CACHE_MAX_ITEM_BYTES) {
+                localStorage.removeItem(CACHE_PREFIX + url);
+                endpointsSemCache.add(url);
+                return null;
+            }
             const parsed = JSON.parse(raw);
             return parsed && Object.prototype.hasOwnProperty.call(parsed, 'data') ? parsed : null;
         } catch (_) { return null; }
     }
 
     function salvarCacheEndpoint(url, data) {
+        // Mantém a resposta em memória mesmo quando ela é grande demais para persistir.
+        dadosEmMemoria.set(url, data);
         try {
-            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
+            const payload = JSON.stringify({ savedAt: Date.now(), data });
+            // Não persiste itens grandes: evita quota excedida e escrita síncrona pesada.
+            if (payload.length * 2 > CACHE_MAX_ITEM_BYTES) {
+                endpointsSemCache.add(url);
+                try { localStorage.removeItem(CACHE_PREFIX + url); } catch (_) {}
+                return false;
+            }
+            try {
+                localStorage.setItem(CACHE_PREFIX + url, payload);
+                return true;
+            } catch (e) {
+                // Limpa caches antigos e tenta uma única vez, sem bloquear a aplicação.
+                limparCacheExcessivo();
+                try {
+                    localStorage.setItem(CACHE_PREFIX + url, payload);
+                    return true;
+                } catch (_) {
+                    endpointsSemCache.add(url);
+                    console.warn('Cache local cheio; fonte será usada sem persistência:', url);
+                    return false;
+                }
+            }
         } catch (e) {
-            console.warn('Não foi possível atualizar o cache local:', e);
+            endpointsSemCache.add(url);
+            console.warn('Não foi possível preparar o cache local; usando dados em memória:', url);
+            return false;
         }
     }
 
@@ -1181,6 +1248,12 @@
     }
 
     async function carregarJSON(url) {
+        if (dadosEmMemoria.has(url)) {
+            const statusAtual = statusFontes.get(url)?.estado;
+            if (!statusAtual) definirStatusFonte(url, 'local');
+            if (statusAtual !== 'cloud' && statusAtual !== 'loading') agendarAtualizacaoFonte(url);
+            return dadosEmMemoria.get(url);
+        }
         const cache = lerCacheEndpoint(url);
         if (cache) {
             // O cache aparece na primeira renderização; a nuvem é consultada em paralelo.
