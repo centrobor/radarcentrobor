@@ -2770,7 +2770,7 @@
                     const aliasesPedido = {
                         'Código': ['Código','Codigo','Código Cliente','Cod. Cliente','Cod Cliente'],
                         'Nome Chave': ['Nome Chave','Cliente','Razão Social','Nome/Razão Social','Empresa'],
-                        'Nome/Razão Social': ['Nome/Razão Social','Razão Social','Empresa','Nome Fantasia','Nome Chave','Cliente'],
+                        'Nome/Razão Social': ['Empresa','Nome/Razão Social','Razão Social','Nome Fantasia','Nome Chave','Cliente'],
                         'Física/Juridica': ['Física/Juridica','Física/Jurídica','Tipo Pessoa','Pessoa'],
                         'CPF/CGC': ['CPF/CGC','CNPJ','CNPJ/CPF','CPF','CGC'],
                         'RG/IE': ['RG/IE','IE','Inscrição Estadual','RG'],
@@ -2804,8 +2804,16 @@
                     });
                     // Para clientes sem ficha, o nome da empresa exibido no pedido é
                     // também o melhor nome/razão social provisório disponível.
-                    const nomeEmpresaPedido = primeiroValor(pedidoData['Empresa'], pedidoData['Razão Social'], pedidoData['Nome/Razão Social'], pedidoData['Nome Chave'], pedidoData['Cliente']);
-                    if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) cliente['Nome/Razão Social'] = nomeEmpresaPedido;
+                    const nomeEmpresaPedido = primeiroValor(pedidoData['Empresa'], pedidoData['Nome/Razão Social'], pedidoData['Razão Social'], pedidoData['Nome Chave'], pedidoData['Cliente']);
+                    // Para a ficha provisória, Empresa é a fonte preferencial da razão social,
+                    // pois é o nome empresarial completo exibido nos detalhes do pedido.
+                    // Só substitui um valor abreviado quando não há cadastro oficial resolvido.
+                    const temFichaOficialResolvida = !!(resolucaoCentral && resolucaoCentral.ficha);
+                    if (pedidoData['Empresa'] && (!temFichaOficialResolvida || !cliente['Nome/Razão Social'])) {
+                        cliente['Nome/Razão Social'] = String(pedidoData['Empresa']).trim();
+                    } else if (!cliente['Nome/Razão Social'] && nomeEmpresaPedido) {
+                        cliente['Nome/Razão Social'] = nomeEmpresaPedido;
+                    }
                     if (!cliente['Nome Chave'] && nomeEmpresaPedido) cliente['Nome Chave'] = nomeEmpresaPedido;
                     cliente._dadosProvisoriosPedido = true;
                 }
