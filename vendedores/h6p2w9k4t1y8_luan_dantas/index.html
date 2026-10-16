@@ -2633,6 +2633,22 @@
                         if (palavras.some(p=>key.includes(p))) { cliente = val; break; }
                     }
                 }
+                // Para uma variação provisória do Farol, abrir a ficha cadastral relacionada
+                // como referência: não deixar a tela cair no resumo incompleto do pedido.
+                if (!cliente) {
+                    const provisoria = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
+                    const rel = provisoria && provisoria.fichaRelacionada;
+                    if (rel) {
+                        const nomeRel = removeAcentos(String(rel.nome || '')).toUpperCase().trim();
+                        if (nomeRel) cliente = carteiraMap.get(nomeRel) || null;
+                        const cnpjRel = String(rel.cnpj || '').replace(/\D/g, '');
+                        if (!cliente && cnpjRel) {
+                            for (const val of carteiraMap.values()) {
+                                if (String(val['CPF/CGC'] || '').replace(/\D/g, '') === cnpjRel) { cliente = val; break; }
+                            }
+                        }
+                    }
+                }
                 if (!cliente) {
                     if (pedidoData) {
                         let htmlFallback = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><button onclick="voltarModal()" style="background:none;border:none;color:var(--primary);cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><h3><i class="fas fa-file-invoice"></i> ${pedidoData['Razão Social']||pedidoData['Cliente']||pedidoData['Nome Chave']||'Cotação'}</h3><button onclick="document.getElementById('detail-modal').classList.remove('active');modalHistory=[];window._kpiModalStack=[];window.fichaPedidoData=null;" style="background:none;border:none;font-size:1.5rem;cursor:pointer;">&times;</button></div><div class="ficha-secao"><h4><i class="fas fa-info-circle"></i> Cliente não localizado na carteira</h4><p style="color:var(--muted);">Dados apenas da cotação/pedido.</p></div><div class="ficha-secao"><h4><i class="fas fa-clipboard-list"></i> Detalhes</h4><table style="font-size:0.75rem;"><tbody>`;
@@ -2645,6 +2661,12 @@
                     document.getElementById('modal-body').innerHTML = '<p style="padding:40px;text-align:center;">Cliente não encontrado.</p>';
                     return;
                 }
+                // Se a ficha aberta foi resolvida a partir de uma variação provisória,
+                // preserve o nome faturado como alias para vincular também os pedidos dela.
+                const registroProvisorioAberto = clientesStatus.find(c => c.provisório && c.nomeUpper === nomeBusca);
+                if (registroProvisorioAberto && registroProvisorioAberto.fichaRelacionada) {
+                    cliente = { ...cliente, _aliasProvisorioFarol: registroProvisorioAberto.nome };
+                }
                 window.clienteFichaAtual = cliente;
                 const palavras = (cliente.nome||nomeUpper).split(/\s+/).filter(p=>p.length>2);
                 const similares = Array.from(carteiraMap.values()).filter(c=>c.nome&&c.nome.toUpperCase()!==cliente.nome.toUpperCase()&&palavras.some(p=>c.nome.toUpperCase().includes(p)));
@@ -2655,7 +2677,7 @@
                 // Resumo dos pedidos faturados deste cliente, disponível na ficha do Farol
                 // mesmo quando o usuário não abriu a ficha a partir de uma linha de pedido.
                 const cnpjFicha = String(cliente['CPF/CGC'] || '').replace(/\D/g, '');
-                const nomesFicha = [cliente['Nome Chave'], cliente['Nome/Razão Social'], cliente.nome, nomeUpper]
+                const nomesFicha = [cliente['Nome Chave'], cliente['Nome/Razão Social'], cliente.nome, cliente._aliasProvisorioFarol, nomeUpper]
                     .filter(Boolean).map(n => removeAcentos(String(n)).toUpperCase().trim());
                 const tokensFicha = nomesFicha.flatMap(n => n.split(/[^A-Z0-9]+/).filter(t => t.length > 2));
                 const pedidosFaturadosCliente = (Array.isArray(fatFull) ? fatFull : []).filter(p => {
