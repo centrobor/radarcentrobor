@@ -2212,15 +2212,26 @@
                 'Cidade': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['Cidade']) || pedido['Cidade'] || pedido['Município'] || '',
                 'UF': (clienteRelacionado && clienteRelacionado.original && clienteRelacionado.original['UF']) || pedido['UF'] || ''
             };
+            // Cadastro provisório NÃO implica cliente ativo. Calcular o Farol
+            // pela data real do pedido, com a mesma régua dos clientes cadastrados.
+            // Datas futuras são inválidas para atividade e não podem virar 0 dias.
+            const hojeFarol = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+            const dataPedidoValida = data && !Number.isNaN(new Date(data).getTime())
+                && new Date(data.getFullYear(), data.getMonth(), data.getDate()) <= hojeFarol;
+            const ultimaProvisoria = dataPedidoValida ? data : null;
+            const diasProvisorio = ultimaProvisoria
+                ? Math.floor((hojeFarol - new Date(ultimaProvisoria.getFullYear(), ultimaProvisoria.getMonth(), ultimaProvisoria.getDate())) / (1000 * 60 * 60 * 24))
+                : Infinity;
+            const statusProvisorio = diasProvisorio <= 30 ? 'green' : (diasProvisorio < 180 ? 'yellow' : 'red');
             clientesStatus.push({
                 nome: nomePedido,
-                status: 'green',
-                ultima: data ? formatarData(data) : 'Faturamento recente',
-                ultimaInteracao: data || new Date(),
-                dias: 0,
+                status: statusProvisorio,
+                ultima: ultimaProvisoria ? formatarData(ultimaProvisoria) : (data ? 'Data futura inválida' : 'Sem interação'),
+                ultimaInteracao: ultimaProvisoria,
+                dias: diasProvisorio,
                 cidade: original['Cidade'],
                 uf: original['UF'],
-                ativo: true,
+                ativo: false,
                 cadastrado: false,
                 provisório: true,
                 original,
