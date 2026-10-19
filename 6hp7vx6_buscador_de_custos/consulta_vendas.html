@@ -251,7 +251,7 @@
 
         <h2 class="section-heading"><i class="fas fa-cogs"></i> Correias Ammega Group</h2>
         <div class="cards-grid" id="ammega-grid"></div>
-        <h2 class="section-heading"><i class="fas fa-industry"></i> Catálogo Rexon</h2>
+        <h2 class="section-heading"><i class="fas fa-industry"></i> Grupo Rexon</h2>
         <div class="cards-grid" id="rexon-grid"></div>
 
         <div class="disabled-section">
@@ -287,6 +287,7 @@
             </div>
             <div class="search-modal-bar">
                 <div class="search-box-modal"><i class="fas fa-search"></i><input type="text" id="category-search-input" placeholder="Buscar por código ou descrição..."></div>
+                <select id="rexon-profile-filter" aria-label="Filtrar por perfil" style="display:none; min-width:140px; padding:10px 14px; border:1px solid #ccd7e4; border-radius:40px; background:white; font-size:.85rem;"><option value="">Todos os perfis</option></select>
                 <button class="btn-sm btn-outline-sm" id="category-filters-btn"><i class="fas fa-sliders-h"></i> Filtros</button>
                 <span id="category-result-badge" style="display:none; background:#e9f0f5; padding:4px 12px; border-radius:40px;"><i class="fas fa-box"></i> <span id="category-result-count">0</span></span>
             </div>
@@ -484,6 +485,29 @@
             function formatMoney(v) { return `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`; }
             const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
+            function isRexonHiddenColumn(key) {
+                const k = norm(key).replace(/[^a-z0-9]/g, '');
+                return k.includes('codigodebarras') || k.includes('qtd padrao'.replace(/[^a-z0-9]/g, '')) ||
+                    k.includes('qtdepadrao') || k.includes('quantidadepadrao') || k.includes('precobruto') ||
+                    k.includes('precobrutoriginal');
+            }
+            function getRexonProfile(prod) {
+                const key = findKeyByPattern(prod, ['perfil']);
+                return key ? String(prod[key] ?? '').trim() : '';
+            }
+            function updateRexonProfileFilter(products) {
+                const select = document.getElementById('rexon-profile-filter');
+                if (!select) return;
+                const isRexon = currentCategory?.group === 'rexon';
+                select.style.display = isRexon ? '' : 'none';
+                if (!isRexon) { select.value = ''; return; }
+                const previous = select.value;
+                const profiles = [...new Set(products.map(getRexonProfile).filter(Boolean))]
+                    .sort((a,b) => a.localeCompare(b, 'pt-BR', {numeric:true, sensitivity:'base'}));
+                select.innerHTML = '<option value="">Todos os perfis</option>' + profiles.map(v => `<option value="${escapeHtml(v)}">Perfil ${escapeHtml(v)}</option>`).join('');
+                if (profiles.includes(previous)) select.value = previous;
+            }
+
             function isColumnBlocked(key) {
                 if (!key || key.trim() === '') return true;
                 const keyNorm = norm(key).replace(/\s+/g, ' ').trim();
@@ -588,8 +612,9 @@
             }
 
             function getRexonFactor(cat) {
-                const catName = norm(cat.name.replace(/^Rexon · /i,''));
-                const item = configData.find(x => norm(x.marca) === 'rexon' && (norm(x.familia) === catName || norm(x.familia).includes(catName) || catName.includes(norm(x.familia).replace(/^rexon\s*/,''))));
+                const compact = value => norm(value).replace(/[^a-z0-9]/g, '').replace(/^rexon/, '');
+                const wanted = compact(cat.name);
+                const item = configData.find(x => norm(x.marca) === 'rexon' && compact(x.familia) === wanted);
                 const raw = String(item?.aumento || '').trim();
                 const match = raw.match(/fator\s*=\s*([0-9.,]+)/i);
                 if (!match) return null;
@@ -663,7 +688,11 @@
                         let code = getField(p, ['código', 'codigo', 'CODIGO SAP', 'Código SAP', 'SAP'], '');
                         if (!norm(desc + code).includes(query)) return false;
                     }
-                    let price = parseMoney(getField(p, ['custo para vendas', 'preço venda peça', 'valor final',
+                    if (currentCategory?.group === 'rexon') {
+                        const selectedProfile = document.getElementById('rexon-profile-filter')?.value || '';
+                        if (selectedProfile && norm(getRexonProfile(p)) !== norm(selectedProfile)) return false;
+                    }
+                    let price = currentCategory?.group === 'rexon' ? parseMoney(p['Preço de Venda']) : parseMoney(getField(p, ['custo para vendas', 'preço venda peça', 'valor final',
                         'Preço de Venda c/ 18% ICMS e IPI 5% Jan.2026 por metro',
                         'Preço de Venda c/ 18% ICMS e IPI 6,5% Jan.2025',
                         'Preço de Venda (Fechada sem emenda)', 'Preço Líquido', 'Preço de venda por Milimetro'
@@ -679,23 +708,29 @@
                     return true;
                 });
                 if (!filtered.length) { renderTable(filtered); return; }
+                updateRexonProfileFilter(allProducts);
                 let cacheKey = currentCategory.key;
                 if (!numericColumnsCache.has(cacheKey) && filtered.length) {
                     let sample = filtered.slice(0, 10);
-                    let visibleKeys = Object.keys(filtered[0] || {}).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_'));
+                    let visibleKeys = Object.keys(filtered[0] || {}).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') && !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k)));
                     numericColumnsCache.set(cacheKey, visibleKeys.filter(k => isColumnNumeric(sample, k)));
                 }
                 let numericCols = numericColumnsCache.get(cacheKey) || [];
-                if ((!currentSort.column || !numericCols.includes(currentSort.column)) && numericCols.length) {
-                    currentSort.column = numericCols[0]; currentSort.direction = 'desc';
-                }
-                if (currentSort.column && numericCols.includes(currentSort.column)) {
+                if (currentSort.column) {
+                    const sortKey = currentSort.column;
                     filtered = stableSort(filtered, (a, b) => {
-                        let aVal = getNumericValue(a, currentSort.column), bVal = getNumericValue(b, currentSort.column);
-                        if (aVal === null && bVal === null) return 0;
-                        if (aVal === null) return 1;
-                        if (bVal === null) return -1;
-                        return currentSort.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                        const aNum = parseMoney(a[sortKey]), bNum = parseMoney(b[sortKey]);
+                        const numeric = numericCols.includes(sortKey) || (Number.isFinite(aNum) && Number.isFinite(bNum));
+                        let result = 0;
+                        if (numeric) {
+                            if (!Number.isFinite(aNum) && !Number.isFinite(bNum)) result = 0;
+                            else if (!Number.isFinite(aNum)) result = 1;
+                            else if (!Number.isFinite(bNum)) result = -1;
+                            else result = aNum - bNum;
+                        } else {
+                            result = String(a[sortKey] ?? '').localeCompare(String(b[sortKey] ?? ''), 'pt-BR', {numeric:true, sensitivity:'base'});
+                        }
+                        return currentSort.direction === 'asc' ? result : -result;
                     });
                 }
                 renderTable(filtered);
@@ -703,10 +738,12 @@
 
             function getTableColumns(sample) {
                 if (!sample) return [];
-                let keys = Object.keys(sample).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_'));
-                const priority = ['descrição', 'descricao', 'DESCRIÇÃO', 'código', 'codigo', 'CODIGO SAP', 'Código SAP',
+                let keys = Object.keys(sample).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') && !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k)));
+                if (currentCategory?.group === 'rexon' && !keys.includes('Preço de Venda')) keys.push('Preço de Venda');
+                const priority = currentCategory?.group === 'rexon' ? ['Perfil', 'Referência', 'Código do Produto', 'Descrição', 'Preço de Venda'] : ['descrição', 'descricao', 'DESCRIÇÃO', 'código', 'codigo', 'CODIGO SAP', 'Código SAP',
                     'custo para vendas (ipi+mkp)', 'custo para vendas', 'preço venda peça', 'valor final', 'preço', 'valor', 'moq', 'PESO', 'peso'];
                 const customDisplay = {
+                    'preco de venda': 'PREÇO DE VENDA',
                     'custo para vendas (ipi+mkp)': 'VALOR DE VENDA',
                     'preco de venda c/ 18% icms e ipi 5% jan.2026 por metro': 'VALOR DE VENDA',
                     'preco de venda c/ 18% icms e ipi 6,5% jan.2025': 'VALOR DE VENDA',
@@ -744,9 +781,9 @@
                 let numericCols = numericColumnsCache.get(currentCategory.key) || [];
                 let html = '<table class="products-table"><thead><tr>';
                 for (let c of cols) {
-                    let isNumeric = numericCols.includes(c.key);
-                    let iconHtml = isNumeric ? (currentSort.column === c.key ? (currentSort.direction === 'asc' ? '<i class="fas fa-arrow-up active-sort"></i>' : '<i class="fas fa-arrow-down active-sort"></i>') : '<i class="fas fa-sort sort-icon"></i>') : '<span class="no-sort-indicator"><i class="fas fa-ban"></i></span>';
-                    html += `<th class="${isNumeric?'sortable':''}" data-sort-key="${c.key}" data-numeric="${isNumeric}">${c.display} ${iconHtml}</th>`;
+                    const isActive = currentSort.column === c.key;
+                    let iconHtml = isActive ? (currentSort.direction === 'asc' ? '<i class="fas fa-arrow-up active-sort"></i>' : '<i class="fas fa-arrow-down active-sort"></i>') : '<i class="fas fa-sort sort-icon"></i>';
+                    html += `<th class="sortable" data-sort-key="${escapeHtml(c.key)}" data-numeric="${numericCols.includes(c.key)}">${c.display} ${iconHtml}</th>`;
                 }
                 html += '</tr></thead><tbody>';
                 for (let p of products) {
@@ -756,7 +793,7 @@
                         if (numericCols.includes(c.key)) {
                             let num = parseMoney(val);
                             if (!isNaN(num)) {
-                                if (c.display.includes('PREÇO') || c.display.includes('VALOR') || c.display.includes('VENDA')) display = formatMoney(num);
+                                if (c.display.includes('PREÇO') || c.display.includes('VALOR') || c.display.includes('VENDA')) display = currentCategory?.group === 'rexon' && norm(c.key) === 'preco de venda' ? num.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : formatMoney(num);
                                 else if (c.display.includes('PESO')) display = `${num.toFixed(2)} ${currentCategory?.key === 'correias_ind' ? 'kg' : 'g'}`;
                                 else display = num.toString();
                             }
@@ -771,9 +808,8 @@
                 document.getElementById('category-result-badge').style.display = 'flex';
                 container.querySelectorAll('th.sortable').forEach(th => {
                     th.addEventListener('click', () => {
-                        if (th.dataset.numeric !== 'true') return;
                         if (currentSort.column === th.dataset.sortKey) currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
-                        else { currentSort.column = th.dataset.sortKey; currentSort.direction = 'desc'; }
+                        else { currentSort.column = th.dataset.sortKey; currentSort.direction = 'asc'; }
                         applyFiltersAndRender();
                     });
                 });
@@ -805,6 +841,24 @@
 
                 document.getElementById('detail-category-name').innerHTML = `<i class="fas fa-tag"></i> ${cat.name}`;
                 document.getElementById('detail-prod-thumb').src = cat.img;
+
+                // ---------- GRUPO REXON: detalhes completos sem dados internos de custo ----------
+                if (cat.group === 'rexon') {
+                    const excluded = key => isRexonHiddenColumn(key) || key.startsWith('_') || norm(key).includes('preco de venda');
+                    const preferred = ['Perfil', 'Tipo', 'Referência', 'Largura (mm)', 'Compr. (m)', 'Nº de dentes', 'Passo', 'Código do Produto', 'Descrição'];
+                    const keys = Object.keys(prod).filter(k => !excluded(k) && !k.includes('_originalIndex'));
+                    const ordered = [...preferred.filter(k => keys.some(key => norm(key) === norm(k))), ...keys.filter(k => !preferred.some(pref => norm(pref) === norm(k)))];
+                    for (const key of ordered) {
+                        const value = prod[key];
+                        if (value === null || value === undefined || String(value).trim() === '') continue;
+                        html += `<div class="receipt-line"><span>${escapeHtml(key.replace(/\s+/g,' ').trim())}:</span><span><strong>${escapeHtml(String(value))}</strong></span></div>`;
+                    }
+                    const salePrice = parseMoney(prod['Preço de Venda']);
+                    if (Number.isFinite(salePrice)) html += `<div class="receipt-line price-highlight"><span>Preço de Venda:</span><span>${salePrice.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>`;
+                    document.getElementById('receipt-body').innerHTML = html;
+                    document.getElementById('detail-modal-overlay').classList.add('active');
+                    return;
+                }
 
                 // ---------- MEGALINEAR ----------
                 if (cat.key === 'megalinear') {
@@ -1178,6 +1232,7 @@
                     applyFiltersAndRender();
                 });
                 document.getElementById('category-search-input').addEventListener('input', () => applyFiltersAndRender());
+                document.getElementById('rexon-profile-filter').addEventListener('change', () => applyFiltersAndRender());
                 document.getElementById('filters-modal-overlay').addEventListener('click', e => { if (e.target === document.getElementById('filters-modal-overlay')) e.target.classList.remove('active'); });
                 document.getElementById('category-modal').addEventListener('click', e => { if (e.target === document.getElementById('category-modal')) e.target.classList.remove('active'); });
                 document.getElementById('detail-close-btn').addEventListener('click', () => document.getElementById('detail-modal-overlay').classList.remove('active'));
@@ -1257,6 +1312,7 @@
                 document.getElementById('category-modal-title').innerText = cat.name;
                 document.getElementById('modal-cat-thumb').src = cat.img;
                 document.getElementById('category-search-input').value = '';
+                document.getElementById('rexon-profile-filter').value = '';
                 currentFilters = { priceMin: null, priceMax: null, moqMin: null, moqMax: null, weightMin: null, weightMax: null };
                 currentSort = { column: null, direction: 'desc' };
                 document.getElementById('category-modal').classList.add('active');
