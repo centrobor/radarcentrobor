@@ -650,21 +650,31 @@
                     let json = await resp.json();
                     const aumentoPercent = getAumentoPercentualAtual(cat);
                     const rexonFactor = cat.group === 'rexon' ? getRexonFactor(cat) : null;
-                    let products = json.map((row, idx) => {
-                        let clean = {};
-                        for (let [k, v] of Object.entries(row)) {
-                            if (k.trim() === '') continue;
-                            clean[String(k)] = v;
-                        }
-                        clean._originalIndex = idx;
-                        if (rexonFactor !== null) {
-                            const brutoKey = findKeyByPattern(clean, ['preço bruto','preco bruto']);
-                            const bruto = brutoKey ? parseMoney(clean[brutoKey]) : NaN;
-                            if (!isNaN(bruto)) { clean['_Preço bruto original'] = bruto; clean['Preço de Venda'] = bruto * rexonFactor; }
-                        }
-                        if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
-                        return clean;
-                    });
+                    // Algumas abas Rexon exportam linhas completamente vazias no início/fim.
+                    // Remova-as antes de determinar as colunas; caso contrário, a tabela usa
+                    // a primeira linha vazia como modelo e fica sem cabeçalhos.
+                    let products = json
+                        .filter(row => row && typeof row === 'object' &&
+                            Object.entries(row).some(([k, v]) => String(k || '').trim() && String(v ?? '').trim()))
+                        .map((row, idx) => {
+                            let clean = {};
+                            for (let [k, v] of Object.entries(row)) {
+                                if (String(k).trim() === '') continue;
+                                clean[String(k).trim()] = v;
+                            }
+                            clean._originalIndex = idx;
+                            if (rexonFactor !== null) {
+                                const brutoKey = findKeyByPattern(clean, ['preço bruto', 'preco bruto']);
+                                const bruto = brutoKey ? parseMoney(clean[brutoKey]) : NaN;
+                                if (Number.isFinite(bruto)) {
+                                    clean['_Preço bruto original'] = bruto;
+                                    clean['Preço de Venda'] = Math.round((bruto * rexonFactor + Number.EPSILON) * 100) / 100;
+                                }
+                            }
+                            if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
+                            return clean;
+                        });
+
                     dataCache[cat.key] = products;
                     if (aumentoPercent !== 0) console.log(`📈 Categoria "${cat.name}": reajuste de ${aumentoPercent}% aplicado`);
                     return products;
