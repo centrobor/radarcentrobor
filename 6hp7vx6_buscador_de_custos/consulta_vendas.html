@@ -251,6 +251,8 @@
 
         <h2 class="section-heading"><i class="fas fa-cogs"></i> Correias Ammega Group</h2>
         <div class="cards-grid" id="ammega-grid"></div>
+        <h2 class="section-heading"><i class="fas fa-industry"></i> Catálogo Rexon</h2>
+        <div class="cards-grid" id="rexon-grid"></div>
 
         <div class="disabled-section">
             <h2 class="section-heading" style="color:#6c757d;"><i class="fas fa-industry"></i> Grupo Continental</h2>
@@ -394,6 +396,26 @@
                 { key: 'sincrobor', name: 'Sincro Bor.', img: 'img/SINCRO_BOR.png', jsonFile: 'catalogo_sincrobor.json', needsWidth: true, group: 'ammega' },
                 { key: 'megarib', name: 'Megarib', img: 'img/MEGARIB.png', jsonFile: 'catalogo_megarib.json', needsWidth: true, group: 'ammega' },
                 { key: 'polyv', name: 'Poly V', img: 'img/POLY_V.png', jsonFile: 'catalogo_polyv.json', needsWidth: true, group: 'ammega' }
+            ];
+
+            const REXON_CATEGORIES = [
+                { key: 'rexon_powermake', name: 'PowerMake', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_powermake.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_megapower_rexon', name: 'MegaPower', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_megapower.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_machinepower', name: 'MachinePower', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_machinepower.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_hightv', name: 'HightV', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_hightv.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_hightvdentada', name: 'HightV Dentada', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_hightv_dentada.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_moinhos_rexon', name: 'Moinhos', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_moinhos.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_fracionariazx', name: 'Fracionária ZX', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_fracionaria_zx.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_minivk', name: 'Mini V-K', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_mini_vk.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_metricline', name: 'Metric Line', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_metricline.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_metriclinedentada', name: 'Metric Line Dentada', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_metricline_dentada.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_polirib', name: 'Polirib', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_polirib.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_wline', name: 'W Line', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_wline.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_torkband', name: 'TorkBand', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_torkband.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_torkbanddentada', name: 'TorkBand Dentada', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_torkband_dentada.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_sincronizadaborracha', name: 'Sincronizada Borracha', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_sincronizada_borracha.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_sincronizadorapubora_aberta', name: 'Sincronizadora PU Borracha Aberta', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_sincronizadora_pu_borracha_aberta.json', needsWidth: false, group: 'rexon' },
+                { key: 'rexon_sincronizadorapu', name: 'Sincronizadora PU', img: 'img/cat_exemple.png', jsonFile: 'catalogo_rexon_sincronizadora_pu.json', needsWidth: false, group: 'rexon' }
             ];
 
             const CONTINENTAL_CATEGORIES = [
@@ -565,6 +587,16 @@
                 } catch (e) { console.warn('Erro ao carregar config_catalogo.json da pasta dados/:', e); }
             }
 
+            function getRexonFactor(cat) {
+                const catName = norm(cat.name.replace(/^Rexon · /i,''));
+                const item = configData.find(x => norm(x.marca) === 'rexon' && (norm(x.familia) === catName || norm(x.familia).includes(catName) || catName.includes(norm(x.familia).replace(/^rexon\s*/,''))));
+                const raw = String(item?.aumento || '').trim();
+                const match = raw.match(/fator\s*=\s*([0-9.,]+)/i);
+                if (!match) return null;
+                const value = parseFloat(match[1].replace(',', '.'));
+                return Number.isFinite(value) && value > 0 ? value : null;
+            }
+
             function getAumentoPercentualAtual(cat) {
                 const mapping = CONFIG_MAPPING[cat.key];
                 if (!mapping) return 0;
@@ -587,6 +619,7 @@
                     if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ao carregar ' + cat.jsonFile + '. Verifique se o arquivo foi publicado na pasta dados/.');
                     let json = await resp.json();
                     const aumentoPercent = getAumentoPercentualAtual(cat);
+                    const rexonFactor = cat.group === 'rexon' ? getRexonFactor(cat) : null;
                     let products = json.map((row, idx) => {
                         let clean = {};
                         for (let [k, v] of Object.entries(row)) {
@@ -594,6 +627,11 @@
                             clean[String(k)] = v;
                         }
                         clean._originalIndex = idx;
+                        if (rexonFactor !== null) {
+                            const brutoKey = findKeyByPattern(clean, ['preço bruto','preco bruto']);
+                            const bruto = brutoKey ? parseMoney(clean[brutoKey]) : NaN;
+                            if (!isNaN(bruto)) { clean['_Preço bruto original'] = bruto; clean['Preço de Venda'] = bruto * rexonFactor; }
+                        }
                         if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
                         return clean;
                     });
@@ -789,6 +827,7 @@
                     document.getElementById('receipt-body').innerHTML = html;
 
                     const aumentoPercent = getAumentoPercentualAtual(cat);
+                    const rexonFactor = cat.group === 'rexon' ? getRexonFactor(cat) : null;
                     const refAjustado = refMM_m * (1 + aumentoPercent / 100);
 
                     const isFixed = FIXED_WIDTH_CODES.hasOwnProperty(codigoRaw.toUpperCase());
@@ -1206,11 +1245,13 @@
                         <h3>${c.name}</h3>
                     </div>`).join('');
                 document.querySelectorAll('#ammega-grid .category-card').forEach(card => card.addEventListener('click', () => openCategory(card.dataset.cat)));
+                document.getElementById('rexon-grid').innerHTML = REXON_CATEGORIES.map(c => `<div class="category-card" data-cat="${c.key}"><img src="${c.img}" class="card-thumb"><h3>${c.name}</h3></div>`).join('');
+                document.querySelectorAll('#rexon-grid .category-card').forEach(card => card.addEventListener('click', () => openCategory(card.dataset.cat)));
                 renderDisabledSections();
             }
 
             async function openCategory(catKey) {
-                let cat = [...AMMEGA_CATEGORIES, ...CONTINENTAL_CATEGORIES].find(c => c.key === catKey);
+                let cat = [...AMMEGA_CATEGORIES, ...REXON_CATEGORIES, ...CONTINENTAL_CATEGORIES].find(c => c.key === catKey);
                 if (!cat) return;
                 currentCategory = cat;
                 document.getElementById('category-modal-title').innerText = cat.name;
