@@ -477,10 +477,15 @@
             function convertLength(value, fromUnit, toUnit = 'mm') { return value * (LENGTH_UNITS[fromUnit] || 1) / (LENGTH_UNITS[toUnit] || 1); }
             function convertWeightFromKg(kg, toUnit) { if (toUnit === 'g') return kg * 1000; if (toUnit === 'lb') return kg * 2.20462; return kg; }
             function parseMoney(val) {
-                if (val === undefined || val === null) return NaN;
-                if (typeof val === 'number') return val;
-                let str = String(val).replace(/R\$\s*/g, '').replace(/BRL\s*/g, '').trim().replace(/\s/g, '').replace(/\./g, '').replace(',', '.');
-                return parseFloat(str) || NaN;
+                if (val === undefined || val === null || val === '') return NaN;
+                if (typeof val === 'number') return Number.isFinite(val) ? val : NaN;
+                let str = String(val).replace(/R\$\s*/g, '').replace(/BRL\s*/g, '').trim().replace(/\s/g, '');
+                // Aceita números JSON (11.420844) e moeda brasileira (1.234,56).
+                if (/^-?\d+\.\d+$/.test(str)) return Number(str);
+                if (/^-?\d+,\d+$/.test(str)) return Number(str.replace(',', '.'));
+                str = str.replace(/\./g, '').replace(',', '.');
+                const parsed = Number(str);
+                return Number.isFinite(parsed) ? parsed : NaN;
             }
             function formatMoney(v) { return `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`; }
             const norm = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -738,6 +743,14 @@
 
             function getTableColumns(sample) {
                 if (!sample) return [];
+                // No Grupo Rexon, mostrar os dados técnicos do produto e ocultar apenas os campos internos solicitados.
+                if (currentCategory?.group === 'rexon') {
+                    const keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original' && norm(k) !== 'preco bruto');
+                    const saleKey = keys.find(k => norm(k) === 'preco de venda');
+                    const orderedKeys = keys.filter(k => k !== saleKey);
+                    if (saleKey) orderedKeys.push(saleKey);
+                    return orderedKeys.map(key => ({ key, display: norm(key) === 'preco de venda' ? 'PREÇO DE VENDA' : key.replace(/_/g, ' ').toUpperCase() }));
+                }
                 let keys = Object.keys(sample).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') && !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k)));
                 if (currentCategory?.group === 'rexon' && !keys.includes('Preço de Venda')) keys.push('Preço de Venda');
                 const priority = currentCategory?.group === 'rexon' ? ['Perfil', 'Referência', 'Código do Produto', 'Descrição', 'Preço de Venda'] : ['descrição', 'descricao', 'DESCRIÇÃO', 'código', 'codigo', 'CODIGO SAP', 'Código SAP',
@@ -844,7 +857,7 @@
 
                 // ---------- GRUPO REXON: detalhes completos sem dados internos de custo ----------
                 if (cat.group === 'rexon') {
-                    const excluded = key => isRexonHiddenColumn(key) || key.startsWith('_') || norm(key).includes('preco de venda');
+                    const excluded = key => isRexonHiddenColumn(key) || key.startsWith('_') || ['preco bruto', 'preco bruto original', 'preco de venda'].includes(norm(key));
                     const preferred = ['Perfil', 'Tipo', 'Referência', 'Largura (mm)', 'Compr. (m)', 'Nº de dentes', 'Passo', 'Código do Produto', 'Descrição'];
                     const keys = Object.keys(prod).filter(k => !excluded(k) && !k.includes('_originalIndex'));
                     const ordered = [...preferred.filter(k => keys.some(key => norm(key) === norm(k))), ...keys.filter(k => !preferred.some(pref => norm(pref) === norm(k)))];
