@@ -1731,7 +1731,26 @@
                 let diasRestantes = null;
                 if (dataFim) diasRestantes = Math.max(0, Math.ceil((dataFim-hoje)/(1000*60*60*24)));
                 html += `<div class="campaign-card"><div class="campaign-header">${camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>'} ${camp.campanha}</div><div style="font-size:0.8rem;color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex;justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%;background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
-                if (perc >= 100) conquistas.push({ nome: camp.campanha, meta, realizado, perc, tipo:'CAMPANHA', categoria:'CAMPANHA ESPECIAL', data_inicio:camp.data_inicio, data_fim:camp.data_fim, chave: `campanha_${camp.campanha.replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}` });
+                if (perc >= 100) {
+                    const conquistaCampanha = { nome: camp.campanha, meta, realizado, perc, tipo:'CAMPANHA', categoria:'CAMPANHA ESPECIAL', data_inicio:camp.data_inicio, data_fim:camp.data_fim, chave: `campanha_${String(camp.campanha||'campanha').trim().replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}` };
+                    conquistas.push(conquistaCampanha);
+                    // Qualquer campanha atingida no mês corrente ganha seu próprio banner temporário,
+                    // mesmo que a notificação já tenha sido lida ou a celebração já tenha ocorrido.
+                    const agora = new Date();
+                    const inicioCampanha = parseDataBR(camp.data_inicio);
+                    const fimCampanha = parseDataBR(camp.data_fim);
+                    const campanhaDoMesAtual = (inicioCampanha && inicioCampanha.getFullYear()===agora.getFullYear() && inicioCampanha.getMonth()===agora.getMonth()) || (fimCampanha && fimCampanha.getFullYear()===agora.getFullYear() && fimCampanha.getMonth()===agora.getMonth());
+                    if (campanhaDoMesAtual) {
+                        const tema = classeMedalha(conquistaCampanha);
+                        let bannersAtuais = [];
+                        try { bannersAtuais = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA)||'[]'); if (!Array.isArray(bannersAtuais)) bannersAtuais=[]; } catch(_) { bannersAtuais=[]; }
+                        const existente = bannersAtuais.find(b => b && b.chave===conquistaCampanha.chave);
+                        if (!existente) {
+                            bannersAtuais.unshift({...conquistaCampanha, timestamp:Date.now(), autor:nomeVendedor||'Matheus', icone:tema.icone, cor:tema.cor, clara:tema.clara, ink:tema.ink, categoria:tema.categoria, tipoBanner:'conquista'});
+                            localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(bannersAtuais.slice(0,40)));
+                        }
+                    }
+                }
             });
             document.getElementById('campanhas-especiais-container').innerHTML = html;
             return conquistas;
@@ -3401,6 +3420,8 @@
         };
 
         const conquistasCampanhas = await renderizarCampanhasEspeciais();
+        // Re-renderiza o carrossel depois de avaliar campanhas para incluir banners de metas atingidas.
+        if (typeof renderCarrossel === 'function') renderCarrossel();
         const conquistasMetas = [];
         const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
         const semestre = today.getMonth()<6?1:2;
