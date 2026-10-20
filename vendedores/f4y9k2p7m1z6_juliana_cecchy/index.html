@@ -1913,6 +1913,20 @@
         const badge = document.querySelectorAll('[data-prizes-count]');
         badge.forEach(el => { el.textContent = '0'; el.style.display = 'none'; });
     }
+    // Fonte consolidada usada pelo quadro de medalhas; definida aqui para não depender de outro arquivo.
+    let premiosConsolidadoCacheJu = null;
+    async function obterDadosPremios() {
+        if (premiosConsolidadoCacheJu !== null) return premiosConsolidadoCacheJu;
+        try {
+            const dados = await carregarJSON(BASES.metasConsolidadas);
+            premiosConsolidadoCacheJu = Array.isArray(dados) ? dados : [];
+        } catch (e) {
+            console.warn('Não foi possível carregar o consolidado de metas:', e);
+            premiosConsolidadoCacheJu = [];
+        }
+        return premiosConsolidadoCacheJu;
+    }
+
     async function abrirMeusPremiosJu() {
         marcarConquistasComoLidas();
         const modal = document.getElementById('meus-premios-modal');
