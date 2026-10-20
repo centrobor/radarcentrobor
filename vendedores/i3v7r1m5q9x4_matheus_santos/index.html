@@ -1602,41 +1602,55 @@
     }
 
     let currentCarouselIndex = 0;
+    function bannerMetaMensalAtualValido(item) {
+        if (!item) return false;
+        const agora = new Date();
+        const chaveMes = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+        const chave = String(item.chave || item.id || '');
+        const titulo = String(item.nome || item.titulo || '').toLowerCase();
+        const chaveMensalAtual = chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chave.includes(chaveMes));
+        const categoria = String(item.categoria || item.tipo || '').toUpperCase();
+        const meta = Number(item.meta) || 0;
+        const realizado = Number(item.realizado) || 0;
+        const ts = Number(item.timestamp || Date.parse(item.dataConquista || ''));
+        const recente = Number.isFinite(ts) && ts <= Date.now() && Date.now() - ts < DURACAO_CONQUISTA;
+        // O carrossel só exibe a meta mensal do mês corrente, com valores reais e meta positiva.
+        // Impede banners antigos, de campanhas, de trincas ou coletivos de serem confundidos com a meta mensal atual.
+        return chaveMensalAtual && !/TIME|COLETIV|TRINCA|SEMEST|ANUAL|CAMPANHA|PLUS/.test(categoria + ' ' + chave.toUpperCase()) && meta > 0 && realizado >= meta && recente;
+    }
+
     function obterBannersConquistaAtivos() {
         try {
             const agora = Date.now();
             let lista = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA) || '[]');
             if (!Array.isArray(lista)) lista = [];
-            // Compatibilidade com banner único salvo por versões antigas.
+            // Compatibilidade com banner único legado; só será mantido se comprovar meta mensal atual atingida.
             const legado = JSON.parse(localStorage.getItem('radar_banner_conquista_matheus') || 'null');
-            if (legado && legado.timestamp && agora - Number(legado.timestamp) >= 0 && agora - Number(legado.timestamp) < DURACAO_CONQUISTA) {
-                lista.push({...legado, chave:legado.chave || ('legado-'+legado.timestamp), titulo:legado.metas?.[0] || legado.nome || 'Conquista desbloqueada', nome:legado.metas?.[0] || legado.nome || 'Conquista desbloqueada', tipo:'MENSAL', icone:legado.icone || 'fa-medal', cor:legado.cor || '#c47b43', clara:legado.clara || '#f6d2ae', ink:legado.ink || '#5b2f15'});
+            if (legado && legado.timestamp) {
+                const bLegado = {...legado, chave:legado.chave || `meta_mensal_${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`, titulo:legado.metas?.[0] || legado.nome || 'Meta mensal atingida', nome:legado.metas?.[0] || legado.nome || 'Meta mensal atingida', tipo:'MENSAL', categoria:legado.categoria || 'META MENSAL', icone:legado.icone || 'fa-medal', cor:legado.cor || '#c47b43', clara:legado.clara || '#f6d2ae', ink:legado.ink || '#5b2f15'};
+                if (bannerMetaMensalAtualValido(bLegado)) lista.push(bLegado);
             }
-            // Reconstrói banners que ainda estão no prazo de 3 dias a partir dos prêmios e alertas salvos.
-            // Assim o carrossel continua mostrando a conquista mesmo após recarregar a página ou atualizar o código.
+            // Reconstroi apenas a conquista da meta mensal atual se ela foi realmente atingida.
             const fontes = [];
             try { fontes.push(...JSON.parse(localStorage.getItem(CHAVE_PREMIOS) || '[]')); } catch(_) {}
             try { fontes.push(...JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]')); } catch(_) {}
             fontes.forEach(p => {
-                if (!p || !p.chave) return;
+                if (!p || !p.chave || !bannerMetaMensalAtualValido(p)) return;
                 const rawTs = p.timestamp ?? p.dataConquista;
                 const ts = typeof rawTs === 'number' ? rawTs : Date.parse(rawTs);
-                if (!Number.isFinite(ts) || agora - ts < 0 || agora - ts >= DURACAO_CONQUISTA) return;
-                const chave = p.chave;
                 const tema = classeMedalha(p);
-                lista.push({chave, timestamp:ts, autor:p.autor || p.vendedor || nomeVendedor || 'Matheus', nome:p.nome || p.titulo || 'Conquista desbloqueada', titulo:p.nome || p.titulo || 'Conquista desbloqueada', meta:Number(p.meta)||0, realizado:Number(p.realizado)||0, perc:Number(p.perc)||100, categoria:p.categoria || tema.categoria, icone:p.icone || tema.icone, cor:p.cor || tema.cor, clara:p.clara || tema.clara, ink:p.ink || tema.ink, especialTime:(p.categoria || tema.categoria)==='META DO TIME', validadaMesAtual:!!p.validadaMesAtual});
+                lista.push({chave:p.chave,timestamp:ts,autor:p.autor||p.vendedor||nomeVendedor||'Matheus',nome:p.nome||p.titulo||'Meta mensal atingida',titulo:p.nome||p.titulo||'Meta mensal atingida',meta:Number(p.meta)||0,realizado:Number(p.realizado)||0,perc:Number(p.perc)||100,categoria:p.categoria||'META MENSAL',icone:p.icone||tema.icone,cor:p.cor||tema.cor,clara:p.clara||tema.clara,ink:p.ink||tema.ink,validadaMesAtual:true});
             });
-            // Mantém somente itens válidos e únicos, mais recentes primeiro.
             const unicos = new Map();
             lista.forEach(b => {
-                if (!b || !b.timestamp || agora - Number(b.timestamp) < 0 || agora - Number(b.timestamp) >= DURACAO_CONQUISTA) return;
+                if (!bannerMetaMensalAtualValido(b)) return;
                 const id = String(b.chave || b.id || b.nome || b.titulo || b.timestamp);
-                if (!unicos.has(id) || Number(b.timestamp) > Number(unicos.get(id).timestamp)) unicos.set(id, b);
+                if (!unicos.has(id) || Number(b.timestamp) > Number(unicos.get(id).timestamp)) unicos.set(id,b);
             });
             lista = [...unicos.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).slice(0,40);
-            localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(lista));
+            localStorage.setItem(CHAVE_BANNERS_CONQUISTA,JSON.stringify(lista));
             return lista;
-        } catch(e) { console.warn('Falha ao recuperar banners de conquistas:', e); return []; }
+        } catch(e) { console.warn('Falha ao recuperar banners de conquistas:',e); return []; }
     }
     function obterBannerConquistaAtivo() { return obterBannersConquistaAtivos()[0] || null; }
     function renderCarrossel() {
@@ -1806,7 +1820,9 @@
             const banners = obterBannersConquistaAtivos();
             novas.forEach(c => {
                 const tema = classeMedalha(c);
-                if (!banners.some(b => b.chave === c.chave)) banners.unshift({chave:c.chave,timestamp:Date.now(),autor:nomeVendedor||'Matheus',nome:c.nome,titulo:c.nome,metas:[c.nome],meta:Number(c.meta)||0,realizado:Number(c.realizado)||0,perc:Number(c.perc)||100,categoria:tema.categoria,icone:tema.icone,cor:tema.cor,clara:tema.clara,ink:tema.ink,especialTime:tema.categoria==='META DO TIME',validadaMesAtual:!!c._verificadaMesAtual});
+                // O banner temporário no carrossel é exclusivo da meta mensal do mês atual realmente atingida.
+                const bannerCandidato = {...c, timestamp:Date.now(), autor:nomeVendedor||'Matheus', categoria:tema.categoria, icone:tema.icone, cor:tema.cor, clara:tema.clara, ink:tema.ink};
+                if (bannerMetaMensalAtualValido(bannerCandidato) && !banners.some(b => b.chave === c.chave)) banners.unshift({...bannerCandidato, titulo:c.nome, nome:c.nome, metas:[c.nome], validadaMesAtual:true});
             });
             localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(banners.sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).slice(0,40)));
             renderCarrossel(); currentCarouselIndex = 0; updateCarrossel();
