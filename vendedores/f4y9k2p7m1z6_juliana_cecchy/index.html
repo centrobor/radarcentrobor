@@ -1259,11 +1259,52 @@
         } catch (_) { return null; }
     }
 
+    // O localStorage tem limite pequeno (geralmente alguns MB). Não gravamos
+    // JSONs grandes nele: eles continuam disponíveis em memória após o fetch.
+    const CACHE_MAX_ITEM_BYTES = 180 * 1024;
+    const CACHE_MAX_TOTAL_BYTES = 2 * 1024 * 1024;
+    const cacheFalhouNestaSessao = new Set();
+
     function salvarCacheEndpoint(url, data) {
+        const key = CACHE_PREFIX + url;
+        if (cacheFalhouNestaSessao.has(url)) return false;
+        let payload;
         try {
-            localStorage.setItem(CACHE_PREFIX + url, JSON.stringify({ savedAt: Date.now(), data }));
+            payload = JSON.stringify({ savedAt: Date.now(), data });
+            const bytes = new Blob([payload]).size;
+            // Arquivos grandes como carteiraclientes/faturados não devem ocupar
+            // o armazenamento persistente do navegador.
+            if (bytes > CACHE_MAX_ITEM_BYTES) {
+                cacheFalhouNestaSessao.add(url);
+                return false;
+            }
+            // Mantém o cache total sob controle e remove entradas antigas primeiro.
+            const entradas = [];
+            let total = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || !k.startsWith(CACHE_PREFIX) || k === key) continue;
+                const v = localStorage.getItem(k) || '';
+                total += new Blob([k, v]).size;
+                let savedAt = 0;
+                try { savedAt = JSON.parse(v)?.savedAt || 0; } catch (_) {}
+                entradas.push({ key: k, bytes: new Blob([k, v]).size, savedAt });
+            }
+            entradas.sort((a, b) => a.savedAt - b.savedAt);
+            while (total + new Blob([key, payload]).size > CACHE_MAX_TOTAL_BYTES && entradas.length) {
+                const antiga = entradas.shift();
+                localStorage.removeItem(antiga.key);
+                total -= antiga.bytes;
+            }
+            localStorage.setItem(key, payload);
+            return true;
         } catch (e) {
-            console.warn('Não foi possível atualizar o cache local:', e);
+            // Falha de quota não deve interromper renderização nem disparar
+            // repetidas tentativas e mensagens no console durante a sessão.
+            cacheFalhouNestaSessao.add(url);
+            try { localStorage.removeItem(key); } catch (_) {}
+            console.info('Cache local ignorado por limite de armazenamento:', url);
+            return false;
         }
     }
 
