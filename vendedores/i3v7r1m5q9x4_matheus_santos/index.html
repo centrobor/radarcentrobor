@@ -1608,15 +1608,29 @@
         const chaveMes = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
         const chave = String(item.chave || item.id || '');
         const titulo = String(item.nome || item.titulo || '').toLowerCase();
-        const chaveMensalAtual = chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chave.includes(chaveMes));
         const categoria = String(item.categoria || item.tipo || '').toUpperCase();
         const meta = Number(item.meta) || 0;
         const realizado = Number(item.realizado) || 0;
-        const ts = Number(item.timestamp || Date.parse(item.dataConquista || ''));
+        const rawTs = item.timestamp ?? item.dataConquista;
+        const ts = typeof rawTs === 'number' ? rawTs : Date.parse(rawTs || '');
         const recente = Number.isFinite(ts) && ts <= Date.now() && Date.now() - ts < DURACAO_CONQUISTA;
-        // O carrossel só exibe a meta mensal do mês corrente, com valores reais e meta positiva.
-        // Impede banners antigos, de campanhas, de trincas ou coletivos de serem confundidos com a meta mensal atual.
-        return chaveMensalAtual && !/TIME|COLETIV|TRINCA|SEMEST|ANUAL|CAMPANHA|PLUS/.test(categoria + ' ' + chave.toUpperCase()) && meta > 0 && realizado >= meta && recente;
+        if (!recente || meta <= 0 || realizado < meta) return false;
+
+        // Campanhas especiais (ex.: Dardos de Outubro) podem aparecer se os números
+        // da própria campanha atingiram a meta e o período pertence ao mês atual.
+        const ehCampanha = chave.toLowerCase().startsWith('campanha_') || /CAMPANHA|DARDOS/.test(categoria + ' ' + titulo.toUpperCase());
+        if (ehCampanha) {
+            const inicio = parseDataBR(item.data_inicio || '');
+            const fim = parseDataBR(item.data_fim || '');
+            const pertenceMesAtual = (inicio && inicio.getFullYear() === agora.getFullYear() && inicio.getMonth() === agora.getMonth()) || (fim && fim.getFullYear() === agora.getFullYear() && fim.getMonth() === agora.getMonth());
+            return !!pertenceMesAtual;
+        }
+
+        // Não confiar no faturamento antigo gravado no navegador para a meta mensal.
+        const chaveMensalAtual = chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chave.includes(chaveMes));
+        if (!chaveMensalAtual || /TIME|COLETIV|TRINCA|SEMEST|ANUAL|PLUS/.test(categoria + ' ' + chave.toUpperCase())) return false;
+        const atual = window.__radarMetaMensalAtual;
+        return !!(atual && atual.mes === chaveMes && Number(atual.meta) > 0 && Number(atual.realizado) >= Number(atual.meta));
     }
 
     function obterBannersConquistaAtivos() {
@@ -1717,7 +1731,7 @@
                 let diasRestantes = null;
                 if (dataFim) diasRestantes = Math.max(0, Math.ceil((dataFim-hoje)/(1000*60*60*24)));
                 html += `<div class="campaign-card"><div class="campaign-header">${camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>'} ${camp.campanha}</div><div style="font-size:0.8rem;color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex;justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%;background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
-                if (perc >= 100) conquistas.push({ nome: camp.campanha, meta, realizado, perc, chave: `campanha_${camp.campanha.replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}` });
+                if (perc >= 100) conquistas.push({ nome: camp.campanha, meta, realizado, perc, tipo:'CAMPANHA', categoria:'CAMPANHA ESPECIAL', data_inicio:camp.data_inicio, data_fim:camp.data_fim, chave: `campanha_${camp.campanha.replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}` });
             });
             document.getElementById('campanhas-especiais-container').innerHTML = html;
             return conquistas;
@@ -1798,6 +1812,7 @@
     function classeMedalha(conquista) {
         const n = String(conquista.nome || conquista.tipo || '').toLowerCase();
         if (n.includes('time') || String(conquista.tipo||'').toUpperCase()==='TIME') return {cor:'#9570df',clara:'#e9ddff',ink:'#43217e',icone:'fa-trophy',categoria:'META DO TIME'};
+        if (String(conquista.tipo||'').toUpperCase()==='CAMPANHA' || n.includes('dardos') || n.includes('campanha')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy',categoria:'CAMPANHA ESPECIAL'};
         if (n.includes('6 meses') || n.includes('seis meses') || n.includes('semestral') || n.includes('semestre') || n.includes('anual') || n.includes('ouro')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy',categoria:n.includes('anual')?'ANUAL':(n.includes('semestre')?'SEMESTRAL':'6 MESES')};
         if (n.includes('trinca') || n.includes('3 meses')) return {cor:'#bfc5cd',clara:'#f3f4f6',ink:'#3f4650',icone:'fa-medal',categoria:'TRINCA'};
         if (n.includes('plus')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-star',categoria:'META PLUS'};
@@ -2199,6 +2214,8 @@
         const faturamentoSemestre = fatFull.filter(item => { const d=parseDataBR(item['Data']); return d && d>=startOfSemester && d<=cutoffDate; }).reduce((acc,item)=>acc+cleanNumber(item['Valor Mercadoria']),0);
 
         const metaMensal = cleanNumber(meta.meta_mensal);
+        const chaveMesAtualValidacao = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+        window.__radarMetaMensalAtual = mesSelecionadoEhAtual ? {mes:chaveMesAtualValidacao, meta:metaMensal, realizado:Number(totalFaturadosMesCalendarioAtual)||0} : null;
         const metaSemestral = cleanNumber(meta.meta_semestral);
         const metaAnual = cleanNumber(meta.meta_anual);
         const metaPlus = metaMensal*1.1;
