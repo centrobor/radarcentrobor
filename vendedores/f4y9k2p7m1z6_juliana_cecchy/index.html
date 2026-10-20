@@ -1103,6 +1103,11 @@
                 card.addEventListener('click', event => {
                     const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
                     if (item?.novaGuia) return;
+                    if (item?.popup && item.id === 'meus-premios') {
+                        event.preventDefault();
+                        abrirMeusPremiosJu();
+                        return;
+                    }
                     if (item?.desktop) {
                         event.preventDefault();
                         window.location.href = item.desktop;
@@ -1672,22 +1677,27 @@
         const container = document.getElementById('carousel-container');
         const indicators = document.getElementById('carousel-indicators');
         if (!container || !indicators) return;
-        if (!Array.isArray(BANNERS) || !BANNERS.length) {
+        if ((!Array.isArray(BANNERS) || !BANNERS.length) && !(typeof lerBannersConquistaJu==='function' && lerBannersConquistaJu().length)) {
             container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center"><i class="fas fa-cloud-arrow-down" style="font-size:1.6rem;margin-bottom:10px"></i><div>Carrossel indisponível no momento. Tentaremos atualizar em segundo plano.</div></div></div>';
             indicators.innerHTML = '';
             return;
         }
-        currentCarouselIndex = Math.min(currentCarouselIndex, BANNERS.length - 1);
-        container.innerHTML = BANNERS.map((b,i) => `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Comunicado Centrobor'}" onerror="this.style.opacity='.25';this.style.background='#e5e7eb'"><div class="carousel-caption"><span>${b.titulo||'Comunicado'}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
-        indicators.innerHTML = BANNERS.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
+        const bannersConquista = typeof lerBannersConquistaJu==='function' ? lerBannersConquistaJu() : [];
+        const slides = [...bannersConquista.map(b=>({...b,_conquista:true})), ...BANNERS];
+        currentCarouselIndex = Math.min(currentCarouselIndex, slides.length - 1);
+        container.innerHTML = slides.map((b,i) => b._conquista
+          ? `<div class="carousel-slide achievement-carousel-slide" data-idx="${i}" style="min-height:180px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:28px;text-align:left;color:white;background:radial-gradient(circle at 85% 15%,${b.cor||'#9570df'}88,transparent 34%),linear-gradient(125deg,#111827,#24314b 60%,${b.cor||'#9570df'});position:relative;overflow:hidden"><div style="max-width:760px;position:relative;z-index:1"><div style="font-size:.72rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:${b.clara||'#e9ddff'};margin-bottom:10px"><i class="fas ${b.icone||'fa-trophy'}"></i> CONQUISTA DESBLOQUEADA</div><div style="font-size:clamp(1.35rem,3vw,2.25rem);font-weight:900;line-height:1.12;margin-bottom:10px">${b.titulo||b.nome||'Meta atingida!'}</div><div style="font-size:.95rem;color:#e5e7eb">${b.autor||'Juliana Cecchy'} · ${b.realizado!=null?formatarMoeda(b.realizado):''}${b.meta!=null?' / '+formatarMoeda(b.meta):''}</div><div style="margin-top:15px;display:inline-block;padding:7px 12px;border-radius:999px;background:${b.clara||'#e9ddff'};color:${b.ink||'#43217e'};font-size:.75rem;font-weight:900">META ATINGIDA · 3 DIAS</div></div><div style="position:absolute;right:5%;bottom:-45px;font-size:12rem;opacity:.12;transform:rotate(-12deg)"><i class="fas ${b.icone||'fa-trophy'}"></i></div></div>`
+          : `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Comunicado Centrobor'}" onerror="this.style.opacity='.25';this.style.background='#e5e7eb'"><div class="carousel-caption"><span>${b.titulo||'Comunicado'}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
+        indicators.innerHTML = slides.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
         indicators.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', () => { currentCarouselIndex = Number(d.dataset.idx)||0; updateCarrossel(); }));
-        container.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () => { const idx = Number(slide.dataset.idx)||0; if (BANNERS[idx]) abrirModalPostagem(BANNERS[idx]); }));
+        container.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () => { const idx = Number(slide.dataset.idx)||0; const activeSlides=[...lerBannersConquistaJu().map(b=>({...b,_conquista:true})),...BANNERS]; if (activeSlides[idx] && !activeSlides[idx]._conquista) abrirModalPostagem(activeSlides[idx]); }));
         updateCarrossel();
     }
     function updateCarrossel() {
         const container = document.getElementById('carousel-container');
-        if (!container || !BANNERS.length) return;
-        currentCarouselIndex = (currentCarouselIndex + BANNERS.length) % BANNERS.length;
+        const totalSlides = (typeof lerBannersConquistaJu==='function'?lerBannersConquistaJu().length:0) + BANNERS.length;
+        if (!container || !totalSlides) return;
+        currentCarouselIndex = (currentCarouselIndex + totalSlides) % totalSlides;
         container.style.transform = `translateX(-${currentCarouselIndex*100}%)`;
         document.querySelectorAll('.indicator-dot').forEach((d,i) => d.classList.toggle('active', i===currentCarouselIndex));
     }
@@ -1748,6 +1758,20 @@
     }
 
 
+    // Conquistas temporárias do carrossel: válidas por 3 dias e limitadas ao mês atual.
+    const CHAVE_BANNERS_CONQUISTA_JU = 'radar_banners_conquistas_juliana_v1';
+    const DURACAO_BANNER_CONQUISTA_JU = 3 * 24 * 60 * 60 * 1000;
+    function lerBannersConquistaJu() {
+      try { const a=JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA_JU)||'[]'); return Array.isArray(a)?a.filter(x=>x && Date.now()-Number(x.timestamp||0)<DURACAO_BANNER_CONQUISTA_JU):[]; } catch(e) { return []; }
+    }
+    function registrarBannerConquistaJu(item) {
+      if (!item || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
+      const lista=lerBannersConquistaJu(); if(lista.some(x=>x.chave===item.chave)) return;
+      lista.unshift({...item,timestamp:Date.now()});
+      try { localStorage.setItem(CHAVE_BANNERS_CONQUISTA_JU,JSON.stringify(lista.slice(0,20))); } catch(e) {}
+      if (typeof renderCarrossel==='function') renderCarrossel();
+    }
+
     // Meus Prêmios — camada adicional para Juliana Cecchy (código 20), sem substituir ferramentas existentes.
     const CHAVE_PREMIOS_JU = 'radar_meus_premios_juliana_v1';
     async function abrirMeusPremiosJu() {
@@ -1759,14 +1783,21 @@
       const mine=(Array.isArray(rows)?rows:[]).filter(r=>String(r.id_vendedor||'').trim()==='20' && /juliana/i.test(String(r.vendedor||'')));
       const months=new Map(); mine.forEach(r=>{let raw=String(r.mes_ano||r.mes||r.competencia||'');let m=raw.match(/^(\d{4})-(\d{1,2})/)||raw.match(/(\d{1,2})\/(\d{4})/);if(!m)return;let key=m[0].includes('/')?`${m[2]}-${m[1].padStart(2,'0')}`:`${m[1]}-${m[2].padStart(2,'0')}`;months.set(key,{key,year:+key.slice(0,4),month:+key.slice(5,7),meta:cleanNumber(r.meta_mensal),fat:cleanNumber(r.faturado)});});
       const all=[...months.values()].sort((a,b)=>a.key.localeCompare(b.key));
+      // Metas coletivas: cruza metas globais com o faturamento somado dos JSONs de toda a equipe.
+      let teamMetaRows=[], teamFatRows=[];
+      try { [teamMetaRows,teamFatRows]=await Promise.all([carregarJSON(BASES.metasGlobais).catch(()=>[]),Promise.all((BASES.faturadosTime||[]).map(u=>carregarJSON(u).catch(()=>[])))]); } catch(e) {}
+      const teamMap=new Map();
+      (Array.isArray(teamMetaRows)?teamMetaRows:[]).forEach(r=>{const raw=String(r['Mês']||r.mes_ano||r.mes||'').trim();const m=raw.match(/^(\d{4})-(\d{1,2})/);if(!m)return;const key=`${m[1]}-${String(m[2]).padStart(2,'0')}`;teamMap.set(key,{key,year:+m[1],month:+m[2],meta:cleanNumber(r['Meta (R$)']??r.meta_mensal??r.meta??0),fat:0});});
+      (Array.isArray(teamFatRows)?teamFatRows.flat():[]).forEach(r=>{const d=parseDataBR(r['Data']||r.data||r.data_venda);if(!d)return;const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const row=teamMap.get(key)||{key,year:d.getFullYear(),month:d.getMonth()+1,meta:0,fat:0};row.fat+=cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0);teamMap.set(key,row);});
+      const teamAwards=[...teamMap.values()].filter(r=>r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta)).map(r=>({key:`time-${r.key}`,year:r.year,month:r.month,meta:r.meta,fat:r.fat,tier:'team',name:`Meta do Time · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,excecao:r.key==='2026-01'}));
       const earned=all.filter(r=>r.meta>0&&r.fat>=r.meta).map(r=>({...r,name:`Meta mensal · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tier:'bronze'}));
       const trophies=[]; const byYear={}; all.forEach(r=>(byYear[r.year]??=[]).push(r)); Object.entries(byYear).forEach(([year,arr])=>{let streak=[];arr.sort((a,b)=>a.month-b.month).forEach(r=>{if(r.meta>0&&r.fat>=r.meta){streak.push(r);if(streak.length%3===0)trophies.push({key:`trinca-${year}-${r.month}`,name:`Trinca · ${year}`,year:+year,month:r.month,meta:streak.slice(-3).reduce((s,x)=>s+x.meta,0),fat:streak.slice(-3).reduce((s,x)=>s+x.fat,0),tier:'silver'});}else streak=[];});});
-      const saved=(()=>{try{return JSON.parse(localStorage.getItem(CHAVE_PREMIOS_JU)||'[]')}catch(e){return []}})(); const awards=[...earned,...trophies];
-      const medal=(tier)=>tier==='silver'?['#bfc5cd','#f3f4f6','#3f4650','fa-medal']:tier==='gold'?['#d4a72c','#fff2a8','#6b4b00','fa-trophy']:['#c47b43','#f6d2ae','#5b2f15','fa-medal'];
+      const saved=(()=>{try{return JSON.parse(localStorage.getItem(CHAVE_PREMIOS_JU)||'[]')}catch(e){return []}})(); const awards=[...earned,...trophies,...teamAwards];
+      const medal=(tier)=>tier==='team'?['#9570df','#e9ddff','#43217e','fa-trophy']:tier==='silver'?['#bfc5cd','#f3f4f6','#3f4650','fa-medal']:tier==='gold'?['#d4a72c','#fff2a8','#6b4b00','fa-trophy']:['#c47b43','#f6d2ae','#5b2f15','fa-medal'];
       const years=[...new Set([new Date().getFullYear(),...all.map(r=>r.year)])].sort((a,b)=>b-a);
-      body.innerHTML=`<div class="awards-hero"><button id="fechar-meus-premios-ju" aria-label="Fechar" style="position:absolute;right:16px;top:14px;background:#dc2626;color:white;border:2px solid white;border-radius:50%;width:40px;height:40px;font-size:25px;line-height:1;cursor:pointer">×</button><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Juliana Cecchy · Coleção individual de conquistas</p></div><div class="awards-content"><div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas</div><div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${earned.length}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${trophies.length}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · especiais</span><strong>0</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>0</strong></div></div></div><div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas</div><div class="awards-controls"><label>Ano <select id="premios-ju-ano">${years.map(y=>`<option ${y===new Date().getFullYear()?'selected':''}>${y}</option>`).join('')}</select></label></div><div id="premios-ju-cards" class="awards-trophy-grid"></div><div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Desbloqueie recompensas especiais.</strong> As conquistas podem liberar vouchers, recebimentos, dinheiro e outros benefícios conforme campanhas e regras vigentes.</div></div>`;
+      body.innerHTML=`<div class="awards-hero"><button id="fechar-meus-premios-ju" aria-label="Fechar" style="position:absolute;right:16px;top:14px;background:#dc2626;color:white;border:2px solid white;border-radius:50%;width:40px;height:40px;font-size:25px;line-height:1;cursor:pointer">×</button><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Juliana Cecchy · Coleção individual de conquistas</p></div><div class="awards-content"><div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas</div><div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${earned.length}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${trophies.length}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · especiais</span><strong>0</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>${teamAwards.length}</strong></div></div></div><div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas</div><div class="awards-controls"><label>Ano <select id="premios-ju-ano">${years.map(y=>`<option ${y===new Date().getFullYear()?'selected':''}>${y}</option>`).join('')}</select></label></div><div id="premios-ju-cards" class="awards-trophy-grid"></div><div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Desbloqueie recompensas especiais.</strong> As conquistas podem liberar vouchers, recebimentos, dinheiro e outros benefícios conforme campanhas e regras vigentes.</div></div>`;
       document.getElementById('fechar-meus-premios-ju').onclick=()=>modal.classList.remove('active');
-      const render=()=>{const y=+document.getElementById('premios-ju-ano').value;const cards=awards.filter(a=>a.year===y).map(a=>{const c=medal(a.tier);return `<article class="award-trophy-card" style="--medal-color:${c[0]};--medal-light:${c[1]};--medal-ink:${c[2]}"><div class="award-trophy-icon"><i class="fas ${c[3]}"></i></div><h4>${a.name}</h4><span class="award-category">${a.tier==='bronze'?'BRONZE · META MENSAL':'PRATA · TRINCA'}</span><div class="award-money-row"><span>Faturamento</span><strong>${formatarMoeda(a.fat)}</strong></div><div class="award-money-row"><span>Meta do período</span><strong>${formatarMoeda(a.meta)}</strong></div><div class="award-progress"><span style="width:${Math.min(100,a.meta?a.fat/a.meta*100:0)}%"></span></div><div class="award-earned-date"><i class="fas fa-check-circle"></i> CONQUISTADO</div></article>`}).join('');document.getElementById('premios-ju-cards').innerHTML=cards||'<div class="awards-empty">Nenhuma conquista individual neste ano ainda.</div>';};
+      const render=()=>{const y=+document.getElementById('premios-ju-ano').value;const cards=awards.filter(a=>a.year===y).map(a=>{const c=medal(a.tier);return `<article class="award-trophy-card" style="--medal-color:${c[0]};--medal-light:${c[1]};--medal-ink:${c[2]}"><div class="award-trophy-icon"><i class="fas ${c[3]}"></i></div><h4>${a.name}</h4><span class="award-category">${a.tier==='team'?'META COLETIVA · TIME':a.tier==='bronze'?'BRONZE · META MENSAL':'PRATA · TRINCA'}</span>${a.excecao?'<p style="font-size:.78rem;color:#5b3a91">Reconhecimento especial: janeiro/2026 foi considerado batido por exceção.</p>':`<div class="award-money-row"><span>Faturamento</span><strong>${formatarMoeda(a.fat)}</strong></div>`}<div class="award-money-row"><span>Meta do período</span><strong>${formatarMoeda(a.meta)}</strong></div><div class="award-progress"><span style="width:${Math.min(100,a.meta?a.fat/a.meta*100:0)}%"></span></div><div class="award-earned-date"><i class="fas fa-check-circle"></i> CONQUISTADO</div></article>`}).join('');document.getElementById('premios-ju-cards').innerHTML=cards||'<div class="awards-empty">Nenhuma conquista individual ou coletiva neste ano ainda.</div>';};
       document.getElementById('premios-ju-ano').onchange=render; render();
       modal.onclick=e=>{if(e.target===modal)modal.classList.remove('active')};
     }
@@ -1967,6 +1998,9 @@
         const aprovadosTodoPeriodoValor = aprovTodoPeriodo.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
         const faturadosMesCalendarioAtual = fatFull.filter(i => { const d=parseDataBR(i['Data']); return d && formatMonthKey(d)===mesCalendarioAtual; });
         const totalFaturadosMesCalendarioAtual = faturadosMesCalendarioAtual.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+        if (mesSelecionadoEhAtual && metaTimeMensal > 0 && totalFaturadoTime >= metaTimeMensal) {
+            registrarBannerConquistaJu({chave:`meta_time_${mesCalendarioAtual}`,titulo:'Meta do Time atingida!',nome:'Meta do Time',autor:'Time Comercial',tipo:'TIME',categoria:'META DO TIME',meta:metaTimeMensal,realizado:totalFaturadoTime,cor:'#9570df',clara:'#e9ddff',ink:'#43217e',icone:'fa-people-group'});
+        }
         const totalAprovTodoPeriodoKPI = mesSelecionadoEhAtual ? aprovadosTodoPeriodoValor + totalFaturadosMesCalendarioAtual : aprovadosTodoPeriodoValor;
         const tituloAprovTodoPeriodoKPI = mesSelecionadoEhAtual
             ? `Aprovados a faturar (todo período) + Faturados (${mesCalendarioAtual})`
@@ -2022,6 +2056,9 @@
         const faturamentoSemestre = fatFull.filter(item => { const d=parseDataBR(item['Data']); return d && d>=startOfSemester && d<=cutoffDate; }).reduce((acc,item)=>acc+cleanNumber(item['Valor Mercadoria']),0);
 
         const metaMensal = cleanNumber(meta.meta_mensal);
+        if (mesSelecionadoEhAtual && metaMensal > 0 && totalFaturadosMesCalendarioAtual >= metaMensal) {
+            registrarBannerConquistaJu({chave:`meta_mensal_${mesCalendarioAtual}`,titulo:'Meta mensal atingida!',nome:'Meta Mensal',autor:nomeVendedor,tipo:'INDIVIDUAL',meta:metaMensal,realizado:totalFaturadosMesCalendarioAtual,cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-medal'});
+        }
         const metaSemestral = cleanNumber(meta.meta_semestral);
         const metaAnual = cleanNumber(meta.meta_anual);
         const metaPlus = metaMensal*1.1;
