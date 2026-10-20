@@ -1938,6 +1938,11 @@
         const badge = document.querySelectorAll('[data-prizes-count]');
         badge.forEach(el => { el.textContent = '0'; el.style.display = 'none'; });
     }
+    // Normalização local: não depende de helpers internos de outros módulos da página.
+    function normalizarNomeCliente(valor) {
+        return String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toUpperCase();
+    }
+
     // Fonte consolidada usada pelo quadro de medalhas; definida aqui para não depender de outro arquivo.
     let premiosConsolidadoCacheJu = null;
     async function obterDadosPremios() {
@@ -1958,7 +1963,19 @@
         const body = document.getElementById('meus-premios-body');
         modal.classList.add('active');
         body.innerHTML = '<div class="awards-hero"><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Carregando sua coleção individual de conquistas…</p></div><div class="awards-content"><div class="awards-empty"><i class="fas fa-spinner fa-spin"></i> Consultando os dados oficiais em JSON.</div></div>';
-        const [consolidado, faturados, metasTime, faturadosTimeArrays] = await Promise.all([obterDadosPremios(), carregarJSON(BASES.faturados).catch(()=>[]), carregarJSON(BASES.metasGlobais).catch(()=>[]), Promise.all((BASES.faturadosTime||[]).map(url=>carregarJSON(url).catch(()=>[])))]);
+        let consolidado = [], faturados = [], metasTime = [], faturadosTimeArrays = [];
+        try {
+            [consolidado, faturados, metasTime, faturadosTimeArrays] = await Promise.all([
+                obterDadosPremios(),
+                carregarJSON(BASES.faturados).catch(err => { console.warn('JSON de faturamento individual indisponível:', err); return []; }),
+                carregarJSON(BASES.metasGlobais).catch(err => { console.warn('JSON de metas coletivas indisponível:', err); return []; }),
+                Promise.all((BASES.faturadosTime || []).map(url => carregarJSON(url).catch(err => { console.warn('JSON de faturamento do time indisponível:', url, err); return []; })))
+            ]);
+        } catch (err) {
+            console.error('Falha ao montar Meus Prêmios:', err);
+            body.innerHTML = '<div class="awards-hero"><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Não foi possível carregar a coleção neste momento.</p></div><div class="awards-content"><div class="awards-empty">Ocorreu um erro ao consultar os dados. Feche esta janela e tente novamente.</div></div>';
+            return;
+        }
         const anos = new Set([new Date().getFullYear()]);
         const linhas = (Array.isArray(consolidado)?consolidado:[]).filter(r => String(r.id_vendedor||'').trim() === COD_VENDEDOR && normalizarNomeCliente(r.vendedor||'').includes('JULIANA'));
         const porMes = new Map();
