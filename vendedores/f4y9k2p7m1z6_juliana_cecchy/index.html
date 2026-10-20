@@ -749,12 +749,8 @@
           box-shadow:0 3px 10px rgba(0,0,0,.28) !important; cursor:pointer !important; z-index:100 !important;
           appearance:none !important; -webkit-appearance:none !important; overflow:hidden !important;
         }
-        #celebracao-modal #fechar-celebracao-btn::before {
-          content:"×" !important; display:block !important; position:static !important;
-          width:auto !important; height:auto !important; margin:0 !important; padding:0 !important;
-          color:#fff !important; font-family:Arial,Helvetica,sans-serif !important; font-size:25px !important;
-          font-weight:700 !important; line-height:1 !important; transform:translateY(-1px) !important;
-        }
+        #celebracao-modal #fechar-celebracao-btn { font-size:25px !important; }
+        #celebracao-modal #fechar-celebracao-btn::before { content:none !important; }
         #celebracao-modal #fechar-celebracao-btn:hover { background:#b91c1c !important; transform:scale(1.04) !important; }
         #celebracao-modal #fechar-celebracao-btn:focus-visible { outline:3px solid #fecaca !important; outline-offset:3px !important; }
 
@@ -786,6 +782,19 @@
         #celebracao-modal .lista-conquistas{max-height:28vh;overflow:hidden!important}
         @media(prefers-reduced-motion:reduce){.achievement-carousel-slide:before,.achievement-carousel-slide:after,.achievement-carousel-slide .achievement-medal{animation:none!important}}
         .ju-premios-new{animation:juNewPulse 2.5s ease-in-out infinite}@keyframes juNewPulse{0%,100%{opacity:1}50%{opacity:.7}}@media(prefers-reduced-motion:reduce){.ju-premios-new{animation:none}}
+
+
+        /* Juliana: fechar padronizado, círculo vermelho fixo e X único */
+        #post-modal-body > .modal-close, #meus-premios-modal .modal-close, #celebracao-modal #fechar-celebracao-btn,
+        #notif-modal #fechar-notif-modal, #notif-modal #fechar-detalhe-btn {
+          box-sizing:border-box!important;position:absolute!important;top:12px!important;right:12px!important;left:auto!important;
+          width:40px!important;min-width:40px!important;max-width:40px!important;height:40px!important;min-height:40px!important;max-height:40px!important;
+          padding:0!important;margin:0!important;display:grid!important;place-items:center!important;aspect-ratio:1/1!important;
+          border:2px solid #fff!important;border-radius:50%!important;background:#dc2626!important;color:#fff!important;
+          font:900 25px/1 Arial,sans-serif!important;text-align:center!important;box-shadow:0 4px 14px rgba(0,0,0,.32)!important;cursor:pointer!important;
+        }
+        #celebracao-modal .celebracao-content{overflow:hidden!important;overscroll-behavior:contain!important}
+        #celebracao-modal .lista-conquistas{overflow:hidden!important}
 
     </style>
 </head>
@@ -1127,6 +1136,14 @@
         }
     }
 
+    function obterContagemConquistasNaoLidasJu() {
+        try {
+            const raw = JSON.parse(localStorage.getItem('radar_notificacoes_conquistas_juliana_v1') || '[]');
+            const lidas = Array.isArray(readNotifications) ? readNotifications.map(String) : [];
+            return Array.isArray(raw) ? raw.filter(n => n && n.id != null && !lidas.includes(String(n.id))).length : 0;
+        } catch (_) { return 0; }
+    }
+
     function renderizarMenus() {
         const iconeHTML = item => {
             if (item.iconImagem) {
@@ -1163,7 +1180,13 @@
         const premioCard = desktop?.querySelector('[data-menu-id="meus-premios"]');
         const premioMobile = mobile?.querySelector('[data-menu-id="meus-premios"]');
         [premioCard,premioMobile].filter(Boolean).forEach(el=>{
-            if(!el.querySelector('.ju-premios-new')) { const badge=document.createElement('span'); badge.className='ju-premios-new'; badge.textContent='NOVO'; badge.style.cssText='position:absolute;top:5px;right:5px;padding:3px 6px;border-radius:7px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em;'; el.style.position='relative'; el.appendChild(badge); }
+            el.style.position='relative';
+            const novidadeAtiva = Date.now() < new Date('2026-10-26T00:00:00-03:00').getTime();
+            if(novidadeAtiva && !el.querySelector('.ju-premios-new')) { const badge=document.createElement('span'); badge.className='ju-premios-new'; badge.textContent='NOVO'; badge.style.cssText='position:absolute;top:5px;right:5px;padding:3px 6px;border-radius:7px;background:#dc2626;color:#fff;font-size:9px;font-weight:900;letter-spacing:.04em;'; el.appendChild(badge); }
+            const count = obterContagemConquistasNaoLidasJu();
+            let counter=el.querySelector('[data-prizes-count]');
+            if(!counter){counter=document.createElement('span');counter.dataset.prizesCount='true';counter.style.cssText='position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#dc2626;color:#fff;border:2px solid #fff;font-size:11px;font-weight:900;display:none;align-items:center;justify-content:center;box-shadow:0 2px 8px #0002;';el.appendChild(counter);}
+            counter.textContent=count>99?'99+':String(count);counter.style.display=count?'inline-flex':'none';
         });
 
         if (bottom) {
@@ -1836,8 +1859,10 @@
                     const chaveCampanha = `campanha_${String(camp.campanha||'campanha').replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}`;
                     conquistas.push({ nome: camp.campanha, meta, realizado, perc, chave: chaveCampanha });
                     const inicioCamp=parseDataBR(camp.data_inicio), fimCamp=parseDataBR(camp.data_fim), agoraCamp=new Date();
-                    const mesmoMes = (!inicioCamp || (inicioCamp.getFullYear()===agoraCamp.getFullYear() && inicioCamp.getMonth()===agoraCamp.getMonth())) || (!fimCamp || (fimCamp.getFullYear()===agoraCamp.getFullYear() && fimCamp.getMonth()===agoraCamp.getMonth()));
-                    if (mesmoMes) registrarBannerConquistaJu({chave:chaveCampanha,titulo:camp.campanha,nome:camp.campanha,autor:nomeVendedor,tipo:'CAMPANHA',categoria:'CAMPANHA ESPECIAL',meta,realizado,perc,cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy'});
+                    const inicioMesAtual=new Date(agoraCamp.getFullYear(),agoraCamp.getMonth(),1); inicioMesAtual.setHours(0,0,0,0);
+                    const inicioProximoMes=new Date(agoraCamp.getFullYear(),agoraCamp.getMonth()+1,1); inicioProximoMes.setHours(0,0,0,0);
+                    const campanhaNoMesAtual = !!(inicioCamp && fimCamp && inicioCamp < inicioProximoMes && fimCamp >= inicioMesAtual);
+                    if (campanhaNoMesAtual) registrarBannerConquistaJu({chave:chaveCampanha,titulo:camp.campanha,nome:camp.campanha,autor:nomeVendedor,tipo:'CAMPANHA',categoria:'CAMPANHA ESPECIAL',meta,realizado,perc,cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy'});
                 }
             });
             document.getElementById('campanhas-especiais-container').innerHTML = html;
@@ -1853,10 +1878,10 @@
         }
     }
 
-    function getMetasCelebradas() { try { return JSON.parse(localStorage.getItem('metas_celebradas'))||[]; } catch(e) { return []; } }
+    function getMetasCelebradas() { try { return JSON.parse(localStorage.getItem('metas_celebradas_juliana'))||[]; } catch(e) { return []; } }
     function adicionarMetaCelebrada(chave) {
         const celebradas = getMetasCelebradas();
-        if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas', JSON.stringify(celebradas)); }
+        if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas_juliana', JSON.stringify(celebradas)); }
     }
 
     function mostrarCelebracao(conquistas) {
@@ -1867,7 +1892,7 @@
         const body = document.getElementById('celebracao-body');
         let lista = '';
         novas.forEach(c => { lista += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`; adicionarMetaCelebrada(c.chave); });
-        body.innerHTML = `<button id="fechar-celebracao-btn" type="button" aria-label="Fechar popup" title="Fechar">×</button><div class="trofeu" style="filter:drop-shadow(0 8px 18px #d4a72c55)">🏅</div><div style="font-size:.68rem;letter-spacing:.16em;color:#f5d77c;font-weight:900">NOVA CONQUISTA DESBLOQUEADA</div><h2 style="color:#fff;margin:8px 42px 6px">Parabéns, ${nomeVendedor}!</h2><p style="color:#dbe6f6">Você desbloqueou novas conquistas na sua coleção.</p><div class="lista-conquistas">${lista}</div><p style="font-size:.8rem;color:#cbd5e1;margin-top:12px">Seus troféus ficam registrados em <strong>Meus Prêmios</strong>.</p><button id="ver-premios-celebracao" type="button" style="border:0;background:linear-gradient(135deg,#f6d365,#d4a72c);color:#382600;font-weight:900;padding:11px 18px;border-radius:12px;cursor:pointer">Ver meus prêmios</button>`;
+        body.innerHTML = `<button id="fechar-celebracao-btn" type="button" aria-label="Fechar popup" title="Fechar" style="position:absolute;top:16px;right:16px;left:auto;width:40px;height:40px;min-width:40px;max-width:40px;min-height:40px;max-height:40px;box-sizing:border-box;display:grid;place-items:center;padding:0;margin:0;border:2px solid #fff;border-radius:50%;background:#dc2626;color:#fff;font:900 25px/1 Arial,sans-serif;text-align:center;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;z-index:100;appearance:none;overflow:hidden">×</button><div class="trofeu" style="filter:drop-shadow(0 8px 18px #d4a72c55)">🏅</div><div style="font-size:.68rem;letter-spacing:.16em;color:#f5d77c;font-weight:900">NOVA CONQUISTA DESBLOQUEADA</div><h2 style="color:#fff;margin:8px 42px 6px">Parabéns, ${nomeVendedor}!</h2><p style="color:#dbe6f6">Você desbloqueou novas conquistas na sua coleção.</p><div class="lista-conquistas">${lista}</div><p style="font-size:.8rem;color:#cbd5e1;margin-top:12px">Seus troféus ficam registrados em <strong>Meus Prêmios</strong>.</p><button id="ver-premios-celebracao" type="button" style="border:0;background:linear-gradient(135deg,#f6d365,#d4a72c);color:#382600;font-weight:900;padding:11px 18px;border-radius:12px;cursor:pointer">Ver meus prêmios</button>`;
         const modal = document.getElementById('celebracao-modal');
         modal.classList.add('active');
         dispararConfetes();
@@ -1881,7 +1906,7 @@
     const CHAVE_BANNERS_CONQUISTA_JU = 'radar_banners_conquistas_juliana_v1';
     const DURACAO_BANNER_CONQUISTA_JU = 3 * 24 * 60 * 60 * 1000;
     function lerBannersConquistaJu() {
-      try { const a=JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA_JU)||'[]'); return Array.isArray(a)?a.filter(x=>x && Date.now()-Number(x.timestamp||0)<DURACAO_BANNER_CONQUISTA_JU):[]; } catch(e) { return []; }
+      try { const a=JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA_JU)||'[]'); return Array.isArray(a)?a.filter(x=>x && Number(x.timestamp)>0 && Date.now()>=Number(x.timestamp) && Date.now()-Number(x.timestamp)<DURACAO_BANNER_CONQUISTA_JU):[]; } catch(e) { return []; }
     }
     function registrarBannerConquistaJu(item) {
       if (!item || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
