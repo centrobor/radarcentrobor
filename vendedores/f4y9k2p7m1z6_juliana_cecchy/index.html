@@ -980,6 +980,18 @@
             mobileVisible: true,
             bottom: false,
             novaGuia: true
+        },
+        {
+            id: "meus-premios",
+            nome: "Meus Prêmios",
+            icon: "fas fa-trophy",
+            desktop: "#meus-premios",
+            mobile: "#meus-premios",
+            opensheet: "",
+            desktopVisible: true,
+            mobileVisible: true,
+            bottom: false,
+            popup: true
         }
     ];
     // ===========================================================================
@@ -1050,7 +1062,7 @@
         if (mobile) {
             mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    ${iconeHTML(item)}<span>${item.nome}</span>
+                    ${iconeHTML(item)}<span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>${Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}` : ''}</span>
                 </button>
             `).join('');
         }
@@ -1059,7 +1071,7 @@
             desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
                     <div class="tool-icon">${iconeHTML(item)}</div>
-                    <div class="tool-label">${item.nome}</div>
+                    <div class="tool-label"><span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>` : ''}</span></div>${item.id === 'meus-premios' && Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}
                 </a>
             `).join('');
         }
@@ -1075,6 +1087,7 @@
         const navegar = (item, fecharMobile = false) => {
             if (!item || !(item.mobile || item.desktop)) return;
             if (fecharMobile) closeHamburgerMenu();
+            if (item.popup) { abrirMeusPremios(); return; }
             const destino = item.mobile || item.desktop;
             if (item.novaGuia) {
                 const link = document.createElement('a');
@@ -1098,12 +1111,15 @@
             if (bottomBtn) bottomBtn.addEventListener('click', () => navegar(item, false));
         });
 
+        atualizarBadgeMeusPremios();
+
         if (desktop) {
             desktop.querySelectorAll('.tool-card').forEach(card => {
                 card.addEventListener('click', event => {
                     const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
+                    if (item?.popup) { event.preventDefault(); abrirMeusPremios(); return; }
                     if (item?.novaGuia) return;
-                    if (item?.desktop) {
+                    if (item?.desktop && item.desktop !== '#meus-premios') {
                         event.preventDefault();
                         window.location.href = item.desktop;
                     }
@@ -1765,7 +1781,8 @@ function ehMetaMensalMesAtual(item) {
         const chave = String(item.chave || item.id || '');
         const chaveNormalizada = chave.toLowerCase().replace(/_/g,'/');
         const titulo = String(item.titulo || item.nome || '').toLowerCase();
-        return (chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chave.includes(chaveMes))) && !/meta_plus|meta_semestral|meta_anual/.test(chave);
+        const chaveEhMesAtual = chave.includes(chaveMes) || chave.includes(chaveMesCurta) || chaveNormalizada.includes(chaveMesCurta);
+        return (chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chaveEhMesAtual)) && !/meta_plus|meta_semestral|meta_anual/.test(chave);
     }
 function conquistaMensalValida(item) {
         if (!ehMetaMensalMesAtual(item)) return true;
@@ -2153,6 +2170,20 @@ function classeMedalha(conquista) {
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="value">${totalClientes}</div><div class="label">Clientes Atendidos</div></div>
         `;
         renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
+        // Conquista da meta coletiva: só registra quando o mês exibido é o atual.
+        const conquistaMetaTime = monthLabel === formatMonthKey(new Date()) && metaTimeMensal > 0 && totalFaturadoTime >= metaTimeMensal
+            ? {nome:'Meta do Time', meta:metaTimeMensal, realizado:totalFaturadoTime, perc:totalFaturadoTime/metaTimeMensal*100, chave:`meta_time_${monthLabel.replace('/','_')}`, tipo:'TIME'}
+            : null;
+        if (conquistaMetaTime) {
+            const temaTime = classeMedalha(conquistaMetaTime);
+            let bannersTime = [];
+            try { bannersTime = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA)||'[]'); if (!Array.isArray(bannersTime)) bannersTime=[]; } catch(_) { bannersTime=[]; }
+            if (!bannersTime.some(b => b && b.chave === conquistaMetaTime.chave && Date.now()-Number(b.timestamp||0)<DURACAO_CONQUISTA)) {
+                bannersTime.unshift({...conquistaMetaTime, timestamp:Date.now(), autor:'Time Centrobor', categoria:temaTime.categoria, icone:temaTime.icone, cor:temaTime.cor, clara:temaTime.clara, ink:temaTime.ink, tipoBanner:'conquista'});
+                localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(bannersTime.slice(0,40)));
+            }
+            renderCarrossel();
+        }
 
         globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat;
         globalAprovTodoPeriodoKPI = detalheAprovTodoPeriodoKPI; globalAprovTodoPeriodoKPITitulo = tituloAprovTodoPeriodoKPI;
@@ -3057,11 +3088,28 @@ function classeMedalha(conquista) {
         const conquistasMetas = [];
         const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
         const semestre = today.getMonth()<6?1:2;
-        if (percMonth>=100) conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturado, perc:percMonth, chave:`meta_mensal_${anoMes}` });
+        // A meta mensal só vira conquista quando o mês selecionado é o atual e o faturamento
+        // real desse mês (não um período histórico ou uma projeção) atingiu a meta.
+        if (mesSelecionadoEhAtual && metaMensal > 0 && Number(totalFaturadosMesCalendarioAtual) >= Number(metaMensal)) {
+            conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturadosMesCalendarioAtual, perc:(Number(totalFaturadosMesCalendarioAtual)/Number(metaMensal))*100, chave:`meta_mensal_${mesCalendarioAtual}`, _verificadaMesAtual:true });
+        }
+        // O banner da meta mensal atual também aparece no carrossel mesmo se a celebração já foi vista.
+        const metaMensalConquistadaAgora = conquistasMetas.find(c => c.chave === `meta_mensal_${mesCalendarioAtual}`);
+        if (metaMensalConquistadaAgora) {
+            const temaMensal = classeMedalha(metaMensalConquistadaAgora);
+            let bannersMensais = [];
+            try { bannersMensais = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA)||'[]'); if (!Array.isArray(bannersMensais)) bannersMensais=[]; } catch(_) { bannersMensais=[]; }
+            const jaExisteAtivo = bannersMensais.some(b => b && b.chave === metaMensalConquistadaAgora.chave && Date.now()-Number(b.timestamp||0)<DURACAO_CONQUISTA);
+            if (!jaExisteAtivo) {
+                bannersMensais.unshift({...metaMensalConquistadaAgora, timestamp:Date.now(), autor:nomeVendedor||'Juliana', categoria:temaMensal.categoria, icone:temaMensal.icone, cor:temaMensal.cor, clara:temaMensal.clara, ink:temaMensal.ink, tipoBanner:'conquista'});
+                localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(bannersMensais.slice(0,40)));
+            }
+            renderCarrossel();
+        }
         if (percPlus>=100) conquistasMetas.push({ nome:'Meta Plus (110%)', meta:metaPlus, realizado:totalFaturado, perc:percPlus, chave:`meta_plus_${anoMes}` });
         if (percSem>=100) conquistasMetas.push({ nome:`Meta Semestral (${semesterBound.label})`, meta:metaSemestral, realizado:faturamentoSemestre, perc:percSem, chave:`meta_semestral_${year}_S${semestre}` });
         if (percYear>=100) conquistasMetas.push({ nome:'Meta Anual', meta:metaAnual, realizado:faturamentoAcumulado, perc:percYear, chave:`meta_anual_${year}` });
-        setTimeout(() => mostrarCelebracao([...conquistasMetas, ...conquistasCampanhas]), 500);
+        setTimeout(() => mostrarCelebracao([...conquistasMetas, ...conquistasCampanhas, ...(conquistaMetaTime ? [conquistaMetaTime] : [])]), 500);
 
         const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
         const anoAtual = today.getFullYear();
