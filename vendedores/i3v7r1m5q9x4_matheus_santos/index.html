@@ -572,6 +572,7 @@
         .ficha-campo .campo-label { font-weight: 600; color: var(--muted); min-width: 110px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3px; }
         .ficha-campo .campo-valor { color: var(--text-dark); word-break: break-word; }
 
+        .menu-prizes-label{display:inline-flex;align-items:center;gap:7px;min-width:0}.menu-prizes-count{display:inline-flex;align-items:center;justify-content:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#e11d48;color:#fff;font-size:.68rem;font-weight:900;line-height:1;box-shadow:0 0 0 2px #fff}.menu-prizes-new{display:inline-flex;align-items:center;padding:2px 6px;border-radius:6px;background:#dc2626;color:#fff;font-size:.58rem;font-weight:900;letter-spacing:.04em;line-height:1.4;text-transform:uppercase;box-shadow:0 2px 7px #dc262633}.tool-card .menu-prizes-new{position:absolute;top:8px;right:8px}.tool-card{position:relative}
         /* Meus Prêmios — camada visual isolada para não interferir no restante do Radar */
         #meus-premios-modal { z-index: 12000; padding: 18px; background: rgba(8,16,31,.72); backdrop-filter: blur(10px); }
         #meus-premios-modal .awards-modal-content { width: min(1120px, 96vw); max-width: 1120px; max-height: 92vh; padding: 0; overflow: auto; border-radius: 24px; background: #f4f7fb; color: #17263c; border: 1px solid rgba(255,255,255,.8); box-shadow: 0 28px 90px rgba(3,12,28,.38); transform: translateY(14px) scale(.985); }
@@ -959,7 +960,7 @@
         if (mobile) {
             mobile.innerHTML = MENU_ITENS.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    <i class="${item.icon}"></i><span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>${Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}` : ''}</span>
                 </button>
             `).join('');
         }
@@ -968,7 +969,7 @@
             desktop.innerHTML = MENU_ITENS.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
                     <div class="tool-icon"><i class="${item.icon}"></i></div>
-                    <div class="tool-label">${item.nome}</div>
+                    <div class="tool-label"><span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>` : ''}</span></div>${item.id === 'meus-premios' && Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}
                 </a>
             `).join('');
         }
@@ -977,7 +978,7 @@
             const bottomItems = MENU_ITENS.filter(item => item.bottom && item.mobileVisible !== false);
             bottom.innerHTML = bottomItems.map(item => `
                 <button class="bb-item" data-menu-id="${item.id}">
-                    <i class="${item.icon}"></i><span>${item.nome}</span>
+                    <i class="${item.icon}"></i><span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>${Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}` : ''}</span>
                 </button>
             `).join('');
         }
@@ -1002,6 +1003,7 @@
             }
         };
 
+        atualizarBadgeMeusPremios();
         MENU_ITENS.forEach(item => {
             const mobileBtn = document.getElementById(`menu-${item.id}`);
             if (mobileBtn) mobileBtn.addEventListener('click', () => navegar(item, true));
@@ -1529,9 +1531,10 @@
                     readNotifications.push(id);
                     localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
                     atualizarBadgeNotificacoes();
+                    atualizarBadgeMeusPremios();
                 }
                 const post = notificacoes.find(p => String(p.id) === String(id));
-                if (post) exibirPostagemDetalhe(post);
+                if (post) { if (post.tipo === 'conquista' || String(post.id||'').startsWith('conquista-')) abrirDetalheBannerConquista(post); else exibirPostagemDetalhe(post); }
             });
         });
         modal.classList.add('active');
@@ -1557,23 +1560,27 @@
     }
 
     let currentCarouselIndex = 0;
-    function obterBannerConquistaAtivo() {
+    function obterBannersConquistaAtivos() {
         try {
-            const b = JSON.parse(localStorage.getItem('radar_banner_conquista_matheus') || 'null');
-            if (!b || !b.timestamp || Date.now() - b.timestamp >= 3 * 24 * 60 * 60 * 1000) {
-                localStorage.removeItem('radar_banner_conquista_matheus');
-                return null;
+            let lista = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA) || '[]');
+            // Compatibilidade com o banner antigo salvo em versões anteriores.
+            const legado = JSON.parse(localStorage.getItem('radar_banner_conquista_matheus') || 'null');
+            if (!lista.length && legado && legado.timestamp && Date.now() - legado.timestamp < DURACAO_CONQUISTA) {
+                lista = [{...legado, chave:'legado-'+legado.timestamp, titulo:legado.metas?.[0] || 'Conquista desbloqueada', nome:legado.metas?.[0] || 'Conquista desbloqueada', tipo:'MENSAL', icone:'fa-medal', cor:'#c47b43', clara:'#f6d2ae', ink:'#5b2f15'}];
             }
-            return b;
-        } catch(e) { return null; }
+            lista = lista.filter(b => b && b.timestamp && Date.now() - Number(b.timestamp) < DURACAO_CONQUISTA && conquistaMensalValida(b));
+            localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(lista));
+            return lista;
+        } catch(e) { return []; }
     }
+    function obterBannerConquistaAtivo() { return obterBannersConquistaAtivos()[0] || null; }
     function renderCarrossel() {
         const container = document.getElementById('carousel-container');
         const indicators = document.getElementById('carousel-indicators');
         if (!container || !indicators) return;
-        const bannerConquista = obterBannerConquistaAtivo();
+        const bannersConquista = obterBannersConquistaAtivos().map(b => ({tipo:'conquista', titulo:b.nome || b.titulo || 'Conquista desbloqueada', data:'Conquista recente', autor:nomeVendedor||'Matheus', ...b}));
         const bannersBase = Array.isArray(BANNERS) ? BANNERS : [];
-        const bannersExibidos = bannerConquista ? [{ tipo:'conquista', titulo:'META BATIDA!', data:'Conquista recente', autor:nomeVendedor||'Matheus', ...bannerConquista }, ...bannersBase] : bannersBase;
+        const bannersExibidos = [...bannersConquista, ...bannersBase];
         window.__radarBannersExibidos = bannersExibidos;
         if (!bannersExibidos.length) {
             container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center">Carrossel indisponível no momento.</div></div>';
@@ -1582,12 +1589,12 @@
         }
         currentCarouselIndex = Math.min(currentCarouselIndex, bannersExibidos.length - 1);
         container.innerHTML = bannersExibidos.map((b,i) => b.tipo === 'conquista'
-          ? `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><span class="achievement-pill"><i class="fas fa-star"></i> CONQUISTA RECENTE</span><div class="achievement-banner-trophy"><i class="fas fa-trophy"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RESULTADO EXTRAORDINÁRIO</span><h2>${b.especialTime ? 'META DO TIME BATIDA!' : 'META BATIDA!'}</h2><p>${(b.metas||[]).join(' • ')}</p><strong>Parabéns, ${b.autor||'Matheus'}! Seu resultado merece destaque.</strong><small class="achievement-private-note">Somente você vê isto no seu acesso por 3 dias</small></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`
+          ? `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${b.clara||'#f6d2ae'}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${b.cor||'#c47b43'}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${b.ink||'#5b2f15'});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><span class="achievement-pill"><i class="fas ${b.icone||'fa-medal'}"></i> ${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${b.clara||'#f6d2ae'},${b.cor||'#c47b43'});color:${b.ink||'#5b2f15'}"><i class="fas ${b.icone||'fa-medal'}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · MEUS PRÊMIOS</span><h2>${b.nome||b.titulo||'CONQUISTA DESBLOQUEADA'}</h2><p>${b.categoria||'Conquista'}${b.realizado!=null?` · ${formatarMoeda(b.realizado)}`:''}</p><strong>Parabéns, ${b.autor||'Matheus'}! Sua conquista foi registrada.</strong><small class="achievement-private-note">Somente você vê isto no seu acesso por 3 dias · Clique para ver os detalhes</small></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`
           : `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Comunicado Centrobor'}" onerror="this.style.opacity='.25';this.style.background='#e5e7eb'"><div class="carousel-caption"><span>${b.titulo||'Comunicado'}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
         indicators.innerHTML = bannersExibidos.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
         indicators.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', () => { currentCarouselIndex = Number(d.dataset.idx)||0; updateCarrossel(); }));
         container.querySelectorAll('.carousel-slide').forEach(slide => {
-            const abrir = () => { const idx=Number(slide.dataset.idx)||0; const b=bannersExibidos[idx]; if (b && b.tipo !== 'conquista') abrirModalPostagem(b); };
+            const abrir = () => { const idx=Number(slide.dataset.idx)||0; const b=bannersExibidos[idx]; if (!b) return; if (b.tipo === 'conquista') abrirDetalheBannerConquista(b); else abrirModalPostagem(b); };
             slide.addEventListener('click', abrir);
             slide.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();} });
         });
@@ -1601,6 +1608,17 @@
         container.style.transform = `translateX(-${currentCarouselIndex*100}%)`;
         document.querySelectorAll('.indicator-dot').forEach((d,i) => d.classList.toggle('active', i===currentCarouselIndex));
     }
+    function abrirDetalheBannerConquista(b) {
+        const modal = document.getElementById('post-modal');
+        const body = document.getElementById('post-modal-body');
+        if (!modal || !body) return;
+        const alertasModal = document.getElementById('notif-modal');
+        if (alertasModal) alertasModal.classList.remove('active');
+        const tema = {cor:b.cor||'#c47b43', clara:b.clara||'#f6d2ae', ink:b.ink||'#5b2f15', icone:b.icone||'fa-medal'};
+        body.innerHTML = `<div style="position:relative;overflow:hidden;border-radius:22px;padding:clamp(22px,5vw,44px);color:white;background:radial-gradient(circle at 12% 10%,${tema.clara}55,transparent 36%),linear-gradient(135deg,#10182f,#172f5c 58%,${tema.ink});"><button class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')" style="color:white;z-index:2">&times;</button><div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap"><div style="width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:3.2rem;color:${tema.ink};background:linear-gradient(145deg,${tema.clara},${tema.cor});box-shadow:0 14px 34px ${tema.cor}55"><i class="fas ${tema.icone}"></i></div><div style="flex:1;min-width:180px"><span style="font-size:.72rem;letter-spacing:.16em;font-weight:900;color:${tema.clara}">${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><h2 style="font-size:clamp(1.5rem,4vw,2.4rem);line-height:1.1;margin:10px 0;color:#fff">${b.nome||b.titulo||'Conquista desbloqueada'}</h2><p style="color:#e4eaf5;margin:0">Parabéns, ${b.autor||nomeVendedor||'Matheus'}! Esta conquista foi registrada na sua coleção.</p></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:28px 0 18px"><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Faturamento realizado</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${formatarMoeda(b.realizado||0)}</strong></div><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Meta de referência</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${Number(b.meta)>0?formatarMoeda(b.meta):'Reconhecimento especial'}</strong></div></div><div style="font-size:.78rem;color:#cbd5e1">Este banner fica disponível somente neste acesso por até 3 dias.</div></div>`;
+        modal.classList.add('active');
+    }
+
     function abrirModalPostagem(post) {
         document.getElementById('post-modal-body').innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span><img src="${post.imagem}" style="width:100%;max-height:400px;object-fit:cover;border-radius:16px;margin-bottom:16px;" onerror="this.style.display='none'"><h2>${post.titulo}</h2><div style="display:flex;gap:16px;color:var(--muted);margin-bottom:16px;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div><div>${post.texto_html||''}</div>`;
         document.getElementById('post-modal').classList.add('active');
@@ -1643,6 +1661,7 @@
 
     const CHAVE_PREMIOS = 'radar_meus_premios_matheus_v1';
     const CHAVE_NOTIF_CONQUISTAS = 'radar_notificacoes_conquistas_matheus_v1';
+    const CHAVE_BANNERS_CONQUISTA = 'radar_banners_conquistas_matheus_v1';
     const DURACAO_CONQUISTA = 3 * 24 * 60 * 60 * 1000;
     function lerPremiosGuardados() { try { return JSON.parse(localStorage.getItem(CHAVE_PREMIOS) || '[]').filter(x => x && x.chave); } catch(e) { return []; } }
     function salvarPremio(premio) {
@@ -1651,17 +1670,51 @@
         if (idx >= 0) lista[idx] = {...lista[idx], ...premio}; else lista.push(premio);
         localStorage.setItem(CHAVE_PREMIOS, JSON.stringify(lista));
     }
+    function ehMetaMensalMesAtual(item) {
+        const agora = new Date();
+        const chaveMes = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+        const chave = String(item.chave || item.id || '');
+        const titulo = String(item.titulo || item.nome || '').toLowerCase();
+        return (chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chave.includes(chaveMes))) && !/meta_plus|meta_semestral|meta_anual/.test(chave);
+    }
+    function conquistaMensalValida(item) {
+        if (!ehMetaMensalMesAtual(item)) return true;
+        const meta = Number(item.meta) || 0;
+        const realizado = Number(item.realizado) || 0;
+        // Registros antigos não podem afirmar que a meta do mês atual foi batida.
+        // Só aceitamos a conquista mensal atual se ela foi validada no cálculo do mês corrente.
+        return item.validadaMesAtual === true && meta > 0 && realizado >= meta;
+    }
+    function atualizarBadgeMeusPremios() {
+        const nodes = document.querySelectorAll('[data-prizes-count]');
+        let unread = 0;
+        try {
+            const items = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]');
+            unread = items.filter(n => Date.now() - Number(n.timestamp||0) < DURACAO_CONQUISTA && conquistaMensalValida(n) && !readNotifications.some(x => String(x) === String(n.id))).length;
+        } catch(e) {}
+        nodes.forEach(el => { el.textContent = unread > 99 ? '99+' : String(unread); el.style.display = unread > 0 ? 'inline-flex' : 'none'; });
+    }
+    function marcarConquistasComoLidas() {
+        try {
+            const items = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]');
+            items.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
+            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+        } catch(e) {}
+        atualizarBadgeMeusPremios();
+        atualizarBadgeNotificacoes();
+    }
     function lerNotificacoesConquista() {
-        try { return JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]').filter(n => Date.now() - Number(n.timestamp || 0) < DURACAO_CONQUISTA); } catch(e) { return []; }
+        try { const itens = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]').filter(n => Date.now() - Number(n.timestamp || 0) < DURACAO_CONQUISTA && conquistaMensalValida(n)); localStorage.setItem(CHAVE_NOTIF_CONQUISTAS, JSON.stringify(itens)); return itens; } catch(e) { return []; }
     }
     function adicionarNotificacaoConquista(conquista) {
         const itens = lerNotificacoesConquista();
         if (itens.some(n => n.chave === conquista.chave)) return;
         const tema = classeMedalha(conquista);
-        itens.unshift({id:'conquista-'+conquista.chave, chave:conquista.chave, timestamp:Date.now(), titulo:conquista.nome, data:new Date().toLocaleDateString('pt-BR'), autor:nomeVendedor, tipo:'conquista', icone:tema.icone, cor:tema.cor, categoria:tema.categoria, texto_html:`<p>Você conquistou <strong>${conquista.nome}</strong>.</p><p>Realizado: ${formatarMoeda(conquista.realizado)} · Meta: ${Number(conquista.meta)>0?formatarMoeda(conquista.meta):'reconhecimento especial'} (${Number(conquista.perc||100).toFixed(1)}%).</p><p>Esta notificação fica disponível por até 3 dias neste acesso.</p>`});
+        itens.unshift({id:'conquista-'+conquista.chave, chave:conquista.chave, timestamp:Date.now(), titulo:conquista.nome, nome:conquista.nome, data:new Date().toLocaleDateString('pt-BR'), autor:nomeVendedor, tipo:'conquista', icone:tema.icone, cor:tema.cor, clara:tema.clara, ink:tema.ink, categoria:tema.categoria, meta:Number(conquista.meta)||0, realizado:Number(conquista.realizado)||0, perc:Number(conquista.perc)||100, validadaMesAtual:!!conquista._verificadaMesAtual, texto_html:`<p>Você conquistou <strong>${conquista.nome}</strong>.</p><p>Realizado: ${formatarMoeda(conquista.realizado)} · Meta: ${Number(conquista.meta)>0?formatarMoeda(conquista.meta):'reconhecimento especial'} (${Number(conquista.perc||100).toFixed(1)}%).</p><p>Esta notificação fica disponível por até 3 dias neste acesso.</p>`});
         localStorage.setItem(CHAVE_NOTIF_CONQUISTAS, JSON.stringify(itens));
         notificacoes = [...itens, ...(notificacoes || []).filter(n => !String(n.id || '').startsWith('conquista-'))];
         atualizarBadgeNotificacoes();
+        atualizarBadgeMeusPremios();
     }
     function classeMedalha(conquista) {
         const n = String(conquista.nome || conquista.tipo || '').toLowerCase();
@@ -1682,15 +1735,17 @@
     function mostrarCelebracao(conquistas) {
         if (!conquistas || !conquistas.length) return;
         const celebradas = getMetasCelebradas();
-        const novas = conquistas.filter(c => !celebradas.includes(c.chave));
+        const novas = conquistas.filter(c => !celebradas.includes(c.chave) && conquistaMensalValida(c));
         if (!novas.length) return;
         try {
-            const bannerAnterior = obterBannerConquistaAtivo();
-            const metasBanner = [...new Set([...(bannerAnterior && bannerAnterior.metas || []), ...novas.map(c => c.nome)])];
-            const especialTime = novas.some(c => /meta do time/i.test(c.nome));
-            localStorage.setItem('radar_banner_conquista_matheus', JSON.stringify({timestamp:Date.now(), autor:nomeVendedor || 'Matheus', metas:metasBanner, valor:novas.reduce((total,c)=>total+(Number(c.realizado)||0),0), especialTime}));
+            const banners = obterBannersConquistaAtivos();
+            novas.forEach(c => {
+                const tema = classeMedalha(c);
+                if (!banners.some(b => b.chave === c.chave)) banners.unshift({chave:c.chave,timestamp:Date.now(),autor:nomeVendedor||'Matheus',nome:c.nome,titulo:c.nome,metas:[c.nome],meta:Number(c.meta)||0,realizado:Number(c.realizado)||0,perc:Number(c.perc)||100,categoria:tema.categoria,icone:tema.icone,cor:tema.cor,clara:tema.clara,ink:tema.ink,especialTime:tema.categoria==='META DO TIME',validadaMesAtual:!!c._verificadaMesAtual});
+            });
+            localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(banners.slice(0,40)));
             renderCarrossel(); currentCarouselIndex = 0; updateCarrossel();
-        } catch(e) { console.warn('Não foi possível guardar o banner de conquista:', e); }
+        } catch(e) { console.warn('Não foi possível guardar os banners de conquista:', e); }
         const body = document.getElementById('celebracao-body');
         let lista = '';
         novas.forEach(c => {
@@ -1726,6 +1781,7 @@
         return null;
     }
     async function abrirMeusPremios() {
+        marcarConquistasComoLidas();
         const modal = document.getElementById('meus-premios-modal');
         const body = document.getElementById('meus-premios-body');
         modal.classList.add('active');
@@ -3250,7 +3306,7 @@
         const conquistasMetas = [];
         const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
         const semestre = today.getMonth()<6?1:2;
-        if (percMonth>=100) conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturado, perc:percMonth, chave:`meta_mensal_${anoMes}` });
+        if (mesSelecionadoEhAtual && metaMensal > 0 && Number(totalFaturadosMesCalendarioAtual) >= Number(metaMensal)) conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturadosMesCalendarioAtual, perc:(Number(totalFaturadosMesCalendarioAtual)/Number(metaMensal))*100, chave:`meta_mensal_${mesCalendarioAtual}`, _verificadaMesAtual:true });
         if (percPlus>=100) conquistasMetas.push({ nome:'Meta Plus (110%)', meta:metaPlus, realizado:totalFaturado, perc:percPlus, chave:`meta_plus_${anoMes}` });
         if (percSem>=100) conquistasMetas.push({ nome:`Meta Semestral (${semesterBound.label})`, meta:metaSemestral, realizado:faturamentoSemestre, perc:percSem, chave:`meta_semestral_${year}_S${semestre}` });
         if (percYear>=100) conquistasMetas.push({ nome:'Meta Anual', meta:metaAnual, realizado:faturamentoAcumulado, perc:percYear, chave:`meta_anual_${year}` });
