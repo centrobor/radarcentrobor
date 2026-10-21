@@ -759,7 +759,12 @@
                     const saleKey = keys.find(k => norm(k) === 'preco de venda');
                     const orderedKeys = keys.filter(k => k !== saleKey);
                     if (saleKey) orderedKeys.push(saleKey);
-                    return orderedKeys.map(key => ({ key, display: norm(key) === 'preco de venda' ? 'PREÇO DE VENDA' : key.replace(/_/g, ' ').toUpperCase() }));
+                    return orderedKeys.map(key => ({
+                        key,
+                        display: norm(key) === 'preco de venda' ? 'CUSTO' :
+                                 norm(key) === 'anterior' ? 'PREÇO BRUTO' :
+                                 key.replace(/_/g, ' ').toUpperCase()
+                    }));
                 }
                 let keys = Object.keys(sample).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') && !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k)));
                 if (currentCategory?.group === 'rexon' && !keys.includes('Preço de Venda')) keys.push('Preço de Venda');
@@ -877,7 +882,7 @@
                         html += `<div class="receipt-line"><span>${escapeHtml(key.replace(/\s+/g,' ').trim())}:</span><span><strong>${escapeHtml(String(value))}</strong></span></div>`;
                     }
                     const salePrice = parseMoney(prod['Preço de Venda']);
-                    if (Number.isFinite(salePrice)) html += `<div class="receipt-line price-highlight"><span>Preço de Venda:</span><span>${salePrice.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>`;
+                    if (Number.isFinite(salePrice)) html += `<div class="receipt-line price-highlight"><span>Custo:</span><span>${salePrice.toLocaleString('pt-BR', {style:'currency', currency:'BRL'})}</span></div>`;
                     document.getElementById('receipt-body').innerHTML = html;
                     document.getElementById('detail-modal-overlay').classList.add('active');
                     return;
