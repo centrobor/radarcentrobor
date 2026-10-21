@@ -1146,7 +1146,7 @@
         // Fontes individuais usadas exclusivamente para calcular o KPI global da equipe.
         faturadosTime: [
             BASE_DADOS + 'faturados_fabio.json',
-            BASE_DADOS + 'faturados_valeria.json',
+            BASE_DADOS + 'faturados_matheus.json',
             BASE_DADOS + 'faturados_lorena.json',
             BASE_DADOS + 'faturados_cesar.json',
             BASE_DADOS + 'faturados_juliana.json',
@@ -1960,20 +1960,42 @@
             for(const [start,end,label] of [[1,6,'1º Semestre'],[7,12,'2º Semestre']]){const period=rows.filter(r=>r.month>=start&&r.month<=end);const complete=period.length===6&&period.every(r=>r.earned);const meta=period.reduce((a,r)=>a+r.meta,0),fat=period.reduce((a,r)=>a+r.fat,0);if(complete)medals.push({chave:`semestre_${year}_${start}`,nome:`Semestre perfeito · ${label} ${year}`,tipo:'SEMESTRAL',year,month:end,earned:true,dataConquista:`${year}-${String(end).padStart(2,'0')}`,meta,realizado:fat,perc:meta?fat/meta*100:100});}
             const metaAno=rows.reduce((a,r)=>a+r.meta,0),fatAno=rows.reduce((a,r)=>a+r.fat,0);if(rows.length&&metaAno>0&&fatAno>=metaAno)medals.push({chave:`anual_${year}`,nome:`Meta Anual · ${year}`,tipo:'ANUAL',year,month:12,earned:true,dataConquista:String(year),meta:metaAno,realizado:fatAno,perc:fatAno/metaAno*100});
         });
-        // Metas coletivas: consolida a meta mensal oficial e o faturamento de todos os JSONs dos vendedores.
+        // Metas coletivas: usar primeiro o consolidado oficial, que já contém o faturamento de cada vendedor por mês.
+        // Isso evita que um JSON individual ausente/desatualizado esconda uma conquista coletiva.
         const teamByMonth = new Map();
         (Array.isArray(metasTime)?metasTime:[]).forEach(r=>{
             const raw=String(r['Mês']||r.mes_ano||r.mes||'').trim();
             const iso=raw.match(/^(\d{4})-(\d{1,2})/); if(!iso)return;
             const key=`${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
-            teamByMonth.set(key,{key,year:Number(iso[1]),month:Number(iso[2]),meta:cleanNumber(r['Meta (R$)']??r.meta_mensal??r.meta??0),fat:0});
+            teamByMonth.set(key,{key,year:Number(iso[1]),month:Number(iso[2]),meta:cleanNumber(r['Meta (R$)']??r.meta_time??r.meta_global??r.meta??0),fat:0,temConsolidado:false});
             anos.add(Number(iso[1]));
         });
+        const consolidadoTimePorMes = new Map();
+        (Array.isArray(consolidado)?consolidado:[]).forEach(r=>{
+            const raw=String(r.mes_ano||r['Mês']||r.mes||'').trim();
+            const iso=raw.match(/^(\d{4})-(\d{1,2})/); if(!iso)return;
+            const key=`${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
+            const row=teamByMonth.get(key)||{key,year:Number(iso[1]),month:Number(iso[2]),meta:0,fat:0,temConsolidado:false};
+            const valorRaw=r.faturado??r['Faturado']??r['Valor Faturado']??'';
+            if(String(valorRaw).trim()!==''){
+                row.fat+=cleanNumber(valorRaw);
+                row.temConsolidado=true;
+            }
+            // Se a meta global não veio do arquivo metas.json, não somar metas individuais;
+            // o fallback será preenchido somente por uma fonte explicitamente global.
+            teamByMonth.set(key,row); anos.add(Number(iso[1]));
+        });
+        // Fallback por JSONs individuais somente nos meses sem faturamento consolidado informado.
+        const fallbackTeamFat=new Map();
         (Array.isArray(faturadosTimeArrays)?faturadosTimeArrays.flat():[]).forEach(r=>{
             const d=parseDataBR(r['Data']||r.data||r.data_venda); if(!d)return;
             const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            const row=teamByMonth.get(key)||{key,year:d.getFullYear(),month:d.getMonth()+1,meta:0,fat:0};
-            row.fat+=cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0);teamByMonth.set(key,row);anos.add(d.getFullYear());
+            fallbackTeamFat.set(key,(fallbackTeamFat.get(key)||0)+cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0));
+        });
+        fallbackTeamFat.forEach((valor,key)=>{
+            const row=teamByMonth.get(key);
+            if(row&&!row.temConsolidado) row.fat=valor;
+            else if(!row) teamByMonth.set(key,{key,year:Number(key.slice(0,4)),month:Number(key.slice(5,7)),meta:0,fat:valor,temConsolidado:false});
         });
         const teamAwards=[];
         [...teamByMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).forEach(r=>{
