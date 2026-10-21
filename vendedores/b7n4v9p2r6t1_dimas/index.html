@@ -1595,6 +1595,7 @@
                 aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
                 metasVendedores: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento_consolidado_meses`,
                 metasEmpresa: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
+                metaFaturamento: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
                 banners: `https://opensheet.elk.sh/${SHEET_ID}/banners`,
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 campanhas: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
@@ -1608,6 +1609,7 @@
                 aprovadosRaw = [],
                 metasVendRaw = [],
                 metasEmpresaRaw = [],
+                metasDimasRaw = [],
                 BANNERS = [],
                 notificacoes = [],
                 campanhasRaw = [],
@@ -1738,12 +1740,16 @@
             }
 
             function getMetasDimas(ano, mes) {
-                const row = metasVendRaw.find(m => String(m.id_vendedor) === COD_DIMAS);
+                // Metas oficiais do Dimas vêm diretamente da aba meta_faturamento.
+                // O endpoint contém os valores de meta mensal, semestral e anual.
+                const row = metasDimasRaw.find(m =>
+                    String(m.id_vendedor || '').trim() === COD_DIMAS &&
+                    String(m.vendedor || '').trim().toLowerCase() === 'dimas'
+                ) || metasDimasRaw.find(m =>
+                    String(m.vendedor || '').trim().toLowerCase() === 'dimas'
+                );
                 return {
-                    // A meta mensal do Dimas é a mesma META MENSAL GERAL
-                    // da aba/endpoint metas_faturamento.
-                    mensal: getMetaEmpresaMes(ano, mes),
-                    // Mantidas as metas semestral e anual específicas do Dimas.
+                    mensal: cleanNumber(row?.meta_mensal),
                     semestral: cleanNumber(row?.meta_semestral),
                     anual: cleanNumber(row?.meta_anual)
                 };
@@ -1983,31 +1989,35 @@
                 let fatAno = 0;
                 for (let m = 1; m <= 12; m++) fatAno += getFaturamentoTotalMes(ano, m);
                 const fatMes = getFaturamentoTotalMes(ano, mes);
-                const metaMensalEmp = getMetaEmpresaMes(ano, mes);
-                const metaAnualEmp = getMetaEmpresaAno(ano);
-                const percMes = metaMensalEmp ? (fatMes / metaMensalEmp) * 100 : 0;
-                const percAno = metaAnualEmp ? (fatAno / metaAnualEmp) * 100 : 0;
+
+                // Nesta página, as metas exibidas nos KPIs devem vir da aba meta_faturamento,
+                // específica do Dimas, e não da meta consolidada geral por mês da empresa.
+                const metasDimas = getMetasDimas(ano, mes);
+                const metaMensalDimas = metasDimas.mensal;
+                const metaAnualDimas = metasDimas.anual;
+                const percMes = metaMensalDimas ? (fatMes / metaMensalDimas) * 100 : 0;
+                const percAno = metaAnualDimas ? (fatAno / metaAnualDimas) * 100 : 0;
                 const percMesCap = Math.min(percMes, 100);
                 const percAnoCap = Math.min(percAno, 100);
 
                 const html = `
                 <div class="kpi-card">
-                    <div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano (Centrobor)</h4></div>
+                    <div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano (Dimas)</h4></div>
                     <div class="kpi-value">${formatarMoeda(fatAno)}</div>
                     <div class="donut-wrapper">
                         <canvas id="donutAno" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percAno.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta anual: ${formatarMoeda(metaAnualEmp)}</small>
+                    <small>meta anual Dimas: ${formatarMoeda(metaAnualDimas)}</small>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>${nomeMesExtenso(mes)} ${ano} (Centrobor)</h4></div>
+                    <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>${nomeMesExtenso(mes)} ${ano} (Dimas)</h4></div>
                     <div class="kpi-value">${formatarMoeda(fatMes)}</div>
                     <div class="donut-wrapper">
                         <canvas id="donutMes" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percMes.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta mensal: ${formatarMoeda(metaMensalEmp)}</small>
+                    <small>meta mensal Dimas: ${formatarMoeda(metaMensalDimas)}</small>
                 </div>
             `;
                 document.getElementById('kpi-cards').innerHTML = html;
@@ -2414,22 +2424,22 @@
             async function fetchAllData() {
                 mostrarLoading();
                 try {
-                    const [faturados, aprovados, metasVend, metasEmp, banners, posts, campanhas, info, cotacoes, aprovfat,
+                    const [faturados, aprovados, metasVend, metasEmp, metasDimas, banners, posts, campanhas, info, cotacoes, aprovfat,
                         carteira
                     ] = await Promise.all([
                         fetch(BASES.faturados).then(r => r.json()), fetch(BASES.aprovados).then(r => r.json()),
-                        fetch(BASES.metasVendedores).then(r => r.json()), fetch(BASES.metasEmpresa).then(r => r
-                            .json()),
+                        fetch(BASES.metasVendedores).then(r => r.json()), fetch(BASES.metasEmpresa).then(r => r.json()),
+                        fetch(BASES.metaFaturamento).then(r => r.json()),
                         fetch(BASES.banners).then(r => r.json()), fetch(BASES.postagens).then(r => r.json()),
                         fetch(BASES.campanhas).then(r => r.json()), fetch(BASES.informacoes).then(r => r.json()),
-                        fetch(BASES.cotacoes).then(r => r.json()), fetch(BASES.aprovadosfaturados).then(r => r
-                            .json()),
+                        fetch(BASES.cotacoes).then(r => r.json()), fetch(BASES.aprovadosfaturados).then(r => r.json()),
                         fetch(BASES.carteira).then(r => r.json())
                     ]);
                     faturadosRaw = faturados;
                     aprovadosRaw = aprovados;
                     metasVendRaw = metasVend;
                     metasEmpresaRaw = metasEmp;
+                    metasDimasRaw = Array.isArray(metasDimas) ? metasDimas : [];
                     BANNERS = banners;
                     notificacoes = posts;
                     campanhasRaw = campanhas;
