@@ -1728,20 +1728,20 @@
             }
 
             function getMetaEmpresaMes(ano, mes) {
-                // Meta consolidada da Centrobor: soma as metas dos vendedores
-                // cadastradas na aba meta_faturamento_consolidado_meses para o mês.
-                return metasVendRaw.reduce((total, item) => {
-                    const data = parseDataBR(item.mes_ano || item['mes_ano']);
-                    if (!data || data.getFullYear() !== ano || data.getMonth() + 1 !== mes) return total;
-                    return total + cleanNumber(item.meta_mensal);
-                }, 0);
+                // Nesta página, o registro do Dimas (coordenador) em meta_faturamento
+                // representa a meta mensal consolidada do time Centrobor.
+                // Assim, os KPIs consolidados usam essa fonte dinâmica, não a soma
+                // dos vendedores da aba meta_faturamento_consolidado_meses.
+                const row = metasDimasRaw.find(m =>
+                    String(m.id_vendedor || '').trim() === COD_DIMAS &&
+                    String(m.vendedor || '').trim().toLowerCase() === 'dimas'
+                ) || metasDimasRaw.find(m => String(m.vendedor || '').trim().toLowerCase() === 'dimas');
+                return cleanNumber(row?.meta_mensal);
             }
 
             function getMetaEmpresaAno(ano) {
-                // Soma as metas mensais consolidadas da Centrobor nos 12 meses do ano.
-                let total = 0;
-                for (let m = 1; m <= 12; m++) total += getMetaEmpresaMes(ano, m);
-                return total;
+                // Meta anual consolidada Centrobor = meta mensal do Dimas/coordenador x 12.
+                return getMetaEmpresaMes(ano, 1) * 12;
             }
 
             function getMetasDimas(ano, mes) {
@@ -1758,7 +1758,7 @@
                 return {
                     mensal,
                     semestral: mensal * 6,
-                    anual: mensal * 6
+                    anual: mensal * 12
                 };
             }
 
@@ -2008,16 +2008,16 @@
 
                 const html = `
                 <div class="kpi-card">
-                    <div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano (Dimas)</h4></div>
+                    <div class="kpi-header"><i class="fas fa-dollar-sign"></i><h4>Faturamento Ano Centrobor</h4></div>
                     <div class="kpi-value">${formatarMoeda(fatAno)}</div>
                     <div class="donut-wrapper">
                         <canvas id="donutAno" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percAno.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta anual consolidada (soma das metas mensais): ${formatarMoeda(metaAnualConsolidada)}</small>
+                    <small>meta anual consolidada Centrobor (meta mensal do coordenador × 12): ${formatarMoeda(metaAnualConsolidada)}</small>
                 </div>
                 <div class="kpi-card">
-                    <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>${nomeMesExtenso(mes)} ${ano} (Dimas)</h4></div>
+                    <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>${nomeMesExtenso(mes)} ${ano} (Centrobor)</h4></div>
                     <div class="kpi-value">${formatarMoeda(fatMes)}</div>
                     <div class="donut-wrapper">
                         <canvas id="donutMes" width="120" height="120" class="donut-kpi"></canvas>
