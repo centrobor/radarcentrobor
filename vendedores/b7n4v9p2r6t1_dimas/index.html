@@ -1740,18 +1740,20 @@
             }
 
             function getMetasDimas(ano, mes) {
-                // Metas oficiais do Dimas vêm diretamente da aba meta_faturamento.
-                // O endpoint contém os valores de meta mensal, semestral e anual.
+                // A meta mensal individual do Dimas vem da aba meta_faturamento.
+                // Na área Performance, as metas de semestre e ano são derivadas
+                // dessa meta mensal: 6 meses e 12 meses, respectivamente.
                 const row = metasDimasRaw.find(m =>
                     String(m.id_vendedor || '').trim() === COD_DIMAS &&
                     String(m.vendedor || '').trim().toLowerCase() === 'dimas'
                 ) || metasDimasRaw.find(m =>
                     String(m.vendedor || '').trim().toLowerCase() === 'dimas'
                 );
+                const mensal = cleanNumber(row?.meta_mensal);
                 return {
-                    mensal: cleanNumber(row?.meta_mensal),
-                    semestral: cleanNumber(row?.meta_semestral),
-                    anual: cleanNumber(row?.meta_anual)
+                    mensal,
+                    semestral: mensal * 6,
+                    anual: mensal * 12
                 };
             }
 
@@ -1990,13 +1992,13 @@
                 for (let m = 1; m <= 12; m++) fatAno += getFaturamentoTotalMes(ano, m);
                 const fatMes = getFaturamentoTotalMes(ano, mes);
 
-                // Nesta página, as metas exibidas nos KPIs devem vir da aba meta_faturamento,
-                // específica do Dimas, e não da meta consolidada geral por mês da empresa.
+                // KPI anual: usa a meta consolidada da empresa, somando os 12 meses do ano.
+                // KPI do mês: usa a meta individual do Dimas, considerada nas trincas.
                 const metasDimas = getMetasDimas(ano, mes);
                 const metaMensalDimas = metasDimas.mensal;
-                const metaAnualDimas = metasDimas.anual;
+                const metaAnualConsolidada = getMetaEmpresaAno(ano);
                 const percMes = metaMensalDimas ? (fatMes / metaMensalDimas) * 100 : 0;
-                const percAno = metaAnualDimas ? (fatAno / metaAnualDimas) * 100 : 0;
+                const percAno = metaAnualConsolidada ? (fatAno / metaAnualConsolidada) * 100 : 0;
                 const percMesCap = Math.min(percMes, 100);
                 const percAnoCap = Math.min(percAno, 100);
 
@@ -2008,7 +2010,7 @@
                         <canvas id="donutAno" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percAno.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta anual Dimas: ${formatarMoeda(metaAnualDimas)}</small>
+                    <small>meta anual consolidada (soma das metas mensais): ${formatarMoeda(metaAnualConsolidada)}</small>
                 </div>
                 <div class="kpi-card">
                     <div class="kpi-header"><i class="fas fa-chart-line"></i><h4>${nomeMesExtenso(mes)} ${ano} (Dimas)</h4></div>
@@ -2017,7 +2019,7 @@
                         <canvas id="donutMes" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percMes.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta mensal Dimas: ${formatarMoeda(metaMensalDimas)}</small>
+                    <small>meta mensal Dimas (considerado nas trincas): ${formatarMoeda(metaMensalDimas)}</small>
                 </div>
             `;
                 document.getElementById('kpi-cards').innerHTML = html;
