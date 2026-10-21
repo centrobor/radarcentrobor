@@ -1728,12 +1728,17 @@
             }
 
             function getMetaEmpresaMes(ano, mes) {
-                const key = `${ano}-${String(mes).padStart(2,'0')}`;
-                const row = metasEmpresaRaw.find(item => item.Mês === key);
-                return row ? cleanNumber(row['Meta (R$)']) : 0;
+                // Meta consolidada da Centrobor: soma as metas dos vendedores
+                // cadastradas na aba meta_faturamento_consolidado_meses para o mês.
+                return metasVendRaw.reduce((total, item) => {
+                    const data = parseDataBR(item.mes_ano || item['mes_ano']);
+                    if (!data || data.getFullYear() !== ano || data.getMonth() + 1 !== mes) return total;
+                    return total + cleanNumber(item.meta_mensal);
+                }, 0);
             }
 
             function getMetaEmpresaAno(ano) {
+                // Soma as metas mensais consolidadas da Centrobor nos 12 meses do ano.
                 let total = 0;
                 for (let m = 1; m <= 12; m++) total += getMetaEmpresaMes(ano, m);
                 return total;
@@ -1741,8 +1746,8 @@
 
             function getMetasDimas(ano, mes) {
                 // A meta mensal individual do Dimas vem da aba meta_faturamento.
-                // Na área Performance, as metas de semestre e ano são derivadas
-                // dessa meta mensal: 6 meses e 12 meses, respectivamente.
+                // A meta do semestre e a meta anual de performance seguem o alvo de
+                // seis meses definido para esta página (6 x a meta mensal).
                 const row = metasDimasRaw.find(m =>
                     String(m.id_vendedor || '').trim() === COD_DIMAS &&
                     String(m.vendedor || '').trim().toLowerCase() === 'dimas'
@@ -1753,7 +1758,7 @@
                 return {
                     mensal,
                     semestral: mensal * 6,
-                    anual: mensal * 12
+                    anual: mensal * 6
                 };
             }
 
@@ -1992,12 +1997,11 @@
                 for (let m = 1; m <= 12; m++) fatAno += getFaturamentoTotalMes(ano, m);
                 const fatMes = getFaturamentoTotalMes(ano, mes);
 
-                // KPI anual: usa a meta consolidada da empresa, somando os 12 meses do ano.
-                // KPI do mês: usa a meta individual do Dimas, considerada nas trincas.
-                const metasDimas = getMetasDimas(ano, mes);
-                const metaMensalDimas = metasDimas.mensal;
+                // Os dois KPIs grandes usam metas consolidadas da Centrobor.
+                // A meta mensal consolidada é a considerada nas trincas.
+                const metaMensalCentrobor = getMetaEmpresaMes(ano, mes);
                 const metaAnualConsolidada = getMetaEmpresaAno(ano);
-                const percMes = metaMensalDimas ? (fatMes / metaMensalDimas) * 100 : 0;
+                const percMes = metaMensalCentrobor ? (fatMes / metaMensalCentrobor) * 100 : 0;
                 const percAno = metaAnualConsolidada ? (fatAno / metaAnualConsolidada) * 100 : 0;
                 const percMesCap = Math.min(percMes, 100);
                 const percAnoCap = Math.min(percAno, 100);
@@ -2019,7 +2023,7 @@
                         <canvas id="donutMes" width="120" height="120" class="donut-kpi"></canvas>
                         <div class="donut-center"><span>${percMes.toFixed(1)}%</span></div>
                     </div>
-                    <small>meta mensal Dimas (considerado nas trincas): ${formatarMoeda(metaMensalDimas)}</small>
+                    <small>meta mensal Centrobor (considerado nas trincas): ${formatarMoeda(metaMensalCentrobor)}</small>
                 </div>
             `;
                 document.getElementById('kpi-cards').innerHTML = html;
