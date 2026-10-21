@@ -753,62 +753,34 @@
 
             function getTableColumns(sample) {
                 if (!sample) return [];
+
+                // Rexon: exibir apenas o preço bruto original (antes do fator) e o custo calculado.
+                // As colunas da fonte chamadas "Preço Bruto"/"Anterior" podem incluir o custo já calculado,
+                // então usamos o valor original salvo no processamento para evitar cabeçalhos duplicados.
                 if (currentCategory?.group === 'rexon') {
-                    // Para Rexon, o preço bruto exibido deve ser o valor original ANTES do fator.
-                    // Os campos brutos da fonte podem ter nomes duplicados e um deles já pode conter o custo.
-                    // Portanto, mostramos o valor original guardado no processamento e o custo calculado separadamente.
                     const keys = Object.keys(sample).filter(k =>
                         !k.startsWith('_') &&
                         !isRexonHiddenColumn(k) &&
-                        !['preco bruto', 'anterior', 'preco bruto original'].includes(norm(k)) &&
-                        norm(k) !== 'preco de venda'
+                        !['preco bruto', 'anterior', 'preco bruto original', 'preco de venda'].includes(norm(k))
                     );
                     const brutoOriginalKey = Object.keys(sample).find(k => norm(k) === 'preco bruto original') || '_Preço bruto original';
-                    const saleKey = Object.keys(sample).find(k => norm(k) === 'preco de venda') || 'Preço de Venda';
+                    const custoKey = Object.keys(sample).find(k => norm(k) === 'preco de venda') || 'Preço de Venda';
                     const orderedKeys = [...keys];
                     const factorIndex = orderedKeys.findIndex(k => norm(k) === 'fator');
                     orderedKeys.splice(factorIndex >= 0 ? factorIndex : orderedKeys.length, 0, brutoOriginalKey);
-                    orderedKeys.push(saleKey);
+                    orderedKeys.push(custoKey);
                     return orderedKeys.map(key => ({
                         key,
                         display: norm(key) === 'preco bruto original' ? 'PREÇO BRUTO' :
                                  norm(key) === 'preco de venda' ? 'CUSTO' : key.replace(/_/g, ' ').toUpperCase()
                     }));
                 }
-                let keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original');
-                    // Os JSONs podem trazer duas chaves com grafia/capitalização diferente (ex.: "Preço bruto" e "Preço Bruto").
-                    // Mantém somente a primeira coluna de preço bruto da fonte e elimina a duplicada, além do legado "Anterior".
-                    const seenNormalized = new Set();
-                    keys = keys.filter(k => {
-                        const normalized = norm(k).replace(/\s+/g, ' ').trim();
-                        if (['preco bruto', 'anterior', 'preco bruto original'].includes(normalized)) {
-                            if (seenNormalized.has('preco-bruto-unico')) return false;
-                            seenNormalized.add('preco-bruto-unico');
-                            return normalized !== 'preco bruto original';
-                        }
-                        if (seenNormalized.has(normalized)) return false;
-                        seenNormalized.add(normalized);
-                        return true;
-                    });
-                    const brutoKey = keys.find(k => ['preco bruto', 'anterior'].includes(norm(k))) || null;
-                    const saleKey = keys.find(k => norm(k) === 'preco de venda');
-                    const orderedKeys = keys.filter(k => k !== saleKey && k !== brutoKey);
-                    if (brutoKey) {
-                        const factorIndex = orderedKeys.findIndex(k => norm(k) === 'fator');
-                        if (factorIndex >= 0) orderedKeys.splice(factorIndex, 0, brutoKey);
-                        else orderedKeys.push(brutoKey);
-                    }
-                    if (saleKey) orderedKeys.push(saleKey);
-                    return orderedKeys.map(key => ({
-                        key,
-                        display: norm(key) === 'preco de venda' ? 'CUSTO' :
-                                 (key === brutoKey || norm(key) === 'anterior' || norm(key) === 'preco bruto') ? 'PREÇO BRUTO' :
-                                 key.replace(/_/g, ' ').toUpperCase()
-                    }));
-                }
-                let keys = Object.keys(sample).filter(k => !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') && !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k)));
-                if (currentCategory?.group === 'rexon' && !keys.includes('Preço de Venda')) keys.push('Preço de Venda');
-                const priority = currentCategory?.group === 'rexon' ? ['Perfil', 'Referência', 'Código do Produto', 'Descrição', 'Preço de Venda'] : ['descrição', 'descricao', 'DESCRIÇÃO', 'código', 'codigo', 'CODIGO SAP', 'Código SAP',
+
+                let keys = Object.keys(sample).filter(k =>
+                    !k.includes('_originalIndex') && !isColumnBlocked(k) && !k.startsWith('_original_') &&
+                    !(currentCategory?.group === 'rexon' && isRexonHiddenColumn(k))
+                );
+                const priority = ['descrição', 'descricao', 'DESCRIÇÃO', 'código', 'codigo', 'CODIGO SAP', 'Código SAP',
                     'custo para vendas (ipi+mkp)', 'custo para vendas', 'preço venda peça', 'valor final', 'preço', 'valor', 'moq', 'PESO', 'peso'];
                 const customDisplay = {
                     'preco de venda': 'PREÇO DE VENDA',
@@ -820,20 +792,16 @@
                 };
                 let ordered = [];
                 priority.forEach(term => {
-                    let found = keys.find(k => norm(k).includes(norm(term)));
+                    const found = keys.find(k => norm(k).includes(norm(term)));
                     if (found && !ordered.some(c => c.key === found)) {
-                        let displayName = found.replace(/_/g, ' ').toUpperCase();
                         const nk = norm(found).replace(/\s+/g, ' ').trim();
-                        if (customDisplay[nk]) displayName = customDisplay[nk];
-                        ordered.push({ display: displayName, key: found });
+                        ordered.push({ display: customDisplay[nk] || found.replace(/_/g, ' ').toUpperCase(), key: found });
                     }
                 });
                 keys.forEach(key => {
                     if (!ordered.some(c => c.key === key)) {
-                        let displayName = key.replace(/_/g, ' ').toUpperCase();
                         const nk = norm(key).replace(/\s+/g, ' ').trim();
-                        if (customDisplay[nk]) displayName = customDisplay[nk];
-                        ordered.push({ display: displayName, key: key });
+                        ordered.push({ display: customDisplay[nk] || key.replace(/_/g, ' ').toUpperCase(), key });
                     }
                 });
                 return ordered;
