@@ -664,67 +664,40 @@
                             }
                             clean._originalIndex = idx;
                             if (cat.group === 'rexon') {
-                                // Nas planilhas Rexon, "Preço bruto" (b minúsculo) pode ser o
-                                // custo já fatorado, enquanto "Preço Bruto" (B maiúsculo) é
-                                // o preço original. No PowerMake, o campo equivalente é "Anterior".
-                                const factorKey = findKeyByPattern(clean, ['fator']);
+                                // Estrutura atual da planilha Rexon: coluna "Custo" já contém
+                                // o valor após o fator; "Preço Bruto" contém o valor original.
+                                // Usar esses cabeçalhos explicitamente evita inverter os preços.
+                                const keyByNorm = (wanted) => Object.keys(clean).find(k => norm(k).trim() === wanted);
+                                const custoSourceKey = keyByNorm('custo');
+                                const brutoSourceKey = keyByNorm('preco bruto');
+                                const factorKey = keyByNorm('fator');
                                 const rowFactor = factorKey ? parseMoney(clean[factorKey]) : NaN;
                                 const factor = Number.isFinite(rexonFactor) ? rexonFactor : rowFactor;
 
-                                const priceKeys = Object.keys(clean).filter(k => {
-                                    const nk = norm(k).replace(/\\s+/g, ' ').trim();
-                                    return nk === 'preco bruto' || nk === 'anterior';
-                                });
-                                const candidates = priceKeys
-                                    .map(key => ({ key, value: parseMoney(clean[key]), label: String(key).trim() }))
-                                    .filter(item => Number.isFinite(item.value));
+                                const custoSource = custoSourceKey ? parseMoney(clean[custoSourceKey]) : NaN;
+                                const brutoSource = brutoSourceKey ? parseMoney(clean[brutoSourceKey]) : NaN;
 
-                                // Prioridade explícita: "Preço Bruto" com B maiúsculo (preço
-                                // original); depois "Anterior" (formato usado por PowerMake).
-                                // Só como último recurso, usa o maior valor quando o fator < 1.
-                                let brutoItem =
-                                    candidates.find(item => item.label === 'Preço Bruto') ||
-                                    candidates.find(item => norm(item.label) === 'anterior') ||
-                                    candidates.find(item => norm(item.label) === 'preco bruto');
-
-                                if (candidates.length > 1 && Number.isFinite(factor) && factor > 0) {
-                                    const exactOriginal = candidates.find(item =>
-                                        item.label === 'Preço Bruto' &&
-                                        candidates.some(other => other.key !== item.key &&
-                                            Math.abs(other.value - item.value * factor) <= 0.03)
-                                    );
-                                    if (exactOriginal) brutoItem = exactOriginal;
-                                    else if (!candidates.some(item => item.label === 'Preço Bruto') &&
-                                             !candidates.some(item => norm(item.label) === 'anterior')) {
-                                        brutoItem = factor < 1
-                                            ? candidates.reduce((a, b) => a.value >= b.value ? a : b)
-                                            : candidates.reduce((a, b) => a.value <= b.value ? a : b);
-                                    }
-                                }
-
-                                const bruto = brutoItem?.value;
-                                if (Number.isFinite(bruto)) {
-                                    clean['_Preço bruto original'] = bruto;
-
-                                    // Prefere o custo que já veio na planilha (a outra coluna
-                                    // "Preço bruto" ou "Preço de Venda"). Recalcula apenas se
-                                    // a fonte não trouxer um custo identificável.
-                                    const otherPrice = candidates.find(item => item.key !== brutoItem.key);
-                                    const sourceSaleKey = Object.keys(clean).find(k => norm(k) === 'preco de venda');
-                                    const sourceSale = sourceSaleKey ? parseMoney(clean[sourceSaleKey]) : NaN;
-                                    let custo = NaN;
-
-                                    if (otherPrice && otherPrice.value < bruto &&
-                                        (!Number.isFinite(factor) || Math.abs(otherPrice.value - bruto * factor) <= 0.15)) {
-                                        custo = otherPrice.value;
-                                    } else if (Number.isFinite(sourceSale) && sourceSale < bruto &&
-                                               (!Number.isFinite(factor) || Math.abs(sourceSale - bruto * factor) <= 0.15)) {
-                                        custo = sourceSale;
-                                    } else if (Number.isFinite(factor) && factor > 0) {
-                                        custo = Math.round((bruto * factor + Number.EPSILON) * 100) / 100;
-                                    }
-
-                                    if (Number.isFinite(custo)) clean['Preço de Venda'] = custo;
+                                if (Number.isFinite(brutoSource) && Number.isFinite(custoSource)) {
+                                    // Caminho principal para a nova planilha: preserva os dois valores
+                                    // exatamente como foram publicados, sem tentar deduzi-los.
+                                    clean['_Preço bruto original'] = brutoSource;
+                                    clean['Preço de Venda'] = custoSource;
+                                } else {
+                                    // Compatibilidade com arquivos antigos da Rexon/PowerMake que
+                                    // ainda usam "Anterior" e/ou "Preço de Venda".
+                                    const anteriorKey = keyByNorm('anterior');
+                                    const vendaKey = keyByNorm('preco de venda');
+                                    const anterior = anteriorKey ? parseMoney(clean[anteriorKey]) : NaN;
+                                    const venda = vendaKey ? parseMoney(clean[vendaKey]) : NaN;
+                                    const legacyBruto = Number.isFinite(anterior) ? anterior :
+                                        (Number.isFinite(brutoSource) ? brutoSource : NaN);
+                                    const legacyCusto = Number.isFinite(venda) ? venda :
+                                        (Number.isFinite(custoSource) ? custoSource :
+                                            (Number.isFinite(legacyBruto) && Number.isFinite(factor) && factor > 0
+                                                ? Math.round((legacyBruto * factor + Number.EPSILON) * 100) / 100
+                                                : NaN));
+                                    if (Number.isFinite(legacyBruto)) clean['_Preço bruto original'] = legacyBruto;
+                                    if (Number.isFinite(legacyCusto)) clean['Preço de Venda'] = legacyCusto;
                                 }
                             }
                             if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
@@ -817,14 +790,14 @@
                     const keys = Object.keys(sample).filter(k =>
                         !k.startsWith('_') &&
                         !isRexonHiddenColumn(k) &&
-                        !['preco bruto', 'anterior', 'preco bruto original', 'preco de venda'].includes(norm(k))
+                        !['custo', 'preco bruto', 'anterior', 'preco bruto original', 'preco de venda'].includes(norm(k))
                     );
                     const brutoOriginalKey = Object.keys(sample).find(k => norm(k) === 'preco bruto original') || '_Preço bruto original';
                     const custoKey = Object.keys(sample).find(k => norm(k) === 'preco de venda') || 'Preço de Venda';
                     const orderedKeys = [...keys];
                     const factorIndex = orderedKeys.findIndex(k => norm(k) === 'fator');
-                    orderedKeys.splice(factorIndex >= 0 ? factorIndex : orderedKeys.length, 0, brutoOriginalKey);
-                    orderedKeys.push(custoKey);
+                    // Mesma ordem da planilha atual: Custo, Preço Bruto, Fator.
+                    orderedKeys.splice(factorIndex >= 0 ? factorIndex : orderedKeys.length, 0, custoKey, brutoOriginalKey);
                     return orderedKeys.map(key => ({
                         key,
                         display: norm(key) === 'preco bruto original' ? 'PREÇO BRUTO' :
@@ -937,7 +910,7 @@
 
                 // ---------- GRUPO REXON: detalhes completos sem dados internos de custo ----------
                 if (cat.group === 'rexon') {
-                    const excluded = key => isRexonHiddenColumn(key) || key.startsWith('_') || ['preco bruto', 'preco bruto original', 'preco de venda'].includes(norm(key));
+                    const excluded = key => isRexonHiddenColumn(key) || key.startsWith('_') || ['custo', 'preco bruto', 'preco bruto original', 'preco de venda'].includes(norm(key));
                     const preferred = ['Perfil', 'Tipo', 'Referência', 'Largura (mm)', 'Compr. (m)', 'Nº de dentes', 'Passo', 'Código do Produto', 'Descrição'];
                     const keys = Object.keys(prod).filter(k => !excluded(k) && !k.includes('_originalIndex'));
                     const ordered = [...preferred.filter(k => keys.some(key => norm(key) === norm(k))), ...keys.filter(k => !preferred.some(pref => norm(pref) === norm(k)))];
