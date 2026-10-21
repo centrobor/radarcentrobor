@@ -755,9 +755,11 @@
                 if (!sample) return [];
                 // No Grupo Rexon, mostrar os dados técnicos do produto e ocultar apenas os campos internos solicitados.
                 if (currentCategory?.group === 'rexon') {
-                    const keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original');
-                    // Exibir o preço bruto de origem (ou o campo legado "Anterior") antes do fator e do custo.
-                    const brutoKey = keys.find(k => norm(k) === 'preco bruto') || keys.find(k => norm(k) === 'anterior');
+                    let keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original');
+                    // Mostrar apenas o Preço Bruto de origem. Se ele existir, ocultar o campo legado "Anterior" para não duplicar a coluna.
+                    const sourceBrutoKey = keys.find(k => norm(k) === 'preco bruto');
+                    if (sourceBrutoKey) keys = keys.filter(k => norm(k) !== 'anterior');
+                    const brutoKey = sourceBrutoKey || keys.find(k => norm(k) === 'anterior');
                     const saleKey = keys.find(k => norm(k) === 'preco de venda');
                     const orderedKeys = keys.filter(k => k !== saleKey && k !== brutoKey);
                     if (brutoKey) {
