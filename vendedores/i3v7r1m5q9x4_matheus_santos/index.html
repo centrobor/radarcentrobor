@@ -3515,15 +3515,33 @@
     async function carregarDadosComRetry(selectedMonth) {
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
-        if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
-        // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
+        if (monthStatus) {
+            monthStatus.style.display = 'inline-flex';
+            monthStatus.className = 'section-sync-status loading';
+            monthStatus.setAttribute('role', 'status');
+            monthStatus.setAttribute('aria-live', 'polite');
+            monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando ' + selectedMonth + ' na nuvem em segundo plano. Você pode continuar usando a página.</span>';
+        }
+        // Permite ao navegador pintar o aviso antes de começar o processamento dos dados.
+        // Sem esta pausa, a mensagem pode não aparecer até a interface terminar de processar.
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 40)));
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
             document.body.dataset.radarRendered = 'true';
-            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Mês exibido</span>'; setTimeout(() => { if(monthStatus) monthStatus.style.display='none'; }, 2200); }
+            if (monthStatus) {
+                monthStatus.style.display = 'inline-flex';
+                monthStatus.className = 'section-sync-status local';
+                monthStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Mês ' + selectedMonth + ' atualizado. A página terminou de processar os dados.</span>';
+                setTimeout(() => { if (monthStatus && ultimoMesSolicitado === selectedMonth) monthStatus.style.display = 'none'; }, 3500);
+            }
         } catch(e) {
             console.error('Falha ao montar a interface:', e);
+            if (monthStatus) {
+                monthStatus.style.display = 'inline-flex';
+                monthStatus.className = 'section-sync-status offline';
+                monthStatus.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>Não foi possível carregar ' + selectedMonth + '. A página tentará atualizar novamente.</span>';
+            }
             const banner = document.getElementById('connection-status');
             const texto = document.getElementById('connection-status-text');
             if (banner && texto) {
