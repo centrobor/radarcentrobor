@@ -3541,13 +3541,22 @@
     async function carregarDadosComRetry(selectedMonth) {
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
-        if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.style.display = 'inline-flex'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando ' + selectedMonth + ' na nuvem — você pode continuar usando a página.</span>'; }
+        if (monthStatus) {
+            monthStatus.style.display = 'inline-flex';
+            monthStatus.className = 'section-sync-status loading';
+            monthStatus.setAttribute('role', 'status');
+            monthStatus.setAttribute('aria-live', 'polite');
+            monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando ' + selectedMonth + ' na nuvem em segundo plano. Você pode continuar usando a página.</span>';
+        }
+        // Deixa o navegador pintar o aviso ANTES de iniciar o processamento pesado.
+        // Sem esta pausa, o texto só aparecia depois do renderAll e parecia que a página travou.
+        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 40)));
         // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
             document.body.dataset.radarRendered = 'true';
-            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Dados de ' + selectedMonth + ' carregados.</span>'; setTimeout(() => { if(monthStatus) monthStatus.style.display='none'; }, 3500); }
+            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Mês ' + selectedMonth + ' atualizado. A página já terminou de processar os dados.</span>'; setTimeout(() => { if(monthStatus) monthStatus.style.display='none'; }, 3500); }
         } catch(e) {
             console.error('Falha ao montar a interface:', e);
             const banner = document.getElementById('connection-status');
