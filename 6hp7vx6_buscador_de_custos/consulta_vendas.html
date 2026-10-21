@@ -680,7 +680,12 @@
                                 if (Number.isFinite(brutoSource) && Number.isFinite(custoSource)) {
                                     // Caminho principal para a nova planilha: preserva os dois valores
                                     // exatamente como foram publicados, sem tentar deduzi-los.
-                                    clean['_Preço bruto original'] = brutoSource;
+                                    // Padroniza o nome visível da coluna: apenas "Preço Bruto".
+                                    for (const k of Object.keys(clean)) {
+                                        if (norm(k).trim() === 'preco bruto' && k !== 'Preço Bruto') delete clean[k];
+                                    }
+                                    clean['Preço Bruto'] = brutoSource;
+                                    delete clean['_Preço bruto original'];
                                     clean['Preço de Venda'] = custoSource;
                                 } else {
                                     // Compatibilidade com arquivos antigos da Rexon/PowerMake que
@@ -696,7 +701,13 @@
                                             (Number.isFinite(legacyBruto) && Number.isFinite(factor) && factor > 0
                                                 ? Math.round((legacyBruto * factor + Number.EPSILON) * 100) / 100
                                                 : NaN));
-                                    if (Number.isFinite(legacyBruto)) clean['_Preço bruto original'] = legacyBruto;
+                                    if (Number.isFinite(legacyBruto)) {
+                                        for (const k of Object.keys(clean)) {
+                                            if (norm(k).trim() === 'preco bruto' && k !== 'Preço Bruto') delete clean[k];
+                                        }
+                                        clean['Preço Bruto'] = legacyBruto;
+                                        delete clean['_Preço bruto original'];
+                                    }
                                     if (Number.isFinite(legacyCusto)) clean['Preço de Venda'] = legacyCusto;
                                 }
                             }
@@ -791,15 +802,15 @@
                         !isRexonHiddenColumn(k) &&
                         !['custo', 'preco bruto', 'anterior', 'preco bruto original', 'preco de venda', 'fator'].includes(norm(k))
                     );
-                    const brutoOriginalKey = Object.keys(sample).find(k => norm(k) === 'preco bruto original') || '_Preço bruto original';
+                    const brutoKey = Object.keys(sample).find(k => norm(k) === 'preco bruto') || 'Preço Bruto';
                     const factorKey = Object.keys(sample).find(k => norm(k) === 'fator');
                     const custoKey = Object.keys(sample).find(k => norm(k) === 'preco de venda') || 'Preço de Venda';
-                    const orderedKeys = [...keys, brutoOriginalKey];
+                    const orderedKeys = [...keys, brutoKey];
                     if (factorKey) orderedKeys.push(factorKey);
                     orderedKeys.push(custoKey);
                     return orderedKeys.map(key => ({
                         key,
-                        display: norm(key) === 'preco bruto original' ? 'PREÇO BRUTO' :
+                        display: norm(key) === 'preco bruto' ? 'PREÇO BRUTO' :
                                  norm(key) === 'preco de venda' ? 'CUSTO' : key.replace(/_/g, ' ').toUpperCase()
                     }));
                 }
@@ -854,7 +865,7 @@
                     html += `<tr data-idx="${p._originalIndex}">`;
                     for (let c of cols) {
                         let val = p[c.key] !== undefined ? p[c.key] : '—', display = val;
-                        const isRexonPrice = currentCategory?.group === 'rexon' && ['preco bruto original', 'preco de venda'].includes(norm(c.key));
+                        const isRexonPrice = currentCategory?.group === 'rexon' && ['preco bruto', 'preco bruto original', 'preco de venda'].includes(norm(c.key));
                         if (numericCols.includes(c.key) || isRexonPrice) {
                             let num = parseMoney(val);
                             if (!isNaN(num)) {
