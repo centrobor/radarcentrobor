@@ -480,6 +480,7 @@
         @keyframes syncPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
         .section-sync-status .sync-spin { animation: syncSpin 1.3s linear infinite; }
         .section-sync-status .sync-pulse { animation: syncPulse 1.6s ease-in-out infinite; }
+        #month-load-status { flex-basis:100%; width:100%; margin:8px 0 0; padding:9px 12px; border-radius:12px; white-space:normal; font-size:.76rem; line-height:1.4; justify-content:flex-start; }
         @keyframes syncSpin { to { transform:rotate(360deg); } }
         @keyframes syncPulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
         @media (prefers-reduced-motion: reduce) {
@@ -1917,11 +1918,18 @@
         return premiosConsolidadoCache;
     }
     function formatarAnoMesRegistro(reg) {
-        const bruto = String(reg.mes_ano || reg.mes || reg.competencia || '').trim();
+        // Os JSONs oficiais podem chamar a competência de "Mês", mes_ano, mes ou competencia.
+        const bruto = String(reg['Mês'] || reg['Mes'] || reg.mes_ano || reg.mes || reg.competencia || reg['Mês/Ano'] || reg['Competência'] || '').trim();
         const d = parseDataBR(bruto);
         if (d) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        const iso = bruto.match(/^(\d{4})-(\d{1,2})/);
+        const iso = bruto.match(/^(\d{4})[-/](\d{1,2})/);
         if (iso) return `${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
+        const abrev = bruto.toLowerCase().match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\/?[- ]?(\d{2,4})$/i);
+        if (abrev) {
+            const mm = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'}[abrev[1].slice(0,3)];
+            const yy = abrev[2].length===2 ? `20${abrev[2]}` : abrev[2];
+            if (mm) return `${yy}-${mm}`;
+        }
         return null;
     }
     async function abrirMeusPremios() {
@@ -2009,7 +2017,7 @@
             const podium=`<div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${totalBronze}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${totalSilver}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · 6 meses e especiais</span><strong>${totalGold}</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>${totalTeam}</strong></div></div></div>`;
             const calendar=Array.from({length:12},(_,i)=>{const r=allRows.find(x=>x.year===y&&x.month===i+1);const hoje=new Date();const futuro=y>hoje.getFullYear()||(y===hoje.getFullYear()&&i+1>hoje.getMonth()+1);const atual=y===hoje.getFullYear()&&i+1===hoje.getMonth()+1;const status=r&&r.earned?'META BATIDA':(atual?'Em andamento':(futuro?'Em breve':(r&&r.meta?'Não atingiu':'Sem dados')));const monthIcon=r&&r.earned?'fa-medal':(atual?'fa-wave-square':(futuro?'fa-lock':(r&&r.meta?'fa-xmark':'fa-circle-question')));return `<div class="awards-calendar-month ${r&&r.earned?'earned':''} ${atual?'month-in-progress':''} ${futuro?'month-future':''} ${!futuro&&!atual&&r&&r.meta&&!r.earned?'month-not-earned':''}"><i class="fas ${monthIcon}"></i>${new Date(y,i,1).toLocaleDateString('pt-BR',{month:'short'}).toUpperCase()}<br>${status}</div>`;}).join('');
             const teamMonths=[...teamByMonth.values()].filter(r=>r.year===y&&(m==='all'||r.month===Number(m)));
-            document.getElementById('premios-colecao-conteudo').innerHTML=`<div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas <span style="font-size:.68rem;font-weight:650;color:#65758a">· total geral de todos os anos</span></div>${podium}<div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas · ${y}</div><div class="awards-calendar">${calendar}</div><div class="awards-subtitle"><i class="fas fa-user"></i> Metas individuais <span class="sub-pill">SUA PERFORMANCE</span></div>${cardsIndividual?`<div class="awards-trophy-grid">${cardsIndividual}</div>`:'<div class="awards-empty"><i class="fas fa-medal" style="font-size:1.4rem;display:block;margin-bottom:10px"></i>Nenhuma conquista individual neste filtro.</div>'}<div class="awards-subtitle"><i class="fas fa-people-group"></i> Metas do time <span class="sub-pill">CONQUISTAS COLETIVAS</span><span class="sub-pill" style="background:#e9ddff;color:#43217e">${teamMonths.filter(r=>r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta)).length} meses batidos em ${y}</span></div>${cardsTime?`<div class="awards-trophy-grid">${cardsTime}</div>`:'<div class="awards-empty">Nenhuma conquista coletiva neste filtro.</div>'}<div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Continue desbloqueando conquistas!</strong> Estes prêmios podem liberar recompensas especiais, como vouchers, recebimentos, dinheiro e outros benefícios, conforme as campanhas e regras vigentes. A conquista não garante automaticamente uma recompensa financeira.</div><p class="awards-footnote"><i class="fas fa-circle-info"></i> Dados consultados dos arquivos JSON do Radar. A coleção é individual deste perfil; os registros locais de popup e notificação dependem deste navegador.</p>`;
+            document.getElementById('premios-colecao-conteudo').innerHTML=`<div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas <span style="font-size:.68rem;font-weight:650;color:#65758a">· total geral de todos os anos</span></div>${podium}<div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas · ${y}</div><div class="awards-calendar">${calendar}</div><div class="awards-subtitle"><i class="fas fa-user"></i> Metas individuais <span class="sub-pill">SUA PERFORMANCE</span></div>${cardsIndividual?`<div class="awards-trophy-grid">${cardsIndividual}</div>`:'<div class="awards-empty"><i class="fas fa-medal" style="font-size:1.4rem;display:block;margin-bottom:10px"></i>Nenhuma conquista individual neste filtro.</div>'}<div class="awards-subtitle"><i class="fas fa-people-group"></i> Metas do time <span class="sub-pill">CONQUISTAS COLETIVAS</span><span class="sub-pill" style="background:#e9ddff;color:#43217e">${teamMonths.filter(r=>r.year===y&&(r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta))).length} meses batidos em ${y}</span></div>${cardsTime?`<div class="awards-trophy-grid">${cardsTime}</div>`:'<div class="awards-empty">Nenhuma conquista coletiva neste filtro.</div>'}<div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Continue desbloqueando conquistas!</strong> Estes prêmios podem liberar recompensas especiais, como vouchers, recebimentos, dinheiro e outros benefícios, conforme as campanhas e regras vigentes. A conquista não garante automaticamente uma recompensa financeira.</div><p class="awards-footnote"><i class="fas fa-circle-info"></i> Dados consultados dos arquivos JSON do Radar. A coleção é individual deste perfil; os registros locais de popup e notificação dependem deste navegador.</p>`;
         };
         ['premios-filtro-ano','premios-filtro-mes','premios-filtro-tipo'].forEach(id=>document.getElementById(id).addEventListener('change',renderColecao));
         renderColecao();
@@ -2179,8 +2187,8 @@
             const mesNum = mesesMap[mesAbrev];
             if (mesNum && anoShort) {
                 const chave = `20${anoShort}-${mesNum}`;
-                const metaEntry = metasGlobais.find(m => m['Mês'] === chave);
-                if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
+                const metaEntry = metasGlobais.find(m => formatarAnoMesRegistro(m) === chave);
+                if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)'] ?? metaEntry.meta_time ?? metaEntry.meta_global ?? metaEntry.meta ?? 0);
             }
         }
 
@@ -3531,15 +3539,16 @@
     async function carregarDadosComRetry(selectedMonth) {
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
-        if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
+        if (monthStatus) { monthStatus.style.display = 'flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.setAttribute('role','status'); monthStatus.setAttribute('aria-live','polite'); monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando os dados de ' + selectedMonth + '… Você pode continuar usando a página enquanto atualizamos os indicadores.</span>'; }
         // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
             document.body.dataset.radarRendered = 'true';
-            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-floppy-disk"></i><span>Mês exibido</span>'; setTimeout(() => { if(monthStatus) monthStatus.style.display='none'; }, 2200); }
+            if (monthStatus && ultimoMesSolicitado === selectedMonth) { monthStatus.style.display = 'flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-circle-check"></i><span>Dados de ' + selectedMonth + ' exibidos. A página continua disponível para uso.</span>'; setTimeout(() => { if(monthStatus && ultimoMesSolicitado === selectedMonth) monthStatus.style.display='none'; }, 3500); }
         } catch(e) {
             console.error('Falha ao montar a interface:', e);
+            if (monthStatus && ultimoMesSolicitado === selectedMonth) { monthStatus.style.display='flex'; monthStatus.className='section-sync-status offline'; monthStatus.innerHTML='<i class="fas fa-triangle-exclamation"></i><span>Não foi possível concluir a atualização de ' + selectedMonth + '. Você pode continuar usando a página e tentar novamente.</span>'; }
             const banner = document.getElementById('connection-status');
             const texto = document.getElementById('connection-status-text');
             if (banner && texto) {
