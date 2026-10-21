@@ -664,42 +664,67 @@
                             }
                             clean._originalIndex = idx;
                             if (cat.group === 'rexon') {
-                                // A fonte pode trazer duas colunas com o mesmo nome normalizado:
-                                // uma já contém o custo e a outra o preço bruto antes do fator.
-                                // Priorize o fator configurado; se não houver, use o fator da própria linha.
+                                // Nas planilhas Rexon, "Preço bruto" (b minúsculo) pode ser o
+                                // custo já fatorado, enquanto "Preço Bruto" (B maiúsculo) é
+                                // o preço original. No PowerMake, o campo equivalente é "Anterior".
                                 const factorKey = findKeyByPattern(clean, ['fator']);
                                 const rowFactor = factorKey ? parseMoney(clean[factorKey]) : NaN;
                                 const factor = Number.isFinite(rexonFactor) ? rexonFactor : rowFactor;
+
                                 const priceKeys = Object.keys(clean).filter(k => {
-                                    const nk = norm(k).replace(/\s+/g, ' ').trim();
+                                    const nk = norm(k).replace(/\\s+/g, ' ').trim();
                                     return nk === 'preco bruto' || nk === 'anterior';
                                 });
                                 const candidates = priceKeys
-                                    .map(key => ({ key, value: parseMoney(clean[key]) }))
+                                    .map(key => ({ key, value: parseMoney(clean[key]), label: String(key).trim() }))
                                     .filter(item => Number.isFinite(item.value));
-                                let bruto = NaN;
-                                if (candidates.length === 1) {
-                                    bruto = candidates[0].value;
-                                } else if (candidates.length > 1) {
-                                    // Escolhe o valor pré-fator: seu produto pelo fator deve coincidir
-                                    // com a outra coluna (ex.: 11,45 × 0,729 ≈ 8,35).
-                                    let best = null;
-                                    for (const candidate of candidates) {
-                                        if (!Number.isFinite(factor) || factor <= 0) continue;
-                                        const calculated = Math.round((candidate.value * factor + Number.EPSILON) * 100) / 100;
-                                        const match = candidates.some(other => other.key !== candidate.key && Math.abs(other.value - calculated) <= 0.02);
-                                        if (match) { best = candidate; break; }
+
+                                // Prioridade explícita: "Preço Bruto" com B maiúsculo (preço
+                                // original); depois "Anterior" (formato usado por PowerMake).
+                                // Só como último recurso, usa o maior valor quando o fator < 1.
+                                let brutoItem =
+                                    candidates.find(item => item.label === 'Preço Bruto') ||
+                                    candidates.find(item => norm(item.label) === 'anterior') ||
+                                    candidates.find(item => norm(item.label) === 'preco bruto');
+
+                                if (candidates.length > 1 && Number.isFinite(factor) && factor > 0) {
+                                    const exactOriginal = candidates.find(item =>
+                                        item.label === 'Preço Bruto' &&
+                                        candidates.some(other => other.key !== item.key &&
+                                            Math.abs(other.value - item.value * factor) <= 0.03)
+                                    );
+                                    if (exactOriginal) brutoItem = exactOriginal;
+                                    else if (!candidates.some(item => item.label === 'Preço Bruto') &&
+                                             !candidates.some(item => norm(item.label) === 'anterior')) {
+                                        brutoItem = factor < 1
+                                            ? candidates.reduce((a, b) => a.value >= b.value ? a : b)
+                                            : candidates.reduce((a, b) => a.value <= b.value ? a : b);
                                     }
-                                    if (best) bruto = best.value;
-                                    else if (Number.isFinite(factor) && factor < 1) bruto = Math.max(...candidates.map(item => item.value));
-                                    else if (Number.isFinite(factor) && factor > 1) bruto = Math.min(...candidates.map(item => item.value));
-                                    else bruto = candidates[0].value;
                                 }
+
+                                const bruto = brutoItem?.value;
                                 if (Number.isFinite(bruto)) {
                                     clean['_Preço bruto original'] = bruto;
-                                    if (Number.isFinite(factor) && factor > 0) {
-                                        clean['Preço de Venda'] = Math.round((bruto * factor + Number.EPSILON) * 100) / 100;
+
+                                    // Prefere o custo que já veio na planilha (a outra coluna
+                                    // "Preço bruto" ou "Preço de Venda"). Recalcula apenas se
+                                    // a fonte não trouxer um custo identificável.
+                                    const otherPrice = candidates.find(item => item.key !== brutoItem.key);
+                                    const sourceSaleKey = Object.keys(clean).find(k => norm(k) === 'preco de venda');
+                                    const sourceSale = sourceSaleKey ? parseMoney(clean[sourceSaleKey]) : NaN;
+                                    let custo = NaN;
+
+                                    if (otherPrice && otherPrice.value < bruto &&
+                                        (!Number.isFinite(factor) || Math.abs(otherPrice.value - bruto * factor) <= 0.15)) {
+                                        custo = otherPrice.value;
+                                    } else if (Number.isFinite(sourceSale) && sourceSale < bruto &&
+                                               (!Number.isFinite(factor) || Math.abs(sourceSale - bruto * factor) <= 0.15)) {
+                                        custo = sourceSale;
+                                    } else if (Number.isFinite(factor) && factor > 0) {
+                                        custo = Math.round((bruto * factor + Number.EPSILON) * 100) / 100;
                                     }
+
+                                    if (Number.isFinite(custo)) clean['Preço de Venda'] = custo;
                                 }
                             }
                             if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
