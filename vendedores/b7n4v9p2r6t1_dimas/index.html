@@ -1431,8 +1431,8 @@
         <div class="menu-section">
             <div class="menu-section-label">Principal</div>
             <button class="menu-item" id="menu-postagens"><i class="fas fa-newspaper"></i> Postagens</button>
-            <a class="menu-item" id="menu-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><i class="fas fa-ruler-combined"></i> Calculadora Correias <span class="novidade-badge novidade-temporaria">NOVO</span></a>
-            <a class="menu-item" id="menu-mapas" href="https://centrobor.github.io/radarcentrobor/projetos/mapa_v1" target="_blank" rel="noopener noreferrer"><i class="fas fa-map-marked-alt"></i> Mapas <span class="novidade-badge novidade-temporaria">NOVO</span></a>
+            <a class="menu-item" id="menu-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><i class="fas fa-ruler-combined"></i> Calculadora Correias</a>
+            <a class="menu-item" id="menu-mapas" href="https://centrobor.github.io/radarcentrobor/projetos/mapa_v1" target="_blank" rel="noopener noreferrer"><i class="fas fa-map-marked-alt"></i> Mapas</a>
             <button class="menu-item" id="menu-custos"><i class="fas fa-calculator"></i> Custo</button>
         </div>
         <div class="menu-section">
@@ -1455,8 +1455,8 @@
     <div class="mobile-bottom-bar" id="mobile-bottom-bar">
         <button class="bb-item" data-nav="feed" id="bb-feed"><i class="fas fa-newspaper"></i><span>Feed</span></button>
         <button class="bb-item" data-nav="custos" id="bb-custos"><i class="fas fa-calculator"></i><span>Custo</span></button>
-        <button class="bb-item" data-nav="calculadora-correias" id="bb-calculadora-correias"><i class="fas fa-ruler-combined"></i><span>Correias</span><span class="novidade-badge novidade-temporaria">NOVO</span></button>
-        <a class="bb-item" data-nav="mapas" id="bb-mapas" href="https://centrobor.github.io/radar_h6p2w9k4t1y878_leads/maps" target="_blank" rel="noopener noreferrer"><i class="fas fa-map-marked-alt"></i><span>Mapas</span><span class="novidade-badge novidade-temporaria">NOVO</span></a>
+        <button class="bb-item" data-nav="calculadora-correias" id="bb-calculadora-correias"><i class="fas fa-ruler-combined"></i><span>Correias</span></button>
+        <a class="bb-item" data-nav="mapas" id="bb-mapas" href="https://centrobor.github.io/radar_h6p2w9k4t1y878_leads/maps" target="_blank" rel="noopener noreferrer"><i class="fas fa-map-marked-alt"></i><span>Mapas</span></a>
         <button class="bb-item bb-badge" data-nav="alertas" id="bb-alertas"><i class="fas fa-bell"></i><span>Alertas</span><span class="badge-dot" id="bb-badge-dot" style="display:none;"></span></button>
     </div>
 
@@ -1491,8 +1491,8 @@
         <div class="tools-grid">
             <a class="tool-card" href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens"><div class="tool-icon"><i class="fas fa-newspaper"></i></div><div class="tool-label">Postagens</div></a>
             <a class="tool-card" id="tool-custo" href="https://centrobor.github.io/radarcentrobor/6hp7vx6_buscador_de_custos/question"><div class="tool-icon"><i class="fas fa-calculator"></i></div><div class="tool-label">Custo</div></a>
-            <a class="tool-card" id="tool-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><span class="novidade-badge novidade-temporaria">NOVO</span><div class="tool-icon"><i class="fas fa-ruler-combined"></i></div><div class="tool-label">Calculadora Correias</div></a>
-            <a class="tool-card" id="tool-mapas" href="https://centrobor.github.io/radar_h6p2w9k4t1y878_leads/maps" target="_blank" rel="noopener noreferrer"><span class="novidade-badge novidade-temporaria">NOVO</span><div class="tool-icon"><i class="fas fa-map-marked-alt"></i></div><div class="tool-label">Mapas</div></a>
+            <a class="tool-card" id="tool-calculadora-correias" href="https://centrobor.github.io/CoreCalc/" target="_blank" rel="noopener noreferrer"><div class="tool-icon"><i class="fas fa-ruler-combined"></i></div><div class="tool-label">Calculadora Correias</div></a>
+            <a class="tool-card" id="tool-mapas" href="https://centrobor.github.io/radar_h6p2w9k4t1y878_leads/maps" target="_blank" rel="noopener noreferrer"><div class="tool-icon"><i class="fas fa-map-marked-alt"></i></div><div class="tool-label">Mapas</div></a>
         </div>
 
         <!-- FILTRO MENSAL + PDF -->
@@ -1728,26 +1728,19 @@
             }
 
             function getMetaEmpresaMes(ano, mes) {
-                // Os KPIs consolidados da Centrobor usam a meta mensal do Dimas
-                // na aba meta_faturamento_consolidado_meses, variando por mês.
-                // Ex.: outubro/2026 = R$ 2.024.764,80.
-                const row = metasVendRaw.find(m => {
-                    const d = parseDataBR(m.mes_ano);
-                    return d &&
-                        d.getFullYear() === ano &&
-                        d.getMonth() + 1 === mes &&
-                        String(m.id_vendedor || '').trim() === COD_DIMAS &&
-                        String(m.vendedor || '').trim().toLowerCase() === 'dimas';
-                });
-                return cleanNumber(row?.meta_mensal);
+                // KPI mensal Centrobor: busca a meta na aba `metas`, usando Mês (YYYY-MM)
+                // e Meta (R$). Ex.: outubro/2026 = R$ 2.024.764,80.
+                const chaveMes = `${ano}-${String(mes).padStart(2, '0')}`;
+                const row = metasEmpresaRaw.find(m => String(m['Mês'] || '').trim() === chaveMes);
+                return cleanNumber(row?.['Meta (R$)']);
             }
 
             function getMetaEmpresaAno(ano) {
-                // Meta anual consolidada = soma das 12 metas mensais do Dimas
-                // na aba meta_faturamento_consolidado_meses (não multiplicar um único mês).
-                let total = 0;
-                for (let mes = 1; mes <= 12; mes++) total += getMetaEmpresaMes(ano, mes);
-                return total;
+                // KPI anual Centrobor: soma todas as metas mensais da aba `metas` para o ano.
+                return metasEmpresaRaw.reduce((total, row) => {
+                    const mesAno = String(row['Mês'] || '').trim();
+                    return mesAno.startsWith(`${ano}-`) ? total + cleanNumber(row['Meta (R$)']) : total;
+                }, 0);
             }
 
             function getMetasDimas(ano, mes) {
@@ -2569,15 +2562,6 @@
                 
                 document.getElementById('bb-alertas').addEventListener('click', () => { setActiveBottomBar('alertas');
                     abrirNotificacoes(); });
-
-                // Exibe o selo NOVO de 09/10/2026 até 09/12/2026, inclusive.
-                const inicioNovidade = new Date(2026, 9, 9);
-                const fimNovidade = new Date(2026, 11, 10);
-                const hojeNovidade = new Date();
-                hojeNovidade.setHours(0, 0, 0, 0);
-                document.querySelectorAll('.novidade-temporaria').forEach(selo => {
-                    selo.style.display = (hojeNovidade >= inicioNovidade && hojeNovidade < fimNovidade) ? 'inline-flex' : 'none';
-                });
 
                 fetchAllData();
             });
