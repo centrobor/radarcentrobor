@@ -1499,7 +1499,7 @@
         <div class="month-filter">
             <div class="filter-left">
                 <i class="fas fa-calendar-alt"></i>
-                <div class="month-grid" id="month-grid"></div>
+                <div class="month-grid" id="month-grid"></div><span id="month-load-status" role="status" aria-live="polite" style="display:none;align-items:center;gap:7px;padding:8px 12px;border-radius:20px;background:#fff8e1;border:1px solid #f0dba5;color:#875d0b;font-size:.75rem;font-weight:700;max-width:100%;"><i class="fas fa-arrows-rotate" style="animation:spin 1s linear infinite"></i><span>Consultando na nuvem…</span></span>
             </div>
             <button class="btn-pdf" id="gerar-pdf-btn"><i class="fas fa-file-pdf"></i> Gerar PDF</button>
         </div>
@@ -1969,7 +1969,7 @@
                 grid.innerHTML = html;
 
                 grid.querySelectorAll('.month-item:not(.future)').forEach(btn => {
-                    btn.addEventListener('click', function() {
+                    btn.addEventListener('click', async function() {
                         mesSelecionado = this.dataset.mes;
                         renderizarGradeMeses();
                         const [mesStr, anoStr] = mesSelecionado.split('/');
@@ -1977,7 +1977,30 @@
                             out: 10, nov: 11, dez: 12 };
                         const mes = mesesMap[mesStr];
                         const ano = 2000 + parseInt(anoStr);
-                        renderAll(ano, mes);
+                        const status = document.getElementById('month-load-status');
+                        if (status) {
+                            status.style.display = 'inline-flex';
+                            status.style.background = '#fff8e1';
+                            status.style.borderColor = '#f0dba5';
+                            status.style.color = '#875d0b';
+                            status.innerHTML = '<i class="fas fa-arrows-rotate" style="animation:spin 1s linear infinite"></i><span>Consultando ' + mesSelecionado + ' na nuvem. Você pode continuar usando a página.</span>';
+                        }
+                        // Permite que o navegador pinte o aviso antes dos cálculos do mês.
+                        await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 40)));
+                        try {
+                            await renderAll(ano, mes);
+                            if (status) {
+                                status.style.background = '#edf8ef'; status.style.borderColor = '#c6e7cc'; status.style.color = '#287443';
+                                status.innerHTML = '<i class="fas fa-check-circle"></i><span>Dados de ' + mesSelecionado + ' processados.</span>';
+                                setTimeout(() => { if (status) status.style.display = 'none'; }, 3500);
+                            }
+                        } catch (e) {
+                            console.error('Erro ao processar mês selecionado:', e);
+                            if (status) {
+                                status.style.background = '#fff0ef'; status.style.borderColor = '#f2cfcc'; status.style.color = '#9b3d38';
+                                status.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>Não foi possível processar ' + mesSelecionado + '. Tente novamente.</span>';
+                            }
+                        }
                     });
                 });
             }
