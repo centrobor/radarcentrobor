@@ -480,7 +480,6 @@
         @keyframes syncPulse { 0%,100% { opacity:1; } 50% { opacity:.45; } }
         .section-sync-status .sync-spin { animation: syncSpin 1.3s linear infinite; }
         .section-sync-status .sync-pulse { animation: syncPulse 1.6s ease-in-out infinite; }
-        #month-load-status { flex-basis:100%; width:100%; margin:8px 0 0; padding:9px 12px; border-radius:12px; white-space:normal; font-size:.76rem; line-height:1.4; justify-content:flex-start; }
         @keyframes syncSpin { to { transform:rotate(360deg); } }
         @keyframes syncPulse { 0%,100% { opacity:.55; } 50% { opacity:1; } }
         @media (prefers-reduced-motion: reduce) {
@@ -1918,18 +1917,11 @@
         return premiosConsolidadoCache;
     }
     function formatarAnoMesRegistro(reg) {
-        // Os JSONs oficiais podem chamar a competência de "Mês", mes_ano, mes ou competencia.
-        const bruto = String(reg['Mês'] || reg['Mes'] || reg.mes_ano || reg.mes || reg.competencia || reg['Mês/Ano'] || reg['Competência'] || '').trim();
+        const bruto = String(reg.mes_ano || reg.mes || reg.competencia || '').trim();
         const d = parseDataBR(bruto);
         if (d) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        const iso = bruto.match(/^(\d{4})[-/](\d{1,2})/);
+        const iso = bruto.match(/^(\d{4})-(\d{1,2})/);
         if (iso) return `${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
-        const abrev = bruto.toLowerCase().match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[a-z]*\/?[- ]?(\d{2,4})$/i);
-        if (abrev) {
-            const mm = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'}[abrev[1].slice(0,3)];
-            const yy = abrev[2].length===2 ? `20${abrev[2]}` : abrev[2];
-            if (mm) return `${yy}-${mm}`;
-        }
         return null;
     }
     async function abrirMeusPremios() {
@@ -1938,7 +1930,12 @@
         const body = document.getElementById('meus-premios-body');
         modal.classList.add('active');
         body.innerHTML = '<div class="awards-hero"><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Consultando os dados publicados na pasta dados/…</p></div><div class="awards-content"><div class="awards-empty"><i class="fas fa-spinner fa-spin"></i> Aguarde: carregando o histórico consolidado e o faturamento do mês selecionado.</div></div>';
-        const [consolidado, faturados, metasTime] = await Promise.all([obterDadosPremios(), carregarJSON(BASES.faturados).catch(()=>[]), carregarJSON(BASES.metasGlobais).catch(()=>[])]);
+        const [consolidado, faturados, metasTime, faturadosTimeArrays] = await Promise.all([
+            obterDadosPremios(),
+            carregarJSON(BASES.faturados).catch(()=>[]),
+            carregarJSON(BASES.metasGlobais).catch(()=>[]),
+            Promise.all((BASES.faturadosTime || []).map(url => carregarJSON(url).catch(()=>[])))
+        ]);
         const anos = new Set([new Date().getFullYear()]);
         const linhas = (Array.isArray(consolidado)?consolidado:[]).filter(r => String(r.id_vendedor||'').trim() === COD_VENDEDOR && normalizarNomeCliente(r.vendedor||'').includes('FABIO'));
         const porMes = new Map();
@@ -1969,22 +1966,25 @@
             teamByMonth.set(key,{key,year:Number(iso[1]),month:Number(iso[2]),meta:cleanNumber(r['Meta (R$)']??r.meta_time??r.meta_global??r.meta??0),fat:0,temConsolidado:false});
             anos.add(Number(iso[1]));
         });
-        const consolidadoTimePorMes = new Map();
-        (Array.isArray(consolidado)?consolidado:[]).forEach(r=>{
-            const raw=String(r.mes_ano||r['Mês']||r.mes||'').trim();
-            const iso=raw.match(/^(\d{4})-(\d{1,2})/); if(!iso)return;
-            const key=`${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
-            const row=teamByMonth.get(key)||{key,year:Number(iso[1]),month:Number(iso[2]),meta:0,fat:0,temConsolidado:false};
-            const valorRaw=r.faturado??r['Faturado']??r['Valor Faturado']??'';
-            if(String(valorRaw).trim()!==''){
-                row.fat+=cleanNumber(valorRaw);
-                row.temConsolidado=true;
-            }
-            // Se a meta global não veio do arquivo metas.json, não somar metas individuais;
-            // o fallback será preenchido somente por uma fonte explicitamente global.
-            teamByMonth.set(key,row); anos.add(Number(iso[1]));
+        // A Meta Coletiva é calculada com a soma real do faturamento mensal de todos
+        // os vendedores, usando a mesma fonte que alimenta o KPI Meta do Time do painel.
+        const faturamentoTimePorMes = new Map();
+        (Array.isArray(faturadosTimeArrays) ? faturadosTimeArrays.flat() : []).forEach(r => {
+            const d = parseDataBR(r['Data']);
+            if (!d) return;
+            const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+            faturamentoTimePorMes.set(key, (faturamentoTimePorMes.get(key) || 0) + cleanNumber(r['Valor Mercadoria']));
+            anos.add(d.getFullYear());
         });
-        // O arquivo consolidado é a fonte oficial; não baixamos os sete JSONs individuais em paralelo.
+        faturamentoTimePorMes.forEach((fat, key) => {
+            const [ano, mes] = key.split('-').map(Number);
+            const row = teamByMonth.get(key) || {key, year:ano, month:mes, meta:0, fat:0, temConsolidado:false};
+            row.fat = fat;
+            row.temConsolidado = true;
+            teamByMonth.set(key, row);
+        });
+        // O consolidado histórico continua sendo usado para a coleção individual; a Meta Coletiva
+        // usa os JSONs individuais dos vendedores para contar corretamente cada mês em que a equipe venceu.
         const teamAwards=[];
         [...teamByMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).forEach(r=>{
             const excecao=r.key==='2026-01';
@@ -2017,7 +2017,7 @@
             const podium=`<div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${totalBronze}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${totalSilver}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · 6 meses e especiais</span><strong>${totalGold}</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>${totalTeam}</strong></div></div></div>`;
             const calendar=Array.from({length:12},(_,i)=>{const r=allRows.find(x=>x.year===y&&x.month===i+1);const hoje=new Date();const futuro=y>hoje.getFullYear()||(y===hoje.getFullYear()&&i+1>hoje.getMonth()+1);const atual=y===hoje.getFullYear()&&i+1===hoje.getMonth()+1;const status=r&&r.earned?'META BATIDA':(atual?'Em andamento':(futuro?'Em breve':(r&&r.meta?'Não atingiu':'Sem dados')));const monthIcon=r&&r.earned?'fa-medal':(atual?'fa-wave-square':(futuro?'fa-lock':(r&&r.meta?'fa-xmark':'fa-circle-question')));return `<div class="awards-calendar-month ${r&&r.earned?'earned':''} ${atual?'month-in-progress':''} ${futuro?'month-future':''} ${!futuro&&!atual&&r&&r.meta&&!r.earned?'month-not-earned':''}"><i class="fas ${monthIcon}"></i>${new Date(y,i,1).toLocaleDateString('pt-BR',{month:'short'}).toUpperCase()}<br>${status}</div>`;}).join('');
             const teamMonths=[...teamByMonth.values()].filter(r=>r.year===y&&(m==='all'||r.month===Number(m)));
-            document.getElementById('premios-colecao-conteudo').innerHTML=`<div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas <span style="font-size:.68rem;font-weight:650;color:#65758a">· total geral de todos os anos</span></div>${podium}<div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas · ${y}</div><div class="awards-calendar">${calendar}</div><div class="awards-subtitle"><i class="fas fa-user"></i> Metas individuais <span class="sub-pill">SUA PERFORMANCE</span></div>${cardsIndividual?`<div class="awards-trophy-grid">${cardsIndividual}</div>`:'<div class="awards-empty"><i class="fas fa-medal" style="font-size:1.4rem;display:block;margin-bottom:10px"></i>Nenhuma conquista individual neste filtro.</div>'}<div class="awards-subtitle"><i class="fas fa-people-group"></i> Metas do time <span class="sub-pill">CONQUISTAS COLETIVAS</span><span class="sub-pill" style="background:#e9ddff;color:#43217e">${teamMonths.filter(r=>r.year===y&&(r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta))).length} meses batidos em ${y}</span></div>${cardsTime?`<div class="awards-trophy-grid">${cardsTime}</div>`:'<div class="awards-empty">Nenhuma conquista coletiva neste filtro.</div>'}<div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Continue desbloqueando conquistas!</strong> Estes prêmios podem liberar recompensas especiais, como vouchers, recebimentos, dinheiro e outros benefícios, conforme as campanhas e regras vigentes. A conquista não garante automaticamente uma recompensa financeira.</div><p class="awards-footnote"><i class="fas fa-circle-info"></i> Dados consultados dos arquivos JSON do Radar. A coleção é individual deste perfil; os registros locais de popup e notificação dependem deste navegador.</p>`;
+            document.getElementById('premios-colecao-conteudo').innerHTML=`<div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas <span style="font-size:.68rem;font-weight:650;color:#65758a">· total geral de todos os anos</span></div>${podium}<div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas · ${y}</div><div class="awards-calendar">${calendar}</div><div class="awards-subtitle"><i class="fas fa-user"></i> Metas individuais <span class="sub-pill">SUA PERFORMANCE</span></div>${cardsIndividual?`<div class="awards-trophy-grid">${cardsIndividual}</div>`:'<div class="awards-empty"><i class="fas fa-medal" style="font-size:1.4rem;display:block;margin-bottom:10px"></i>Nenhuma conquista individual neste filtro.</div>'}<div class="awards-subtitle"><i class="fas fa-people-group"></i> Metas do time <span class="sub-pill">CONQUISTAS COLETIVAS</span><span class="sub-pill" style="background:#e9ddff;color:#43217e">${teamMonths.filter(r=>r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta)).length} meses batidos em ${y}</span></div>${cardsTime?`<div class="awards-trophy-grid">${cardsTime}</div>`:'<div class="awards-empty">Nenhuma conquista coletiva neste filtro.</div>'}<div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Continue desbloqueando conquistas!</strong> Estes prêmios podem liberar recompensas especiais, como vouchers, recebimentos, dinheiro e outros benefícios, conforme as campanhas e regras vigentes. A conquista não garante automaticamente uma recompensa financeira.</div><p class="awards-footnote"><i class="fas fa-circle-info"></i> Dados consultados dos arquivos JSON do Radar. A coleção é individual deste perfil; os registros locais de popup e notificação dependem deste navegador.</p>`;
         };
         ['premios-filtro-ano','premios-filtro-mes','premios-filtro-tipo'].forEach(id=>document.getElementById(id).addEventListener('change',renderColecao));
         renderColecao();
@@ -2162,6 +2162,12 @@
         const resultadosPrioritarios = await Promise.allSettled(fontesPrioritarias.map(url => carregarJSON(url)));
         const dadosPrioritarios = resultadosPrioritarios.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
         const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, consolidadoTimeRaw] = dadosPrioritarios;
+        // KPI Meta do Time: mesma regra do index do Matheus, somando o faturamento mensal
+        // dos JSONs individuais dos vendedores. Os arquivos são deduplicados pelo carregador.
+        const resultadosFaturamentoTime = await Promise.allSettled((BASES.faturadosTime || []).map(url => carregarJSON(url)));
+        const faturadosTimeRaw = resultadosFaturamentoTime
+            .filter(r => r.status === 'fulfilled' && Array.isArray(r.value))
+            .flatMap(r => r.value);
         let carteiraRaw = dadosEmMemoria.get(BASES.carteira);
         let cotRaw = dadosEmMemoria.get(BASES.cotacoes);
         if (!Array.isArray(carteiraRaw)) carteiraRaw = [];
@@ -2187,8 +2193,8 @@
             const mesNum = mesesMap[mesAbrev];
             if (mesNum && anoShort) {
                 const chave = `20${anoShort}-${mesNum}`;
-                const metaEntry = metasGlobais.find(m => formatarAnoMesRegistro(m) === chave);
-                if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)'] ?? metaEntry.meta_time ?? metaEntry.meta_global ?? metaEntry.meta ?? 0);
+                const metaEntry = metasGlobais.find(m => m['Mês'] === chave);
+                if (metaEntry) metaTimeMensal = cleanNumber(metaEntry['Meta (R$)']);
             }
         }
 
@@ -2220,15 +2226,11 @@
         const aprovFat = filterByMonth(aprovFatFull, 'Data');
 
         const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-        const mesesCodigo = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'};
-        const partesMesTime = String(selectedMonth || '').split('/');
-        const chaveMesTime = partesMesTime.length === 2 && mesesCodigo[partesMesTime[0].toLowerCase()]
-            ? `20${partesMesTime[1]}-${mesesCodigo[partesMesTime[0].toLowerCase()]}` : null;
-        const totalFaturadoTime = consolidadoTime.reduce((acc, item) => {
-            const chave = formatarAnoMesRegistro(item);
-            if (chaveMesTime && chave !== chaveMesTime) return acc;
-            const valor = item.faturado ?? item['Faturado'] ?? item['Valor Faturado'] ?? '';
-            return acc + (String(valor).trim() === '' ? 0 : cleanNumber(valor));
+        const totalFaturadoTime = faturadosTimeRaw.reduce((acc, item) => {
+            const d = parseDataBR(item['Data']);
+            if (!d) return acc;
+            if (selectedMonth && formatMonthKey(d) !== selectedMonth) return acc;
+            return acc + cleanNumber(item['Valor Mercadoria']);
         }, 0);
 
         const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
@@ -3539,18 +3541,18 @@
     async function carregarDadosComRetry(selectedMonth) {
         ultimoMesSolicitado = selectedMonth;
         const monthStatus = document.getElementById('month-load-status');
-        if (monthStatus) { monthStatus.style.display = 'flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.setAttribute('role','status'); monthStatus.setAttribute('aria-live','polite'); monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando os dados de ' + selectedMonth + '… Você pode continuar usando a página enquanto atualizamos os indicadores.</span>'; }
+        if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.style.display = 'inline-flex'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Consultando ' + selectedMonth + ' na nuvem — você pode continuar usando a página.</span>'; }
         // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
         try {
             renderEmAndamento = true;
             await renderAll(selectedMonth);
             document.body.dataset.radarRendered = 'true';
-            if (monthStatus && ultimoMesSolicitado === selectedMonth) { monthStatus.style.display = 'flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-circle-check"></i><span>Dados de ' + selectedMonth + ' exibidos. A página continua disponível para uso.</span>'; setTimeout(() => { if(monthStatus && ultimoMesSolicitado === selectedMonth) monthStatus.style.display='none'; }, 3500); }
+            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status local'; monthStatus.innerHTML = '<i class="fas fa-check-circle"></i><span>Dados de ' + selectedMonth + ' carregados.</span>'; setTimeout(() => { if(monthStatus) monthStatus.style.display='none'; }, 3500); }
         } catch(e) {
             console.error('Falha ao montar a interface:', e);
-            if (monthStatus && ultimoMesSolicitado === selectedMonth) { monthStatus.style.display='flex'; monthStatus.className='section-sync-status offline'; monthStatus.innerHTML='<i class="fas fa-triangle-exclamation"></i><span>Não foi possível concluir a atualização de ' + selectedMonth + '. Você pode continuar usando a página e tentar novamente.</span>'; }
             const banner = document.getElementById('connection-status');
             const texto = document.getElementById('connection-status-text');
+            if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status offline'; monthStatus.innerHTML = '<i class="fas fa-triangle-exclamation"></i><span>Não foi possível carregar ' + selectedMonth + '. Vamos tentar novamente.</span>'; }
             if (banner && texto) {
                 texto.textContent = 'Não foi possível montar parte da página. Os dados locais serão preservados e tentaremos novamente automaticamente.';
                 banner.classList.add('visible');
