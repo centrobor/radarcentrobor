@@ -541,7 +541,7 @@
         .ficha-campo i { width: 18px; color: var(--primary); text-align: center; }
         .ficha-campo .campo-label { font-weight: 600; color: var(--muted); min-width: 110px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.3px; }
         .ficha-campo .campo-valor { color: var(--text-dark); word-break: break-word; }
-            /* Meus Prêmios — camada visual isolada para não interferir no restante do Radar */
+        /* Meus Prêmios — camada visual isolada para não interferir no restante do Radar */
         #meus-premios-modal { z-index: 12000; padding: 18px; background: rgba(8,16,31,.72); backdrop-filter: blur(10px); }
         #meus-premios-modal .awards-modal-content { width: min(1120px, 96vw); max-width: 1120px; max-height: 92vh; padding: 0; overflow: auto; border-radius: 24px; background: #f4f7fb; color: #17263c; border: 1px solid rgba(255,255,255,.8); box-shadow: 0 28px 90px rgba(3,12,28,.38); transform: translateY(14px) scale(.985); }
         #meus-premios-modal.active .awards-modal-content { transform: translateY(0) scale(1); }
@@ -690,7 +690,7 @@
         #celebracao-modal #fechar-celebracao-btn:focus-visible { outline:3px solid #fecaca !important; outline-offset:3px !important; }
 
 
-</style>
+    </style>
 </head>
 <body>
 <div class="loading-overlay" id="loading-overlay">
@@ -698,6 +698,7 @@
     <div class="loading-text">Consultando dados...</div>
 </div>
 
+<div id="meus-premios-modal" class="modal"><div class="modal-content awards-modal-content" id="meus-premios-body"></div></div>
 <div id="print-header">
     <h1 id="print-vendor-name"></h1>
     <p>Relatório Diário de Vendas - Gerado em <span id="print-date"></span></p>
@@ -773,9 +774,7 @@
         <div class="carousel-indicators" id="carousel-indicators"></div>
     </div>
 
-    <div class="tools-grid" id="desktop-tools-menu">
-<a href="#" class="tool-card" data-open-meus-premios onclick="event.preventDefault(); abrirMeusPremios();"><div class="tool-icon"><i class="fas fa-trophy"></i></div><div class="tool-label">Meus Prêmios <span class="menu-prizes-new" data-prizes-count style="display:none">0</span></div></a>
-</div>
+    <div class="tools-grid" id="desktop-tools-menu"></div>
 
     <div class="kpi-row" id="kpi-cards"></div>
 
@@ -896,7 +895,6 @@
 <div class="modal" id="notif-modal"><div class="modal-content" id="notif-modal-body"></div></div>
 <div class="modal" id="celebracao-modal"><div class="modal-content celebracao-content" id="celebracao-body"></div></div>
 <div class="modal" id="kpi-detail-modal"><div class="modal-content" id="kpi-detail-body"></div></div>
-<div class="modal" id="meus-premios-modal"><div class="modal-content awards-modal-content" id="meus-premios-body"></div></div>
 
 <script>
 (function() {
@@ -981,18 +979,7 @@
             bottom: false,
             novaGuia: true
         },
-        {
-            id: "meus-premios",
-            nome: "Meus Prêmios",
-            icon: "fas fa-trophy",
-            desktop: "#meus-premios",
-            mobile: "#meus-premios",
-            opensheet: "",
-            desktopVisible: true,
-            mobileVisible: true,
-            bottom: false,
-            popup: true
-        }
+        { id: "meus-premios", nome: "Meus Prêmios", icon: "fas fa-trophy", desktop: "#meus-premios", mobile: "#meus-premios", opensheet: "", desktopVisible: true, mobileVisible: true, bottom: false, popup: true }
     ];
     // ===========================================================================
 
@@ -1062,7 +1049,7 @@
         if (mobile) {
             mobile.innerHTML = todosItensMenu.filter(item => item.mobileVisible !== false).map(item => `
                 <button class="menu-item" id="menu-${item.id}" data-menu-id="${item.id}">
-                    ${iconeHTML(item)}<span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>${Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}` : ''}</span>
+                    ${iconeHTML(item)}<span>${item.nome}</span>
                 </button>
             `).join('');
         }
@@ -1071,7 +1058,7 @@
             desktop.innerHTML = todosItensMenu.filter(item => item.desktopVisible !== false).map(item => `
                 <a class="tool-card" href="${item.desktop || '#'}" data-menu-id="${item.id}" ${item.novaGuia ? 'target="_blank" rel="noopener noreferrer"' : ''}>
                     <div class="tool-icon">${iconeHTML(item)}</div>
-                    <div class="tool-label"><span class="menu-prizes-label">${item.nome}${item.id === 'meus-premios' ? `<span class="menu-prizes-count" data-prizes-count style="display:none">0</span>` : ''}</span></div>${item.id === 'meus-premios' && Date.now() < new Date(2026,9,25,23,59,59,999).getTime() ? '<span class="menu-prizes-new">Novo</span>' : ''}
+                    <div class="tool-label">${item.nome}</div>
                 </a>
             `).join('');
         }
@@ -1087,7 +1074,7 @@
         const navegar = (item, fecharMobile = false) => {
             if (!item || !(item.mobile || item.desktop)) return;
             if (fecharMobile) closeHamburgerMenu();
-            if (item.popup) { abrirMeusPremios(); return; }
+            if (item.popup && item.id === 'meus-premios') { abrirMeusPremiosJu(); return; }
             const destino = item.mobile || item.desktop;
             if (item.novaGuia) {
                 const link = document.createElement('a');
@@ -1111,15 +1098,17 @@
             if (bottomBtn) bottomBtn.addEventListener('click', () => navegar(item, false));
         });
 
-        atualizarBadgeMeusPremios();
-
         if (desktop) {
             desktop.querySelectorAll('.tool-card').forEach(card => {
                 card.addEventListener('click', event => {
                     const item = todosItensMenu.find(x => x.id === card.dataset.menuId);
-                    if (item?.popup) { event.preventDefault(); abrirMeusPremios(); return; }
                     if (item?.novaGuia) return;
-                    if (item?.desktop && item.desktop !== '#meus-premios') {
+                    if (item?.popup && item.id === 'meus-premios') {
+                        event.preventDefault();
+                        abrirMeusPremiosJu();
+                        return;
+                    }
+                    if (item?.desktop) {
                         event.preventDefault();
                         window.location.href = item.desktop;
                     }
@@ -1275,54 +1264,51 @@
         } catch (_) { return null; }
     }
 
-    const avisosCacheQuota = new Set();
+    // O localStorage tem limite pequeno (geralmente alguns MB). Não gravamos
+    // JSONs grandes nele: eles continuam disponíveis em memória após o fetch.
+    const CACHE_MAX_ITEM_BYTES = 180 * 1024;
+    const CACHE_MAX_TOTAL_BYTES = 2 * 1024 * 1024;
+    const cacheFalhouNestaSessao = new Set();
 
     function salvarCacheEndpoint(url, data) {
-        const chaveAtual = CACHE_PREFIX + url;
-        let valor;
+        const key = CACHE_PREFIX + url;
+        if (cacheFalhouNestaSessao.has(url)) return false;
+        let payload;
         try {
-            valor = JSON.stringify({ savedAt: Date.now(), data });
-        } catch (e) {
-            console.warn('Não foi possível serializar os dados para o cache local:', url, e);
-            return false;
-        }
-
-        try {
-            localStorage.setItem(chaveAtual, valor);
+            payload = JSON.stringify({ savedAt: Date.now(), data });
+            const bytes = new Blob([payload]).size;
+            // Arquivos grandes como carteiraclientes/faturados não devem ocupar
+            // o armazenamento persistente do navegador.
+            if (bytes > CACHE_MAX_ITEM_BYTES) {
+                cacheFalhouNestaSessao.add(url);
+                return false;
+            }
+            // Mantém o cache total sob controle e remove entradas antigas primeiro.
+            const entradas = [];
+            let total = 0;
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                if (!k || !k.startsWith(CACHE_PREFIX) || k === key) continue;
+                const v = localStorage.getItem(k) || '';
+                total += new Blob([k, v]).size;
+                let savedAt = 0;
+                try { savedAt = JSON.parse(v)?.savedAt || 0; } catch (_) {}
+                entradas.push({ key: k, bytes: new Blob([k, v]).size, savedAt });
+            }
+            entradas.sort((a, b) => a.savedAt - b.savedAt);
+            while (total + new Blob([key, payload]).size > CACHE_MAX_TOTAL_BYTES && entradas.length) {
+                const antiga = entradas.shift();
+                localStorage.removeItem(antiga.key);
+                total -= antiga.bytes;
+            }
+            localStorage.setItem(key, payload);
             return true;
-        } catch (erroInicial) {
-            // O espaço local pode estar ocupado por versões antigas dos próprios caches.
-            // Remove primeiro os caches mais antigos e tenta novamente, sem limpar outras
-            // preferências/configurações que a aplicação possa guardar no localStorage.
-            try {
-                const caches = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const chave = localStorage.key(i);
-                    if (!chave || !chave.startsWith(CACHE_PREFIX) || chave === chaveAtual) continue;
-                    let savedAt = 0;
-                    try { savedAt = Number(JSON.parse(localStorage.getItem(chave) || '{}').savedAt) || 0; } catch (_) {}
-                    caches.push({ chave, savedAt });
-                }
-                caches.sort((a, b) => a.savedAt - b.savedAt);
-                for (const cache of caches) {
-                    localStorage.removeItem(cache.chave);
-                    try {
-                        localStorage.setItem(chaveAtual, valor);
-                        return true;
-                    } catch (_) {
-                        // Ainda sem espaço; remove o próximo cache antigo.
-                    }
-                }
-                // Um único arquivo pode ser maior que a cota disponível. Nesse caso,
-                // os dados continuam utilizáveis na memória, apenas não serão persistidos.
-                try { localStorage.removeItem(chaveAtual); } catch (_) {}
-            } catch (_) {
-                // O armazenamento pode estar desativado ou indisponível no navegador.
-            }
-            if (!avisosCacheQuota.has(url)) {
-                avisosCacheQuota.add(url);
-                console.warn('Cache local cheio; os dados desta fonte serão usados sem persistência local:', url);
-            }
+        } catch (e) {
+            // Falha de quota não deve interromper renderização nem disparar
+            // repetidas tentativas e mensagens no console durante a sessão.
+            cacheFalhouNestaSessao.add(url);
+            try { localStorage.removeItem(key); } catch (_) {}
+            console.info('Cache local ignorado por limite de armazenamento:', url);
             return false;
         }
     }
@@ -1687,84 +1673,31 @@
     }
 
     let currentCarouselIndex = 0;
-    function obterBannersConquistaAtivos() {
-        try {
-            const agora = Date.now();
-            let lista = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA) || '[]');
-            if (!Array.isArray(lista)) lista = [];
-            // Compatibilidade com banner único legado; só será mantido se comprovar uma conquista válida do mês atual.
-            const legado = JSON.parse(localStorage.getItem('radar_banner_conquista_juliana') || 'null');
-            if (legado && legado.timestamp) {
-                const bLegado = {...legado, chave:legado.chave || `meta_mensal_${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`, titulo:legado.metas?.[0] || legado.nome || 'Meta mensal atingida', nome:legado.metas?.[0] || legado.nome || 'Meta mensal atingida', tipo:'MENSAL', categoria:legado.categoria || 'META MENSAL', icone:legado.icone || 'fa-medal', cor:legado.cor || '#c47b43', clara:legado.clara || '#f6d2ae', ink:legado.ink || '#5b2f15'};
-                if (bannerMetaMensalAtualValido(bLegado)) lista.push(bLegado);
-            }
-            // Reconstrói banners recentes de metas individuais, coletivas e campanhas do mês atual.
-            const fontes = [];
-            try { fontes.push(...JSON.parse(localStorage.getItem(CHAVE_PREMIOS) || '[]')); } catch(_) {}
-            try { fontes.push(...JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]')); } catch(_) {}
-            fontes.forEach(p => {
-                if (!p || !p.chave || !bannerMetaMensalAtualValido(p)) return;
-                const rawTs = p.timestamp ?? p.dataConquista;
-                const ts = typeof rawTs === 'number' ? rawTs : Date.parse(rawTs);
-                const tema = classeMedalha(p);
-                lista.push({chave:p.chave,timestamp:ts,autor:p.autor||p.vendedor||nomeVendedor||'Juliana',nome:p.nome||p.titulo||'Meta mensal atingida',titulo:p.nome||p.titulo||'Meta mensal atingida',meta:Number(p.meta)||0,realizado:Number(p.realizado)||0,perc:Number(p.perc)||100,categoria:p.categoria||'META MENSAL',icone:p.icone||tema.icone,cor:p.cor||tema.cor,clara:p.clara||tema.clara,ink:p.ink||tema.ink,validadaMesAtual:true});
-            });
-            const unicos = new Map();
-            lista.forEach(b => {
-                if (!bannerMetaMensalAtualValido(b)) return;
-                const id = String(b.chave || b.id || b.nome || b.titulo || b.timestamp);
-                if (!unicos.has(id) || Number(b.timestamp) > Number(unicos.get(id).timestamp)) unicos.set(id,b);
-            });
-            lista = [...unicos.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).slice(0,40);
-            localStorage.setItem(CHAVE_BANNERS_CONQUISTA,JSON.stringify(lista));
-            return lista;
-        } catch(e) { console.warn('Falha ao recuperar banners de conquistas:',e); return []; }
-    }
-
-    function obterBannerConquistaAtivo() { return obterBannersConquistaAtivos()[0] || null; }
-
-    function abrirDetalheBannerConquista(b) {
-        const modal = document.getElementById('post-modal');
-        const body = document.getElementById('post-modal-body');
-        if (!modal || !body) return;
-        const alertasModal = document.getElementById('notif-modal');
-        if (alertasModal) alertasModal.classList.remove('active');
-        const tema = {cor:b.cor||'#c47b43', clara:b.clara||'#f6d2ae', ink:b.ink||'#5b2f15', icone:b.icone||'fa-medal'};
-        body.innerHTML = `<div style="position:relative;overflow:hidden;border-radius:22px;padding:clamp(22px,5vw,44px);color:white;background:radial-gradient(circle at 12% 10%,${tema.clara}55,transparent 36%),linear-gradient(135deg,#10182f,#172f5c 58%,${tema.ink});"><button class="modal-close achievement-detail-close" aria-label="Fechar popup" title="Fechar" onclick="document.getElementById('post-modal').classList.remove('active')" style="position:absolute;top:14px;right:14px;left:auto;z-index:20;width:42px;height:42px;display:grid;place-items:center;border:2px solid #fff;background:#dc2626;color:#fff;border-radius:50%;font-size:1.65rem;font-weight:900;line-height:1;box-shadow:0 5px 16px rgba(0,0,0,.35);cursor:pointer">&times;</button><div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap"><div style="width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:3.2rem;color:${tema.ink};background:linear-gradient(145deg,${tema.clara},${tema.cor});box-shadow:0 14px 34px ${tema.cor}55"><i class="fas ${tema.icone}"></i></div><div style="flex:1;min-width:180px"><span style="font-size:.72rem;letter-spacing:.16em;font-weight:900;color:${tema.clara}">${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><h2 style="font-size:clamp(1.5rem,4vw,2.4rem);line-height:1.1;margin:10px 0;color:#fff">${b.nome||b.titulo||'Conquista desbloqueada'}</h2><p style="color:#e4eaf5;margin:0">Parabéns, ${b.autor||nomeVendedor||'Juliana'}! Esta conquista foi registrada na sua coleção.</p></div></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:28px 0 18px"><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Faturamento realizado</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${(b.realizado!=null && b.realizado!=='' ? formatarMoeda(b.realizado) : 'Consulte o quadro de metas')}</strong></div><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Meta de referência</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${Number(b.meta)>0?formatarMoeda(b.meta):'Reconhecimento especial'}</strong></div></div><div style="font-size:.78rem;color:#cbd5e1">Este banner fica disponível somente neste acesso por até 3 dias.</div></div>`;
-        modal.classList.add('active');
-    }
-
     function renderCarrossel() {
         const container = document.getElementById('carousel-container');
         const indicators = document.getElementById('carousel-indicators');
         if (!container || !indicators) return;
-        const bannersConquista = obterBannersConquistaAtivos().map(b => ({...b, tipo:'conquista', titulo:b.nome || b.titulo || 'Conquista desbloqueada', data:'Conquista recente', autor:b.autor || nomeVendedor || 'Juliana'}));
-        const bannersBase = Array.isArray(BANNERS) ? BANNERS : [];
-        const bannersExibidos = [...bannersConquista, ...bannersBase];
-        window.__radarBannersExibidos = bannersExibidos;
-        if (!bannersExibidos.length) {
-            container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center">Carrossel indisponível no momento.</div></div>';
+        if ((!Array.isArray(BANNERS) || !BANNERS.length) && !(typeof lerBannersConquistaJu==='function' && lerBannersConquistaJu().length)) {
+            container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center"><i class="fas fa-cloud-arrow-down" style="font-size:1.6rem;margin-bottom:10px"></i><div>Carrossel indisponível no momento. Tentaremos atualizar em segundo plano.</div></div></div>';
             indicators.innerHTML = '';
             return;
         }
-        currentCarouselIndex = Math.min(currentCarouselIndex, bannersExibidos.length - 1);
-        container.innerHTML = bannersExibidos.map((b,i) => b.tipo === 'conquista'
-          ? `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${b.clara||'#f6d2ae'}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${b.cor||'#c47b43'}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${b.ink||'#5b2f15'});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${b.icone||'fa-medal'}"></i> ${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${b.clara||'#f6d2ae'},${b.cor||'#c47b43'});color:${b.ink||'#5b2f15'}"><i class="fas ${b.icone||'fa-medal'}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · MEUS PRÊMIOS</span><h2>${b.nome||b.titulo||'CONQUISTA DESBLOQUEADA'}</h2><p>${b.categoria||'Conquista'}${b.realizado!=null?` · ${formatarMoeda(b.realizado)}`:''}</p><strong>Parabéns, ${b.autor||'Juliana'}! Sua conquista foi registrada.</strong><small class="achievement-private-note">Somente você vê isto no seu acesso por 3 dias · Clique para ver os detalhes</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`
+        const bannersConquista = typeof lerBannersConquistaJu==='function' ? lerBannersConquistaJu() : [];
+        const slides = [...bannersConquista.map(b=>({...b,_conquista:true})), ...BANNERS];
+        currentCarouselIndex = Math.min(currentCarouselIndex, slides.length - 1);
+        container.innerHTML = slides.map((b,i) => b._conquista
+          ? `<div class="carousel-slide achievement-carousel-slide" data-idx="${i}" style="min-height:180px;display:flex;align-items:center;justify-content:center;box-sizing:border-box;padding:28px;text-align:left;color:white;background:radial-gradient(circle at 85% 15%,${b.cor||'#9570df'}88,transparent 34%),linear-gradient(125deg,#111827,#24314b 60%,${b.cor||'#9570df'});position:relative;overflow:hidden"><div style="max-width:760px;position:relative;z-index:1"><div style="font-size:.72rem;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:${b.clara||'#e9ddff'};margin-bottom:10px"><i class="fas ${b.icone||'fa-trophy'}"></i> CONQUISTA DESBLOQUEADA</div><div style="font-size:clamp(1.35rem,3vw,2.25rem);font-weight:900;line-height:1.12;margin-bottom:10px">${b.titulo||b.nome||'Meta atingida!'}</div><div style="font-size:.95rem;color:#e5e7eb">${b.autor||'Juliana Cecchy'} · ${b.realizado!=null?formatarMoeda(b.realizado):''}${b.meta!=null?' / '+formatarMoeda(b.meta):''}</div><div style="margin-top:15px;display:inline-block;padding:7px 12px;border-radius:999px;background:${b.clara||'#e9ddff'};color:${b.ink||'#43217e'};font-size:.75rem;font-weight:900">META ATINGIDA · 3 DIAS</div></div><div style="position:absolute;right:5%;bottom:-45px;font-size:12rem;opacity:.12;transform:rotate(-12deg)"><i class="fas ${b.icone||'fa-trophy'}"></i></div></div>`
           : `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Comunicado Centrobor'}" onerror="this.style.opacity='.25';this.style.background='#e5e7eb'"><div class="carousel-caption"><span>${b.titulo||'Comunicado'}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
-        indicators.innerHTML = bannersExibidos.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
+        indicators.innerHTML = slides.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
         indicators.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', () => { currentCarouselIndex = Number(d.dataset.idx)||0; updateCarrossel(); }));
-        container.querySelectorAll('.carousel-slide').forEach(slide => {
-            const abrir = () => { const idx=Number(slide.dataset.idx)||0; const b=bannersExibidos[idx]; if (!b) return; if (b.tipo === 'conquista') abrirDetalheBannerConquista(b); else abrirModalPostagem(b); };
-            slide.addEventListener('click', abrir);
-            slide.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();} });
-        });
+        container.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () => { const idx = Number(slide.dataset.idx)||0; const activeSlides=[...lerBannersConquistaJu().map(b=>({...b,_conquista:true})),...BANNERS]; if (activeSlides[idx] && !activeSlides[idx]._conquista) abrirModalPostagem(activeSlides[idx]); }));
         updateCarrossel();
     }
     function updateCarrossel() {
         const container = document.getElementById('carousel-container');
-        const total = (window.__radarBannersExibidos || BANNERS || []).length;
-        if (!container || !total) return;
-        currentCarouselIndex = (currentCarouselIndex + total) % total;
+        const totalSlides = (typeof lerBannersConquistaJu==='function'?lerBannersConquistaJu().length:0) + BANNERS.length;
+        if (!container || !totalSlides) return;
+        currentCarouselIndex = (currentCarouselIndex + totalSlides) % totalSlides;
         container.style.transform = `translateX(-${currentCarouselIndex*100}%)`;
         document.querySelectorAll('.indicator-dot').forEach((d,i) => d.classList.toggle('active', i===currentCarouselIndex));
     }
@@ -1808,234 +1741,67 @@
         if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas', JSON.stringify(celebradas)); }
     }
 
-    const CHAVE_PREMIOS = 'radar_meus_premios_juliana_v1';
-    const CHAVE_NOTIF_CONQUISTAS = 'radar_notificacoes_conquistas_juliana_v1';
-    const CHAVE_BANNERS_CONQUISTA = 'radar_banners_conquistas_juliana_v1';
-    const DURACAO_CONQUISTA = 3 * 24 * 60 * 60 * 1000;
-function lerPremiosGuardados() { try { return JSON.parse(localStorage.getItem(CHAVE_PREMIOS) || '[]').filter(x => x && x.chave); } catch(e) { return []; } }
-function salvarPremio(premio) {
-        const lista = lerPremiosGuardados();
-        const idx = lista.findIndex(x => x.chave === premio.chave);
-        if (idx >= 0) lista[idx] = {...lista[idx], ...premio}; else lista.push(premio);
-        localStorage.setItem(CHAVE_PREMIOS, JSON.stringify(lista));
-    }
-function ehMetaMensalMesAtual(item) {
-        const agora = new Date();
-        const chaveMes = `${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
-        const chaveMesCurta = formatMonthKey(agora).toLowerCase();
-        const chave = String(item.chave || item.id || '');
-        const chaveNormalizada = chave.toLowerCase().replace(/_/g,'/');
-        const titulo = String(item.titulo || item.nome || '').toLowerCase();
-        const chaveEhMesAtual = chave.includes(chaveMes) || chave.includes(chaveMesCurta) || chaveNormalizada.includes(chaveMesCurta);
-        return (chave.includes(`meta_mensal_${chaveMes}`) || (titulo.includes('meta mensal') && chaveEhMesAtual)) && !/meta_plus|meta_semestral|meta_anual/.test(chave);
-    }
-function conquistaMensalValida(item) {
-        if (!ehMetaMensalMesAtual(item)) return true;
-        const meta = Number(item.meta) || 0;
-        const realizado = Number(item.realizado) || 0;
-        // Registros antigos não podem afirmar que a meta do mês atual foi batida.
-        // Só aceitamos a conquista mensal atual se ela foi validada no cálculo do mês corrente.
-        return meta > 0 && realizado >= meta;
-    }
-function atualizarBadgeMeusPremios() {
-        const nodes = document.querySelectorAll('[data-prizes-count]');
-        let unread = 0;
-        try {
-            const items = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]');
-            unread = items.filter(n => Date.now() - Number(n.timestamp||0) < DURACAO_CONQUISTA && conquistaMensalValida(n) && !readNotifications.some(x => String(x) === String(n.id))).length;
-        } catch(e) {}
-        nodes.forEach(el => { el.textContent = unread > 99 ? '99+' : String(unread); el.style.display = unread > 0 ? 'inline-flex' : 'none'; });
-    }
-function marcarConquistasComoLidas() {
-        try {
-            const items = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]');
-            items.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
-            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
-        } catch(e) {}
-        atualizarBadgeMeusPremios();
-        atualizarBadgeNotificacoes();
-    }
-function lerNotificacoesConquista() {
-        try { const itens = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]').filter(n => Date.now() - Number(n.timestamp || 0) < DURACAO_CONQUISTA && conquistaMensalValida(n)); localStorage.setItem(CHAVE_NOTIF_CONQUISTAS, JSON.stringify(itens)); return itens; } catch(e) { return []; }
-    }
-function adicionarNotificacaoConquista(conquista) {
-        const itens = lerNotificacoesConquista();
-        if (itens.some(n => n.chave === conquista.chave)) return;
-        const tema = classeMedalha(conquista);
-        itens.unshift({id:'conquista-'+conquista.chave, chave:conquista.chave, timestamp:Date.now(), titulo:conquista.nome, nome:conquista.nome, data:new Date().toLocaleDateString('pt-BR'), autor:nomeVendedor, tipo:'conquista', icone:tema.icone, cor:tema.cor, clara:tema.clara, ink:tema.ink, categoria:tema.categoria, meta:Number(conquista.meta)||0, realizado:Number(conquista.realizado)||0, perc:Number(conquista.perc)||100, validadaMesAtual:!!conquista._verificadaMesAtual, texto_html:`<p>Você conquistou <strong>${conquista.nome}</strong>.</p><p>Realizado: ${formatarMoeda(conquista.realizado)} · Meta: ${Number(conquista.meta)>0?formatarMoeda(conquista.meta):'reconhecimento especial'} (${Number(conquista.perc||100).toFixed(1)}%).</p><p>Esta notificação fica disponível por até 3 dias neste acesso.</p>`});
-        localStorage.setItem(CHAVE_NOTIF_CONQUISTAS, JSON.stringify(itens));
-        notificacoes = [...itens, ...(notificacoes || []).filter(n => !String(n.id || '').startsWith('conquista-'))];
-        atualizarBadgeNotificacoes();
-        atualizarBadgeMeusPremios();
-    }
-function classeMedalha(conquista) {
-        const n = String(conquista.nome || conquista.tipo || '').toLowerCase();
-        if (n.includes('time') || String(conquista.tipo||'').toUpperCase()==='TIME') return {cor:'#9570df',clara:'#e9ddff',ink:'#43217e',icone:'fa-trophy',categoria:'META DO TIME'};
-        if (String(conquista.tipo||'').toUpperCase()==='CAMPANHA' || n.includes('dardos') || n.includes('campanha')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy',categoria:'CAMPANHA ESPECIAL'};
-        if (n.includes('6 meses') || n.includes('seis meses') || n.includes('semestral') || n.includes('semestre') || n.includes('anual') || n.includes('ouro')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy',categoria:n.includes('anual')?'ANUAL':(n.includes('semestre')?'SEMESTRAL':'6 MESES')};
-        if (n.includes('trinca') || n.includes('3 meses')) return {cor:'#bfc5cd',clara:'#f3f4f6',ink:'#3f4650',icone:'fa-medal',categoria:'TRINCA'};
-        if (n.includes('plus')) return {cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-star',categoria:'META PLUS'};
-        return {cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-medal',categoria:'MENSAL'};
-    }
-
     function mostrarCelebracao(conquistas) {
         if (!conquistas || !conquistas.length) return;
         const celebradas = getMetasCelebradas();
-        const novas = conquistas.filter(c => !celebradas.includes(c.chave) && conquistaMensalValida(c));
+        const novas = conquistas.filter(c => !celebradas.includes(c.chave));
         if (!novas.length) return;
-        try {
-            const banners = obterBannersConquistaAtivos();
-            novas.forEach(c => {
-                const tema = classeMedalha(c);
-                // O banner temporário no carrossel é exclusivo da meta mensal do mês atual realmente atingida.
-                const bannerCandidato = {...c, timestamp:Date.now(), autor:nomeVendedor||'Juliana', categoria:tema.categoria, icone:tema.icone, cor:tema.cor, clara:tema.clara, ink:tema.ink};
-                if (bannerMetaMensalAtualValido(bannerCandidato) && !banners.some(b => b.chave === c.chave)) banners.unshift({...bannerCandidato, tipoBanner:'conquista', titulo:c.nome, nome:c.nome, metas:[c.nome], validadaMesAtual:true});
-            });
-            localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(banners.sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).slice(0,40)));
-            renderCarrossel(); currentCarouselIndex = 0; updateCarrossel();
-        } catch(e) { console.warn('Não foi possível guardar os banners de conquista:', e); }
         const body = document.getElementById('celebracao-body');
         let lista = '';
-        novas.forEach(c => {
-            const tema = classeMedalha(c);
-            lista += `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(148,163,184,.2);text-align:left;"><span style="flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:14px;color:${tema.ink};background:linear-gradient(145deg,${tema.clara},${tema.cor});font-size:1.1rem"><i class="fas ${tema.icone}"></i></span><span style="flex:1"><small style="font-size:.62rem;letter-spacing:.08em;color:${tema.clara};font-weight:900">${tema.categoria}</small><strong style="display:block">${c.nome}</strong><small style="color:#cbd5e1">${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${Number(c.perc||100).toFixed(1)}%)</small></span></div>`;
-            adicionarMetaCelebrada(c.chave);
-            salvarPremio({...c, ...tema, dataConquista:new Date().toISOString(), vendedor:nomeVendedor, tipo:tema.categoria, earned:true});
-            adicionarNotificacaoConquista(c);
-        });
-        const especialTime = novas.some(c => /meta do time/i.test(c.nome));
-        body.innerHTML = `<div style="text-align:center;padding:12px 2px 4px;background:radial-gradient(circle at 50% 0,rgba(212,167,44,.2),transparent 50%);color:#fff"><div class="trofeu" style="font-size:4.3rem;filter:drop-shadow(0 8px 18px rgba(212,167,44,.3))">${especialTime?'🏆':'🏅'}</div><div style="font-size:.65rem;letter-spacing:.18em;color:#f5d77c;font-weight:900">${especialTime?'CONQUISTA COLETIVA':'NOVA CONQUISTA DESBLOQUEADA'}</div><h2 style="margin:7px 0 5px;color:#fff">${especialTime?'O TIME BATEU A META!':'Parabéns, '+nomeVendedor+'!'}</h2><p style="color:#cbd5e1;font-size:.83rem">${especialTime?'O resultado do time merece ser celebrado.':'Você desbloqueou novos troféus na sua coleção.'}</p><div class="lista-conquistas" style="margin:18px 0;padding:0 8px">${lista}</div><p style="font-size:.78rem;color:#aebbd0;margin:12px 0 18px">Seus troféus ficam registrados em <strong style="color:#fff">Meus Prêmios</strong>.</p><button id="ver-premios-agora" style="border:0;background:linear-gradient(135deg,#f6d365,#d4a72c);color:#382600;font-weight:900;padding:11px 18px;border-radius:12px;cursor:pointer;margin-right:6px">Ver meus prêmios</button><button id="fechar-celebracao-btn" type="button" aria-label="Fechar popup" title="Fechar" style="position:absolute;top:12px;right:12px;width:40px;height:40px;border:2px solid #fff;border-radius:50%;background:#dc2626;color:#fff;font-size:26px;font-weight:900;line-height:1;display:grid;place-items:center;box-shadow:0 4px 14px rgba(0,0,0,.35);cursor:pointer;z-index:5">&times;</button></div>`;
+        novas.forEach(c => { lista += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`; adicionarMetaCelebrada(c.chave); });
+        body.innerHTML = `<div class="trofeu">🏆</div><h2>Parabéns, ${nomeVendedor}!</h2><p>Você atingiu as seguintes metas:</p><div class="lista-conquistas">${lista}</div><p style="font-size:1.1rem;margin-top:10px;">Continue assim! 🚀</p><button id="fechar-celebracao-btn">Fechar</button>`;
         const modal = document.getElementById('celebracao-modal');
         modal.classList.add('active');
         dispararConfetes();
-        novas.forEach(mostrarToastConquista);
         document.getElementById('fechar-celebracao-btn').addEventListener('click', () => modal.classList.remove('active'));
-        document.getElementById('ver-premios-agora').addEventListener('click', () => { modal.classList.remove('active'); abrirMeusPremios(); });
         modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
     }
 
-    // Cache e consulta da base oficial de metas consolidadas, igual à página do Matheus.
-    let premiosConsolidadoCache = null;
-    async function obterDadosPremios() {
-        if (Array.isArray(premiosConsolidadoCache)) return premiosConsolidadoCache;
-        try {
-            const dados = await carregarJSON(BASES.metasConsolidadas);
-            premiosConsolidadoCache = Array.isArray(dados) ? dados : [];
-        } catch (erro) {
-            console.error('[Meus Prêmios] Falha ao consultar metas consolidadas:', erro);
-            premiosConsolidadoCache = [];
-        }
-        return premiosConsolidadoCache;
+
+    // Conquistas temporárias do carrossel: válidas por 3 dias e limitadas ao mês atual.
+    const CHAVE_BANNERS_CONQUISTA_JU = 'radar_banners_conquistas_juliana_v1';
+    const DURACAO_BANNER_CONQUISTA_JU = 3 * 24 * 60 * 60 * 1000;
+    function lerBannersConquistaJu() {
+      try { const a=JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA_JU)||'[]'); return Array.isArray(a)?a.filter(x=>x && Date.now()-Number(x.timestamp||0)<DURACAO_BANNER_CONQUISTA_JU):[]; } catch(e) { return []; }
+    }
+    function registrarBannerConquistaJu(item) {
+      if (!item || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
+      const lista=lerBannersConquistaJu(); if(lista.some(x=>x.chave===item.chave)) return;
+      lista.unshift({...item,timestamp:Date.now()});
+      try { localStorage.setItem(CHAVE_BANNERS_CONQUISTA_JU,JSON.stringify(lista.slice(0,20))); } catch(e) {}
+      if (typeof renderCarrossel==='function') renderCarrossel();
     }
 
-    async function abrirMeusPremios() {
-        const modal = document.getElementById('meus-premios-modal');
-        const body = document.getElementById('meus-premios-body');
-        if (!modal || !body) {
-            console.error('[Meus Prêmios] Modal ou conteúdo não encontrado no HTML.');
-            return;
-        }
-        // Exibe a janela imediatamente, antes de ler notificações ou consultar os JSONs.
-        modal.classList.add('active');
-        body.innerHTML = '<div class="awards-hero"><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Carregando sua coleção individual de conquistas…</p></div><div class="awards-content"><div class="awards-empty"><i class="fas fa-spinner fa-spin"></i> Consultando os dados oficiais em JSON.</div></div>';
-        try { marcarConquistasComoLidas(); } catch (e) { console.warn('[Meus Prêmios] Não foi possível marcar notificações como lidas:', e); }
-        let consolidado = [], faturados = [], metasTime = [], faturadosTimeArrays = [];
-        try {
-            [consolidado, faturados, metasTime, faturadosTimeArrays] = await Promise.all([
-                obterDadosPremios(),
-                carregarJSON(BASES.faturados).catch(() => []),
-                carregarJSON(BASES.metasGlobais).catch(() => []),
-                Promise.all((BASES.faturadosTime || []).map(url => carregarJSON(url).catch(() => [])))
-            ]);
-        } catch (erro) {
-            console.error('[Meus Prêmios] Erro ao carregar dados:', erro);
-            body.innerHTML = '<div class="awards-content"><div class="awards-empty"><i class="fas fa-triangle-exclamation"></i><strong>Não foi possível carregar os dados agora.</strong><p>Confira se os arquivos JSON estão publicados na pasta dados e tente novamente.</p><button type="button" onclick="window.abrirMeusPremios()">Tentar novamente</button></div></div>';
-            return;
-        }
-        const anos = new Set([new Date().getFullYear()]);
-        const linhas = (Array.isArray(consolidado)?consolidado:[]).filter(r => String(r.id_vendedor||'').trim() === codVendedor && normalizarNomeCliente(r.vendedor||'').includes('JULIANA'));
-        const porMes = new Map();
-        linhas.forEach(r => { const key = formatarAnoMesRegistro(r); if(!key)return; anos.add(Number(key.slice(0,4))); const prev=porMes.get(key)||{meta:0,fat:0, nome:r.vendedor}; if(String(r.meta_mensal||'').trim()!=='')prev.meta=cleanNumber(r.meta_mensal); if(String(r.faturado||'').trim()!=='')prev.fat=cleanNumber(r.faturado); porMes.set(key,prev); });
-        // O faturamento JSON individual complementa somente os meses que não tenham valor oficial consolidado.
-        const fatPorMes = new Map();
-        (Array.isArray(faturados)?faturados:[]).forEach(r=>{const d=parseDataBR(r['Data']);if(!d)return;const k=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;fatPorMes.set(k,(fatPorMes.get(k)||0)+cleanNumber(r['Valor Mercadoria']));anos.add(d.getFullYear());});
-        fatPorMes.forEach((v,k)=>{const row=porMes.get(k)||{meta:0,fat:0,nome:NOME_EXIBICAO};if(!row.fat)row.fat=v;porMes.set(k,row);});
-        const selectedYear = new Date().getFullYear();
-        const allRows = [...porMes.entries()].map(([key,v])=>({key,year:Number(key.slice(0,4)),month:Number(key.slice(5,7)),...v,earned:v.meta>0&&v.fat>=v.meta})).sort((a,b)=>a.key.localeCompare(b.key));
-        // Awards based on validated monthly goal only. Consecutive months build a trinca; semester/year awards use the sum of the official monthly targets when no period target exists.
-        const medals = [];
-        allRows.forEach(r=>{if(r.earned)medals.push({chave:`meta_mensal_${r.key}`,nome:`Meta Mensal · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tipo:'MENSAL',meta:r.meta,realizado:r.fat,perc:r.meta?r.fat/r.meta*100:100,year:r.year,month:r.month,earned:true,dataConquista:r.key});});
-        const byYear = new Map(); allRows.forEach(r=>{if(!byYear.has(r.year))byYear.set(r.year,[]);byYear.get(r.year).push(r);});
-        byYear.forEach((rows,year)=>{
-            rows.sort((a,b)=>a.month-b.month);
-            let streak=[]; rows.forEach(r=>{if(r.earned){if(streak.length&&r.month!==streak[streak.length-1].month+1)streak=[];streak.push(r);if(streak.length%3===0){const trio=streak.slice(-3);medals.push({chave:`trinca_${year}_${r.month}`,nome:`Trinca de metas · ${new Date(year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long'})}`,tipo:'TRINCA',year,month:r.month,earned:true,dataConquista:`${year}-${String(r.month).padStart(2,'0')}`,meta:trio.reduce((a,x)=>a+x.meta,0),realizado:trio.reduce((a,x)=>a+x.fat,0),perc:100});}if(streak.length%6===0){const six=streak.slice(-6);medals.push({chave:`seis_meses_${year}_${r.month}`,nome:'6 meses de metas consecutivas',tipo:'SEIS MESES',year,month:r.month,earned:true,dataConquista:`${year}-${String(r.month).padStart(2,'0')}`,meta:six.reduce((a,x)=>a+x.meta,0),realizado:six.reduce((a,x)=>a+x.fat,0),perc:100});}}else streak=[];});
-            for(const [start,end,label] of [[1,6,'1º Semestre'],[7,12,'2º Semestre']]){const period=rows.filter(r=>r.month>=start&&r.month<=end);const complete=period.length===6&&period.every(r=>r.earned);const meta=period.reduce((a,r)=>a+r.meta,0),fat=period.reduce((a,r)=>a+r.fat,0);if(complete)medals.push({chave:`semestre_${year}_${start}`,nome:`Semestre perfeito · ${label} ${year}`,tipo:'SEMESTRAL',year,month:end,earned:true,dataConquista:`${year}-${String(end).padStart(2,'0')}`,meta,realizado:fat,perc:meta?fat/meta*100:100});}
-            const metaAno=rows.reduce((a,r)=>a+r.meta,0),fatAno=rows.reduce((a,r)=>a+r.fat,0);if(rows.length&&metaAno>0&&fatAno>=metaAno)medals.push({chave:`anual_${year}`,nome:`Meta Anual · ${year}`,tipo:'ANUAL',year,month:12,earned:true,dataConquista:String(year),meta:metaAno,realizado:fatAno,perc:fatAno/metaAno*100});
-        });
-        // Metas coletivas: consolida a meta mensal oficial e o faturamento de todos os JSONs dos vendedores.
-        const teamByMonth = new Map();
-        (Array.isArray(metasTime)?metasTime:[]).forEach(r=>{
-            const raw=String(r['Mês']||r.mes_ano||r.mes||'').trim();
-            const iso=raw.match(/^(\d{4})-(\d{1,2})/); if(!iso)return;
-            const key=`${iso[1]}-${String(iso[2]).padStart(2,'0')}`;
-            teamByMonth.set(key,{key,year:Number(iso[1]),month:Number(iso[2]),meta:cleanNumber(r['Meta (R$)']??r.meta_mensal??r.meta??0),fat:0});
-            anos.add(Number(iso[1]));
-        });
-        (Array.isArray(faturadosTimeArrays)?faturadosTimeArrays.flat():[]).forEach(r=>{
-            const d=parseDataBR(r['Data']||r.data||r.data_venda); if(!d)return;
-            const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            const row=teamByMonth.get(key)||{key,year:d.getFullYear(),month:d.getMonth()+1,meta:0,fat:0};
-            row.fat+=cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0);teamByMonth.set(key,row);anos.add(d.getFullYear());
-        });
-        const teamAwards=[];
-        [...teamByMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).forEach(r=>{
-            const excecao=r.key==='2026-01';
-            if(excecao || (r.meta>0 && r.fat>=r.meta)) teamAwards.push({chave:`meta_time_${r.key}${excecao?'_excecao':''}`,nome:`Meta do Time · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tipo:'TIME',categoria:'META DO TIME',year:r.year,month:r.month,earned:true,dataConquista:r.key,meta:r.meta,realizado:r.fat,perc:excecao?100:(r.meta?r.fat/r.meta*100:100),excecao,icone:'fa-trophy',cor:'#9570df',clara:'#e9ddff',ink:'#43217e'});
-        });
-        const saved=lerPremiosGuardados(); const savedKeys=new Set(saved.map(x=>x.chave));
-        const earnedUnique = new Map(); [...saved,...medals,...teamAwards].forEach(m=>{if(m.earned||savedKeys.has(m.chave))earnedUnique.set(m.chave,{...m,...saved.find(x=>x.chave===m.chave),...m});});
-        const yearOptions=[...anos].sort((a,b)=>b-a).map(y=>`<option value="${y}" ${y===selectedYear?'selected':''}>${y}</option>`).join('');
-        const monthOptions='<option value="all">Todos os meses</option>'+Array.from({length:12},(_,i)=>`<option value="${i+1}">${new Date(2020,i,1).toLocaleDateString('pt-BR',{month:'long'})}</option>`).join('');
-        body.innerHTML=`<div class="awards-hero"><button class="modal-close" id="fechar-meus-premios" aria-label="Fechar" style="color:#dbeafe">&times;</button><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Uma coleção individual das suas conquistas comerciais. Cada medalha representa uma meta mensal atingida; sequências desbloqueiam troféus especiais.</p></div><div class="awards-controls"><label><i class="fas fa-calendar"></i> Ano <select id="premios-filtro-ano">${yearOptions}</select></label><label><i class="fas fa-calendar-day"></i> Mês <select id="premios-filtro-mes">${monthOptions}</select></label><label><i class="fas fa-layer-group"></i> Categoria <select id="premios-filtro-tipo"><option value="all">Todas</option><option value="MENSAL">Mensais</option><option value="TRINCA">Trincas</option><option value="SEIS MESES">6 meses</option><option value="SEMESTRAL">Semestres perfeitos</option><option value="ANUAL">Anuais</option><option value="TIME">Meta do time</option></select></label></div><div class="awards-content" id="premios-colecao-conteudo"></div>`;
-        document.getElementById('fechar-meus-premios').addEventListener('click',()=>modal.classList.remove('active'));
-        modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('active'); });
-        const renderColecao=()=>{
-            const y=Number(document.getElementById('premios-filtro-ano').value),m=document.getElementById('premios-filtro-mes').value,t=document.getElementById('premios-filtro-tipo').value;
-            const isTeamAward=a=>['TIME','META DO TIME'].includes(String(a.tipo||a.categoria||'').toUpperCase());
-            const savedAndCalc=[...earnedUnique.values()].filter(a=>Number(a.year||String(a.chave).match(/(20\d{2})/)?.[1]||0)===y&&(m==='all'||Number(a.month||String(a.chave).match(/20\d{2}-(\d{2})/)?.[1]||0)===Number(m))&&(t==='all'||(t==='TIME'?isTeamAward(a):a.tipo===t||a.categoria===t)));
-            const monthly=allRows.filter(r=>r.year===y&&(m==='all'||r.month===Number(m)));
-            const earnedMonths=monthly.filter(r=>r.earned).length, totalFat=monthly.reduce((a,r)=>a+r.fat,0);
-            const ordenar=(arr)=>arr.sort((a,b)=>String(b.dataConquista||'').localeCompare(String(a.dataConquista||'')));
-            const medalTier=a=>{const n=String(a.nome||a.tipo||'').toLowerCase();if(isTeamAward(a))return 'team';if(/trinca|3 meses/.test(n))return 'silver';if(/6 meses|seis meses|semestre|anual/.test(n))return 'gold';return 'bronze';};
-            const renderCards=(arr,team=false)=>ordenar(arr).map(a=>{const tier=medalTier(a);const theme=classeMedalha({nome:a.nome||a.tipo,tipo:a.tipo});const meta=Number(a.meta)||0;const realizado=Number(a.realizado)||0;const perc=Number(a.perc)||(meta>0?realizado/meta*100:100);const pct=Math.max(0,Math.min(100,perc));const isTeam=team||isTeamAward(a);const tierLabel={bronze:'BRONZE · META MENSAL',silver:'PRATA · TRINCA',gold:'OURO · CONQUISTA ESPECIAL',team:'META COLETIVA'}[tier];const medalColors={bronze:{cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-medal'},silver:{cor:'#bfc5cd',clara:'#f3f4f6',ink:'#3f4650',icone:'fa-medal'},gold:{cor:'#d4a72c',clara:'#fff2a8',ink:'#6b4b00',icone:'fa-trophy'},team:{cor:'#9570df',clara:'#e9ddff',ink:'#43217e',icone:'fa-trophy'}}[tier];return `<article class="award-trophy-card earned medal-${tier} ${isTeam?'team-card':''}" style="--medal-color:${medalColors.cor};--medal-light:${medalColors.clara};--medal-ink:${medalColors.ink}"><div class="award-trophy-icon"><i class="fas ${medalColors.icone}"></i></div><h4>${a.nome||a.tipo||'Troféu'}</h4><span class="award-category">${tierLabel}</span>${a.excecao?'<p style="font-size:.78rem;color:#5b3a91;line-height:1.5;margin:0 0 10px">Reconhecimento especial: janeiro/2026 foi considerado batido por exceção.</p>':`<div class="award-money-row"><span>Faturamento</span><strong>${formatarMoeda(realizado)}</strong></div><div class="award-money-row"><span>Meta do período</span><strong>${meta>0?formatarMoeda(meta):'Meta atingida'}</strong></div>`}<div class="award-progress"><span style="width:${pct}%"></span></div><div class="award-progress-label"><span>${a.excecao?'Reconhecimento oficial':'Atingimento'}</span><strong>${a.excecao?'100%':perc.toFixed(1).replace('.',',')+'%'}</strong></div><div class="award-earned-date"><i class="fas fa-check-circle"></i> CONQUISTADO</div></article>`;}).join('');
-            const individualAwards=savedAndCalc.filter(a=>!isTeamAward(a));
-            const teamAwardsFiltered=savedAndCalc.filter(isTeamAward);
-            const cardsIndividual=renderCards(individualAwards,false), cardsTime=renderCards(teamAwardsFiltered,true);
-            // Medal count is lifetime across all loaded years, not limited by the active month/year filters.
-            const allAwards=[...earnedUnique.values()];
-            const totalBronze=allAwards.filter(a=>medalTier(a)==='bronze').length;
-            const totalSilver=allAwards.filter(a=>medalTier(a)==='silver').length;
-            const totalGold=allAwards.filter(a=>medalTier(a)==='gold').length;
-            const totalTeam=allAwards.filter(a=>medalTier(a)==='team').length;
-            const podium=`<div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${totalBronze}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${totalSilver}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · 6 meses e especiais</span><strong>${totalGold}</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>${totalTeam}</strong></div></div></div>`;
-            const calendar=Array.from({length:12},(_,i)=>{const r=allRows.find(x=>x.year===y&&x.month===i+1);const hoje=new Date();const futuro=y>hoje.getFullYear()||(y===hoje.getFullYear()&&i+1>hoje.getMonth()+1);const atual=y===hoje.getFullYear()&&i+1===hoje.getMonth()+1;const status=r&&r.earned?'META BATIDA':(atual?'Em andamento':(futuro?'Em breve':(r&&r.meta?'Não atingiu':'Sem dados')));const monthIcon=r&&r.earned?'fa-medal':(atual?'fa-wave-square':(futuro?'fa-lock':(r&&r.meta?'fa-xmark':'fa-circle-question')));return `<div class="awards-calendar-month ${r&&r.earned?'earned':''} ${atual?'month-in-progress':''} ${futuro?'month-future':''} ${!futuro&&!atual&&r&&r.meta&&!r.earned?'month-not-earned':''}"><i class="fas ${monthIcon}"></i>${new Date(y,i,1).toLocaleDateString('pt-BR',{month:'short'}).toUpperCase()}<br>${status}</div>`;}).join('');
-            const teamMonths=[...teamByMonth.values()].filter(r=>r.year===y&&(m==='all'||r.month===Number(m)));
-            document.getElementById('premios-colecao-conteudo').innerHTML=`<div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas <span style="font-size:.68rem;font-weight:650;color:#65758a">· total geral de todos os anos</span></div>${podium}<div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas · ${y}</div><div class="awards-calendar">${calendar}</div><div class="awards-subtitle"><i class="fas fa-user"></i> Metas individuais <span class="sub-pill">SUA PERFORMANCE</span></div>${cardsIndividual?`<div class="awards-trophy-grid">${cardsIndividual}</div>`:'<div class="awards-empty"><i class="fas fa-medal" style="font-size:1.4rem;display:block;margin-bottom:10px"></i>Nenhuma conquista individual neste filtro.</div>'}<div class="awards-subtitle"><i class="fas fa-people-group"></i> Metas do time <span class="sub-pill">CONQUISTAS COLETIVAS</span><span class="sub-pill" style="background:#e9ddff;color:#43217e">${teamMonths.filter(r=>r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta)).length} meses batidos em ${y}</span></div>${cardsTime?`<div class="awards-trophy-grid">${cardsTime}</div>`:'<div class="awards-empty">Nenhuma conquista coletiva neste filtro.</div>'}<div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Continue desbloqueando conquistas!</strong> Estes prêmios podem liberar recompensas especiais, como vouchers, recebimentos, dinheiro e outros benefícios, conforme as campanhas e regras vigentes. A conquista não garante automaticamente uma recompensa financeira.</div><p class="awards-footnote"><i class="fas fa-circle-info"></i> Dados consultados dos arquivos JSON do Radar. A coleção é individual deste perfil; os registros locais de popup e notificação dependem deste navegador.</p>`;
-        };
-        ['premios-filtro-ano','premios-filtro-mes','premios-filtro-tipo'].forEach(id=>document.getElementById(id).addEventListener('change',renderColecao));
-        renderColecao();
+    // Meus Prêmios — camada adicional para Juliana Cecchy (código 20), sem substituir ferramentas existentes.
+    const CHAVE_PREMIOS_JU = 'radar_meus_premios_juliana_v1';
+    async function abrirMeusPremiosJu() {
+      const modal=document.getElementById('meus-premios-modal'), body=document.getElementById('meus-premios-body');
+      modal.classList.add('active');
+      body.innerHTML='<div class="awards-hero"><button id="fechar-meus-premios-ju" aria-label="Fechar" style="position:absolute;right:16px;top:14px;background:#dc2626;color:white;border:2px solid white;border-radius:50%;width:40px;height:40px;font-size:25px;line-height:1;cursor:pointer">×</button><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Sua coleção de medalhas e troféus comerciais, inspirada nos quadros de conquistas dos consoles.</p></div><div class="awards-content"><div class="awards-empty"><i class="fas fa-spinner fa-spin"></i> Carregando conquistas…</div></div>';
+      document.getElementById('fechar-meus-premios-ju').onclick=()=>modal.classList.remove('active');
+      let rows=[]; try { rows=await carregarJSON(BASES.metasConsolidadas); } catch(e) { rows=[]; }
+      const mine=(Array.isArray(rows)?rows:[]).filter(r=>String(r.id_vendedor||'').trim()==='20' && /juliana/i.test(String(r.vendedor||'')));
+      const months=new Map(); mine.forEach(r=>{let raw=String(r.mes_ano||r.mes||r.competencia||'');let m=raw.match(/^(\d{4})-(\d{1,2})/)||raw.match(/(\d{1,2})\/(\d{4})/);if(!m)return;let key=m[0].includes('/')?`${m[2]}-${m[1].padStart(2,'0')}`:`${m[1]}-${m[2].padStart(2,'0')}`;months.set(key,{key,year:+key.slice(0,4),month:+key.slice(5,7),meta:cleanNumber(r.meta_mensal),fat:cleanNumber(r.faturado)});});
+      const all=[...months.values()].sort((a,b)=>a.key.localeCompare(b.key));
+      // Metas coletivas: cruza metas globais com o faturamento somado dos JSONs de toda a equipe.
+      let teamMetaRows=[], teamFatRows=[];
+      try { [teamMetaRows,teamFatRows]=await Promise.all([carregarJSON(BASES.metasGlobais).catch(()=>[]),Promise.all((BASES.faturadosTime||[]).map(u=>carregarJSON(u).catch(()=>[])))]); } catch(e) {}
+      const teamMap=new Map();
+      (Array.isArray(teamMetaRows)?teamMetaRows:[]).forEach(r=>{const raw=String(r['Mês']||r.mes_ano||r.mes||'').trim();const m=raw.match(/^(\d{4})-(\d{1,2})/);if(!m)return;const key=`${m[1]}-${String(m[2]).padStart(2,'0')}`;teamMap.set(key,{key,year:+m[1],month:+m[2],meta:cleanNumber(r['Meta (R$)']??r.meta_mensal??r.meta??0),fat:0});});
+      (Array.isArray(teamFatRows)?teamFatRows.flat():[]).forEach(r=>{const d=parseDataBR(r['Data']||r.data||r.data_venda);if(!d)return;const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const row=teamMap.get(key)||{key,year:d.getFullYear(),month:d.getMonth()+1,meta:0,fat:0};row.fat+=cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0);teamMap.set(key,row);});
+      const teamAwards=[...teamMap.values()].filter(r=>r.key==='2026-01'||(r.meta>0&&r.fat>=r.meta)).map(r=>({key:`time-${r.key}`,year:r.year,month:r.month,meta:r.meta,fat:r.fat,tier:'team',name:`Meta do Time · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,excecao:r.key==='2026-01'}));
+      const earned=all.filter(r=>r.meta>0&&r.fat>=r.meta).map(r=>({...r,name:`Meta mensal · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tier:'bronze'}));
+      const trophies=[]; const byYear={}; all.forEach(r=>(byYear[r.year]??=[]).push(r)); Object.entries(byYear).forEach(([year,arr])=>{let streak=[];arr.sort((a,b)=>a.month-b.month).forEach(r=>{if(r.meta>0&&r.fat>=r.meta){streak.push(r);if(streak.length%3===0)trophies.push({key:`trinca-${year}-${r.month}`,name:`Trinca · ${year}`,year:+year,month:r.month,meta:streak.slice(-3).reduce((s,x)=>s+x.meta,0),fat:streak.slice(-3).reduce((s,x)=>s+x.fat,0),tier:'silver'});}else streak=[];});});
+      const saved=(()=>{try{return JSON.parse(localStorage.getItem(CHAVE_PREMIOS_JU)||'[]')}catch(e){return []}})(); const awards=[...earned,...trophies,...teamAwards];
+      const medal=(tier)=>tier==='team'?['#9570df','#e9ddff','#43217e','fa-trophy']:tier==='silver'?['#bfc5cd','#f3f4f6','#3f4650','fa-medal']:tier==='gold'?['#d4a72c','#fff2a8','#6b4b00','fa-trophy']:['#c47b43','#f6d2ae','#5b2f15','fa-medal'];
+      const years=[...new Set([new Date().getFullYear(),...all.map(r=>r.year)])].sort((a,b)=>b-a);
+      body.innerHTML=`<div class="awards-hero"><button id="fechar-meus-premios-ju" aria-label="Fechar" style="position:absolute;right:16px;top:14px;background:#dc2626;color:white;border:2px solid white;border-radius:50%;width:40px;height:40px;font-size:25px;line-height:1;cursor:pointer">×</button><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Juliana Cecchy · Coleção individual de conquistas</p></div><div class="awards-content"><div class="awards-section-title"><i class="fas fa-trophy"></i> Quadro de medalhas</div><div class="awards-medal-summary"><div class="medal-count bronze"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Bronze · metas mensais</span><strong>${earned.length}</strong></div></div><div class="medal-count silver"><div class="medal-count-icon"><i class="fas fa-medal"></i></div><div><span>Prata · trincas</span><strong>${trophies.length}</strong></div></div><div class="medal-count gold"><div class="medal-count-icon"><i class="fas fa-trophy"></i></div><div><span>Ouro · especiais</span><strong>0</strong></div></div><div class="medal-count team"><div class="medal-count-icon"><i class="fas fa-people-group"></i></div><div><span>Coletivas · time</span><strong>${teamAwards.length}</strong></div></div></div><div class="awards-section-title"><i class="fas fa-calendar-days"></i> Calendário de conquistas</div><div class="awards-controls"><label>Ano <select id="premios-ju-ano">${years.map(y=>`<option ${y===new Date().getFullYear()?'selected':''}>${y}</option>`).join('')}</select></label></div><div id="premios-ju-cards" class="awards-trophy-grid"></div><div class="awards-reward-note"><i class="fas fa-gift"></i><strong>Desbloqueie recompensas especiais.</strong> As conquistas podem liberar vouchers, recebimentos, dinheiro e outros benefícios conforme campanhas e regras vigentes.</div></div>`;
+      document.getElementById('fechar-meus-premios-ju').onclick=()=>modal.classList.remove('active');
+      const render=()=>{const y=+document.getElementById('premios-ju-ano').value;const cards=awards.filter(a=>a.year===y).map(a=>{const c=medal(a.tier);return `<article class="award-trophy-card" style="--medal-color:${c[0]};--medal-light:${c[1]};--medal-ink:${c[2]}"><div class="award-trophy-icon"><i class="fas ${c[3]}"></i></div><h4>${a.name}</h4><span class="award-category">${a.tier==='team'?'META COLETIVA · TIME':a.tier==='bronze'?'BRONZE · META MENSAL':'PRATA · TRINCA'}</span>${a.excecao?'<p style="font-size:.78rem;color:#5b3a91">Reconhecimento especial: janeiro/2026 foi considerado batido por exceção.</p>':`<div class="award-money-row"><span>Faturamento</span><strong>${formatarMoeda(a.fat)}</strong></div>`}<div class="award-money-row"><span>Meta do período</span><strong>${formatarMoeda(a.meta)}</strong></div><div class="award-progress"><span style="width:${Math.min(100,a.meta?a.fat/a.meta*100:0)}%"></span></div><div class="award-earned-date"><i class="fas fa-check-circle"></i> CONQUISTADO</div></article>`}).join('');document.getElementById('premios-ju-cards').innerHTML=cards||'<div class="awards-empty">Nenhuma conquista individual ou coletiva neste ano ainda.</div>';};
+      document.getElementById('premios-ju-ano').onchange=render; render();
+      modal.onclick=e=>{if(e.target===modal)modal.classList.remove('active')};
     }
-    window.abrirMeusPremios = abrirMeusPremios;
-
-    // Ação delegada e resiliente para menus recriados dinamicamente (desktop, hambúrguer e barra inferior).
-    document.addEventListener('click', function(event) {
-        const item = event.target && event.target.closest ? event.target.closest('[data-menu-id="meus-premios"]') : null;
-        if (!item) return;
-        event.preventDefault();
-        event.stopImmediatePropagation();
-        window.abrirMeusPremios();
-    }, true);
-
+    document.getElementById('meus-premios-modal')?.addEventListener('click',e=>{if(e.target===e.currentTarget)e.currentTarget.classList.remove('active')});
 
     function abrirModalConteudo(html, titulo) {
         modalHistory.push({ html, titulo });
@@ -2232,6 +1998,9 @@ function classeMedalha(conquista) {
         const aprovadosTodoPeriodoValor = aprovTodoPeriodo.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
         const faturadosMesCalendarioAtual = fatFull.filter(i => { const d=parseDataBR(i['Data']); return d && formatMonthKey(d)===mesCalendarioAtual; });
         const totalFaturadosMesCalendarioAtual = faturadosMesCalendarioAtual.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
+        if (mesSelecionadoEhAtual && metaTimeMensal > 0 && totalFaturadoTime >= metaTimeMensal) {
+            registrarBannerConquistaJu({chave:`meta_time_${mesCalendarioAtual}`,titulo:'Meta do Time atingida!',nome:'Meta do Time',autor:'Time Comercial',tipo:'TIME',categoria:'META DO TIME',meta:metaTimeMensal,realizado:totalFaturadoTime,cor:'#9570df',clara:'#e9ddff',ink:'#43217e',icone:'fa-people-group'});
+        }
         const totalAprovTodoPeriodoKPI = mesSelecionadoEhAtual ? aprovadosTodoPeriodoValor + totalFaturadosMesCalendarioAtual : aprovadosTodoPeriodoValor;
         const tituloAprovTodoPeriodoKPI = mesSelecionadoEhAtual
             ? `Aprovados a faturar (todo período) + Faturados (${mesCalendarioAtual})`
@@ -2256,20 +2025,6 @@ function classeMedalha(conquista) {
             <div class="mini-card-kpi clickable" onclick="window.abrirDetalhamentoKPI('clientes','${monthLabel}')"><div class="kpi-icon"><i class="fas fa-users"></i></div><div class="value">${totalClientes}</div><div class="label">Clientes Atendidos</div></div>
         `;
         renderCardMetaTimeCompacto(totalFaturadoTime, metaTimeMensal, monthLabel);
-        // Conquista da meta coletiva: só registra quando o mês exibido é o atual.
-        const conquistaMetaTime = monthLabel === formatMonthKey(new Date()) && metaTimeMensal > 0 && totalFaturadoTime >= metaTimeMensal
-            ? {nome:'Meta do Time', meta:metaTimeMensal, realizado:totalFaturadoTime, perc:totalFaturadoTime/metaTimeMensal*100, chave:`meta_time_${monthLabel.replace('/','_')}`, tipo:'TIME'}
-            : null;
-        if (conquistaMetaTime) {
-            const temaTime = classeMedalha(conquistaMetaTime);
-            let bannersTime = [];
-            try { bannersTime = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA)||'[]'); if (!Array.isArray(bannersTime)) bannersTime=[]; } catch(_) { bannersTime=[]; }
-            if (!bannersTime.some(b => b && b.chave === conquistaMetaTime.chave && Date.now()-Number(b.timestamp||0)<DURACAO_CONQUISTA)) {
-                bannersTime.unshift({...conquistaMetaTime, timestamp:Date.now(), autor:'Time Centrobor', categoria:temaTime.categoria, icone:temaTime.icone, cor:temaTime.cor, clara:temaTime.clara, ink:temaTime.ink, tipoBanner:'conquista'});
-                localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(bannersTime.slice(0,40)));
-            }
-            renderCarrossel();
-        }
 
         globalAprov = aprov; globalFat = fat; globalCot = cot; globalAprovFat = aprovFat;
         globalAprovTodoPeriodoKPI = detalheAprovTodoPeriodoKPI; globalAprovTodoPeriodoKPITitulo = tituloAprovTodoPeriodoKPI;
@@ -2301,6 +2056,9 @@ function classeMedalha(conquista) {
         const faturamentoSemestre = fatFull.filter(item => { const d=parseDataBR(item['Data']); return d && d>=startOfSemester && d<=cutoffDate; }).reduce((acc,item)=>acc+cleanNumber(item['Valor Mercadoria']),0);
 
         const metaMensal = cleanNumber(meta.meta_mensal);
+        if (mesSelecionadoEhAtual && metaMensal > 0 && totalFaturadosMesCalendarioAtual >= metaMensal) {
+            registrarBannerConquistaJu({chave:`meta_mensal_${mesCalendarioAtual}`,titulo:'Meta mensal atingida!',nome:'Meta Mensal',autor:nomeVendedor,tipo:'INDIVIDUAL',meta:metaMensal,realizado:totalFaturadosMesCalendarioAtual,cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-medal'});
+        }
         const metaSemestral = cleanNumber(meta.meta_semestral);
         const metaAnual = cleanNumber(meta.meta_anual);
         const metaPlus = metaMensal*1.1;
@@ -3168,34 +2926,14 @@ function classeMedalha(conquista) {
         };
 
         const conquistasCampanhas = await renderizarCampanhasEspeciais();
-        notificacoes = [...lerNotificacoesConquista(), ...(notificacoes || []).filter(n => !String(n.id || '').startsWith('conquista-'))];
-        atualizarBadgeNotificacoes();
-        atualizarBadgeMeusPremios();
         const conquistasMetas = [];
         const anoMes = `${year}-${String(today.getMonth()+1).padStart(2,'0')}`;
         const semestre = today.getMonth()<6?1:2;
-        // A meta mensal só vira conquista quando o mês selecionado é o atual e o faturamento
-        // real desse mês (não um período histórico ou uma projeção) atingiu a meta.
-        if (mesSelecionadoEhAtual && metaMensal > 0 && Number(totalFaturadosMesCalendarioAtual) >= Number(metaMensal)) {
-            conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturadosMesCalendarioAtual, perc:(Number(totalFaturadosMesCalendarioAtual)/Number(metaMensal))*100, chave:`meta_mensal_${mesCalendarioAtual}`, _verificadaMesAtual:true });
-        }
-        // O banner da meta mensal atual também aparece no carrossel mesmo se a celebração já foi vista.
-        const metaMensalConquistadaAgora = conquistasMetas.find(c => c.chave === `meta_mensal_${mesCalendarioAtual}`);
-        if (metaMensalConquistadaAgora) {
-            const temaMensal = classeMedalha(metaMensalConquistadaAgora);
-            let bannersMensais = [];
-            try { bannersMensais = JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA)||'[]'); if (!Array.isArray(bannersMensais)) bannersMensais=[]; } catch(_) { bannersMensais=[]; }
-            const jaExisteAtivo = bannersMensais.some(b => b && b.chave === metaMensalConquistadaAgora.chave && Date.now()-Number(b.timestamp||0)<DURACAO_CONQUISTA);
-            if (!jaExisteAtivo) {
-                bannersMensais.unshift({...metaMensalConquistadaAgora, timestamp:Date.now(), autor:nomeVendedor||'Juliana', categoria:temaMensal.categoria, icone:temaMensal.icone, cor:temaMensal.cor, clara:temaMensal.clara, ink:temaMensal.ink, tipoBanner:'conquista'});
-                localStorage.setItem(CHAVE_BANNERS_CONQUISTA, JSON.stringify(bannersMensais.slice(0,40)));
-            }
-            renderCarrossel();
-        }
+        if (percMonth>=100) conquistasMetas.push({ nome:'Meta Mensal', meta:metaMensal, realizado:totalFaturado, perc:percMonth, chave:`meta_mensal_${anoMes}` });
         if (percPlus>=100) conquistasMetas.push({ nome:'Meta Plus (110%)', meta:metaPlus, realizado:totalFaturado, perc:percPlus, chave:`meta_plus_${anoMes}` });
         if (percSem>=100) conquistasMetas.push({ nome:`Meta Semestral (${semesterBound.label})`, meta:metaSemestral, realizado:faturamentoSemestre, perc:percSem, chave:`meta_semestral_${year}_S${semestre}` });
         if (percYear>=100) conquistasMetas.push({ nome:'Meta Anual', meta:metaAnual, realizado:faturamentoAcumulado, perc:percYear, chave:`meta_anual_${year}` });
-        setTimeout(() => mostrarCelebracao([...conquistasMetas, ...conquistasCampanhas, ...(conquistaMetaTime ? [conquistaMetaTime] : [])]), 500);
+        setTimeout(() => mostrarCelebracao([...conquistasMetas, ...conquistasCampanhas]), 500);
 
         const mesesAbrev = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
         const anoAtual = today.getFullYear();
