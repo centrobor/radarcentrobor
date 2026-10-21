@@ -1941,7 +1941,7 @@
         const body = document.getElementById('meus-premios-body');
         modal.classList.add('active');
         body.innerHTML = '<div class="awards-hero"><div class="awards-hero-mark"><i class="fas fa-trophy"></i></div><h2>Meus Prêmios</h2><p>Carregando sua coleção individual de conquistas…</p></div><div class="awards-content"><div class="awards-empty"><i class="fas fa-spinner fa-spin"></i> Consultando os dados oficiais em JSON.</div></div>';
-        const [consolidado, faturados, metasTime, faturadosTimeArrays] = await Promise.all([obterDadosPremios(), carregarJSON(BASES.faturados).catch(()=>[]), carregarJSON(BASES.metasGlobais).catch(()=>[]), Promise.all((BASES.faturadosTime||[]).map(url=>carregarJSON(url).catch(()=>[])))]);
+        const [consolidado, faturados, metasTime] = await Promise.all([obterDadosPremios(), carregarJSON(BASES.faturados).catch(()=>[]), carregarJSON(BASES.metasGlobais).catch(()=>[])]);
         const anos = new Set([new Date().getFullYear()]);
         const linhas = (Array.isArray(consolidado)?consolidado:[]).filter(r => String(r.id_vendedor||'').trim() === COD_VENDEDOR && normalizarNomeCliente(r.vendedor||'').includes('FABIO'));
         const porMes = new Map();
@@ -1987,18 +1987,7 @@
             // o fallback será preenchido somente por uma fonte explicitamente global.
             teamByMonth.set(key,row); anos.add(Number(iso[1]));
         });
-        // Fallback por JSONs individuais somente nos meses sem faturamento consolidado informado.
-        const fallbackTeamFat=new Map();
-        (Array.isArray(faturadosTimeArrays)?faturadosTimeArrays.flat():[]).forEach(r=>{
-            const d=parseDataBR(r['Data']||r.data||r.data_venda); if(!d)return;
-            const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-            fallbackTeamFat.set(key,(fallbackTeamFat.get(key)||0)+cleanNumber(r['Valor Mercadoria']??r.valor_mercadoria??r.valor??0));
-        });
-        fallbackTeamFat.forEach((valor,key)=>{
-            const row=teamByMonth.get(key);
-            if(row&&!row.temConsolidado) row.fat=valor;
-            else if(!row) teamByMonth.set(key,{key,year:Number(key.slice(0,4)),month:Number(key.slice(5,7)),meta:0,fat:valor,temConsolidado:false});
-        });
+        // O arquivo consolidado é a fonte oficial; não baixamos os sete JSONs individuais em paralelo.
         const teamAwards=[];
         [...teamByMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).forEach(r=>{
             const excecao=r.key==='2026-01';
@@ -2169,17 +2158,14 @@
     async function renderAll(selectedMonth) {
         const fontesPrincipais = [
             BASES.meta, BASES.metasGlobais, BASES.aprovados, BASES.faturados,
-            BASES.aprovadosfaturados, BASES.carteira, BASES.cotacoes
+            BASES.aprovadosfaturados, BASES.carteira, BASES.cotacoes, BASES.metasConsolidadas
         ];
         const resultadosPrincipais = await Promise.allSettled(fontesPrincipais.map(url => carregarJSON(url)));
         const dadosPrincipais = resultadosPrincipais.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
-        // O faturamento global do time é auxiliar: falha em um vendedor não deve derrubar o painel.
-        const resultadosTime = await Promise.allSettled(BASES.faturadosTime.map(url => carregarJSON(url)));
-        const faturadosTimePorVendedor = resultadosTime.map(r => r.status === 'fulfilled' && Array.isArray(r.value) ? r.value : []);
-        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw] = dadosPrincipais;
-        // O KPI Meta do Time soma os faturamentos de todos os vendedores cadastrados,
-        // enquanto os demais KPIs e tabelas do vendedor continuam usando apenas seu JSON individual.
-        const fatTimeRaw = faturadosTimePorVendedor.flat();
+        // O faturamento coletivo vem do consolidado mensal, evitando baixar os sete JSONs
+        // individuais de vendedores durante a abertura do dashboard.
+        const [metaRawArr, metasGlobais, aprovRaw, fatRaw, aprovFatRaw, carteiraRaw, cotRaw, consolidadoTimeRaw] = dadosPrincipais;
+        const consolidadoTime = Array.isArray(consolidadoTimeRaw) ? consolidadoTimeRaw : [];
 
         const metaArr = metaRawArr.filter(m => String(m.id_vendedor||'').trim() === codVendedor);
         const meta = metaArr.length>0 ? metaArr[0] : {};
@@ -2224,11 +2210,15 @@
         const aprovFat = filterByMonth(aprovFatFull, 'Data');
 
         const totalFaturado = fat.reduce((s,i)=>s+cleanNumber(i['Valor Mercadoria']),0);
-        const totalFaturadoTime = fatTimeRaw.reduce((acc, item) => {
-            const d = parseDataBR(item['Data']);
-            if (!d) return acc;
-            if (selectedMonth && formatMonthKey(d)!==selectedMonth) return acc;
-            return acc + cleanNumber(item['Valor Mercadoria']);
+        const mesesCodigo = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'};
+        const partesMesTime = String(selectedMonth || '').split('/');
+        const chaveMesTime = partesMesTime.length === 2 && mesesCodigo[partesMesTime[0].toLowerCase()]
+            ? `20${partesMesTime[1]}-${mesesCodigo[partesMesTime[0].toLowerCase()]}` : null;
+        const totalFaturadoTime = consolidadoTime.reduce((acc, item) => {
+            const chave = formatarAnoMesRegistro(item);
+            if (chaveMesTime && chave !== chaveMesTime) return acc;
+            const valor = item.faturado ?? item['Faturado'] ?? item['Valor Faturado'] ?? '';
+            return acc + (String(valor).trim() === '' ? 0 : cleanNumber(valor));
         }, 0);
 
         const totalAprovFat = aprovFat.reduce((s,i)=>s+cleanNumber(i['Total Bruto']),0);
