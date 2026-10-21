@@ -663,12 +663,43 @@
                                 clean[String(k).trim()] = v;
                             }
                             clean._originalIndex = idx;
-                            if (rexonFactor !== null) {
-                                const brutoKey = findKeyByPattern(clean, ['preço bruto', 'preco bruto']);
-                                const bruto = brutoKey ? parseMoney(clean[brutoKey]) : NaN;
+                            if (cat.group === 'rexon') {
+                                // A fonte pode trazer duas colunas com o mesmo nome normalizado:
+                                // uma já contém o custo e a outra o preço bruto antes do fator.
+                                // Priorize o fator configurado; se não houver, use o fator da própria linha.
+                                const factorKey = findKeyByPattern(clean, ['fator']);
+                                const rowFactor = factorKey ? parseMoney(clean[factorKey]) : NaN;
+                                const factor = Number.isFinite(rexonFactor) ? rexonFactor : rowFactor;
+                                const priceKeys = Object.keys(clean).filter(k => {
+                                    const nk = norm(k).replace(/\s+/g, ' ').trim();
+                                    return nk === 'preco bruto' || nk === 'anterior';
+                                });
+                                const candidates = priceKeys
+                                    .map(key => ({ key, value: parseMoney(clean[key]) }))
+                                    .filter(item => Number.isFinite(item.value));
+                                let bruto = NaN;
+                                if (candidates.length === 1) {
+                                    bruto = candidates[0].value;
+                                } else if (candidates.length > 1) {
+                                    // Escolhe o valor pré-fator: seu produto pelo fator deve coincidir
+                                    // com a outra coluna (ex.: 11,45 × 0,729 ≈ 8,35).
+                                    let best = null;
+                                    for (const candidate of candidates) {
+                                        if (!Number.isFinite(factor) || factor <= 0) continue;
+                                        const calculated = Math.round((candidate.value * factor + Number.EPSILON) * 100) / 100;
+                                        const match = candidates.some(other => other.key !== candidate.key && Math.abs(other.value - calculated) <= 0.02);
+                                        if (match) { best = candidate; break; }
+                                    }
+                                    if (best) bruto = best.value;
+                                    else if (Number.isFinite(factor) && factor < 1) bruto = Math.max(...candidates.map(item => item.value));
+                                    else if (Number.isFinite(factor) && factor > 1) bruto = Math.min(...candidates.map(item => item.value));
+                                    else bruto = candidates[0].value;
+                                }
                                 if (Number.isFinite(bruto)) {
                                     clean['_Preço bruto original'] = bruto;
-                                    clean['Preço de Venda'] = Math.round((bruto * rexonFactor + Number.EPSILON) * 100) / 100;
+                                    if (Number.isFinite(factor) && factor > 0) {
+                                        clean['Preço de Venda'] = Math.round((bruto * factor + Number.EPSILON) * 100) / 100;
+                                    }
                                 }
                             }
                             if (aumentoPercent !== 0) clean = applyAumentoPercentual(clean, aumentoPercent);
@@ -826,10 +857,11 @@
                     html += `<tr data-idx="${p._originalIndex}">`;
                     for (let c of cols) {
                         let val = p[c.key] !== undefined ? p[c.key] : '—', display = val;
-                        if (numericCols.includes(c.key)) {
+                        const isRexonPrice = currentCategory?.group === 'rexon' && ['preco bruto original', 'preco de venda'].includes(norm(c.key));
+                        if (numericCols.includes(c.key) || isRexonPrice) {
                             let num = parseMoney(val);
                             if (!isNaN(num)) {
-                                if (c.display.includes('PREÇO') || c.display.includes('VALOR') || c.display.includes('VENDA')) display = currentCategory?.group === 'rexon' && norm(c.key) === 'preco de venda' ? num.toLocaleString('pt-BR', {style:'currency', currency:'BRL'}) : formatMoney(num);
+                                if (isRexonPrice || c.display.includes('PREÇO') || c.display.includes('VALOR') || c.display.includes('VENDA')) display = num.toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
                                 else if (c.display.includes('PESO')) display = `${num.toFixed(2)} ${currentCategory?.key === 'correias_ind' ? 'kg' : 'g'}`;
                                 else display = num.toString();
                             }
