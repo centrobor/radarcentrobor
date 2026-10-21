@@ -1693,27 +1693,26 @@
         const container = document.getElementById('carousel-container');
         const indicators = document.getElementById('carousel-indicators');
         if (!container || !indicators) return;
-        if ((!Array.isArray(BANNERS) || !BANNERS.length) && !(typeof lerBannersConquistaJu==='function' && lerBannersConquistaJu().length)) {
-            container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center"><i class="fas fa-cloud-arrow-down" style="font-size:1.6rem;margin-bottom:10px"></i><div>Carrossel indisponível no momento. Tentaremos atualizar em segundo plano.</div></div></div>';
+        const bannersConquista = lerBannersConquistaJu().map(b => ({...b, tipo:'conquista', titulo:b.nome || b.titulo || 'Conquista desbloqueada', data:'Conquista recente', autor:b.autor || nomeVendedor || 'Juliana Cecchy'}));
+        const bannersBase = Array.isArray(BANNERS) ? BANNERS : [];
+        const bannersExibidos = [...bannersConquista, ...bannersBase];
+        window.__radarBannersExibidos = bannersExibidos;
+        if (!bannersExibidos.length) {
+            container.innerHTML = '<div class="carousel-slide"><div style="min-height:180px;display:grid;place-items:center;background:#1e3a5f;color:white;padding:24px;text-align:center">Carrossel indisponível no momento.</div></div>';
             indicators.innerHTML = '';
             return;
         }
-        const bannersConquista = typeof lerBannersConquistaJu==='function' ? lerBannersConquistaJu() : [];
-        const slides = [...bannersConquista.map(b=>({...b,_conquista:true})), ...BANNERS];
-        currentCarouselIndex = Math.min(currentCarouselIndex, slides.length - 1);
-        container.innerHTML = slides.map((b,i) => b._conquista
-          ? `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,rgba(255,214,102,.25),transparent 35%),radial-gradient(ellipse at 85% 90%,rgba(111,66,193,.55),transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,#44256e)">
-              <div class="achievement-banner-glow"></div><div class="achievement-confetti">✦　✧　✦　✧　✦　✧　✦</div>
-              <div class="achievement-banner-content"><div class="achievement-banner-main">
-                <span class="achievement-pill"><i class="fas fa-trophy"></i> CONQUISTA DESBLOQUEADA</span>
-                <div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas ${b.icone||'fa-trophy'}"></i></div>
-                <div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · JULIANA CECCHY</span><h2>${b.titulo||b.nome||'Meta atingida!'}</h2>
-                <p>${b.autor||'Juliana Cecchy'} · ${b.realizado!=null?formatarMoeda(b.realizado):''}${b.meta!=null?' / '+formatarMoeda(b.meta):''}</p>
-                <strong>Parabéns por essa conquista!</strong><small>META ATINGIDA · CONQUISTA RECENTE</small></div></div></div></div></div>`
+        currentCarouselIndex = Math.min(currentCarouselIndex, bannersExibidos.length - 1);
+        container.innerHTML = bannersExibidos.map((b,i) => b.tipo === 'conquista'
+          ? `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${b.clara||'#f6d2ae'}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${b.cor||'#c47b43'}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${b.ink||'#5b2f15'});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${b.icone||'fa-medal'}"></i> ${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${b.clara||'#f6d2ae'},${b.cor||'#c47b43'});color:${b.ink||'#5b2f15'}"><i class="fas ${b.icone||'fa-medal'}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · MEUS PRÊMIOS</span><h2>${b.nome||b.titulo||'CONQUISTA DESBLOQUEADA'}</h2><p>${b.categoria||'Conquista'}${b.realizado!=null?` · ${formatarMoeda(b.realizado)}`:''}</p><strong>Parabéns, ${b.autor||'Matheus'}! Sua conquista foi registrada.</strong><small class="achievement-private-note">Somente você vê isto no seu acesso por 3 dias · Clique para ver os detalhes</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`
           : `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Comunicado Centrobor'}" onerror="this.style.opacity='.25';this.style.background='#e5e7eb'"><div class="carousel-caption"><span>${b.titulo||'Comunicado'}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
-        indicators.innerHTML = slides.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
+        indicators.innerHTML = bannersExibidos.map((_,i) => `<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
         indicators.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', () => { currentCarouselIndex = Number(d.dataset.idx)||0; updateCarrossel(); }));
-        container.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () => { const idx = Number(slide.dataset.idx)||0; const activeSlides=[...lerBannersConquistaJu().map(b=>({...b,_conquista:true})),...BANNERS]; if (activeSlides[idx] && !activeSlides[idx]._conquista) abrirModalPostagem(activeSlides[idx]); }));
+        container.querySelectorAll('.carousel-slide').forEach(slide => {
+            const abrir = () => { const idx=Number(slide.dataset.idx)||0; const b=bannersExibidos[idx]; if (!b) return; if (b.tipo === 'conquista') abrirDetalheBannerConquista(b); else abrirModalPostagem(b); };
+            slide.addEventListener('click', abrir);
+            slide.addEventListener('keydown', e => { if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();} });
+        });
         updateCarrossel();
     }
     function updateCarrossel() {
@@ -1769,15 +1768,16 @@
         const celebradas = getMetasCelebradas();
         const novas = conquistas.filter(c => !celebradas.includes(c.chave));
         if (!novas.length) return;
+        novas.forEach(c => {
+          registrarBannerConquistaJu({...c, titulo:c.nome, nome:c.nome, autor:nomeVendedor||'Juliana Cecchy', categoria:'META MENSAL', icone:'fa-medal', cor:'#c47b43', clara:'#f6d2ae', ink:'#5b2f15'});
+          adicionarMetaCelebrada(c.chave);
+        });
         const body = document.getElementById('celebracao-body');
-        let lista = '';
-        novas.forEach(c => { lista += `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.1);"><span><strong>${c.nome}</strong></span><span>${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${c.perc.toFixed(1)}%)</span></div>`; adicionarMetaCelebrada(c.chave); });
-        body.innerHTML = `<div class="trofeu">🏆</div><h2>Parabéns, ${nomeVendedor}!</h2><p>Você atingiu as seguintes metas:</p><div class="lista-conquistas">${lista}</div><p style="font-size:1.1rem;margin-top:10px;">Continue assim! 🚀</p><button id="fechar-celebracao-btn">Fechar</button>`;
+        if (!body) return;
+        const lista = novas.map(c => `<div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid rgba(148,163,184,.2);text-align:left"><span style="flex:0 0 42px;width:42px;height:42px;display:grid;place-items:center;border-radius:14px;color:#5b2f15;background:linear-gradient(145deg,#f6d2ae,#c47b43);font-size:1.1rem"><i class="fas fa-medal"></i></span><span style="flex:1"><small style="font-size:.62rem;letter-spacing:.08em;color:#c47b43;font-weight:900">META MENSAL</small><strong style="display:block">${c.nome}</strong><small style="color:#64748b">${formatarMoeda(c.realizado)} / ${formatarMoeda(c.meta)} (${Number(c.perc||100).toFixed(1)}%)</small></span></div>`).join('');
+        body.innerHTML = `<div class="trofeu">🏆</div><h2>Parabéns, ${nomeVendedor||'Juliana Cecchy'}!</h2><p>Você atingiu as seguintes metas:</p><div class="lista-conquistas">${lista}</div><p style="font-size:1.1rem;margin-top:10px">Sua conquista também ficará disponível no carrossel por tempo limitado. 🚀</p><button id="fechar-celebracao-btn">Fechar</button>`;
         const modal = document.getElementById('celebracao-modal');
-        modal.classList.add('active');
-        dispararConfetes();
-        document.getElementById('fechar-celebracao-btn').addEventListener('click', () => modal.classList.remove('active'));
-        modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove('active'); });
+        if (modal) { modal.classList.add('active'); if(typeof dispararConfetes==='function') dispararConfetes(); const btn=document.getElementById('fechar-celebracao-btn'); if(btn) btn.onclick=()=>modal.classList.remove('active'); }
     }
 
 
@@ -1788,11 +1788,14 @@
       try { const a=JSON.parse(localStorage.getItem(CHAVE_BANNERS_CONQUISTA_JU)||'[]'); return Array.isArray(a)?a.filter(x=>x && Date.now()-Number(x.timestamp||0)<DURACAO_BANNER_CONQUISTA_JU):[]; } catch(e) { return []; }
     }
     function registrarBannerConquistaJu(item) {
-      if (!item || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
-      const lista=lerBannersConquistaJu(); if(lista.some(x=>x.chave===item.chave)) return;
-      lista.unshift({...item,timestamp:Date.now()});
-      try { localStorage.setItem(CHAVE_BANNERS_CONQUISTA_JU,JSON.stringify(lista.slice(0,20))); } catch(e) {}
-      if (typeof renderCarrossel==='function') renderCarrossel();
+      if (!item || !item.chave || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
+      const lista=lerBannersConquistaJu();
+      if(lista.some(x=>String(x.chave)===String(item.chave))) return;
+      const tema = {categoria:item.categoria||'META MENSAL', icone:item.icone||'fa-medal', cor:item.cor||'#c47b43', clara:item.clara||'#f6d2ae', ink:item.ink||'#5b2f15'};
+      const banner={...item, ...tema, tipoBanner:'conquista', tipo:'conquista', titulo:item.titulo||item.nome||'Meta mensal atingida', nome:item.nome||item.titulo||'Meta mensal atingida', autor:item.autor||'Juliana Cecchy', timestamp:Date.now()};
+      lista.unshift(banner);
+      try { localStorage.setItem(CHAVE_BANNERS_CONQUISTA_JU,JSON.stringify(lista.slice(0,40))); } catch(e) { console.warn('Não foi possível guardar o banner de conquista:',e); }
+      if (typeof renderCarrossel==='function') { renderCarrossel(); currentCarouselIndex=0; if(typeof updateCarrossel==='function') updateCarrossel(); }
     }
 
     // Meus Prêmios — camada adicional para Juliana Cecchy (código 20), sem substituir ferramentas existentes.
