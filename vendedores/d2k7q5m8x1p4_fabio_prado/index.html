@@ -1129,27 +1129,37 @@
     localStorage.setItem('ultimo_acesso_radar', nowDate.toString());
 
     // Dados compartilhados ficam na pasta /dados/ da raiz do repositório.
-    // Esta página pertence ao vendedor Luan Dantas (código 61).
-    // O faturamento é individualizado para reduzir o tamanho dos arquivos carregados.
-    // O gerador ZIP deverá criar dados/faturados_luan.json filtrando o código 61.
+    // Esta página pertence ao vendedor Fábio Prado (código 33).
+    // O faturamento é carregado em fragmentos mensais para reduzir o tempo de abertura.
     // Como este HTML está em /vendedores/<pasta-do-vendedor>/, subimos dois níveis.
     const BASE_DADOS = new URL('../../dados/', window.location.href).href;
+    // Remove somente caches antigos de JSON que já não são usados. Preservamos login,
+    // preferências, conquistas e notificações pequenas.
+    (function limparCachesJSONLegados() {
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i) || '';
+                if (/^radar_cache_v[23]:/i.test(key) || /^radar_json_cache:/i.test(key)) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch (e) { console.warn('[Radar] Não foi possível limpar caches antigos:', e); }
+    })();
+    function chaveMesISO(mesSelecionado) {
+        const meses = {jan:'01',fev:'02',mar:'03',abr:'04',mai:'05',jun:'06',jul:'07',ago:'08',set:'09',out:'10',nov:'11',dez:'12'};
+        const partes = String(mesSelecionado || '').toLowerCase().split('/');
+        return partes.length === 2 && meses[partes[0]] ? `20${partes[1]}-${meses[partes[0]]}` : null;
+    }
+    function urlFaturadosDoMes(mesSelecionado) {
+        const chave = chaveMesISO(mesSelecionado) || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+        return BASE_DADOS + `faturados_fabio_${chave}.json`;
+    }
     const BASES = {
         meta: BASE_DADOS + 'meta_faturamento.json',
         metasGlobais: BASE_DADOS + 'metas.json',
         aprovados: BASE_DADOS + 'aprovados.json',
-        faturados: BASE_DADOS + 'faturados_fabio.json',
-        // Fontes individuais usadas exclusivamente para calcular o KPI global da equipe.
-        faturadosTime: [
-            BASE_DADOS + 'faturados_fabio.json',
-            BASE_DADOS + 'faturados_matheus.json',
-            BASE_DADOS + 'faturados_lorena.json',
-            BASE_DADOS + 'faturados_cesar.json',
-            BASE_DADOS + 'faturados_juliana.json',
-            BASE_DADOS + 'faturados_valeria.json',
-            BASE_DADOS + 'faturados_luan.json'
-        ],
-        aprovadosfaturados: BASE_DADOS + 'aprovadosfaturados.json',
+        faturados: urlFaturadosDoMes(formatMonthKey(new Date())),
+        aprovadosfaturados: BASE_DADOS + `aprovadosfaturados_${chaveMesISO(formatMonthKey(new Date())) || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`}.json`,
         carteira: BASE_DADOS + 'carteiraclientes.json',
         cotacoes: BASE_DADOS + 'cotacoes.json',
         banners: BASE_DADOS + 'banners.json',
@@ -1164,7 +1174,7 @@
     let currentMonth = null;
     let chartInstance = null;
     let notificacoes = [];
-    let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
+    let readNotifications = (() => { try { const v = JSON.parse(localStorage.getItem('readNotifications') || '[]'); return Array.isArray(v) ? v.slice(-150) : []; } catch (_) { return []; } })();
     let BANNERS = [];
     let modalHistory = [];
     let carteiraMapGlobal = new Map();
@@ -1519,7 +1529,7 @@
 
     function marcarTodasComoLido() {
         notificacoes.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
-        localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+        readNotifications = readNotifications.slice(-150); localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
         atualizarBadgeNotificacoes();
         abrirModalNotificacoes();
     }
@@ -1593,7 +1603,7 @@
                 const id = card.dataset.id;
                 if (!readNotifications.some(x => String(x) === String(id))) {
                     readNotifications.push(id);
-                    localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+                    readNotifications = readNotifications.slice(-150); localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
                     atualizarBadgeNotificacoes();
                     atualizarBadgeMeusPremios();
                 }
@@ -1800,7 +1810,7 @@
     function getMetasCelebradas() { try { return JSON.parse(localStorage.getItem('metas_celebradas_fabio'))||[]; } catch(e) { return []; } }
     function adicionarMetaCelebrada(chave) {
         const celebradas = getMetasCelebradas();
-        if (!celebradas.includes(chave)) { celebradas.push(chave); localStorage.setItem('metas_celebradas_fabio', JSON.stringify(celebradas)); }
+        if (!celebradas.includes(chave)) { celebradas.push(chave); try { localStorage.setItem('metas_celebradas_fabio', JSON.stringify(celebradas.slice(-100))); } catch (_) {} }
     }
 
     const CHAVE_PREMIOS = 'radar_meus_premios_fabio_v1';
@@ -1812,7 +1822,10 @@
         const lista = lerPremiosGuardados();
         const idx = lista.findIndex(x => x.chave === premio.chave);
         if (idx >= 0) lista[idx] = {...lista[idx], ...premio}; else lista.push(premio);
-        localStorage.setItem(CHAVE_PREMIOS, JSON.stringify(lista));
+        // Medalhas são pequenas; manter apenas as 100 mais recentes evita crescimento sem limite.
+        const limitados = lista.sort((a,b) => String(b.dataConquista||'').localeCompare(String(a.dataConquista||''))).slice(0,100);
+        try { localStorage.setItem(CHAVE_PREMIOS, JSON.stringify(limitados)); }
+        catch (e) { console.warn('[Meus Prêmios] Armazenamento cheio; removendo medalhas antigas.', e); try { localStorage.setItem(CHAVE_PREMIOS, JSON.stringify(limitados.slice(0,30))); } catch (_) {} }
     }
     function ehMetaMensalMesAtual(item) {
         const agora = new Date();
@@ -1844,7 +1857,7 @@
         try {
             const items = JSON.parse(localStorage.getItem(CHAVE_NOTIF_CONQUISTAS) || '[]');
             items.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
-            localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
+            readNotifications = readNotifications.slice(-150); localStorage.setItem('readNotifications', JSON.stringify(readNotifications));
         } catch(e) {}
         atualizarBadgeMeusPremios();
         atualizarBadgeNotificacoes();
@@ -3522,6 +3535,10 @@
 
     async function carregarDadosComRetry(selectedMonth) {
         ultimoMesSolicitado = selectedMonth;
+        // Carrega somente o fragmento mensal; não baixa o histórico inteiro de faturados.
+        BASES.faturados = urlFaturadosDoMes(selectedMonth);
+        const chaveMesSelecionado = chaveMesISO(selectedMonth) || `${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+        BASES.aprovadosfaturados = BASE_DADOS + `aprovadosfaturados_${chaveMesSelecionado}.json`;
         const monthStatus = document.getElementById('month-load-status');
         if (monthStatus) { monthStatus.style.display = 'inline-flex'; monthStatus.className = 'section-sync-status loading'; monthStatus.innerHTML = '<i class="fas fa-arrows-rotate sync-spin"></i><span>Buscando ' + selectedMonth + '…</span>'; }
         // A interface não é bloqueada por uma tela global; o carregamento ocorre em segundo plano.
