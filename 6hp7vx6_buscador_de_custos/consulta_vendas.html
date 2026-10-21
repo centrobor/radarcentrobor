@@ -493,7 +493,7 @@
             function isRexonHiddenColumn(key) {
                 const k = norm(key).replace(/[^a-z0-9]/g, '');
                 return k.includes('codigodebarras') || k.includes('qtd padrao'.replace(/[^a-z0-9]/g, '')) ||
-                    k.includes('qtdepadrao') || k.includes('quantidadepadrao') || k.includes('precobruto') ||
+                    k.includes('qtdepadrao') || k.includes('quantidadepadrao') ||
                     k.includes('precobrutoriginal');
             }
             function getRexonProfile(prod) {
@@ -755,14 +755,21 @@
                 if (!sample) return [];
                 // No Grupo Rexon, mostrar os dados técnicos do produto e ocultar apenas os campos internos solicitados.
                 if (currentCategory?.group === 'rexon') {
-                    const keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original' && norm(k) !== 'preco bruto');
+                    const keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original');
+                    // Exibir o preço bruto de origem (ou o campo legado "Anterior") antes do fator e do custo.
+                    const brutoKey = keys.find(k => norm(k) === 'preco bruto') || keys.find(k => norm(k) === 'anterior');
                     const saleKey = keys.find(k => norm(k) === 'preco de venda');
-                    const orderedKeys = keys.filter(k => k !== saleKey);
+                    const orderedKeys = keys.filter(k => k !== saleKey && k !== brutoKey);
+                    if (brutoKey) {
+                        const factorIndex = orderedKeys.findIndex(k => norm(k) === 'fator');
+                        if (factorIndex >= 0) orderedKeys.splice(factorIndex, 0, brutoKey);
+                        else orderedKeys.push(brutoKey);
+                    }
                     if (saleKey) orderedKeys.push(saleKey);
                     return orderedKeys.map(key => ({
                         key,
                         display: norm(key) === 'preco de venda' ? 'CUSTO' :
-                                 norm(key) === 'anterior' ? 'PREÇO BRUTO' :
+                                 (key === brutoKey || norm(key) === 'anterior' || norm(key) === 'preco bruto') ? 'PREÇO BRUTO' :
                                  key.replace(/_/g, ' ').toUpperCase()
                     }));
                 }
