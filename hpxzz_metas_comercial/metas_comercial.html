@@ -420,6 +420,7 @@
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
                 consolidado: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento_consolidado_meses`,
+                metaPassivoTrincas: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
             };
             const VENDEDORES_LIST = [
                 { cod: "33", nome: "Fábio Prado" },
@@ -493,7 +494,7 @@
             ];
             const GERAL_META_PADRAO = 1100000;
 
-            let allFaturados = [], allMetas = [], allConsolidado = [];
+            let allFaturados = [], allMetas = [], allConsolidado = [], allMetasPassivoTrincas = [];
             let selectedMonths = new Set();
             let currentYear = new Date().getFullYear();
             const today = new Date();
@@ -560,8 +561,11 @@
                     // 2. Metas padrão
                     const metas = await fetchJsonWithStatus(BASES.metas, 'metas padrão', 35);
 
-                    // 3. Consolidado: fonte de autoridade
-                    const consolidado = await fetchJsonWithStatus(BASES.consolidado, 'metas consolidadas', 62);
+                    // 3. Meta mensal do passivo de trincas
+                    const metasPassivoTrincas = await fetchJsonWithStatus(BASES.metaPassivoTrincas, 'metas do passivo de trincas', 50);
+
+                    // 4. Consolidado: fonte de autoridade
+                    const consolidado = await fetchJsonWithStatus(BASES.consolidado, 'metas consolidadas', 68);
 
                     if (!consolidado.length) {
                         throw new Error('O consolidado retornou zero participantes. A página foi bloqueada para evitar listar vendedores incorretamente.');
@@ -569,6 +573,7 @@
 
                     allFaturados = faturados;
                     allMetas = metas;
+                    allMetasPassivoTrincas = metasPassivoTrincas;
                     allConsolidado = consolidado;
 
                     setLoadingProgress(82, 'Validando participantes e sobrescrevendo os dados pelo consolidado...');
@@ -846,9 +851,22 @@
                 return total;
             }
 
-            function getMetaGeralMes(ano, mes) {
-                const entry = allMetas.find(m => (m.vendedor || '').trim().toLowerCase().includes('dimas') || (m.vendedor || '').trim().toLowerCase().includes('geral'));
+            function getMetaPassivoTrincasMes(ano, mes) {
+                const chaveMes = `${ano}-${String(mes).padStart(2, '0')}`;
+                const entry = allMetasPassivoTrincas.find(r => String(r['Mês'] || '').trim() === chaveMes);
+                return entry ? cleanNumber(entry['Meta (R$)']) : 0;
+            }
+
+            function getMetaIndividualDimas() {
+                const entry = allMetas.find(m =>
+                    normalizarNome(m.vendedor).includes('dimas') &&
+                    String(m.id_vendedor || '').trim() === '10'
+                );
                 return entry ? cleanNumber(entry.meta_mensal) : GERAL_META_PADRAO;
+            }
+
+            function getFaturamentoIndividualDimasMes(ano, mes) {
+                return getFaturamentoPorVendedorMes(ano, mes)['10'] || 0;
             }
 
             // Função global para gerar PDF do mês inteiro (captura o bloco mensal)
@@ -965,10 +983,18 @@
                         html += `<tr><td>${esp.nome}</td><td>R$ ${formatCurrency(meta)}</td><td>R$ ${formatCurrency(fat)}</td><td>R$ ${formatCurrency(metaPlus)}</td><td><span class="status-badge ${fat>=meta?'status-aprovado':'status-pendente'}">${fat>=meta?'Sim':'Não'}</span></td><td><span class="status-badge ${fat>=metaPlus?'status-aprovado':'status-pendente'}">${fat>=metaPlus?'Sim':'Não'}</span></td></tr>`;
                     });
                     html += `</tbody></table></div>
-                        <h3>Faturamento Geral (Eduardo / Dimas)</h3><div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>%</th><th>Atingiu?</th></tr></thead><tbody>`;
-                    const geral = getDadosParticipanteMes(ano, mes, {cod:'10',nome:'Dimas',mergedKey:'dimas-eduardo'});
-                    const percGeral = geral.meta ? (geral.fat/geral.meta)*100 : 0;
-                    html += `<tr><td>Eduardo / Dimas</td><td>R$ ${formatCurrency(geral.meta)}</td><td>R$ ${formatCurrency(geral.meta*1.1)}</td><td>R$ ${formatCurrency(geral.fat)}</td><td>${percGeral.toFixed(1)}%</td><td><span class="status-badge ${geral.fat>=geral.meta?'status-aprovado':'status-pendente'}">${geral.fat>=geral.meta?'Sim':'Não'}</span></td></tr></tbody></table></div></div>`;
+                        <h3>Faturamento Geral — Passivo de Trincas (Eduardo / Dimas)</h3>
+                        <div class="table-wrapper"><table><thead><tr><th>Indicador</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado Geral</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
+                    const metaPassivo = getMetaPassivoTrincasMes(ano, mes);
+                    const fatGeral = getFaturamentoGeralMes(ano, mes);
+                    const percPassivo = metaPassivo ? (fatGeral / metaPassivo) * 100 : 0;
+                    html += `<tr><td>Passivo de Trincas</td><td>R$ ${formatCurrency(metaPassivo)}</td><td>R$ ${formatCurrency(metaPassivo * 1.1)}</td><td>R$ ${formatCurrency(fatGeral)}</td><td>${percPassivo.toFixed(1)}%</td><td><span class="status-badge ${metaPassivo > 0 && fatGeral >= metaPassivo ? 'status-aprovado' : 'status-pendente'}">${metaPassivo > 0 && fatGeral >= metaPassivo ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div>
+                        <h3 style="margin-top:22px">Meta Mensal Individual — Dimas</h3>
+                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado Individual</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
+                    const metaDimas = getMetaIndividualDimas();
+                    const fatDimas = getFaturamentoIndividualDimasMes(ano, mes);
+                    const percDimas = metaDimas ? (fatDimas / metaDimas) * 100 : 0;
+                    html += `<tr><td>Dimas</td><td>R$ ${formatCurrency(metaDimas)}</td><td>R$ ${formatCurrency(metaDimas * 1.1)}</td><td>R$ ${formatCurrency(fatDimas)}</td><td>${percDimas.toFixed(1)}%</td><td><span class="status-badge ${metaDimas > 0 && fatDimas >= metaDimas ? 'status-aprovado' : 'status-pendente'}">${metaDimas > 0 && fatDimas >= metaDimas ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div></div>`;
                 });
                 container.innerHTML = html;
             }
