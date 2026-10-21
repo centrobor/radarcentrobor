@@ -783,21 +783,20 @@
             function getTableColumns(sample) {
                 if (!sample) return [];
 
-                // Rexon: exibir apenas o preço bruto original (antes do fator) e o custo calculado.
-                // As colunas da fonte chamadas "Preço Bruto"/"Anterior" podem incluir o custo já calculado,
-                // então usamos o valor original salvo no processamento para evitar cabeçalhos duplicados.
+                // Rexon: mostrar os três campos finais nesta ordem exata:
+                // PREÇO BRUTO (original), FATOR e CUSTO (já calculado na planilha).
                 if (currentCategory?.group === 'rexon') {
                     const keys = Object.keys(sample).filter(k =>
                         !k.startsWith('_') &&
                         !isRexonHiddenColumn(k) &&
-                        !['custo', 'preco bruto', 'anterior', 'preco bruto original', 'preco de venda'].includes(norm(k))
+                        !['custo', 'preco bruto', 'anterior', 'preco bruto original', 'preco de venda', 'fator'].includes(norm(k))
                     );
                     const brutoOriginalKey = Object.keys(sample).find(k => norm(k) === 'preco bruto original') || '_Preço bruto original';
+                    const factorKey = Object.keys(sample).find(k => norm(k) === 'fator');
                     const custoKey = Object.keys(sample).find(k => norm(k) === 'preco de venda') || 'Preço de Venda';
-                    const orderedKeys = [...keys];
-                    const factorIndex = orderedKeys.findIndex(k => norm(k) === 'fator');
-                    // Mesma ordem da planilha atual: Custo, Preço Bruto, Fator.
-                    orderedKeys.splice(factorIndex >= 0 ? factorIndex : orderedKeys.length, 0, custoKey, brutoOriginalKey);
+                    const orderedKeys = [...keys, brutoOriginalKey];
+                    if (factorKey) orderedKeys.push(factorKey);
+                    orderedKeys.push(custoKey);
                     return orderedKeys.map(key => ({
                         key,
                         display: norm(key) === 'preco bruto original' ? 'PREÇO BRUTO' :
