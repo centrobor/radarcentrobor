@@ -1728,20 +1728,26 @@
             }
 
             function getMetaEmpresaMes(ano, mes) {
-                // Nesta página, o registro do Dimas (coordenador) em meta_faturamento
-                // representa a meta mensal consolidada do time Centrobor.
-                // Assim, os KPIs consolidados usam essa fonte dinâmica, não a soma
-                // dos vendedores da aba meta_faturamento_consolidado_meses.
-                const row = metasDimasRaw.find(m =>
-                    String(m.id_vendedor || '').trim() === COD_DIMAS &&
-                    String(m.vendedor || '').trim().toLowerCase() === 'dimas'
-                ) || metasDimasRaw.find(m => String(m.vendedor || '').trim().toLowerCase() === 'dimas');
+                // Os KPIs consolidados da Centrobor usam a meta mensal do Dimas
+                // na aba meta_faturamento_consolidado_meses, variando por mês.
+                // Ex.: outubro/2026 = R$ 2.024.764,80.
+                const row = metasVendRaw.find(m => {
+                    const d = parseDataBR(m.mes_ano);
+                    return d &&
+                        d.getFullYear() === ano &&
+                        d.getMonth() + 1 === mes &&
+                        String(m.id_vendedor || '').trim() === COD_DIMAS &&
+                        String(m.vendedor || '').trim().toLowerCase() === 'dimas';
+                });
                 return cleanNumber(row?.meta_mensal);
             }
 
             function getMetaEmpresaAno(ano) {
-                // Meta anual consolidada Centrobor = meta mensal do Dimas/coordenador x 12.
-                return getMetaEmpresaMes(ano, 1) * 12;
+                // Meta anual consolidada = soma das 12 metas mensais do Dimas
+                // na aba meta_faturamento_consolidado_meses (não multiplicar um único mês).
+                let total = 0;
+                for (let mes = 1; mes <= 12; mes++) total += getMetaEmpresaMes(ano, mes);
+                return total;
             }
 
             function getMetasDimas(ano, mes) {
