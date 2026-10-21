@@ -756,10 +756,21 @@
                 // No Grupo Rexon, mostrar os dados técnicos do produto e ocultar apenas os campos internos solicitados.
                 if (currentCategory?.group === 'rexon') {
                     let keys = Object.keys(sample).filter(k => !k.startsWith('_') && !isRexonHiddenColumn(k) && norm(k) !== 'preco bruto original');
-                    // Mostrar apenas o Preço Bruto de origem. Se ele existir, ocultar o campo legado "Anterior" para não duplicar a coluna.
-                    const sourceBrutoKey = keys.find(k => norm(k) === 'preco bruto');
-                    if (sourceBrutoKey) keys = keys.filter(k => norm(k) !== 'anterior');
-                    const brutoKey = sourceBrutoKey || keys.find(k => norm(k) === 'anterior');
+                    // Os JSONs podem trazer duas chaves com grafia/capitalização diferente (ex.: "Preço bruto" e "Preço Bruto").
+                    // Mantém somente a primeira coluna de preço bruto da fonte e elimina a duplicada, além do legado "Anterior".
+                    const seenNormalized = new Set();
+                    keys = keys.filter(k => {
+                        const normalized = norm(k).replace(/\s+/g, ' ').trim();
+                        if (['preco bruto', 'anterior', 'preco bruto original'].includes(normalized)) {
+                            if (seenNormalized.has('preco-bruto-unico')) return false;
+                            seenNormalized.add('preco-bruto-unico');
+                            return normalized !== 'preco bruto original';
+                        }
+                        if (seenNormalized.has(normalized)) return false;
+                        seenNormalized.add(normalized);
+                        return true;
+                    });
+                    const brutoKey = keys.find(k => ['preco bruto', 'anterior'].includes(norm(k))) || null;
                     const saleKey = keys.find(k => norm(k) === 'preco de venda');
                     const orderedKeys = keys.filter(k => k !== saleKey && k !== brutoKey);
                     if (brutoKey) {
