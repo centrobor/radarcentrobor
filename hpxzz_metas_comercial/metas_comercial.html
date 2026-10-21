@@ -894,6 +894,51 @@
                 });
             };
 
+            window.copiarEmailMes = async function(monthKey) {
+                const [ano, mes] = monthKey.split('-').map(Number);
+                const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+                const participantes = getParticipantesParaMes(ano, mes).filter(v => {
+                    const n = normalizarNome(v.nome);
+                    return !(String(v.cod)==='24' || n.includes('fabiano') || String(v.cod)==='10' || String(v.cod)==='12' || n.includes('dimas') || n.includes('eduardo'));
+                });
+                const linhas = [['Participante', 'Meta mensal', 'Faturado', '% da meta', 'Atingiu?']];
+                let totalMeta = 0, totalFat = 0;
+                participantes.forEach(v => {
+                    const d = getDadosParticipanteMes(ano, mes, v);
+                    totalMeta += d.meta; totalFat += d.fat;
+                    linhas.push([v.nome, `R$ ${formatCurrency(d.meta)}`, `R$ ${formatCurrency(d.fat)}`, `${d.meta ? (d.fat/d.meta*100).toFixed(1) : '0.0'}%`, d.meta > 0 && d.fat >= d.meta ? 'Sim' : 'Não']);
+                });
+                linhas.push(['Total vendedores', `R$ ${formatCurrency(totalMeta)}`, `R$ ${formatCurrency(totalFat)}`, `${totalMeta ? (totalFat/totalMeta*100).toFixed(1) : '0.0'}%`, totalMeta > 0 && totalFat >= totalMeta ? 'Sim' : 'Não']);
+                const metaPassivo = getMetaPassivoTrincasMes(ano, mes), fatGeral = getFaturamentoGeralMes(ano, mes);
+                linhas.push(['Passivo de Trincas (Eduardo / Dimas)', `R$ ${formatCurrency(metaPassivo)}`, `R$ ${formatCurrency(fatGeral)}`, `${metaPassivo ? (fatGeral/metaPassivo*100).toFixed(1) : '0.0'}%`, metaPassivo > 0 && fatGeral >= metaPassivo ? 'Sim' : 'Não']);
+                const metaDimas = getMetaIndividualDimas(), fatDimas = getFaturamentoIndividualDimasMes(ano, mes);
+                linhas.push(['Dimas — meta individual', `R$ ${formatCurrency(metaDimas)}`, `R$ ${formatCurrency(fatDimas)}`, `${metaDimas ? (fatDimas/metaDimas*100).toFixed(1) : '0.0'}%`, metaDimas > 0 && fatDimas >= metaDimas ? 'Sim' : 'Não']);
+                const especiais = [['Metas especiais — Fabiano', '', '', '', '']];
+                ESPECIAIS_FABIANO.forEach(esp => {
+                    const fatBase = esp.tipo === 'sincpolias' ? getFabianoSincPoliasFat(ano, mes) : getFabianoLavanderiaFat(ano, mes);
+                    const meta = getMetaConsolidadaEspecial(ano, mes, esp.nome, esp.nova);
+                    const fat = getFaturadoConsolidadoEspecial(ano, mes, esp.nome, fatBase);
+                    especiais.push([esp.nome, `R$ ${formatCurrency(meta)}`, `R$ ${formatCurrency(fat)}`, `${meta ? (fat/meta*100).toFixed(1) : '0.0'}%`, meta > 0 && fat >= meta ? 'Sim' : 'Não']);
+                });
+                const allRows = [...linhas, ...especiais];
+                const esc = v => String(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const tableHtml = `<h3>Resumo de metas — ${esc(nomeMes)}</h3><table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px"><thead><tr>${allRows[0].map(c=>`<th style="background:#eef3f9;text-align:left">${esc(c)}</th>`).join('')}</tr></thead><tbody>${allRows.slice(1).map(row=>`<tr>${row.map(c=>`<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+                const plain = `Resumo de metas — ${nomeMes}\n\n` + allRows.map(r => r.join('\t')).join('\n');
+                try {
+                    if (navigator.clipboard && window.ClipboardItem) {
+                        await navigator.clipboard.write([new ClipboardItem({ 'text/html': new Blob([tableHtml], {type:'text/html'}), 'text/plain': new Blob([plain], {type:'text/plain'}) })]);
+                    } else if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(plain);
+                    } else {
+                        throw new Error('Área de transferência indisponível');
+                    }
+                    alert('Resumo de ' + nomeMes + ' copiado. Agora é só colar no corpo do e-mail.');
+                } catch (e) {
+                    try { await navigator.clipboard.writeText(plain); alert('Resumo copiado em formato de texto. Cole no corpo do e-mail.'); }
+                    catch (_) { prompt('Copie o resumo abaixo e cole no e-mail:', plain); }
+                }
+            };
+
             function abrirDetalhesVendedor(vendedor, monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
                 const nomeMes = new Date(ano, mes-1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
@@ -963,7 +1008,7 @@
 
                     html += `<div class="month-block" id="month-block-${m}">
                         <div class="block-header"><h2 style="margin:0;"><i class="fas fa-calendar-alt"></i> ${nomeMes}</h2>
-                        <button class="btn-outline" onclick="gerarPDFMes('${m}')"><i class="fas fa-file-pdf"></i> PDF do mês</button></div>
+                        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-outline" onclick="gerarPDFMes('${m}')"><i class="fas fa-file-pdf"></i> PDF do mês</button><button class="btn-outline" onclick="copiarEmailMes('${m}')"><i class="fas fa-copy"></i> Copiar para e-mail</button></div></div>
                         <h3>Vendedores Participantes</h3>
                         <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado</th><th>% Meta</th><th>Atingiu Meta?</th><th>% Plus</th><th>Atingiu Plus?</th></tr></thead><tbody>`;
                     rowsVend.forEach(r => {
@@ -984,17 +1029,17 @@
                     });
                     html += `</tbody></table></div>
                         <h3>Faturamento Geral — Passivo de Trincas (Eduardo / Dimas)</h3>
-                        <div class="table-wrapper"><table><thead><tr><th>Indicador</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado Geral</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
+                        <div class="table-wrapper"><table><thead><tr><th>Indicador</th><th>Meta Mensal</th><th>Faturado Geral</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
                     const metaPassivo = getMetaPassivoTrincasMes(ano, mes);
                     const fatGeral = getFaturamentoGeralMes(ano, mes);
                     const percPassivo = metaPassivo ? (fatGeral / metaPassivo) * 100 : 0;
-                    html += `<tr><td>Passivo de Trincas</td><td>R$ ${formatCurrency(metaPassivo)}</td><td>R$ ${formatCurrency(metaPassivo * 1.1)}</td><td>R$ ${formatCurrency(fatGeral)}</td><td>${percPassivo.toFixed(1)}%</td><td><span class="status-badge ${metaPassivo > 0 && fatGeral >= metaPassivo ? 'status-aprovado' : 'status-pendente'}">${metaPassivo > 0 && fatGeral >= metaPassivo ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div>
+                    html += `<tr><td>Passivo de Trincas</td><td>R$ ${formatCurrency(metaPassivo)}</td><td>R$ ${formatCurrency(fatGeral)}</td><td>${percPassivo.toFixed(1)}%</td><td><span class="status-badge ${metaPassivo > 0 && fatGeral >= metaPassivo ? 'status-aprovado' : 'status-pendente'}">${metaPassivo > 0 && fatGeral >= metaPassivo ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div>
                         <h3 style="margin-top:22px">Meta Mensal Individual — Dimas</h3>
-                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Meta Plus (+10%)</th><th>Faturado Individual</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
+                        <div class="table-wrapper"><table><thead><tr><th>Participante</th><th>Meta Mensal</th><th>Faturado Individual</th><th>% da Meta</th><th>Atingiu?</th></tr></thead><tbody>`;
                     const metaDimas = getMetaIndividualDimas();
                     const fatDimas = getFaturamentoIndividualDimasMes(ano, mes);
                     const percDimas = metaDimas ? (fatDimas / metaDimas) * 100 : 0;
-                    html += `<tr><td>Dimas</td><td>R$ ${formatCurrency(metaDimas)}</td><td>R$ ${formatCurrency(metaDimas * 1.1)}</td><td>R$ ${formatCurrency(fatDimas)}</td><td>${percDimas.toFixed(1)}%</td><td><span class="status-badge ${metaDimas > 0 && fatDimas >= metaDimas ? 'status-aprovado' : 'status-pendente'}">${metaDimas > 0 && fatDimas >= metaDimas ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div></div>`;
+                    html += `<tr><td>Dimas</td><td>R$ ${formatCurrency(metaDimas)}</td><td>R$ ${formatCurrency(fatDimas)}</td><td>${percDimas.toFixed(1)}%</td><td><span class="status-badge ${metaDimas > 0 && fatDimas >= metaDimas ? 'status-aprovado' : 'status-pendente'}">${metaDimas > 0 && fatDimas >= metaDimas ? 'Sim' : 'Não'}</span></td></tr></tbody></table></div></div>`;
                 });
                 container.innerHTML = html;
             }
