@@ -1443,7 +1443,6 @@
         <div class="loading-text">Consultando dados...</div>
     </div>
 
-    <div id="dimas-background-sync" role="status" aria-live="polite"><i class="fas fa-cloud-arrow-up"></i><span id="dimas-background-sync-text">Atualizando dados em segundo plano. Você pode continuar usando a página.</span><button id="dimas-background-sync-retry" type="button">Tentar atualizar</button><div class="sync-progress"><span></span></div></div>
     <!-- HEADER DE IMPRESSÃO -->
     <div id="print-header">
         <h1>Dimas - Coordenador</h1>
@@ -1516,6 +1515,9 @@
                 <button class="icon-btn logout-btn" id="logout-btn"><i class="fas fa-sign-out-alt"></i></button>
             </div>
         </div>
+
+        <!-- Barra de status no fluxo: logo abaixo do perfil e antes do carrossel -->
+        <div id="dimas-background-sync" role="status" aria-live="polite"><i class="fas fa-cloud-arrow-down" id="dimas-background-sync-icon"></i><span id="dimas-background-sync-text">Atualizando dados em segundo plano. Você pode continuar usando a página.</span><button id="dimas-background-sync-retry" type="button">Tentar atualizar</button></div>
 
         <!-- CARROSSEL -->
         <div class="carousel-section">
@@ -2423,12 +2425,33 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             // ==================== CARROSSEL E NOTIFICAÇÕES ====================
             let currentCarouselIndex = 0;
 
+            function dimasIsCurrentMonth(item) {
+                const now = new Date();
+                const targetMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+                let date = null;
+                const rawTs = item && (item.timestamp ?? item.createdAt ?? item.created_at ?? item.dataHora ?? item.data_hora);
+                if (rawTs !== undefined && rawTs !== null && rawTs !== '') {
+                    const numeric = Number(rawTs);
+                    date = Number.isFinite(numeric) && numeric > 0 ? new Date(numeric < 1e12 ? numeric * 1000 : numeric) : new Date(rawTs);
+                    if (!Number.isFinite(date.getTime())) date = null;
+                }
+                if (!date && item) {
+                    const rawDate = item.data || item.date || item.created || item.data_conquista || item.dataConquista;
+                    if (rawDate) {
+                        const br = String(rawDate).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+                        date = br ? new Date(Number(br[3]), Number(br[2])-1, Number(br[1])) : new Date(rawDate);
+                        if (!Number.isFinite(date.getTime())) date = null;
+                    }
+                }
+                // Sem data confiável, não presumir que uma conquista antiga seja deste mês.
+                return !!date && `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}` === targetMonth;
+            }
+
             function renderCarrossel() {
                 const container = document.getElementById('carousel-container');
                 const indicators = document.getElementById('carousel-indicators');
-                const hojeBanner=new Date(), chaveMesBanner=`${hojeBanner.getFullYear()}-${String(hojeBanner.getMonth()+1).padStart(2,'0')}`;
-                const recentesBanner = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(b => Date.now()-Number(b.timestamp||0)<(3*24*60*60*1000));
-                const recentesPremios = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_AWARDS_KEY) : []).filter(a => Date.now()-Number(a.timestamp||0)<(3*24*60*60*1000)).map(a=>({...a,tipo:'MENSAL',timestamp:a.timestamp||Date.now(),_dimasConquista:true}));
+                const recentesBanner = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(dimasIsCurrentMonth);
+                const recentesPremios = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_AWARDS_KEY) : []).filter(dimasIsCurrentMonth).map(a=>({...a,tipo:'MENSAL',_dimasConquista:true}));
                 const unicosConquista = new Map();
                 [...recentesBanner,...recentesPremios].forEach(b=>{const id=String(b.chave||b.id||b.nome||b.titulo||b.timestamp);if(!unicosConquista.has(id))unicosConquista.set(id,{...b,_dimasConquista:true});});
                 const bannersConquista = [...unicosConquista.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(b=>({...b,_dimasConquista:true}));
@@ -2499,7 +2522,7 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
 
             function abrirNotificacoes() {
                 const modal=document.getElementById('notif-modal'), body=document.getElementById('notif-modal-body');
-                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(n=>Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
+                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(dimasIsCurrentMonth).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
                 const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)}));
                 const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,30);
                 const unreadCount=items.filter(n=>n._premio?!n.lida:!readNotifications.includes(n.id)).length;
@@ -2514,22 +2537,46 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
 
             // ==================== CARREGAMENTO DE DADOS E RENDER ====================
             async function fetchAllData() {
-                const sync=document.getElementById('dimas-background-sync'), syncText=document.getElementById('dimas-background-sync-text');
+                const sync=document.getElementById('dimas-background-sync');
+                const syncText=document.getElementById('dimas-background-sync-text');
                 const cacheKey='radar_dimas_cache_v1';
                 const local=()=>{try{return JSON.parse(localStorage.getItem(cacheKey)||'null')}catch(_){return null}};
-                const apply=(d)=>{faturadosRaw=d.faturados||[];aprovadosRaw=d.aprovados||[];metasVendRaw=d.metasVend||[];metasEmpresaRaw=d.metasEmp||[];metasDimasRaw=d.metasDimas||[];BANNERS=d.banners||[];notificacoes=d.posts||[];campanhasRaw=d.campanhas||[];cotacoesRaw=d.cotacoes||[];aprovFatRaw=d.aprovfat||[];carteiraRaw=d.carteira||[];carteiraMapGlobal=new Map();carteiraRaw.forEach(cli=>{const a=(cli['Nome Chave']||'').trim().toUpperCase(),b=(cli['Nome/Razão Social']||'').trim().toUpperCase();if(a&&!carteiraMapGlobal.has(a))carteiraMapGlobal.set(a,cli);if(b&&!carteiraMapGlobal.has(b))carteiraMapGlobal.set(b,cli)});};
-                const renderBase=async()=>{const info=await Promise.resolve([]);if(info&&info[0]){let d=info[0].data||'',h=info[0].hora||'';document.getElementById('last-update-text').innerText=`Atualizado em: ${d} às ${h} hrs`;document.getElementById('last-update-badge').style.display='flex';document.getElementById('menu-update-status').textContent=`Atualizado em: ${d} às ${h} hrs`;}renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);};
-                const cached=local();if(cached){apply(cached);renderBase().catch(console.error);}else{sync.classList.add('visible');syncText.textContent='Carregando dados iniciais…';}
-                sync.classList.add('visible');syncText.textContent='Consultando JSONs locais prioritários e atualizando em segundo plano…';
+                const setStatus=(msg,state='loading')=>{
+                    if(!sync||!syncText)return;
+                    sync.classList.add('visible'); syncText.textContent=msg;
+                    sync.style.background=state==='error'?'#fff1ef':state==='done'?'#fff8e7':'#fff8e7';
+                    sync.style.borderColor=state==='error'?'#e8a09b':'#f2dda0';
+                    const icon=document.getElementById('dimas-background-sync-icon');
+                    if(icon)icon.className=state==='error'?'fas fa-triangle-exclamation':state==='done'?'fas fa-circle-check':'fas fa-cloud-arrow-down';
+                    if(state==='done')setTimeout(()=>sync.classList.remove('visible'),3500);
+                };
+                const apply=(d,onlyNonEmpty=false)=>{
+                    const assign=(k,v)=>{if(Array.isArray(v)&&(!onlyNonEmpty||v.length))d[k]=v;};
+                    assign('faturados',d.faturados);assign('aprovados',d.aprovados);assign('metasVend',d.metasVend);assign('metasEmp',d.metasEmp);assign('metasDimas',d.metasDimas);assign('banners',d.banners);assign('posts',d.posts);assign('campanhas',d.campanhas);assign('cotacoes',d.cotacoes);assign('aprovfat',d.aprovfat);assign('carteira',d.carteira);
+                    faturadosRaw=d.faturados||faturadosRaw; aprovadosRaw=d.aprovados||aprovadosRaw; metasVendRaw=d.metasVend||metasVendRaw; metasEmpresaRaw=d.metasEmp||metasEmpresaRaw; metasDimasRaw=d.metasDimas||metasDimasRaw; BANNERS=d.banners||BANNERS; notificacoes=d.posts||notificacoes; campanhasRaw=d.campanhas||campanhasRaw; cotacoesRaw=d.cotacoes||cotacoesRaw; aprovFatRaw=d.aprovfat||aprovFatRaw; carteiraRaw=d.carteira||carteiraRaw;
+                    carteiraMapGlobal=new Map();carteiraRaw.forEach(cli=>{const a=(cli['Nome Chave']||'').trim().toUpperCase(),b=(cli['Nome/Razão Social']||'').trim().toUpperCase();if(a&&!carteiraMapGlobal.has(a))carteiraMapGlobal.set(a,cli);if(b&&!carteiraMapGlobal.has(b))carteiraMapGlobal.set(b,cli)});
+                };
+                const renderBase=async()=>{renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);};
+                const cached=local();
+                if(cached){apply(cached,true);renderBase().catch(e=>console.warn('Render parcial do cache:',e));}
+                setStatus(cached?'Atualizando dados em segundo plano. Você pode continuar usando a página.':'Carregando dados iniciais em segundo plano…');
                 const root='../../dados/';
-                // Dimas não possui faturados_dimas.json na pasta /dados; faturamento vem do OpenSheet.
                 const endpoints=[
                   ['faturados',null,BASES.faturados],['aprovados',root+'aprovados.json',BASES.aprovados],['metasVend',root+'meta_faturamento_consolidado_meses.json',BASES.metasVendedores],['metasEmp',root+'metas.json',BASES.metasEmpresa],['metasDimas',root+'meta_faturamento.json',BASES.metaFaturamento],['banners',root+'banners.json',BASES.banners],['posts',root+'postagens.json',BASES.postagens],['campanhas',root+'campanhas_especiais.json',BASES.campanhas],['info',root+'informacoes.json',BASES.informacoes],['cotacoes',root+'cotacoes.json',BASES.cotacoes],['aprovfat',root+'aprovadosfaturados.json',BASES.aprovadosfaturados],['carteira',root+'carteiraclientes.json',BASES.carteira]
                 ];
-                const fetchComTimeout=async(url,ms=12000)=>{const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),ms);try{return await fetch(url,{cache:'no-cache',signal:controller.signal})}finally{clearTimeout(timer)}};
-                const readOne=async([key,url,fallback])=>{if(url){try{const r=await fetchComTimeout(url);if(!r.ok)throw Error('JSON local indisponível: '+r.status);return [key,await r.json()]}catch(e){console.info('JSON local indisponível; usando OpenSheet:',key)}}try{const r=await fetchComTimeout(fallback);if(!r.ok)throw Error('Fonte OpenSheet indisponível: '+r.status);return [key,await r.json()]}catch(e){console.warn('Fonte indisponível após timeout; usando cache/memória:',key);const old=local();return [key,old?.[key]||[]]}};
-                try{const entries=await Promise.all(endpoints.map(readOne));const data=Object.fromEntries(entries);apply(data);try{const cacheLeve={};for(const k of ['metasVend','metasEmp','metasDimas','banners','posts','campanhas','info']){const v=data[k];if(v!==undefined&&JSON.stringify(v).length<45000)cacheLeve[k]=v;}const cacheTexto=JSON.stringify(cacheLeve);if(cacheTexto.length<180000)localStorage.setItem(cacheKey,cacheTexto);else console.info('Cache persistente ignorado por tamanho; dados seguem disponíveis em memória.');}catch(e){try{localStorage.removeItem(cacheKey)}catch(_){}console.info('Cache persistente indisponível por quota; dados seguem disponíveis em memória.',e)}renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);syncText.textContent='Dados atualizados. Você pode continuar usando a página.';setTimeout(()=>sync.classList.remove('visible'),1800);
-                }catch(e){console.error('Falha na atualização híbrida:',e);syncText.textContent='Algumas fontes falharam; mantendo os dados disponíveis.';setTimeout(()=>sync.classList.remove('visible'),5000);if(!cached){console.warn('A página segue aberta mesmo sem todas as fontes.');}}finally{esconderLoading();if(sync){syncText.textContent='Consulta finalizada.';setTimeout(()=>sync.classList.remove('visible'),1800);}}
+                const fetchComTimeout=async(url,ms=18000)=>{const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),ms);try{return await fetch(url,{cache:'no-cache',signal:controller.signal})}finally{clearTimeout(timer)}};
+                let pending=endpoints.length, errors=0, renderedFromFresh=false;
+                const writeCache=()=>{try{const cacheLeve={};for(const k of ['faturados','aprovados','metasVend','metasEmp','metasDimas','banners','posts','campanhas','info','cotacoes','aprovfat','carteira']){const v=({faturados:faturadosRaw,aprovados:aprovadosRaw,metasVend:metasVendRaw,metasEmp:metasEmpresaRaw,metasDimas:metasDimasRaw,banners:BANNERS,posts:notificacoes,campanhas:campanhasRaw,cotacoes:cotacoesRaw,aprovfat:aprovFatRaw,carteira:carteiraRaw})[k];if(Array.isArray(v)&&v.length&&JSON.stringify(v).length<90000)cacheLeve[k]=v;}const txt=JSON.stringify(cacheLeve);if(txt.length<450000)localStorage.setItem(cacheKey,txt);}catch(e){console.info('Cache ignorado por limite; dados continuam em memória.')}};
+                const loadOne=async([key,url,fallback])=>{
+                    let data=null;
+                    if(url){try{const r=await fetchComTimeout(url,15000);if(!r.ok)throw Error('JSON local indisponível: '+r.status);data=await r.json();}catch(e){console.info('JSON local indisponível; usando OpenSheet:',key)}}
+                    if(!Array.isArray(data)||!data.length){try{const r=await fetchComTimeout(fallback,key==='faturados'?30000:18000);if(!r.ok)throw Error('OpenSheet indisponível: '+r.status);const v=await r.json();if(Array.isArray(v)&&v.length)data=v;else throw Error('Fonte vazia');}catch(e){errors++;console.warn('Fonte indisponível; preservando dados já carregados:',key,e);}}
+                    if(Array.isArray(data)&&data.length){const one={};one[key]=data;apply(one,true);writeCache();if(!renderedFromFresh){renderedFromFresh=true;renderBase().catch(e=>console.warn('Render progressivo:',e));}else if(['faturados','aprovados','metasVend','metasEmp','metasDimas','banners','posts','aprovfat'].includes(key)){renderBase().catch(e=>console.warn('Atualização progressiva:',e));}}
+                    pending--;
+                    setStatus(pending?`Atualizando dados em segundo plano (${endpoints.length-pending}/${endpoints.length}). Você pode continuar usando a página.`:errors?`Atualização concluída com ${errors} fonte(s) indisponível(is). Os dados disponíveis foram mantidos.`:'Dados atualizados. Você pode continuar usando a página.',pending?'loading':errors?'error':'done');
+                };
+                await Promise.all(endpoints.map(loadOne));
+                if(!renderedFromFresh&&!cached){apply({},true);await renderBase().catch(e=>console.warn('Renderização sem fontes novas:',e));}
             }
 
             const retrySyncButton = document.getElementById('dimas-background-sync-retry');
