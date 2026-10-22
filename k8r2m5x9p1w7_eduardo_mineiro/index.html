@@ -690,7 +690,21 @@
         .chart-container {
             height: calc(100% - 40px);
             width: 100%;
+            position: relative;
         }
+        .chart-card.is-loading .chart-container canvas { opacity: 0 !important; }
+        .chart-loading-overlay {
+            position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+            flex-direction: column; gap: 12px; z-index: 4; border-radius: 14px;
+            background: rgba(248,250,253,.94); color: #294766; text-align: center;
+        }
+        .chart-card.is-loading .chart-loading-overlay { display: flex; }
+        .chart-cloud-loader { width: 62px; height: 48px; position: relative; display: grid; place-items: center; }
+        .chart-cloud-loader i { font-size: 38px; color: #4f83b8; animation: cloudPulse 1.25s ease-in-out infinite; }
+        .chart-cloud-loader:after { content: ''; position: absolute; width: 46px; height: 4px; border-radius: 50%; bottom: 0; background: #8db4d8; animation: cloudShadow 1.25s ease-in-out infinite; }
+        .chart-loading-overlay small { font-size: .78rem; color: #63758a; }
+        @keyframes cloudPulse { 0%,100%{transform:translateY(2px) scale(.94);opacity:.72} 50%{transform:translateY(-4px) scale(1.08);opacity:1} }
+        @keyframes cloudShadow { 0%,100%{transform:scale(.8);opacity:.35} 50%{transform:scale(1.05);opacity:.75} }
         .floating-btn {
             position: fixed;
             bottom: 30px;
@@ -2163,10 +2177,10 @@
             <div data-section-id="charts">
                 <h2 class="section-title">Gráficos e Insights</h2>
                 <div class="charts-grid">
-                    <div class="chart-card"><h3><i class="fas fa-chart-line"></i> Evolução Mensal</h3><div class="chart-container"><canvas id="revenueChart"></canvas></div></div>
-                    <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Realizado x Meta</h3><div class="chart-container"><canvas id="yearlyGoalsChart"></canvas></div></div>
-                    <div class="chart-card"><h3><i class="fas fa-medal"></i> Top Vendedores</h3><div class="chart-container"><canvas id="salesRankingChart"></canvas></div></div>
-                    <div class="chart-card"><h3><i class="fas fa-building"></i> Ranking de Clientes (Top 10)</h3><div class="chart-container"><canvas id="clientRankingChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-chart-line"></i> Evolução Mensal</h3><div class="chart-container"><div class="chart-loading-overlay"><div class="chart-cloud-loader"><i class="fas fa-cloud"></i></div><strong>Consultando dados…</strong><small>O gráfico será exibido quando a consulta terminar.</small></div><canvas id="revenueChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-chart-bar"></i> Realizado x Meta</h3><div class="chart-container"><div class="chart-loading-overlay"><div class="chart-cloud-loader"><i class="fas fa-cloud"></i></div><strong>Consultando dados…</strong><small>O gráfico será exibido quando a consulta terminar.</small></div><canvas id="yearlyGoalsChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-medal"></i> Top Vendedores</h3><div class="chart-container"><div class="chart-loading-overlay"><div class="chart-cloud-loader"><i class="fas fa-cloud"></i></div><strong>Consultando dados…</strong><small>O gráfico será exibido quando a consulta terminar.</small></div><canvas id="salesRankingChart"></canvas></div></div>
+                    <div class="chart-card"><h3><i class="fas fa-building"></i> Ranking de Clientes (Top 10)</h3><div class="chart-container"><div class="chart-loading-overlay"><div class="chart-cloud-loader"><i class="fas fa-cloud"></i></div><strong>Consultando dados…</strong><small>O gráfico será exibido quando a consulta terminar.</small></div><canvas id="clientRankingChart"></canvas></div></div>
                 </div>
             </div>
         </div>
@@ -2689,6 +2703,15 @@
                 try{const data=await carregarJSON(BASE_DADOS+file); if(data.length){assignData(key,data);return true;}}catch(_){/* primeira publicação pode ainda não conter este JSON */}
                 return false;
             }
+            let chartDataLoading = true;
+            function setChartsLoading(isLoading, message='Consultando dados…') {
+                chartDataLoading = !!isLoading;
+                document.querySelectorAll('.chart-card').forEach(card => {
+                    card.classList.toggle('is-loading', chartDataLoading);
+                    const label = card.querySelector('.chart-loading-overlay strong');
+                    if (label) label.textContent = message;
+                });
+            }
             function renderProgressive(){
                 try{
                     const resultadoCampanha=processarCampanhasAtivas(campanhasData||[]);
@@ -2711,6 +2734,7 @@
                     const count=document.getElementById('hybrid-sync-count');
                     if(count)count.textContent=`${CLOUD_KEYS.length-syncPending}/${CLOUD_KEYS.length} nuvens`;
                     if(syncPending===0){
+                        setChartsLoading(false);
                         const msg=syncErrors
                           ? `Nuvem: falha em ${syncErrors} fonte(s). O painel mantém os dados disponíveis no servidor local.`
                           : 'Nuvem: atualização concluída com sucesso. Os dados locais das metas e campanhas foram mantidos.';
@@ -2722,6 +2746,7 @@
             async function fetchAllData() {
                 const overlay=document.getElementById('loading-overlay');
                 if(overlay)overlay.classList.add('hidden');
+                setChartsLoading(true, 'Carregando dados locais…');
                 setHybridStatus('Servidor local: carregando os JSONs publicados em /dados…','loading','local');
                 // Carrega local primeiro; os pedidos e aprovações são deliberadamente excluídos desta etapa.
                 await Promise.all(DATA_KEYS.map(async key=>{const ok=await loadLocalKey(key);if(ok)renderProgressive();}));
@@ -2733,7 +2758,7 @@
                   'loading',localReady?'local':'cloud');
                 syncPending=CLOUD_KEYS.length; syncErrors=0;
                 CLOUD_KEYS.forEach(key=>{if(BASES[key])refreshCloudKey(key);else{syncErrors++;syncPending--;}});
-                if(syncPending===0)setHybridStatus('Nuvem: nenhuma fonte pôde ser consultada.', 'error','cloud');
+                if(syncPending===0){setChartsLoading(false);setHybridStatus('Nuvem: nenhuma fonte pôde ser consultada.', 'error','cloud');}
             }
 
             function atualizarCotacaoDolar() {
@@ -3195,7 +3220,11 @@
                 if(!container||!indicators)return;
                 const slides=(BANNERS||[]).map((b,i)=>({kind:'banner',data:b,index:i}));
                 const normalizar=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-                // Campanhas especiais: um único banner coletivo por campanha, listando todos os vencedores.
+                // Conquistas permanecem no carrossel por 3 dias a partir da primeira detecção.
+                const nowMs=Date.now(), ttl=3*24*60*60*1000;
+                let seenAchievements={};
+                try { seenAchievements=JSON.parse(localStorage.getItem('radar_eduardo_achievements_v1')||'{}')||{}; } catch(_) { seenAchievements={}; }
+                Object.keys(seenAchievements).forEach(k=>{if(!seenAchievements[k]||nowMs-Number(seenAchievements[k].since||0)>ttl)delete seenAchievements[k];});
                 const grupos={};
                 (campanhasData||[]).forEach(c=>{
                     const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
@@ -3205,7 +3234,11 @@
                     if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign'};
                     grupos[key].vencedores.push({nome:c.vendedor_nome||VENDEDORES_MAP[String(c.vendedor_cod||'')]||'Vendedor',realizado,meta});
                 });
-                Object.values(grupos).forEach(g=>slides.push({kind:'achievement',data:g}));
+                Object.values(grupos).forEach(g=>{
+                    const key='campanha:'+normalizar(g.nome);
+                    if(!seenAchievements[key])seenAchievements[key]={since:nowMs};
+                    if(nowMs-Number(seenAchievements[key].since||0)<=ttl)slides.push({kind:'achievement',data:g});
+                });
                 // Conquistas de meta mensal coletadas do faturamento real do mês atual.
                 const now=new Date(), ano=now.getFullYear(), mes=now.getMonth()+1;
                 const monthRows=(allConsolidadoMetas||[]).filter(r=>{const d=parseDataBR(r.mes_ano);return d&&d.getFullYear()===ano&&d.getMonth()+1===mes;});
@@ -3216,7 +3249,12 @@
                     if(!nome||!meta||fat<meta||id==='1'||id==='80'||/^Fabiano/i.test(nome))return;
                     if(!monthWinners.some(w=>w.id===id&&normalizar(w.nome)===normalizar(nome)))monthWinners.push({id,nome:VENDEDORES_MAP[id]||nome,realizado:fat,meta});
                 });
-                if(monthWinners.length)slides.push({kind:'monthly-achievement',data:{vencedores:monthWinners,nome:'Meta mensal'}});
+                if(monthWinners.length){
+                    const key='meta-mensal:'+ano+'-'+mes;
+                    if(!seenAchievements[key])seenAchievements[key]={since:nowMs};
+                    if(nowMs-Number(seenAchievements[key].since||0)<=ttl)slides.push({kind:'monthly-achievement',data:{vencedores:monthWinners,nome:'Meta mensal'}});
+                }
+                try { localStorage.setItem('radar_eduardo_achievements_v1',JSON.stringify(seenAchievements)); } catch(_) {}
                 container.innerHTML=slides.map((item,i)=>{
                     if(item.kind==='achievement'||item.kind==='monthly-achievement'){
                         const d=item.data, mensal=item.kind==='monthly-achievement', dardos=!mensal&&d.tipo==='darts';
