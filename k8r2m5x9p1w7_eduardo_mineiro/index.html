@@ -2066,6 +2066,10 @@
             </div>
         </div>
 
+        <div id="hybrid-sync-status" role="status" aria-live="polite" style="display:flex;align-items:center;gap:10px;margin:-8px 0 18px;padding:11px 16px;border:1px solid #f4d06f;border-left:5px solid #e5a000;border-radius:12px;background:#fff8dc;color:#755400;font-size:.82rem;font-weight:600;box-shadow:0 3px 12px rgba(120,90,0,.08)">
+            <i class="fas fa-cloud-arrow-down" id="hybrid-sync-icon"></i><span id="hybrid-sync-text">Preparando dados locais…</span><span id="hybrid-sync-count" style="margin-left:auto;white-space:nowrap">0/0 fontes</span>
+        </div>
+
         <div class="carousel-section" id="carousel-section">
             <div class="carousel-container" id="carousel-container"></div>
             <div class="carousel-controls"><button class="carousel-btn" id="prev-btn"><i class="fas fa-chevron-left"></i></button><button class="carousel-btn" id="next-btn"><i class="fas fa-chevron-right"></i></button></div>
@@ -2314,7 +2318,15 @@
                 postagens: `https://opensheet.elk.sh/${SHEET_ID}/postagens`,
                 dolar: `https://opensheet.elk.sh/${SHEET_ID}/dolar`,
                 campanhas_especiais: `https://opensheet.elk.sh/${SHEET_ID}/campanhas_especiais`,
-                apresentacao: `https://opensheet.elk.sh/${SHEET_ID}/apresentacao`
+                apresentacao: `https://opensheet.elk.sh/${SHEET_ID}/apresentacao`,
+                campanha_clientes_inativos: `https://opensheet.elk.sh/${SHEET_ID}/campanha_clientes_inativos`,
+                painel: `https://opensheet.elk.sh/${SHEET_ID}/painel`,
+                video: `https://opensheet.elk.sh/${SHEET_ID}/video`,
+                banners_recep: `https://opensheet.elk.sh/${SHEET_ID}/banners_recep`,
+                postagens_recep: `https://opensheet.elk.sh/${SHEET_ID}/postagens_recep`,
+                comemorar: `https://opensheet.elk.sh/${SHEET_ID}/comemorar`,
+                cotacoes: `https://opensheet.elk.sh/${SHEET_ID}/cotacoes`,
+                metaConsolidada: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento_consolidado_meses`
             };
             const VENDEDORES_MAP = {
                 "33": "Fábio Prado",
@@ -2577,34 +2589,89 @@
 
             // ---------- FIM DAS FUNÇÕES DA CAMPANHA ----------
 
-            async function fetchAllData() {
-                document.getElementById('last-update').innerText = 'Carregando...';
-                document.getElementById('loading-overlay').classList.remove('hidden');
-                try {
-                    const [faturados, aprovados, metasVendedores, pedidos, banners, postagens, dolar, metasGlobaisData, cadastroData, campanhas, apresentacaoData] = await Promise.all([
-                        carregarJSON(BASES.faturados), carregarJSON(BASES.aprovados), carregarJSON(BASES.metas),
-                        carregarJSON(BASES.pedidos), carregarJSON(BASES.banners), carregarJSON(BASES.postagens),
-                        carregarJSON(BASES.dolar), carregarJSON(BASES.metasGlobais), carregarJSON(BASES.cadastro),
-                        carregarJSON(BASES.campanhas_especiais), carregarJSON(BASES.apresentacao)
-                    ]);
-                    allFaturados = faturados; allAprovados = aprovados; allMetas = metasVendedores; allPedidos = pedidos;
-                    BANNERS = banners; notificacoes = postagens; dolarData = dolar; metasGlobais = metasGlobaisData; cadastros = cadastroData;
-                    campanhasData = campanhas; apresentacoes = apresentacaoData;
-
-                    const resultadoCampanha = processarCampanhasAtivas(campanhasData);
-                    if (resultadoCampanha) {
-                        window._campanhaDetalhes = resultadoCampanha.detalhes;
-                    } else {
-                        document.getElementById('campaign-status-bar').style.display = 'none';
-                        window._campanhaDetalhes = null;
-                    }
-
-                    document.getElementById('last-update').innerText = `Atualizado ${new Date().toLocaleTimeString()}`;
-                    document.getElementById('menu-update-status').textContent = `Atualizado ${new Date().toLocaleTimeString()}`;
+            // Estratégia híbrida: primeiro JSONs publicados em /dados; depois OpenSheet em segundo plano.
+            const BASE_DADOS = new URL('dados/', window.location.href).href;
+            const LOCAL_JSON = {
+                faturados: ['faturados_fabio.json','faturados_matheus.json','faturados_lorena.json','faturados_cesar.json','faturados_juliana.json','faturados_valeria.json','faturados_luan.json'],
+                aprovados: 'aprovados.json', metas: 'meta_faturamento.json', pedidos: 'aprovadosfaturados.json',
+                banners: 'banners.json', postagens: 'postagens.json', dolar: 'dolar.json',
+                metasGlobais: 'metas.json', cadastro: 'cadastro.json', campanhas_especiais: 'campanhas_especiais.json',
+                apresentacao: 'apresentacao.json'
+            };
+            const DATA_KEYS = ['faturados','aprovados','metas','pedidos','banners','postagens','dolar','metasGlobais','cadastro','campanhas_especiais','apresentacao'];
+            const DATA_LABELS = {faturados:'faturamento',aprovados:'pedidos aprovados',metas:'metas dos vendedores',pedidos:'pedidos aprovados/faturados',banners:'banners',postagens:'alertas e notificações',dolar:'cotação do dólar',metasGlobais:'metas globais',cadastro:'cadastros',campanhas_especiais:'campanhas',apresentacao:'apresentações'};
+            const dataReady = new Set();
+            let syncPending = 0, syncErrors = 0, localReady = false;
+            function setHybridStatus(message, state='loading') {
+                const box=document.getElementById('hybrid-sync-status'), text=document.getElementById('hybrid-sync-text'), icon=document.getElementById('hybrid-sync-icon');
+                if(!box||!text||!icon)return;
+                text.textContent=message;
+                box.style.background=state==='done'?'#eaf7ee':state==='error'?'#fff0ef':'#fff8dc';
+                box.style.borderColor=state==='done'?'#9bd3a7':state==='error'?'#e8a09b':'#f4d06f';
+                box.style.color=state==='done'?'#205b2d':state==='error'?'#8d2520':'#755400';
+                icon.className=state==='done'?'fas fa-circle-check':state==='error'?'fas fa-triangle-exclamation':'fas fa-cloud-arrow-down';
+                const count=document.getElementById('hybrid-sync-count'); if(count)count.textContent=`${dataReady.size}/${DATA_KEYS.length} fontes`;
+            }
+            function assignData(key,data){
+                if(!Array.isArray(data)) return;
+                if(key==='faturados') allFaturados=data;
+                else if(key==='aprovados') allAprovados=data;
+                else if(key==='metas') allMetas=data;
+                else if(key==='pedidos') allPedidos=data;
+                else if(key==='banners') BANNERS=data;
+                else if(key==='postagens') notificacoes=data;
+                else if(key==='dolar') dolarData=data;
+                else if(key==='metasGlobais') metasGlobais=data;
+                else if(key==='cadastro') cadastros=data;
+                else if(key==='campanhas_especiais') campanhasData=data;
+                else if(key==='apresentacao') apresentacoes=data;
+                dataReady.add(key);
+            }
+            async function loadLocalKey(key){
+                const file=LOCAL_JSON[key];
+                if(Array.isArray(file)){
+                    const parts=await Promise.all(file.map(async name=>{try{return await carregarJSON(BASE_DADOS+name)}catch(_){return []}}));
+                    const combined=parts.flat().filter(Boolean); if(combined.length){assignData(key,combined);return true;} return false;
+                }
+                if(!file)return false;
+                try{const data=await carregarJSON(BASE_DADOS+file); if(data.length){assignData(key,data);return true;}}catch(_){/* primeira publicação pode ainda não conter este JSON */}
+                return false;
+            }
+            function renderProgressive(){
+                try{
+                    const resultadoCampanha=processarCampanhasAtivas(campanhasData||[]);
+                    window._campanhaDetalhes=resultadoCampanha?resultadoCampanha.detalhes:null;
+                    const bar=document.getElementById('campaign-status-bar'); if(bar)bar.style.display=resultadoCampanha?'':'none';
                     atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
-
-                } catch(e) { console.error(e); document.getElementById('last-update').innerText = 'Erro ao carregar.'; }
-                finally { document.getElementById('loading-overlay').classList.add('hidden'); }
+                    const stamp=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+                    const lu=document.getElementById('last-update'); if(lu)lu.textContent=`${localReady?'Base local':'Dados parciais'} · ${stamp}`;
+                    const ms=document.getElementById('menu-update-status'); if(ms)ms.textContent=`Atualizado ${stamp}`;
+                }catch(e){console.warn('Renderização parcial:',e)}
+            }
+            async function refreshCloudKey(key){
+                try{
+                    const data=await carregarJSON(BASES[key]);
+                    if(Array.isArray(data)&&data.length){assignData(key,data);renderProgressive();}
+                }catch(e){syncErrors++;console.warn(`Fonte ${key} segue indisponível; mantendo dados locais`,e)}
+                finally{
+                    syncPending--; const count=document.getElementById('hybrid-sync-count'); if(count)count.textContent=`${DATA_KEYS.length-syncPending}/${DATA_KEYS.length} fontes`;
+                    if(syncPending===0){setHybridStatus(syncErrors?`Painel utilizável. Atualização em segundo plano concluída com ${syncErrors} fonte(s) indisponível(is); dados disponíveis foram mantidos.`:'Tudo atualizado. Os dados locais foram conferidos com a nuvem.',syncErrors?'error':'done');
+                        const lu=document.getElementById('last-update');if(lu)lu.textContent=`Atualizado ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;}
+                }
+            }
+            async function fetchAllData() {
+                const overlay=document.getElementById('loading-overlay');
+                if(overlay)overlay.classList.add('hidden'); // nunca bloquear o painel inteiro durante a consulta
+                setHybridStatus('Carregando os JSONs da pasta dados/; o painel será liberado assim que houver dados disponíveis.');
+                // Começa por fontes locais em paralelo, sem depender da nuvem.
+                await Promise.all(DATA_KEYS.map(async key=>{const ok=await loadLocalKey(key);if(ok)renderProgressive();}));
+                localReady=dataReady.size>0;
+                renderProgressive();
+                if(localReady)setHybridStatus(`Painel liberado com ${dataReady.size} fonte(s) local(is). Consultando a nuvem em segundo plano; você pode continuar usando a página.`);
+                else setHybridStatus('Nenhum JSON local disponível. Abrindo o painel com os primeiros dados que chegarem da nuvem.');
+                // Atualiza cada fonte de forma independente; uma falha não bloqueia as demais.
+                syncPending=DATA_KEYS.length; syncErrors=0;
+                DATA_KEYS.forEach(key=>{refreshCloudKey(key)});
             }
 
             function atualizarCotacaoDolar() {
@@ -3129,10 +3196,26 @@
 
             function renderCarrossel() {
                 const container = document.getElementById('carousel-container'), indicators = document.getElementById('carousel-indicators');
-                container.innerHTML = BANNERS.map((b, i) => `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22800%22 height=%22300%22><rect fill=%22%23ddd%22 width=%22800%22 height=%22300%22/><text fill=%22%23666%22 x=%2230%22 y=%22160%22>Sem imagem</text></svg>'"><div class="carousel-caption"><span>${b.titulo}</span><small>${b.data||''}</small></div></div>`).join('');
-                indicators.innerHTML = BANNERS.map((_, i) => `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
-                document.querySelectorAll('.indicator-dot').forEach(d => d.addEventListener('click', e => { currentCarouselIndex = parseInt(e.target.dataset.idx); updateCarrossel(); }));
-                document.querySelectorAll('.carousel-slide').forEach(s => s.addEventListener('click', () => abrirModalPostagem(BANNERS[currentCarouselIndex])));
+                if(!container||!indicators)return;
+                const slides = BANNERS.map((b,i)=>({kind:'banner',data:b,index:i}));
+                // Conquistas de campanhas entram no mesmo carrossel, sem substituir os banners editoriais.
+                (campanhasData||[]).forEach(c=>{
+                    const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
+                    if(meta>0&&realizado>=meta){slides.push({kind:'achievement',data:c});}
+                });
+                container.innerHTML = slides.map((item,i)=>{
+                    if(item.kind==='achievement'){
+                        const c=item.data, nome=c.vendedor_nome||VENDEDORES_MAP[String(c.vendedor_cod||'')]||'Equipe';
+                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0"><div class="achievement-confetti"></div><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-trophy">🏆</div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA</span><h2>Meta atingida!</h2><p>${nome} · ${c.campanha||'Campanha especial'}</p><strong>Realizado: ${formatCurrency(realizado)} · Meta: ${formatCurrency(meta)}</strong><small>Parabéns pelo resultado. Continue acelerando!</small></div></div></div>`;
+                    }
+                    const b=item.data;
+                    return `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${b.titulo||''}</span><small>${b.data||''}</small></div></div>`;
+                }).join('');
+                indicators.innerHTML = slides.map((_,i)=>`<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                currentCarouselIndex=Math.min(currentCarouselIndex,Math.max(0,slides.length-1));
+                document.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',e=>{currentCarouselIndex=parseInt(e.currentTarget.dataset.idx);updateCarrossel();}));
+                document.querySelectorAll('.carousel-slide').forEach((el,i)=>{if(slides[i]?.kind==='banner')el.addEventListener('click',()=>abrirModalPostagem(slides[i].data));});
+                updateCarrossel();
             }
             let currentCarouselIndex = 0;
             function updateCarrossel() { document.getElementById('carousel-container').style.transform = `translateX(-${currentCarouselIndex*100}%)`; document.querySelectorAll('.indicator-dot').forEach(d => d.classList.remove('active')); document.querySelector(`.indicator-dot[data-idx="${currentCarouselIndex}"]`)?.classList.add('active'); }
