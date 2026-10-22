@@ -2661,11 +2661,12 @@
             const CLOUD_KEYS = DATA_KEYS.filter(key => !LOCAL_ONLY_KEYS.has(key));
             const DATA_LABELS = {faturados:'faturamento',metas:'metas dos vendedores',pedidos:'pedidos/aprovações',banners:'banners',postagens:'alertas e notificações',dolar:'cotação do dólar',metasGlobais:'metas globais',cadastro:'cadastros',campanhas_especiais:'campanhas',apresentacao:'apresentações',metasConsolidada:'metas consolidadas'};
             const dataReady = new Set();
-            let syncPending = 0, syncErrors = 0, localReady = false, syncHideTimer = null;
+            let syncPending = 0, syncErrors = 0, localReady = false, syncHideTimer = null, cloudQueryFinished = true, cloudQueryRun = 0;
             const cloudCardsPending = new Set();
             function initCloudCardIndicators(){
                 document.querySelectorAll('.chart-card, .donut-container, .progress-circle-container, .campaign-card, .kpi-card, .metric-card, .kpi-item, .dashboard-card, .goal-card, .progress-card').forEach((card,i)=>{
                     if(card.querySelector('.cloud-query-overlay')) return;
+                    if(cloudQueryFinished) return;
                     card.classList.add('cloud-query-card');
                     const overlay=document.createElement('div'); overlay.className='cloud-query-overlay';
                     overlay.innerHTML='<div class="cloud-orbit"><i class="fas fa-cloud-arrow-down"></i></div><span>Consultando dados…</span>';
@@ -2673,6 +2674,7 @@
                 });
             }
             function finishCloudCardIndicators(state='done'){
+                cloudQueryFinished = true;
                 cloudCardsPending.forEach(overlay=>{
                     if(!overlay.isConnected)return;
                     overlay.classList.remove('done','error'); overlay.classList.add(state);
@@ -2682,6 +2684,13 @@
                     setTimeout(()=>{overlay.style.opacity='0';setTimeout(()=>overlay.remove(),260);},state==='done'?900:2200);
                 });
                 cloudCardsPending.clear();
+                document.querySelectorAll('.cloud-query-overlay').forEach(overlay=>{
+                    overlay.classList.remove('done','error'); overlay.classList.add(state);
+                    const icon=overlay.querySelector('.cloud-orbit i'), label=overlay.querySelector('span');
+                    if(icon) icon.className=state==='done'?'fas fa-cloud-check':'fas fa-cloud-circle-exclamation';
+                    if(label) label.textContent=state==='done'?'Dados sincronizados':'Falha na nuvem · dados disponíveis preservados';
+                    setTimeout(()=>{if(overlay.isConnected)overlay.remove();},state==='done'?900:2200);
+                });
             }
 
             function setHybridStatus(message, state='loading', source='cloud') {
@@ -2728,20 +2737,21 @@
                 try{
                     const resultadoCampanha=processarCampanhasAtivas(campanhasData||[]);
                     window._campanhaDetalhes=resultadoCampanha?resultadoCampanha.detalhes:null;
-                    const bar=document.getElementById('campaign-status-bar'); if(bar)bar.style.display=resultadoCampanha?'block':((campanhasData||[]).length?'none':bar.style.display);
+                    const bar=document.getElementById('campaign-status-bar'); if(bar)bar.style.display=resultadoCampanha?'block':'none';
                     atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
                     const stamp=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
                     const lu=document.getElementById('last-update'); if(lu)lu.textContent=`${localReady?'Base local':'Dados parciais'} · ${stamp}`;
                     const ms=document.getElementById('menu-update-status'); if(ms)ms.textContent=`Atualizado ${stamp}`;
                 }catch(e){console.warn('Renderização parcial:',e)}
             }
-            async function refreshCloudKey(key){
+            async function refreshCloudKey(key, runId=cloudQueryRun){
                 try{
                     const data=await carregarJSON(BASES[key]);
                     if(Array.isArray(data)&&data.length){assignData(key,data);renderProgressive();}
                     else throw new Error('A fonte retornou uma lista vazia.');
                 }catch(e){syncErrors++;console.warn(`Fonte de nuvem ${key} indisponível; mantendo os dados locais, quando disponíveis.`,e)}
                 finally{
+                    if(runId !== cloudQueryRun) return;
                     syncPending--;
                     const count=document.getElementById('hybrid-sync-count');
                     if(count)count.textContent=`${CLOUD_KEYS.length-syncPending}/${CLOUD_KEYS.length} nuvens`;
@@ -2756,6 +2766,10 @@
                 }
             }
             async function fetchAllData() {
+                const runId = ++cloudQueryRun;
+                cloudQueryFinished = false;
+                cloudCardsPending.clear();
+                document.querySelectorAll('.cloud-query-overlay').forEach(el=>el.remove());
                 const overlay=document.getElementById('loading-overlay');
                 if(overlay)overlay.classList.add('hidden');
                 setHybridStatus('Servidor local: carregando os JSONs publicados em /dados…','loading','local');
@@ -2775,7 +2789,7 @@
                     const watch=document.getElementById('sections-container');
                     if(watch)window.__radarCloudCardObserver.observe(watch,{childList:true,subtree:true});
                 }
-                CLOUD_KEYS.forEach(key=>{if(BASES[key])refreshCloudKey(key);else{syncErrors++;syncPending--;}});
+                CLOUD_KEYS.forEach(key=>{if(BASES[key])refreshCloudKey(key,runId);else{syncErrors++;syncPending--;}});
                 if(syncPending===0){setHybridStatus('Nuvem: nenhuma fonte pôde ser consultada.', 'error','cloud');finishCloudCardIndicators('error');}
             }
 
@@ -3533,10 +3547,7 @@
                 document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
                 document.getElementById('menu-meus-premios').addEventListener('click', () => {
                     closeHamburger();
-                    const modal=document.getElementById('awards-popup-modal');
-                    const frame=document.getElementById('awards-popup-frame');
-                    if(!frame.src || !frame.src.includes('popup=awards')) frame.src=new URL('metas_comercial_popup.html?popup=awards',window.location.href).href;
-                    modal.classList.add('active');
+                    abrirPremiacoesTime();
                 });
                 document.getElementById('close-awards-popup').addEventListener('click',()=>document.getElementById('awards-popup-modal').classList.remove('active'));
                 document.getElementById('awards-popup-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');});
