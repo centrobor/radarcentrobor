@@ -2428,23 +2428,32 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             function dimasIsCurrentMonth(item) {
                 const now = new Date();
                 const targetMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-                let date = null;
-                const rawTs = item && (item.timestamp ?? item.createdAt ?? item.created_at ?? item.dataHora ?? item.data_hora);
+                if (!item || typeof item !== 'object') return false;
+                // Conquistas mensais: a competência (não o timestamp de criação/importação) é a fonte de verdade.
+                const key = String(item.dataConquista || item.data_conquista || item.chave || item.key || '');
+                const monthMatch = key.match(/(?:mensal[_-])?(20\d{2})-(0[1-9]|1[0-2])/i);
+                if (monthMatch) return `${monthMatch[1]}-${monthMatch[2]}` === targetMonth;
+                const title = String(item.nome || item.titulo || item.título || '');
+                const titleMatch = title.match(/(?:janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?(20\d{2})/i);
+                if (titleMatch) {
+                    const months = {'janeiro':'01','fevereiro':'02','março':'03','marco':'03','abril':'04','maio':'05','junho':'06','julho':'07','agosto':'08','setembro':'09','outubro':'10','novembro':'11','dezembro':'12'};
+                    const m = title.match(/(janeiro|fevereiro|março|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)\s+(?:de\s+)?20\d{2}/i);
+                    if (m) return `${titleMatch[1]}-${months[m[1].toLowerCase()]}` === targetMonth;
+                }
+                const rawDate = item.data || item.date || item.created || item.data_conquista || item.dataConquista;
+                if (rawDate) {
+                    const br = String(rawDate).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+                    const d = br ? new Date(Number(br[3]), Number(br[2])-1, Number(br[1])) : new Date(rawDate);
+                    if (Number.isFinite(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === targetMonth;
+                }
+                // Timestamp só vale se não houver competência/data específica da conquista.
+                const rawTs = item.timestamp ?? item.createdAt ?? item.created_at ?? item.dataHora ?? item.data_hora;
                 if (rawTs !== undefined && rawTs !== null && rawTs !== '') {
                     const numeric = Number(rawTs);
-                    date = Number.isFinite(numeric) && numeric > 0 ? new Date(numeric < 1e12 ? numeric * 1000 : numeric) : new Date(rawTs);
-                    if (!Number.isFinite(date.getTime())) date = null;
+                    const d = Number.isFinite(numeric) && numeric > 0 ? new Date(numeric < 1e12 ? numeric * 1000 : numeric) : new Date(rawTs);
+                    if (Number.isFinite(d.getTime())) return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` === targetMonth;
                 }
-                if (!date && item) {
-                    const rawDate = item.data || item.date || item.created || item.data_conquista || item.dataConquista;
-                    if (rawDate) {
-                        const br = String(rawDate).match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
-                        date = br ? new Date(Number(br[3]), Number(br[2])-1, Number(br[1])) : new Date(rawDate);
-                        if (!Number.isFinite(date.getTime())) date = null;
-                    }
-                }
-                // Sem data confiável, não presumir que uma conquista antiga seja deste mês.
-                return !!date && `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}` === targetMonth;
+                return false;
             }
 
             function renderCarrossel() {
@@ -2523,8 +2532,8 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             function abrirNotificacoes() {
                 const modal=document.getElementById('notif-modal'), body=document.getElementById('notif-modal-body');
                 const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(dimasIsCurrentMonth).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
-                const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)}));
-                const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,30);
+                const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)})).sort((a,b)=>b.timestamp-a.timestamp).slice(0,12);
+                const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,15);
                 const unreadCount=items.filter(n=>n._premio?!n.lida:!readNotifications.includes(n.id)).length;
                 const header=`<button class="modal-close" aria-label="Fechar" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</button><div class="notif-modal-header"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas e notificações</h2><span style="font-size:.8rem;color:var(--muted)">${items.length} recentes</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px"><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button><button class="btn-mark-all-read" id="btn-go-feed"><i class="fas fa-rss"></i> Ir para o Feed e continuar</button></div>`;
                 const cards=items.map(n=>{const isRead=n._premio?!!n.lida:readNotifications.includes(n.id);const tipo=n.tipo||'informativo';const bg=tipo==='alerta'?'#fee2e2':tipo==='novidade'?'#e0f2fe':tipo==='conquista'?'#fff4cf':'#f3f4f6';const col=tipo==='alerta'?'#991b1b':tipo==='novidade'?'#0369a1':tipo==='conquista'?'#8a5b00':'#374151';const excerpt=(n.texto_html||n.resumo||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);return `<div class="notif-card" data-id="${String(n.id||'').replace(/"/g,'&quot;')}" data-premio="${n._premio?'1':'0'}" style="cursor:pointer;${isRead?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><div class="notif-conquista-icon ${n._premio||tipo==='conquista'?'silver':''}"><i class="fas ${n._premio?'fa-medal':(n.icone||'fa-bell')}"></i></div><div class="notif-body"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${n.titulo||'Notificação'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'Radar Centrobor'}</div><div class="notif-excerpt">${excerpt||'Toque para ver os detalhes.'}</div><span style="font-size:.75rem;color:${isRead?'var(--muted)':'var(--primary)'};font-weight:${isRead?'400':'700'}">${isRead?'✓ Lida':'● Não lida'}</span></div></div>`}).join('');
