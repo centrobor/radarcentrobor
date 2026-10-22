@@ -2016,7 +2016,7 @@
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Ferramentas</div>
-            <button class="menu-item" id="menu-meus-premios"><i class="fas fa-medal"></i> Quadro de Medalhas</button>
+            <button class="menu-item" id="menu-meus-premios"><i class="fas fa-trophy"></i> Prêmios do Time</button>
         </div>
         <div class="menu-section">
             <div class="menu-section-label">Status</div>
@@ -2480,13 +2480,25 @@
             }
 
             // ---------- FUNÇÕES DA CAMPANHA ----------
+            function parseCampaignDate(value) {
+                if (!value) return null;
+                const raw = String(value).replace(/[\u00a0\u202f]/g, ' ').trim().split(/[ T]/)[0];
+                // Campanhas vêm do JSON em formato brasileiro (ex.: 5/10/2026).
+                const br = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);
+                if (br) {
+                    const d = new Date(Number(br[3]), Number(br[2]) - 1, Number(br[1]));
+                    return d.getFullYear() === Number(br[3]) && d.getMonth() === Number(br[2]) - 1 && d.getDate() === Number(br[1]) ? d : null;
+                }
+                return parseDataBR(raw);
+            }
             function isCampaignActive(camp) {
-                if (!camp.data_inicio || !camp.data_fim) return false;
+                const inicio = parseCampaignDate(camp.data_inicio || camp.inicio || camp.dataInicial);
+                const fim = parseCampaignDate(camp.data_fim || camp.fim || camp.dataFinal);
+                if (!inicio || !fim) return false;
                 const hoje = new Date();
                 hoje.setHours(0, 0, 0, 0);
-                const inicio = parseDataBR(camp.data_inicio || camp.inicio || camp.dataInicial);
-                const fim = parseDataBR(camp.data_fim || camp.fim || camp.dataFinal);
-                if (!inicio || !fim) return false;
+                inicio.setHours(0, 0, 0, 0);
+                fim.setHours(0, 0, 0, 0);
                 return inicio <= hoje && hoje <= fim;
             }
 
@@ -2632,7 +2644,7 @@
             };
             const DATA_KEYS = ['faturados','metas','pedidos','banners','postagens','dolar','metasGlobais','cadastro','campanhas_especiais','apresentacao','metasConsolidada'];
             // Campanhas especiais e o quadro Metas Vendedores usam os JSONs publicados em /dados.
-            const LOCAL_ONLY_KEYS = new Set(['campanhas_especiais','metasConsolidada']);
+            const LOCAL_ONLY_KEYS = new Set(['metasConsolidada']);
             const CLOUD_KEYS = DATA_KEYS.filter(key => !LOCAL_ONLY_KEYS.has(key));
             const DATA_LABELS = {faturados:'faturamento',metas:'metas dos vendedores',pedidos:'pedidos/aprovações',banners:'banners',postagens:'alertas e notificações',dolar:'cotação do dólar',metasGlobais:'metas globais',cadastro:'cadastros',campanhas_especiais:'campanhas',apresentacao:'apresentações',metasConsolidada:'metas consolidadas'};
             const dataReady = new Set();
@@ -2681,7 +2693,7 @@
                 try{
                     const resultadoCampanha=processarCampanhasAtivas(campanhasData||[]);
                     window._campanhaDetalhes=resultadoCampanha?resultadoCampanha.detalhes:null;
-                    const bar=document.getElementById('campaign-status-bar'); if(bar)bar.style.display=resultadoCampanha?'':'none';
+                    const bar=document.getElementById('campaign-status-bar'); if(bar) bar.style.display = resultadoCampanha ? 'block' : 'none';
                     atualizarBadgeNotificacoes(); renderCarrossel(); atualizarCotacaoDolar(); populateVendorSelector(); refreshAll();
                     const stamp=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
                     const lu=document.getElementById('last-update'); if(lu)lu.textContent=`${localReady?'Base local':'Dados parciais'} · ${stamp}`;
@@ -3447,6 +3459,18 @@
                         });
                     }
                 });
+                document.getElementById('menu-meus-premios')?.addEventListener('click', () => {
+                    closeHamburger();
+                    const modal = document.getElementById('awards-popup-modal');
+                    const frame = document.getElementById('awards-popup-frame');
+                    if (frame && !frame.dataset.loaded) {
+                        frame.src = new URL('metas_comercial_popup.html?popup=awards', window.location.href).href;
+                        frame.dataset.loaded = '1';
+                    }
+                    if (modal) modal.classList.add('active');
+                });
+                document.getElementById('close-awards-popup')?.addEventListener('click', () => document.getElementById('awards-popup-modal')?.classList.remove('active'));
+                document.getElementById('awards-popup-modal')?.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
                 document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
                 document.getElementById('menu-meus-premios').addEventListener('click', () => {
                     closeHamburger();

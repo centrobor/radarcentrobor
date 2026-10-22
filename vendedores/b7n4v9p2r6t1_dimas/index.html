@@ -1431,6 +1431,7 @@
         <div class="loading-text">Consultando dados...</div>
     </div>
 
+    <div id="dimas-background-sync" role="status" aria-live="polite"><i class="fas fa-arrows-rotate fa-spin"></i><span id="dimas-background-sync-text">Consultando dados em segundo plano…</span><div class="sync-progress"><span></span></div></div>
     <!-- HEADER DE IMPRESSÃO -->
     <div id="print-header">
         <h1>Dimas - Coordenador</h1>
@@ -1861,8 +1862,7 @@
               const cards=all.sort((a,b)=>String(b.dataConquista||'').localeCompare(String(a.dataConquista||''))).map(a=>{const t=tier(a),cfg={bronze:['#c47b43','#f6d2ae','#5b2f15','fa-medal','BRONZE · META MENSAL'],silver:['#aeb8c5','#f0f3f7','#3f4650','fa-medal','PRATA · TRINCA'],gold:['#d4a72c','#fff2a8','#6b4b00','fa-trophy','OURO · CONQUISTA ESPECIAL']}[t];return `<article class="dimas-medal-card" style="--medal:${cfg[0]};--light:${cfg[1]};--ink:${cfg[2]}"><div class="dimas-medal-icon"><i class="fas ${cfg[3]}"></i></div><h4>${a.nome||a.tipo||'Conquista'}</h4><span class="dimas-medal-tag">${cfg[4]}</span><div style="font-size:.8rem;color:#5a6b80;display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid #edf1f6"><span>Faturamento</span><b style="color:#203650;text-align:right">${nf(a.realizado)}</b></div><div style="font-size:.8rem;color:#5a6b80;display:flex;justify-content:space-between;gap:8px;padding:7px 0"><span>Meta</span><b style="color:#203650;text-align:right">${Number(a.meta)>0?nf(a.meta):'Meta atingida'}</b></div><div style="height:7px;margin:10px 0 8px;background:#e8edf4;border-radius:20px;overflow:hidden"><span style="display:block;height:100%;width:${Math.max(0,Math.min(100,Number(a.perc)||100))}%;background:linear-gradient(90deg,${cfg[0]},${cfg[1]})"></span></div><small style="color:#176443;font-weight:900"><i class="fas fa-check-circle"></i> CONQUISTADO</small></article>`}).join('');
               const cal=Array.from({length:12},(_,i)=>{const r=rows.find(x=>x.year===year&&x.month===i+1),now=new Date(),future=i+1>now.getMonth()+1,current=i+1===now.getMonth()+1;return `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:95px;padding:11px 5px;text-align:center;border:1px solid ${r&&r.earned?'#e9cc77':current?'#4d86d9':'#e0e7f0'};border-radius:14px;background:${r&&r.earned?'linear-gradient(150deg,#fffdf4,#fff4ce)':current?'linear-gradient(145deg,#f3f8ff,#e4efff)':'#fff'};color:#52657c;font-size:.7rem;line-height:1.5"><i class="fas ${r&&r.earned?'fa-medal':future?'fa-lock':current?'fa-wave-square':r?'fa-xmark':'fa-circle-question'}" style="font-size:1.2rem;margin-bottom:7px;color:${r&&r.earned?'#c28d14':current?'#397bd0':'#98a6b8'}"></i><b>${monthNames[i].toUpperCase()}</b>${r&&r.earned?'META BATIDA':current?'EM ANDAMENTO':future?'EM BREVE':r?'NÃO ATINGIU':'SEM DADOS'}<small>${r?nf(r.fat)+' / '+nf(r.meta):''}</small></div>`}).join('');
               const total=rows.reduce((a,r)=>a+r.fat,0),months=rows.filter(r=>r.earned).length;
-              body.innerHTML=`<div class="dimas-awards-stats">${stat('Bronze · metas mensais',bronze,'fa-medal','#c47b43','#f6d2ae','#5b2f15')}${stat('Prata · trincas',silver,'fa-medal','#aeb8c5','#f0f3f7','#3f4650')}${stat('Ouro · especiais',gold,'fa-trophy','#d4a72c','#fff2a8','#6b4b00')}${stat('Meses com meta batida',months,'fa-calendar-check','#2b9a6b','#d9f7e7','#176443')}</div>
-              <div class="dimas-section-title"><i class="fas fa-medal"></i> Pódio de medalhas <small style="font-weight:650;color:#65758a">· conquistas acumuladas</small></div>
+              body.innerHTML=`<div class="dimas-section-title"><i class="fas fa-medal"></i> Pódio de medalhas <small style="font-weight:650;color:#65758a">· conquistas acumuladas</small></div>
               <div class="dimas-podium-stage"><div class="dimas-podium-place silver"><div class="dimas-podium-medal"><i class="fas fa-medal"></i></div><strong>PRATA</strong><span>${silver} conquista${silver===1?'':'s'}</span><div class="dimas-podium-block second">2</div></div><div class="dimas-podium-place gold"><div class="dimas-podium-medal"><i class="fas fa-trophy"></i></div><strong>OURO</strong><span>${gold} conquista${gold===1?'':'s'}</span><div class="dimas-podium-block first">1</div></div><div class="dimas-podium-place bronze"><div class="dimas-podium-medal"><i class="fas fa-medal"></i></div><strong>BRONZE</strong><span>${bronze} conquista${bronze===1?'':'s'}</span><div class="dimas-podium-block third">3</div></div></div>
               <div class="dimas-section-title"><i class="fas fa-calendar-days"></i> Calendário de metas · ${year}</div><div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px">${cal}</div>
               <div class="dimas-section-title"><i class="fas fa-trophy"></i> Coleção de medalhas e troféus</div>${cards?`<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">${cards}</div>`:'<div style="padding:26px;text-align:center;border:1px dashed #cbd7e5;border-radius:16px;background:#fff;color:#52657c;line-height:1.7"><i class="fas fa-medal" style="font-size:1.8rem;display:block;margin-bottom:9px;color:#c28d14"></i>As conquistas aparecerão aqui conforme as metas consolidadas forem atingidas.</div>'}<p style="font-size:.75rem;color:#65758a;line-height:1.6;margin-top:18px">As metas mensais são lidas do consolidado da Centrobor para o código 10 (Dimas). O histórico de conquistas e os alertas ficam registrados localmente neste navegador.</p>`;
@@ -2332,6 +2332,9 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                     'Razão Social', 'Valor Total', 'Situação Versão'
                 ], 'cot', 'Valor Total');
 
+                // Faixas de idade aplicadas a todas as tabelas: verde até 30 dias, amarelo de 31 a 90, vermelho acima de 90.
+                document.querySelectorAll('.table-wrapper table').forEach(table=>{const heads=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim());let ix=heads.indexOf('Data');if(ix<0)ix=heads.indexOf('Data Criação');if(ix<0)ix=heads.indexOf('Competência');if(ix<0)return;table.querySelectorAll('tbody tr').forEach(tr=>{const raw=tr.children[ix]?.textContent?.trim()||'';let d=parseDataBR(raw);if(!d){const m=raw.match(/^(\d{4})-(\d{2})/);if(m)d=new Date(+m[1],+m[2]-1,1);}if(!d||isNaN(d))return;const days=Math.max(0,Math.floor((new Date()-d)/86400000));tr.classList.remove('dimas-age-green','dimas-age-yellow','dimas-age-red');tr.classList.add(days<=30?'dimas-age-green':days<=90?'dimas-age-yellow':'dimas-age-red');});});
+
                 // Aplicar eventos de busca dinâmica com atualização do totalizador
                 document.querySelectorAll('.table-wrapper').forEach(wrapper => {
                     const input = wrapper.querySelector('.table-search');
@@ -2479,128 +2482,36 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             }
 
             function abrirNotificacoes() {
-                const modal = document.getElementById('notif-modal'),
-                    body = document.getElementById('notif-modal-body');
-                const premiosDimas = dimasReadArray(DIMAS_NOTIF_KEY).filter(n=>Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL);
-                const blocoPremiosDimas = premiosDimas.length ? `<div style="margin:8px 0 20px"><h3 style="margin:0 0 10px;color:#172a45"><i class="fas fa-trophy" style="color:#c28d14"></i> Conquistas · Meus Prêmios</h3>${premiosDimas.map(n=>`<div class="dimas-alert-award" data-dimas-award="${String(n.chave||n.id).replace(/[^a-zA-Z0-9_-]/g,'')}"><div class="dimas-alert-medal"><i class="fas fa-medal"></i></div><div><strong>${n.titulo||n.nome||'Nova conquista'}</strong><small>${formatarMoeda(Number(n.realizado)||0)} de ${formatarMoeda(Number(n.meta)||0)} · ${n.lida?'Visualizada':'Nova notificação'}<br>Toque para abrir sua coleção de medalhas.</small></div></div>`).join('')}</div>` : '';
-                const unreadCount = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
-                if (notificacoes.length === 0) {
-                    body.innerHTML =
-                        '<span class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</span>' + (blocoPremiosDimas || '<p style="text-align:center;color:var(--muted);padding:40px;">Nenhum alerta recente.</p>');
-                } else {
-                    let html =
-                        `<span class="modal-close" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</span>`;
-                    html +=
-                        `<div class="notif-modal-header"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2>${unreadCount > 0 ? `<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>` : ''}</div>`;
-                    notificacoes.forEach(n => {
-                        const isRead = readNotifications.includes(n.id);
-                        const plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) +
-                            '...';
-                        const tipo = n.tipo || 'informativo';
-                        const bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' :
-                            '#f3f4f6';
-                        const textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' :
-                            '#374151';
-                        html += `<div class="notif-card" data-id="${n.id}">
-                            <img src="${n.imagem || 'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'">
-                            <div class="notif-body">
-                                <span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span>
-                                <div class="notif-title">${n.titulo}</div>
-                                <div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div>
-                                <div class="notif-excerpt">${plainText}</div>
-                                <span style="font-size:0.75rem; color:${isRead ? 'var(--muted)' : 'var(--primary)'};">${isRead ? '✔ Lida' : '● Nova'}</span>
-                            </div>
-                        </div>`;
-                    });
-                    body.innerHTML = html + blocoPremiosDimas;
-                    const btnMarkAll = document.getElementById('btn-mark-all-read');
-                    if (btnMarkAll) btnMarkAll.addEventListener('click', marcarTodasComoLido);
-                    body.querySelectorAll('.notif-card').forEach(card => {
-                        card.addEventListener('click', () => {
-                            const id = card.dataset.id;
-                            if (!readNotifications.includes(id)) { readNotifications.push(id);
-                                localStorage.setItem('readNotifications_Dimas', JSON.stringify(
-                                readNotifications));
-                                atualizarBadgeNotificacoes(); }
-                            const post = notificacoes.find(p => p.id == id);
-                            if (post) abrirPostagem(post);
-                            modal.classList.remove('active');
-                        });
-                    });
-                }
-                body.querySelectorAll('[data-dimas-award]').forEach(card=>card.addEventListener('click',()=>{const key=card.dataset.dimasAward;dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgePremiosDimas();modal.classList.remove('active');abrirMeusPremiosDimas()}));
+                const modal=document.getElementById('notif-modal'), body=document.getElementById('notif-modal-body');
+                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(n=>Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
+                const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)}));
+                const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,30);
+                const unreadCount=items.filter(n=>n._premio?!n.lida:!readNotifications.includes(n.id)).length;
+                const header=`<button class="modal-close" aria-label="Fechar" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</button><div class="notif-modal-header"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas e notificações</h2><span style="font-size:.8rem;color:var(--muted)">${items.length} recentes</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px"><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button><button class="btn-mark-all-read" id="btn-go-feed"><i class="fas fa-rss"></i> Ir para o Feed e continuar</button></div>`;
+                const cards=items.map(n=>{const isRead=n._premio?!!n.lida:readNotifications.includes(n.id);const tipo=n.tipo||'informativo';const bg=tipo==='alerta'?'#fee2e2':tipo==='novidade'?'#e0f2fe':tipo==='conquista'?'#fff4cf':'#f3f4f6';const col=tipo==='alerta'?'#991b1b':tipo==='novidade'?'#0369a1':tipo==='conquista'?'#8a5b00':'#374151';const excerpt=(n.texto_html||n.resumo||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);return `<div class="notif-card" data-id="${String(n.id||'').replace(/"/g,'&quot;')}" data-premio="${n._premio?'1':'0'}" style="cursor:pointer;${isRead?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><div class="notif-conquista-icon ${n._premio||tipo==='conquista'?'silver':''}"><i class="fas ${n._premio?'fa-medal':(n.icone||'fa-bell')}"></i></div><div class="notif-body"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${n.titulo||'Notificação'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'Radar Centrobor'}</div><div class="notif-excerpt">${excerpt||'Toque para ver os detalhes.'}</div><span style="font-size:.75rem;color:${isRead?'var(--muted)':'var(--primary)'};font-weight:${isRead?'400':'700'}">${isRead?'✓ Lida':'● Não lida'}</span></div></div>`}).join('');
+                body.innerHTML=header+(cards||'<p style="text-align:center;color:var(--muted);padding:30px">Nenhum alerta recente.</p>');
+                document.getElementById('btn-mark-all-read')?.addEventListener('click',()=>{notificacoes.forEach(n=>{if(!readNotifications.includes(n.id))readNotifications.push(n.id)});localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgeNotificacoes();atualizarBadgePremiosDimas();abrirNotificacoes()});
+                document.getElementById('btn-go-feed')?.addEventListener('click',()=>{modal.classList.remove('active');const feed=document.getElementById('feed')||document.getElementById('feed-section')||document.querySelector('[data-section="feed"]');if(feed){feed.scrollIntoView({behavior:'smooth',block:'start'});}else{const link=[...document.querySelectorAll('a,button,.menu-item')].find(el=>/feed/i.test(el.textContent||''));if(link)link.click();else window.scrollTo({top:0,behavior:'smooth'});}});
+                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{const id=card.dataset.id;if(card.dataset.premio==='1'){dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgePremiosDimas();modal.classList.remove('active');abrirMeusPremiosDimas();return;}if(!readNotifications.includes(id)){readNotifications.push(id);localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();}const post=notificacoes.find(p=>String(p.id)===String(id));modal.classList.remove('active');if(post)abrirPostagem(post);}));
                 modal.classList.add('active');
-                modal.addEventListener('click', function(e) { if (e.target === modal) modal.classList.remove(
-                        'active'); });
             }
 
             // ==================== CARREGAMENTO DE DADOS E RENDER ====================
             async function fetchAllData() {
-                mostrarLoading();
-                try {
-                    const [faturados, aprovados, metasVend, metasEmp, metasDimas, banners, posts, campanhas, info, cotacoes, aprovfat,
-                        carteira
-                    ] = await Promise.all([
-                        fetch(BASES.faturados).then(r => r.json()), fetch(BASES.aprovados).then(r => r.json()),
-                        fetch(BASES.metasVendedores).then(r => r.json()), fetch(BASES.metasEmpresa).then(r => r.json()),
-                        fetch(BASES.metaFaturamento).then(r => r.json()),
-                        fetch(BASES.banners).then(r => r.json()), fetch(BASES.postagens).then(r => r.json()),
-                        fetch(BASES.campanhas).then(r => r.json()), fetch(BASES.informacoes).then(r => r.json()),
-                        fetch(BASES.cotacoes).then(r => r.json()), fetch(BASES.aprovadosfaturados).then(r => r.json()),
-                        fetch(BASES.carteira).then(r => r.json())
-                    ]);
-                    faturadosRaw = faturados;
-                    aprovadosRaw = aprovados;
-                    metasVendRaw = metasVend;
-                    metasEmpresaRaw = metasEmp;
-                    metasDimasRaw = Array.isArray(metasDimas) ? metasDimas : [];
-                    BANNERS = banners;
-                    notificacoes = posts;
-                    campanhasRaw = campanhas;
-                    cotacoesRaw = cotacoes;
-                    aprovFatRaw = aprovfat;
-                    carteiraRaw = carteira;
-
-                    carteiraMapGlobal = new Map();
-                    carteiraRaw.forEach(cli => {
-                        const nomeChave = (cli['Nome Chave'] || '').trim();
-                        const nomeUpper = nomeChave.toUpperCase();
-                        if (nomeUpper && !carteiraMapGlobal.has(nomeUpper)) {
-                            carteiraMapGlobal.set(nomeUpper, cli);
-                        }
-                        const razaoSocial = (cli['Nome/Razão Social'] || '').trim();
-                        const razaoUpper = razaoSocial.toUpperCase();
-                        if (razaoUpper && razaoUpper !== nomeUpper && !carteiraMapGlobal.has(razaoUpper)) {
-                            carteiraMapGlobal.set(razaoUpper, cli);
-                        }
-                    });
-
-                    if (info && info[0]) {
-                        let d = info[0].data || '',
-                            h = info[0].hora || '';
-                        if (d.length > 5) d = d.substring(0, 5);
-                        if (h.length > 5) h = h.substring(0, 5);
-                        document.getElementById('last-update-text').innerText = `Atualizado em: ${d} às ${h} hrs`;
-                        document.getElementById('last-update-badge').style.display = 'flex';
-                        document.getElementById('menu-update-status').textContent = `Atualizado em: ${d} às ${h} hrs`;
-                    }
-                    renderCarrossel();
-                    atualizarBadgeNotificacoes();
-
-                    const hoje = new Date();
-                    anoAtual = hoje.getFullYear();
-                    const mes = hoje.getMonth() + 1;
-                    mesSelecionado = formatMonthKey(hoje);
-
-                    renderizarGradeMeses();
-                    await renderAll(anoAtual, mes);
-                    esconderLoading();
-                } catch (e) {
-                    console.error(e);
-                    document.getElementById('last-update-badge').style.display = 'none';
-                    esconderLoading();
-                    alert('Erro ao carregar dados. Tente novamente.');
-                }
+                const sync=document.getElementById('dimas-background-sync'), syncText=document.getElementById('dimas-background-sync-text');
+                const cacheKey='radar_dimas_cache_v1';
+                const local=()=>{try{return JSON.parse(localStorage.getItem(cacheKey)||'null')}catch(_){return null}};
+                const apply=(d)=>{faturadosRaw=d.faturados||[];aprovadosRaw=d.aprovados||[];metasVendRaw=d.metasVend||[];metasEmpresaRaw=d.metasEmp||[];metasDimasRaw=d.metasDimas||[];BANNERS=d.banners||[];notificacoes=d.posts||[];campanhasRaw=d.campanhas||[];cotacoesRaw=d.cotacoes||[];aprovFatRaw=d.aprovfat||[];carteiraRaw=d.carteira||[];carteiraMapGlobal=new Map();carteiraRaw.forEach(cli=>{const a=(cli['Nome Chave']||'').trim().toUpperCase(),b=(cli['Nome/Razão Social']||'').trim().toUpperCase();if(a&&!carteiraMapGlobal.has(a))carteiraMapGlobal.set(a,cli);if(b&&!carteiraMapGlobal.has(b))carteiraMapGlobal.set(b,cli)});};
+                const renderBase=async()=>{const info=await Promise.resolve([]);if(info&&info[0]){let d=info[0].data||'',h=info[0].hora||'';document.getElementById('last-update-text').innerText=`Atualizado em: ${d} às ${h} hrs`;document.getElementById('last-update-badge').style.display='flex';document.getElementById('menu-update-status').textContent=`Atualizado em: ${d} às ${h} hrs`;}renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);};
+                const cached=local();if(cached){apply(cached);renderBase().catch(console.error);}else{sync.classList.add('visible');syncText.textContent='Carregando dados iniciais…';}
+                sync.classList.add('visible');syncText.textContent='Consultando JSONs locais prioritários e atualizando em segundo plano…';
+                const root='../../dados/';
+                const endpoints=[
+                  ['faturados',root+'faturados_dimas.json',BASES.faturados],['aprovados',root+'aprovados.json',BASES.aprovados],['metasVend',root+'meta_faturamento_consolidado_meses.json',BASES.metasVendedores],['metasEmp',root+'metas.json',BASES.metasEmpresa],['metasDimas',root+'meta_faturamento.json',BASES.metaFaturamento],['banners',root+'banners.json',BASES.banners],['posts',root+'postagens.json',BASES.postagens],['campanhas',root+'campanhas_especiais.json',BASES.campanhas],['info',root+'informacoes.json',BASES.informacoes],['cotacoes',root+'cotacoes.json',BASES.cotacoes],['aprovfat',root+'aprovadosfaturados.json',BASES.aprovadosfaturados],['carteira',root+'carteiraclientes.json',BASES.carteira]
+                ];
+                const readOne=async([key,url,fallback])=>{try{let r=await fetch(url,{cache:'no-cache'});if(!r.ok)throw Error('JSON local indisponível');let v=await r.json();return [key,v];}catch(e){try{let r=await fetch(fallback,{cache:'no-cache'});if(!r.ok)throw Error('Fonte OpenSheet indisponível');return [key,await r.json()]}catch(_){const old=local();return [key,old?.[key]||[]]}}};
+                try{const entries=await Promise.all(endpoints.map(readOne));const data=Object.fromEntries(entries);apply(data);try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch(e){console.warn('Cache Dimas não gravado por limite de armazenamento',e)}renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);syncText.textContent='Dados atualizados. Você pode continuar usando a página.';setTimeout(()=>sync.classList.remove('visible'),1800);
+                }catch(e){console.error('Falha na atualização híbrida:',e);syncText.textContent='Algumas fontes falharam; mantendo os dados disponíveis.';setTimeout(()=>sync.classList.remove('visible'),5000);if(!cached){alert('Não foi possível carregar os dados. Verifique a conexão.');}}
             }
 
             async function renderAll(ano, mes) {
