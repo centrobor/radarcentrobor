@@ -885,6 +885,25 @@
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
+        /* Alertas: controles mais claros e consistentes */
+        #notif-modal .notif-filter-btn, .notif-filter-btn {
+            border: 1px solid #d8e2ef !important; border-radius: 999px !important;
+            padding: 9px 16px !important; font-size: .88rem !important; font-weight: 700 !important;
+            background: #f5f8fc; color: #30445f; box-shadow: 0 2px 7px rgba(30,58,95,.07);
+            transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+        }
+        .notif-filter-btn:hover { transform: translateY(-1px); box-shadow: 0 5px 14px rgba(30,58,95,.13); }
+        .notif-filter-btn[style*="background:var(--primary)"] { background: linear-gradient(135deg,#1e3a5f,#3272a8) !important; color:#fff !important; border-color:transparent !important; }
+        .btn-mark-all-read { border:0 !important; border-radius:999px !important; padding:10px 15px !important; font-weight:700 !important; background:linear-gradient(135deg,#147d64,#20a779) !important; color:#fff !important; box-shadow:0 5px 14px rgba(20,125,100,.2); }
+        .btn-mark-all-read:hover { transform:translateY(-1px); filter:brightness(1.04); }
+        #notif-modal .notif-card { border-radius:16px !important; padding:13px !important; margin:10px 0 !important; box-shadow:0 4px 14px rgba(25,50,80,.06); }
+        #notif-modal h2 { font-size:1.45rem; font-weight:800; color:#183451; }
+        #notif-modal .modal-close { border-radius:50% !important; background:#e84b4b !important; color:#fff !important; border:0 !important; width:40px; height:40px; font-size:25px !important; box-shadow:0 4px 12px rgba(232,75,75,.22); }
+        .achievement-banner.achievement-darts { background:radial-gradient(circle at 85% 20%,rgba(210,151,79,.36),transparent 32%),linear-gradient(120deg,#102b48,#284c68 58%,#754b28); }
+        .achievement-banner.achievement-monthly { background:radial-gradient(circle at 85% 20%,rgba(255,218,112,.35),transparent 32%),linear-gradient(120deg,#142e50,#275c79 58%,#9a7028); }
+        .achievement-banner .achievement-banner-content { position:relative; z-index:2; }
+        .achievement-banner .achievement-banner-trophy { filter:drop-shadow(0 5px 12px rgba(0,0,0,.25)); }
+        .achievement-banner .achievement-confetti { pointer-events:none; }
         .btn-mark-all-read {
             background: var(--primary-soft);
             border: 1px solid var(--primary-light);
@@ -3150,25 +3169,47 @@
             }
 
             function renderCarrossel() {
-                const container = document.getElementById('carousel-container'), indicators = document.getElementById('carousel-indicators');
+                const container=document.getElementById('carousel-container'), indicators=document.getElementById('carousel-indicators');
                 if(!container||!indicators)return;
-                const slides = BANNERS.map((b,i)=>({kind:'banner',data:b,index:i}));
-                // Conquistas de campanhas entram no mesmo carrossel, sem substituir os banners editoriais.
+                const slides=(BANNERS||[]).map((b,i)=>({kind:'banner',data:b,index:i}));
+                const normalizar=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+                // Campanhas especiais: um único banner coletivo por campanha, listando todos os vencedores.
+                const grupos={};
                 (campanhasData||[]).forEach(c=>{
                     const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
-                    if(meta>0&&realizado>=meta){slides.push({kind:'achievement',data:c});}
+                    if(!(meta>0&&realizado>=meta))return;
+                    const nomeCamp=String(c.campanha||'Campanha especial');
+                    const key=normalizar(nomeCamp);
+                    if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign'};
+                    grupos[key].vencedores.push({nome:c.vendedor_nome||VENDEDORES_MAP[String(c.vendedor_cod||'')]||'Vendedor',realizado,meta});
                 });
-                container.innerHTML = slides.map((item,i)=>{
-                    if(item.kind==='achievement'){
-                        const c=item.data, nome=c.vendedor_nome||VENDEDORES_MAP[String(c.vendedor_cod||'')]||'Equipe', realizado=cleanNumber(c.realizado_valor), meta=cleanNumber(c.meta_valor);
-                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0"><div class="achievement-confetti"></div><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-trophy">🏆</div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA</span><h2>Meta atingida!</h2><p>${nome} · ${c.campanha||'Campanha especial'}</p><strong>Realizado: ${formatCurrency(realizado)} · Meta: ${formatCurrency(meta)}</strong><small>Parabéns pelo resultado. Continue acelerando!</small></div></div></div>`;
+                Object.values(grupos).forEach(g=>slides.push({kind:'achievement',data:g}));
+                // Conquistas de meta mensal coletadas do faturamento real do mês atual.
+                const now=new Date(), ano=now.getFullYear(), mes=now.getMonth()+1;
+                const monthRows=(allConsolidadoMetas||[]).filter(r=>{const d=parseDataBR(r.mes_ano);return d&&d.getFullYear()===ano&&d.getMonth()+1===mes;});
+                const monthWinners=[];
+                monthRows.forEach(r=>{
+                    const nome=String(r.vendedor||'').trim(),id=String(r.id_vendedor||'');
+                    const meta=cleanNumber(r.meta_mensal),fat=cleanNumber(r.faturado);
+                    if(!nome||!meta||fat<meta||id==='1'||id==='80'||/^Fabiano/i.test(nome))return;
+                    if(!monthWinners.some(w=>w.id===id&&normalizar(w.nome)===normalizar(nome)))monthWinners.push({id,nome:VENDEDORES_MAP[id]||nome,realizado:fat,meta});
+                });
+                if(monthWinners.length)slides.push({kind:'monthly-achievement',data:{vencedores:monthWinners,nome:'Meta mensal'}});
+                container.innerHTML=slides.map((item,i)=>{
+                    if(item.kind==='achievement'||item.kind==='monthly-achievement'){
+                        const d=item.data, mensal=item.kind==='monthly-achievement', dardos=!mensal&&d.tipo==='darts';
+                        const nomes=d.vencedores.map(v=>v.nome).join(' • ');
+                        const melhor=d.vencedores.reduce((a,b)=>b.realizado>b.realizado?b:a,d.vencedores[0]);
+                        const icon=mensal?'🏆':dardos?'🎯':'🏆';
+                        const title=mensal?'Meta mensal atingida!':dardos?'Campanha dos Dardos conquistada!':'Campanha concluída!';
+                        return `<div class="carousel-slide achievement-banner ${dardos?'achievement-darts':'achievement-monthly'}" data-idx="${i}" role="button" tabindex="0"><div class="achievement-confetti"></div><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-trophy">${icon}</div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA</span><h2>${title}</h2><p>${nomes}</p><strong>${d.vencedores.length} ${d.vencedores.length===1?'vendedor vencedor':'vendedores vencedores'}</strong><small>${mensal?'Parabéns pela meta do mês!':d.nome+' · Parabéns pelo resultado!'}</small></div></div></div>`;
                     }
                     const b=item.data;
                     return `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${b.titulo||''}</span><small>${b.data||''}</small></div></div>`;
                 }).join('');
-                indicators.innerHTML = slides.map((_,i)=>`<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
+                indicators.innerHTML=slides.map((_,i)=>`<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
                 currentCarouselIndex=Math.min(currentCarouselIndex,Math.max(0,slides.length-1));
-                document.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',e=>{currentCarouselIndex=parseInt(e.currentTarget.dataset.idx);updateCarrossel();}));
+                document.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',e=>{currentCarouselIndex=Number(e.currentTarget.dataset.idx);updateCarrossel();}));
                 document.querySelectorAll('.carousel-slide').forEach((el,i)=>{if(slides[i]?.kind==='banner')el.addEventListener('click',()=>abrirModalPostagem(slides[i].data));});
                 updateCarrossel();
             }
