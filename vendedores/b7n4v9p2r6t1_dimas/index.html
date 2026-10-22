@@ -1415,14 +1415,15 @@
 
 
 /* Barra amarela superior de sincronização, no padrão da página do Matheus */
-#dimas-background-sync{position:fixed;top:0;left:0;right:0;z-index:10050;display:none;align-items:center;gap:9px;min-height:30px;padding:5px 14px 8px;background:#fff8d7;color:#725400;border-bottom:1px solid #f2d35e;box-shadow:0 2px 8px rgba(100,75,0,.10);font-size:12px;font-weight:700;box-sizing:border-box}
+#dimas-background-sync{position:relative;z-index:20;display:none;align-items:center;gap:9px;min-height:46px;margin:0 auto 16px;padding:8px 13px;background:#fff8e7;color:#79591a;border:1px solid #f2dda0;border-radius:14px;box-shadow:none;font-size:12px;font-weight:500;box-sizing:border-box;width:min(100% - 32px,1320px)}
 #dimas-background-sync.visible{display:flex}
-#dimas-background-sync>i{font-size:12px;color:#b8860b;flex:0 0 auto}
-#dimas-background-sync-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:1}
-#dimas-background-sync .sync-progress{position:absolute;left:0;right:0;bottom:0;height:3px;background:#f8e9a1;overflow:hidden}
-#dimas-background-sync .sync-progress span{display:block;width:35%;height:100%;background:#eab308;animation:dimasSyncSlide 1.35s ease-in-out infinite;border-radius:0 3px 3px 0}
+#dimas-background-sync>i{font-size:13px;color:#8b681d;flex:0 0 auto}
+#dimas-background-sync-text{white-space:normal;overflow:hidden;text-overflow:ellipsis;flex:1;line-height:1.4}
+#dimas-background-sync .sync-progress{display:none}
+#dimas-background-sync-retry{flex:0 0 auto;border:1px solid #bba36a;background:#fffdf6;color:#79591a;border-radius:999px;padding:6px 12px;font-weight:700;font-size:11px;cursor:pointer}
+#dimas-background-sync-retry:hover{background:#f9edc8}
 @keyframes dimasSyncSlide{0%{transform:translateX(-110%)}100%{transform:translateX(310%)}}
-@media(max-width:600px){#dimas-background-sync{font-size:11px;padding-left:9px;padding-right:9px;min-height:28px}}
+@media(max-width:600px){#dimas-background-sync{font-size:11px;padding:8px 9px;width:calc(100% - 20px);margin-bottom:10px}#dimas-background-sync-retry{padding:5px 8px}}
 
 </style>
 <style>#meus-premios-modal-dimas.active{display:flex!important}#meus-premios-modal-dimas .modal-content{animation:dimasAwardsIn .22s ease-out}@keyframes dimasAwardsIn{from{opacity:.5;transform:translateY(10px) scale(.99)}to{opacity:1;transform:none}}@media(max-width:600px){#meus-premios-modal-dimas{padding:6px!important}#meus-premios-modal-dimas .modal-content{width:100%!important;max-height:95vh!important;border-radius:16px!important}}</style>
@@ -1442,7 +1443,7 @@
         <div class="loading-text">Consultando dados...</div>
     </div>
 
-    <div id="dimas-background-sync" role="status" aria-live="polite"><i class="fas fa-arrows-rotate fa-spin"></i><span id="dimas-background-sync-text">Consultando dados em segundo plano…</span><div class="sync-progress"><span></span></div></div>
+    <div id="dimas-background-sync" role="status" aria-live="polite"><i class="fas fa-cloud-arrow-up"></i><span id="dimas-background-sync-text">Atualizando dados em segundo plano. Você pode continuar usando a página.</span><button id="dimas-background-sync-retry" type="button">Tentar atualizar</button><div class="sync-progress"><span></span></div></div>
     <!-- HEADER DE IMPRESSÃO -->
     <div id="print-header">
         <h1>Dimas - Coordenador</h1>
@@ -2426,8 +2427,12 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 const container = document.getElementById('carousel-container');
                 const indicators = document.getElementById('carousel-indicators');
                 const hojeBanner=new Date(), chaveMesBanner=`${hojeBanner.getFullYear()}-${String(hojeBanner.getMonth()+1).padStart(2,'0')}`;
-                const bannersConquista = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(b => b.tipo==='MENSAL' && b.dataConquista===chaveMesBanner && Date.now()-Number(b.timestamp||0)<(3*24*60*60*1000)).map(b=>({...b,_dimasConquista:true}));
-                const bannersExibicao = [...bannersConquista, ...BANNERS];
+                const recentesBanner = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(b => Date.now()-Number(b.timestamp||0)<(3*24*60*60*1000));
+                const recentesPremios = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_AWARDS_KEY) : []).filter(a => Date.now()-Number(a.timestamp||0)<(3*24*60*60*1000)).map(a=>({...a,tipo:'MENSAL',timestamp:a.timestamp||Date.now(),_dimasConquista:true}));
+                const unicosConquista = new Map();
+                [...recentesBanner,...recentesPremios].forEach(b=>{const id=String(b.chave||b.id||b.nome||b.titulo||b.timestamp);if(!unicosConquista.has(id))unicosConquista.set(id,{...b,_dimasConquista:true});});
+                const bannersConquista = [...unicosConquista.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(b=>({...b,_dimasConquista:true}));
+                const bannersExibicao = [...bannersConquista, ...(Array.isArray(BANNERS)?BANNERS:[])];
                 window._dimasCarouselSlides = bannersExibicao;
                 if (!bannersExibicao.length) {
                     container.innerHTML =
@@ -2526,6 +2531,9 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 try{const entries=await Promise.all(endpoints.map(readOne));const data=Object.fromEntries(entries);apply(data);try{const cacheLeve={};for(const k of ['metasVend','metasEmp','metasDimas','banners','posts','campanhas','info']){const v=data[k];if(v!==undefined&&JSON.stringify(v).length<45000)cacheLeve[k]=v;}const cacheTexto=JSON.stringify(cacheLeve);if(cacheTexto.length<180000)localStorage.setItem(cacheKey,cacheTexto);else console.info('Cache persistente ignorado por tamanho; dados seguem disponíveis em memória.');}catch(e){try{localStorage.removeItem(cacheKey)}catch(_){}console.info('Cache persistente indisponível por quota; dados seguem disponíveis em memória.',e)}renderCarrossel();atualizarBadgeNotificacoes();const hoje=new Date();anoAtual=hoje.getFullYear();const mes=hoje.getMonth()+1;mesSelecionado=formatMonthKey(hoje);renderizarGradeMeses();await renderAll(anoAtual,mes);syncText.textContent='Dados atualizados. Você pode continuar usando a página.';setTimeout(()=>sync.classList.remove('visible'),1800);
                 }catch(e){console.error('Falha na atualização híbrida:',e);syncText.textContent='Algumas fontes falharam; mantendo os dados disponíveis.';setTimeout(()=>sync.classList.remove('visible'),5000);if(!cached){console.warn('A página segue aberta mesmo sem todas as fontes.');}}finally{esconderLoading();if(sync){syncText.textContent='Consulta finalizada.';setTimeout(()=>sync.classList.remove('visible'),1800);}}
             }
+
+            const retrySyncButton = document.getElementById('dimas-background-sync-retry');
+            if (retrySyncButton) retrySyncButton.addEventListener('click', () => { fetchAllData().catch(err => console.warn('Falha ao tentar atualizar novamente:', err)); });
 
             async function renderAll(ano, mes) {
                 renderKPI(ano, mes);
