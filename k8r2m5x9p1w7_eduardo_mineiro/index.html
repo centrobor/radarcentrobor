@@ -2662,9 +2662,9 @@
                 else if(key==='dolar') dolarData=data;
                 else if(key==='metasGlobais') metasGlobais=data;
                 else if(key==='cadastro') cadastros=data;
-                else if(key==='campanhas_especiais') campanhasData=data;
+                else if(key==='campanhas_especiais') { campanhasData=Array.isArray(data)?data:[]; processarCampanhasAtivas(campanhasData); }
                 else if(key==='apresentacao') apresentacoes=data;
-                else if(key==='metasConsolidada') allConsolidadoMetas=data;
+                else if(key==='metasConsolidada') { allConsolidadoMetas=Array.isArray(data)?data:[]; const sel=document.getElementById('vendor-month-selector'); if(sel && sel.value) renderVendorGoals(sel.value); }
                 dataReady.add(key);
             }
             async function loadLocalKey(key){
@@ -3000,6 +3000,16 @@
 
             function getStatusInfo(p) { if (p >= 100) return { icon: '<i class="fas fa-check-circle" style="color:var(--success)"></i>', text: 'Atingido', cssClass: 'status-atingido' }; if (p >= 60) return { icon: '<i class="fas fa-exclamation-triangle" style="color:var(--warning)"></i>', text: 'No ritmo', cssClass: 'status-no-ritmo' }; return { icon: '<i class="fas fa-times-circle" style="color:var(--danger)"></i>', text: 'Em progresso', cssClass: 'status-em-progresso' }; }
             function getProgressColor(p) { if (p >= 100) return '#2e7d32'; if (p >= 60) return '#ed6c02'; return '#d32f2f'; }
+
+            // Normaliza nomes para comparação sem depender de funções externas.
+            function normalizarNome(valor) {
+                return String(valor == null ? '' : valor)
+                    .normalize('NFD')
+                    .replace(/[\u0300-\u036f]/g, '')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, ' ')
+                    .trim();
+            }
 
             function renderVendorGoals(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
