@@ -1996,6 +1996,10 @@
             <button class="menu-item" id="menu-geradorJson"><i class="fas fa-terminal"></i> Gerador de JSON</button>
         </div>
         <div class="menu-section">
+            <div class="menu-section-label">Ferramentas</div>
+            <button class="menu-item" id="menu-meus-premios"><i class="fas fa-medal"></i> Quadro de Medalhas</button>
+        </div>
+        <div class="menu-section">
             <div class="menu-section-label">Status</div>
             <div class="menu-item" style="pointer-events:none;opacity:0.8;">
                 <i class="fas fa-sync-alt"></i>
@@ -2066,7 +2070,7 @@
             </div>
         </div>
 
-        <div id="hybrid-sync-status" role="status" aria-live="polite" style="display:flex;align-items:center;gap:10px;margin:-8px 0 18px;padding:11px 16px;border:1px solid #f4d06f;border-left:5px solid #e5a000;border-radius:12px;background:#fff8dc;color:#755400;font-size:.82rem;font-weight:600;box-shadow:0 3px 12px rgba(120,90,0,.08)">
+        <div id="hybrid-sync-status" role="status" aria-live="polite" style="display:none;align-items:center;gap:10px;margin:-8px 0 18px;padding:11px 16px;border:1px solid #f4d06f;border-left:5px solid #e5a000;border-radius:12px;background:#fff8dc;color:#755400;font-size:.82rem;font-weight:600;box-shadow:0 3px 12px rgba(120,90,0,.08)">
             <i class="fas fa-cloud-arrow-down" id="hybrid-sync-icon"></i><span id="hybrid-sync-text">Preparando dados locais…</span><span id="hybrid-sync-count" style="margin-left:auto;white-space:nowrap">0/0 fontes</span>
         </div>
 
@@ -2183,6 +2187,12 @@
     <!-- MODAL DE DETALHES DA CAMPANHA -->
     <div class="modal" id="campaign-detail-modal">
         <div class="modal-content" id="campaign-detail-body"></div>
+    </div>
+    <div class="modal" id="awards-popup-modal" style="z-index:1200;">
+        <div class="modal-content" style="width:min(1200px,96vw);max-width:1200px;height:90vh;max-height:90vh;padding:8px;overflow:hidden;">
+            <button class="modal-close" id="close-awards-popup" aria-label="Fechar quadro de medalhas" style="z-index:10;background:white;border-radius:50%;padding:0 8px;">&times;</button>
+            <iframe id="awards-popup-frame" title="Quadro de Medalhas" style="width:100%;height:100%;border:0;border-radius:18px;background:#f5f7fa;" loading="lazy"></iframe>
+        </div>
     </div>
 
     <!-- MODAL DE APRESENTAÇÕES -->
@@ -2310,7 +2320,7 @@
             const BASES = {
                 cadastro: `https://opensheet.elk.sh/${SHEET_ID}/cadastro`,
                 faturados: `https://opensheet.elk.sh/${SHEET_ID}/faturados`,
-                aprovados: `https://opensheet.elk.sh/${SHEET_ID}/aprovados`,
+                aprovados: `https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos`,
                 metas: `https://opensheet.elk.sh/${SHEET_ID}/meta_faturamento`,
                 metasGlobais: `https://opensheet.elk.sh/${SHEET_ID}/metas`,
                 pedidos: `https://opensheet.elk.sh/1u0YOPkNqQjdB6hYKvosTLc4AG39yJlkj4CJohfQ-ZYY/Pedidos`,
@@ -2341,7 +2351,7 @@
 
             let allFaturados = [], allAprovados = [], allMetas = [], allPedidos = [],
                 BANNERS = [], notificacoes = [], dolarData = [], metasGlobais = [], cadastros = [],
-                campanhasData = [], apresentacoes = [];
+                campanhasData = [], apresentacoes = [], allConsolidadoMetas = [];
             let readNotifications = JSON.parse(localStorage.getItem('readNotifications')) || [];
             let quickItems = Object.entries(MENU_CONFIG)
                 .filter(([key, item]) => item.desktop)
@@ -2593,31 +2603,41 @@
             const BASE_DADOS = new URL('../dados/', window.location.href).href;
             const LOCAL_JSON = {
                 faturados: ['faturados_fabio.json','faturados_matheus.json','faturados_lorena.json','faturados_cesar.json','faturados_juliana.json','faturados_valeria.json','faturados_luan.json'],
-                aprovados: 'aprovados.json', metas: 'meta_faturamento.json', pedidos: 'aprovadosfaturados.json',
-                banners: 'banners.json', postagens: 'postagens.json',
-                metasGlobais: 'metas.json', cadastro: 'cadastro.json', campanhas_especiais: 'campanhas_especiais.json',
+                // Pedidos/aprovações sempre priorizam a planilha Pedidos via OpenSheet.
+                pedidos: null,
+                metas: 'meta_faturamento.json', banners: 'banners.json', postagens: 'postagens.json',
+                metasGlobais: 'metas.json', cadastro: 'cadastro.json',
+                campanhas_especiais: 'campanhas_especiais.json',
+                metasConsolidada: 'meta_faturamento_consolidado_meses.json',
                 dolar: null, apresentacao: null
             };
-            const DATA_KEYS = ['faturados','aprovados','metas','pedidos','banners','postagens','dolar','metasGlobais','cadastro','campanhas_especiais','apresentacao'];
-            const DATA_LABELS = {faturados:'faturamento',aprovados:'pedidos aprovados',metas:'metas dos vendedores',pedidos:'pedidos aprovados/faturados',banners:'banners',postagens:'alertas e notificações',dolar:'cotação do dólar',metasGlobais:'metas globais',cadastro:'cadastros',campanhas_especiais:'campanhas',apresentacao:'apresentações'};
+            const DATA_KEYS = ['faturados','metas','pedidos','banners','postagens','dolar','metasGlobais','cadastro','campanhas_especiais','apresentacao','metasConsolidada'];
+            // Campanhas especiais e o quadro Metas Vendedores usam os JSONs publicados em /dados.
+            const LOCAL_ONLY_KEYS = new Set(['campanhas_especiais','metasConsolidada']);
+            const CLOUD_KEYS = DATA_KEYS.filter(key => !LOCAL_ONLY_KEYS.has(key));
+            const DATA_LABELS = {faturados:'faturamento',metas:'metas dos vendedores',pedidos:'pedidos/aprovações',banners:'banners',postagens:'alertas e notificações',dolar:'cotação do dólar',metasGlobais:'metas globais',cadastro:'cadastros',campanhas_especiais:'campanhas',apresentacao:'apresentações',metasConsolidada:'metas consolidadas'};
             const dataReady = new Set();
-            let syncPending = 0, syncErrors = 0, localReady = false;
-            function setHybridStatus(message, state='loading') {
+            let syncPending = 0, syncErrors = 0, localReady = false, syncHideTimer = null;
+            function setHybridStatus(message, state='loading', source='cloud') {
                 const box=document.getElementById('hybrid-sync-status'), text=document.getElementById('hybrid-sync-text'), icon=document.getElementById('hybrid-sync-icon');
                 if(!box||!text||!icon)return;
+                if(syncHideTimer){clearTimeout(syncHideTimer);syncHideTimer=null;}
+                box.style.display='flex';
                 text.textContent=message;
                 box.style.background=state==='done'?'#eaf7ee':state==='error'?'#fff0ef':'#fff8dc';
                 box.style.borderColor=state==='done'?'#9bd3a7':state==='error'?'#e8a09b':'#f4d06f';
+                box.style.borderLeftColor=state==='done'?'#2e7d32':state==='error'?'#d32f2f':'#e5a000';
                 box.style.color=state==='done'?'#205b2d':state==='error'?'#8d2520':'#755400';
-                icon.className=state==='done'?'fas fa-circle-check':state==='error'?'fas fa-triangle-exclamation':'fas fa-cloud-arrow-down';
+                icon.className=source==='local'?'fas fa-server':state==='done'?'fas fa-cloud-check':state==='error'?'fas fa-cloud-circle-exclamation':'fas fa-cloud-arrow-down';
                 const count=document.getElementById('hybrid-sync-count'); if(count)count.textContent=`${dataReady.size}/${DATA_KEYS.length} fontes`;
+                if(state==='done') syncHideTimer=setTimeout(()=>{box.style.display='none';},3500);
             }
             function assignData(key,data){
                 if(!Array.isArray(data)) return;
                 if(key==='faturados') allFaturados=data;
                 else if(key==='aprovados') allAprovados=data;
                 else if(key==='metas') allMetas=data;
-                else if(key==='pedidos') allPedidos=data;
+                else if(key==='pedidos') { allPedidos=data; allAprovados=data; }
                 else if(key==='banners') BANNERS=data;
                 else if(key==='postagens') notificacoes=data;
                 else if(key==='dolar') dolarData=data;
@@ -2625,6 +2645,7 @@
                 else if(key==='cadastro') cadastros=data;
                 else if(key==='campanhas_especiais') campanhasData=data;
                 else if(key==='apresentacao') apresentacoes=data;
+                else if(key==='metasConsolidada') allConsolidadoMetas=data;
                 dataReady.add(key);
             }
             async function loadLocalKey(key){
@@ -2652,26 +2673,36 @@
                 try{
                     const data=await carregarJSON(BASES[key]);
                     if(Array.isArray(data)&&data.length){assignData(key,data);renderProgressive();}
-                }catch(e){syncErrors++;console.warn(`Fonte ${key} segue indisponível; mantendo dados locais`,e)}
+                    else throw new Error('A fonte retornou uma lista vazia.');
+                }catch(e){syncErrors++;console.warn(`Fonte de nuvem ${key} indisponível; mantendo os dados locais, quando disponíveis.`,e)}
                 finally{
-                    syncPending--; const count=document.getElementById('hybrid-sync-count'); if(count)count.textContent=`${DATA_KEYS.length-syncPending}/${DATA_KEYS.length} fontes`;
-                    if(syncPending===0){setHybridStatus(syncErrors?`Painel utilizável. Atualização em segundo plano concluída com ${syncErrors} fonte(s) indisponível(is); dados disponíveis foram mantidos.`:'Tudo atualizado. Os dados locais foram conferidos com a nuvem.',syncErrors?'error':'done');
-                        const lu=document.getElementById('last-update');if(lu)lu.textContent=`Atualizado ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;}
+                    syncPending--;
+                    const count=document.getElementById('hybrid-sync-count');
+                    if(count)count.textContent=`${CLOUD_KEYS.length-syncPending}/${CLOUD_KEYS.length} nuvens`;
+                    if(syncPending===0){
+                        const msg=syncErrors
+                          ? `Nuvem: falha em ${syncErrors} fonte(s). O painel mantém os dados disponíveis no servidor local.`
+                          : 'Nuvem: atualização concluída com sucesso. Os dados locais das metas e campanhas foram mantidos.';
+                        setHybridStatus(msg,syncErrors?'error':'done','cloud');
+                        const lu=document.getElementById('last-update');if(lu)lu.textContent=`${syncErrors?'Base local + falha na nuvem':'Nuvem sincronizada'} · ${new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+                    }
                 }
             }
             async function fetchAllData() {
                 const overlay=document.getElementById('loading-overlay');
-                if(overlay)overlay.classList.add('hidden'); // nunca bloquear o painel inteiro durante a consulta
-                setHybridStatus('Carregando os JSONs da pasta dados/; o painel será liberado assim que houver dados disponíveis.');
-                // Começa por fontes locais em paralelo, sem depender da nuvem.
+                if(overlay)overlay.classList.add('hidden');
+                setHybridStatus('Servidor local: carregando os JSONs publicados em /dados…','loading','local');
+                // Carrega local primeiro; os pedidos e aprovações são deliberadamente excluídos desta etapa.
                 await Promise.all(DATA_KEYS.map(async key=>{const ok=await loadLocalKey(key);if(ok)renderProgressive();}));
                 localReady=dataReady.size>0;
                 renderProgressive();
-                if(localReady)setHybridStatus(`Painel liberado com ${dataReady.size} fonte(s) local(is). Consultando a nuvem em segundo plano; você pode continuar usando a página.`);
-                else setHybridStatus('Nenhum JSON local disponível. Abrindo o painel com os primeiros dados que chegarem da nuvem.');
-                // Atualiza cada fonte de forma independente; uma falha não bloqueia as demais.
-                syncPending=DATA_KEYS.length; syncErrors=0;
-                DATA_KEYS.forEach(key=>{refreshCloudKey(key)});
+                setHybridStatus(localReady
+                  ? `Servidor local: ${dataReady.size} fonte(s) JSON carregada(s). Agora consultando a nuvem para os dados atualizáveis…`
+                  : 'Servidor local: nenhum JSON disponível. Consultando a nuvem para liberar o painel.',
+                  'loading',localReady?'local':'cloud');
+                syncPending=CLOUD_KEYS.length; syncErrors=0;
+                CLOUD_KEYS.forEach(key=>{if(BASES[key])refreshCloudKey(key);else{syncErrors++;syncPending--;}});
+                if(syncPending===0)setHybridStatus('Nuvem: nenhuma fonte pôde ser consultada.', 'error','cloud');
             }
 
             function atualizarCotacaoDolar() {
@@ -2954,93 +2985,41 @@
             function renderVendorGoals(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
                 const vendorEntries = [];
-                const processedNonFabiano = new Set();
+                const rows = (allConsolidadoMetas || []).filter(r => {
+                    const d = parseDataBR(r.mes_ano);
+                    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
+                });
+                const rowsUsed = new Set();
 
-                allMetas.forEach(m => {
-                    const nome = (m.vendedor || '').trim();
-                    if (!nome) return;
-                    const id = String(m.id_vendedor || '').trim();
-                    if (id == '80' || id == '1') return;
-                    if (nome.includes('Dimas') || nome.includes('Eduardo')) return;
-                    const metaM = cleanNumber(m.meta_mensal);
+                rows.forEach(r => {
+                    const nome = String(r.vendedor || '').trim();
+                    const id = String(r.id_vendedor || '').trim();
+                    if (!nome || !id || id === '80' || id === '1') return;
                     if (selectedVendor !== 'all' && id !== selectedVendor) return;
+                    const metaM = cleanNumber(r.meta_mensal);
+                    const fat = cleanNumber(r.faturado);
 
-                    if (nome.startsWith('Fabiano')) {
+                    if (/^Fabiano/i.test(nome)) {
                         vendorEntries.push({
                             vendedor: 'Fabiano',
-                            categoria: nome.replace('Fabiano - ', ''),
-                            metaMensal: metaM,
-                            idVendedor: id,
+                            categoria: nome.replace(/^Fabiano\s*-\s*/i, ''),
+                            metaMensal: metaM, faturado: fat, idVendedor: id,
                             isFabiano: true,
                             fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
                         });
-                    } else if (!processedNonFabiano.has(id)) {
-                        processedNonFabiano.add(id);
-                        vendorEntries.push({
-                            vendedor: VENDEDORES_MAP[id] || nome,
-                            categoria: '',
-                            metaMensal: metaM,
-                            idVendedor: id,
-                            isFabiano: false
-                        });
+                        return;
                     }
-                });
-
-                vendorEntries.forEach(e => {
-                    if (e.isFabiano) {
-                        e.faturado = e.fabianoTipo === 'sincpolias'
-                            ? getFabianoSincPoliasFat(ano, mes)
-                            : getFabianoLavanderiaFat(ano, mes);
-                    } else {
-                        let fat = 0;
-                        allFaturados.forEach(f => {
-                            const d = parseDataBR(f['Data']);
-                            if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes &&
-                                String(f['Cod. Vendedor'] || '').trim() === e.idVendedor) {
-                                fat += cleanNumber(f['Valor Mercadoria']);
-                            }
-                        });
-                        e.faturado = fat;
-                    }
-                });
-
-                let fatGeral = 0;
-                const chavesUsadas = new Set();
-                allFaturados.forEach(f => {
-                    const d = parseDataBR(f['Data']);
-                    if (d && d.getFullYear() === ano && d.getMonth() + 1 === mes) {
-                        const cod = f['Cod. Vendedor']?.trim();
-                        if (cod == '80' || cod == '1') return;
-                        if (selectedVendor == 'all' || cod === selectedVendor) {
-                            const chave = `${f['Nota Fiscal'] || ''}_${f['Código'] || ''}_${f['Valor Mercadoria'] || ''}`;
-                            if (!chavesUsadas.has(chave)) {
-                                chavesUsadas.add(chave);
-                                fatGeral += cleanNumber(f['Valor Mercadoria']);
-                            }
-                        }
-                    }
-                });
-
-                let metaDimas = 0;
-                allMetas.forEach(m => {
-                    const nome = (m.vendedor || '').trim();
-                    if (nome.includes('Dimas')) metaDimas = cleanNumber(m.meta_mensal);
-                });
-                if (metaDimas === 0) metaDimas = getMetaGlobal(ano, mes);
-
-                vendorEntries.push({
-                    vendedor: 'Dimas',
-                    categoria: 'Geral',
-                    metaMensal: metaDimas,
-                    faturado: fatGeral,
-                    isDimas: true
-                });
-                vendorEntries.push({
-                    vendedor: 'Eduardo',
-                    categoria: 'Geral',
-                    metaMensal: metaDimas,
-                    faturado: fatGeral,
-                    isEduardo: true
+                    const key = `${id}::${normalizarNome(nome)}`;
+                    if (rowsUsed.has(key)) return;
+                    rowsUsed.add(key);
+                    const isDimas = id === '10' || normalizarNome(nome).includes('dimas');
+                    const isEduardo = id === '12' || normalizarNome(nome).includes('eduardo');
+                    vendorEntries.push({
+                        vendedor: isDimas ? 'Dimas' : isEduardo ? 'Eduardo' : (VENDEDORES_MAP[id] || nome),
+                        categoria: (isDimas || isEduardo) ? 'Geral' : '',
+                        metaMensal: metaM, faturado: fat, idVendedor: id,
+                        isDimas, isEduardo
+                    });
                 });
 
                 vendorEntries.forEach(e => {
@@ -3052,67 +3031,43 @@
                 const fabianoCards = vendorEntries.filter(e => e.isFabiano);
                 const individuais = vendorEntries.filter(e => !e.isFabiano && !e.isDimas && !e.isEduardo);
                 const gerais = vendorEntries.filter(e => e.isDimas || e.isEduardo);
-
                 individuais.sort((a, b) => b.percentual - a.percentual);
                 gerais.sort((a, b) => (a.isDimas ? -1 : 1));
 
                 const container = document.getElementById('vendor-goals-container');
                 let html = '';
-
                 function renderGroup(title, entries) {
-                    if (entries.length === 0) return '';
+                    if (!entries.length) return '';
                     let groupHtml = `<div class="vendor-group"><div class="vendor-group-title">${title}</div><div class="vendor-group-cards">`;
                     entries.forEach((entry, index) => {
                         const st = getStatusInfo(entry.percentual);
                         const cor = getProgressColor(entry.percentual);
                         const falta = Math.max(0, entry.metaMensal - entry.faturado);
-                        const cardHtml = `<div class="vendor-mini-card" data-entry-index="${index}">
-                            <div class="vendor-mini-header">
-                                <span class="vendor-name">${entry.vendedor}</span>
-                                ${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}
-                            </div>
+                        groupHtml += `<div class="vendor-mini-card" data-entry-index="${index}">
+                            <div class="vendor-mini-header"><span class="vendor-name">${entry.vendedor}</span>${entry.categoria ? `<span class="vendor-category">${entry.categoria}</span>` : ''}</div>
                             <div class="target-row">
                                 <div class="target-info"><div class="label">Meta Mensal</div><div>R$ ${formatCurrency(entry.metaMensal)}</div></div>
                                 <div class="target-info"><div class="label">Faturado</div><div>R$ ${formatCurrency(entry.faturado)}</div></div>
                             </div>
-                            <div class="progress-wrapper">
-                                <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div>
-                                <span class="percent-text">${entry.percentual.toFixed(1)}%</span>
-                            </div>
-                            <div style="display:flex;justify-content:space-between;align-items:center;">
-                                <span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span>
-                                <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span>
-                            </div>
+                            <div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentual,100)}%;background:${cor};"></div></div><span class="percent-text">${entry.percentual.toFixed(1)}%</span></div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${st.cssClass}">${st.icon} ${st.text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(falta)}</span></div>
                             ${entry.metaPlus ? `<div style="margin-top:8px;border-top:1px dashed #e0e6ed;padding-top:6px;">
-                                <div class="target-row">
-                                    <div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div>
-                                    <div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div>
-                                </div>
-                                <div class="progress-wrapper">
-                                    <div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div>
-                                    <span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span>
-                                </div>
-                                <div style="display:flex;justify-content:space-between;align-items:center;">
-                                    <span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span>
-                                    <span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0, entry.metaPlus - entry.faturado))}</span>
-                                </div>
+                                <div class="target-row"><div class="target-info"><div class="label">Meta Plus (+10%)</div><div>R$ ${formatCurrency(entry.metaPlus)}</div></div><div class="target-info"><div class="label">Atingido</div><div>${entry.percentualPlus.toFixed(1)}%</div></div></div>
+                                <div class="progress-wrapper"><div class="mini-progress"><div class="mini-progress-fill" style="width:${Math.min(entry.percentualPlus,100)}%;background:${getProgressColor(entry.percentualPlus)};"></div></div><span class="percent-text">${entry.percentualPlus.toFixed(1)}%</span></div>
+                                <div style="display:flex;justify-content:space-between;align-items:center;"><span class="status-badge ${getStatusInfo(entry.percentualPlus).cssClass}">${getStatusInfo(entry.percentualPlus).icon} ${getStatusInfo(entry.percentualPlus).text}</span><span style="font-size:0.7rem;">Faltam R$ ${formatCurrency(Math.max(0,entry.metaPlus-entry.faturado))}</span></div>
                             </div>` : ''}
                         </div>`;
-                        groupHtml += cardHtml;
                     });
-                    groupHtml += '</div></div>';
-                    return groupHtml;
+                    return groupHtml + '</div></div>';
                 }
-
                 html += renderGroup('🏭 Fabiano (Metas Especiais)', fabianoCards);
                 html += renderGroup('👤 Vendedores Individuais', individuais);
                 html += renderGroup('🏢 Gerais (Dimas / Eduardo)', gerais);
-
+                if (!rows.length) html = '<div style="padding:18px;color:var(--text-soft);">O JSON meta_faturamento_consolidado_meses.json ainda não está disponível para este mês.</div>';
                 container.innerHTML = html;
-                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${mes}/${ano}`;
-
+                document.getElementById('vendor-goals-title').innerText = `Metas Vendedores - ${String(mes).padStart(2,'0')}/${ano} · JSON consolidado`;
                 const allEntries = [...fabianoCards, ...individuais, ...gerais];
-                document.querySelectorAll('.vendor-mini-card').forEach((card, i) => {
+                document.querySelectorAll('#vendor-goals-container .vendor-mini-card').forEach((card, i) => {
                     card.addEventListener('click', () => abrirDetalhesMeta(allEntries[i]));
                 });
             }
@@ -3231,18 +3186,65 @@
 
             function atualizarBadgeNotificacoes() { const badge = document.getElementById('notification-badge'); const bbDot = document.getElementById('bb-badge-dot'); const menuNotifCount = document.getElementById('menu-notif-count'); const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length; if (badge) { badge.style.display = unread ? 'flex' : 'none'; badge.textContent = unread; } if (bbDot) { bbDot.style.display = unread ? 'block' : 'none'; } if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none'; menuNotifCount.textContent = unread; } }
 
-            function abrirModalNotificacoes() {
+            function abrirModalNotificacoes(filtroLeitura='todas') {
                 const modal = document.getElementById('notif-modal'), body = document.getElementById('notif-modal-body');
-                if (notificacoes.length === 0) { body.innerHTML = '<button class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</button><p style="text-align:center;color:var(--muted);padding:40px;">Nenhum alerta recente.</p>'; }
-                else {
-                    let html = '<button class="modal-close" onclick="document.getElementById(\'notif-modal\').classList.remove(\'active\')">&times;</button>';
-                    html += `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;"><h2 style="margin:0;"><i class="fas fa-bell"></i> Alertas</h2><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button></div>`;
-                    notificacoes.forEach(n => { const isRead = readNotifications.includes(n.id), plainText = (n.texto_html || '').replace(/<[^>]*>/g, '').substring(0, 120) + '...'; const tipo = n.tipo || 'informativo', bgColor = tipo === 'alerta' ? '#fee2e2' : tipo === 'novidade' ? '#e0f2fe' : '#f3f4f6', textColor = tipo === 'alerta' ? '#991b1b' : tipo === 'novidade' ? '#0369a1' : '#374151'; html += `<div class="notif-card" data-id="${n.id}"><img src="${n.imagem||'https://via.placeholder.com/80x60?text=Sem+Imagem'}" class="notif-thumb" onerror="this.style.display='none'"><div class="notif-body"><span class="notif-type" style="background:${bgColor};color:${textColor}">${tipo.toUpperCase()}</span><div class="notif-title">${n.titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data} &nbsp; <i class="fas fa-user"></i> ${n.autor}</div><div class="notif-excerpt">${plainText}</div><span style="font-size:0.75rem;color:${isRead?'var(--muted)':'var(--primary)'};">${isRead?'✔ Lida':'● Nova'}</span></div></div>`; });
-                    body.innerHTML = html;
-                    document.getElementById('btn-mark-all-read').addEventListener('click', () => { notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); }); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); abrirModalNotificacoes(); });
-                    body.querySelectorAll('.notif-card').forEach(card => { card.addEventListener('click', () => { const id = card.dataset.id; if (!readNotifications.includes(id)) { readNotifications.push(id); localStorage.setItem('readNotifications', JSON.stringify(readNotifications)); atualizarBadgeNotificacoes(); } const post = notificacoes.find(p => p.id == id); if (post) abrirModalPostagem(post); modal.classList.remove('active'); }); });
-                }
+                const unread = notificacoes.filter(n => !readNotifications.some(x => String(x) === String(n.id))).length;
+                const ordenarData = valor => {
+                    if(!valor) return 0;
+                    const br=String(valor).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+                    if(br) return new Date(Number(br[3]),Number(br[2])-1,Number(br[1])).getTime()||0;
+                    const d=new Date(valor); return Number.isNaN(d.getTime())?0:d.getTime();
+                };
+                const ordenadas=[...notificacoes].sort((a,b)=>{
+                    const la=readNotifications.some(x=>String(x)===String(a.id)), lb=readNotifications.some(x=>String(x)===String(b.id));
+                    return la!==lb?(la?1:-1):ordenarData(b.data)-ordenarData(a.data);
+                });
+                const filtradas=ordenadas.filter(n=>{
+                    const lida=readNotifications.some(x=>String(x)===String(n.id));
+                    return filtroLeitura==='nao-lidas'?!lida:filtroLeitura==='lidas'?lida:true;
+                });
+                const exibidas=filtradas.slice(0,5);
+                let html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px;"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex;gap:8px;align-items:center;">${unread?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button class="modal-close" id="fechar-notif-modal" style="position:relative;top:auto;right:auto;flex:0 0 40px;" aria-label="Fechar">&times;</button></div></div>`;
+                html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;">
+                    <button class="farol-btn notif-filter-btn" data-filtro="todas" style="${filtroLeitura==='todas'?'background:var(--primary);color:white;':''}">Todas</button>
+                    <button class="farol-btn notif-filter-btn" data-filtro="nao-lidas" style="${filtroLeitura==='nao-lidas'?'background:var(--primary);color:white;':''}">Não lidas</button>
+                    <button class="farol-btn notif-filter-btn" data-filtro="lidas" style="${filtroLeitura==='lidas'?'background:var(--primary);color:white;':''}">Lidas</button>
+                </div>`;
+                if(!notificacoes.length) html+='<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta recente.</p>';
+                else if(!exibidas.length) html+='<p style="text-align:center;padding:28px;color:var(--muted);">Nenhum alerta nesta categoria.</p>';
+                else exibidas.forEach(n=>{
+                    const lida=readNotifications.some(x=>String(x)===String(n.id));
+                    const tipo=n.tipo||'informativo', bg=tipo==='alerta'?'#fee2e2':'#e0f2fe', col=tipo==='alerta'?'#991b1b':'#0369a1';
+                    const titulo=String(n.titulo||'Sem título').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    const resumo=String(n.texto_html||'').replace(/<[^>]*>/g,'').slice(0,120);
+                    html+=`<div class="notif-card" data-id="${String(n.id).replace(/"/g,'&quot;')}" style="${lida?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}">
+                      <img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'">
+                      <div style="min-width:0;flex:1"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'—'}</div><div class="notif-excerpt">${resumo}${resumo?'…':''}</div><span style="font-size:.75rem;color:${lida?'var(--muted)':'var(--primary)'};font-weight:${lida?'400':'700'}">${lida?'✓ Lida':'● Não lida'}</span></div>
+                    </div>`;
+                });
+                html+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding-top:14px;"><span style="font-size:.75rem;color:var(--muted);">Exibindo ${exibidas.length} de ${filtradas.length} alertas (máximo de 5).</span><a href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--primary);color:white;text-decoration:none;font-weight:700;font-size:.8rem;"><i class="fas fa-newspaper"></i> Abrir Feed completo <i class="fas fa-external-link-alt"></i></a></div>`;
+                body.innerHTML=html;
+                document.getElementById('fechar-notif-modal')?.addEventListener('click',()=>modal.classList.remove('active'));
+                document.getElementById('btn-mark-all-read')?.addEventListener('click',()=>{
+                    notificacoes.forEach(n=>{if(!readNotifications.some(x=>String(x)===String(n.id)))readNotifications.push(n.id);});
+                    localStorage.setItem('readNotifications',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();abrirModalNotificacoes(filtroLeitura);
+                });
+                body.querySelectorAll('.notif-filter-btn').forEach(btn=>btn.addEventListener('click',()=>abrirModalNotificacoes(btn.dataset.filtro)));
+                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{
+                    const id=card.dataset.id;
+                    if(!readNotifications.some(x=>String(x)===String(id))){readNotifications.push(id);localStorage.setItem('readNotifications',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();}
+                    const post=notificacoes.find(p=>String(p.id)===String(id));
+                    if(!post)return;
+                    const tipo=post.tipo||'informativo', bg=tipo==='alerta'?'#fee2e2':'#e0f2fe', col=tipo==='alerta'?'#991b1b':'#0369a1';
+                    const titulo=String(post.titulo||'Sem título').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                    body.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px;"><button id="voltar-alertas-btn" style="background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer;"><i class="fas fa-arrow-left"></i> Voltar</button><button id="fechar-detalhe-alerta-btn" class="modal-close" style="position:relative;top:auto;right:auto;flex:0 0 40px;" aria-label="Fechar">&times;</button></div>
+                    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;">${post.imagem?`<img src="${post.imagem}" style="max-width:260px;max-height:190px;object-fit:cover;border-radius:14px;" onerror="this.style.display='none'">`:''}<div style="flex:1;min-width:180px;"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><h2 style="margin:8px 0">${titulo}</h2><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data||'—'} · <i class="fas fa-user"></i> ${post.autor||'—'}</div></div></div><div>${post.texto_html||''}</div>`;
+                    modal.classList.add('active');
+                    document.getElementById('voltar-alertas-btn').addEventListener('click',()=>abrirModalNotificacoes(filtroLeitura));
+                    document.getElementById('fechar-detalhe-alerta-btn').addEventListener('click',()=>modal.classList.remove('active'));
+                }));
                 modal.classList.add('active');
+                if(!modal.dataset.outsideListener){modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active');});modal.dataset.outsideListener='true';}
             }
 
             function abrirDetalhesMeta(entry) {
@@ -3395,6 +3397,15 @@
                     }
                 });
                 document.getElementById('menu-notifications-side').addEventListener('click', () => { closeHamburger(); abrirModalNotificacoes(); });
+                document.getElementById('menu-meus-premios').addEventListener('click', () => {
+                    closeHamburger();
+                    const modal=document.getElementById('awards-popup-modal');
+                    const frame=document.getElementById('awards-popup-frame');
+                    if(!frame.src || !frame.src.includes('popup=awards')) frame.src=new URL('metas_comercial_popup.html?popup=awards',window.location.href).href;
+                    modal.classList.add('active');
+                });
+                document.getElementById('close-awards-popup').addEventListener('click',()=>document.getElementById('awards-popup-modal').classList.remove('active'));
+                document.getElementById('awards-popup-modal').addEventListener('click',function(e){if(e.target===this)this.classList.remove('active');});
                 document.getElementById('menu-logout').addEventListener('click', () => { closeHamburger(); localStorage.setItem('radar_logged_out', 'true'); localStorage.removeItem('radar_usuario'); localStorage.removeItem('ultimo_acesso_radar'); window.location.href = 'https://centrobor.github.io/radarcentrobor/index.html?reason=logged_out'; });
 
                 // A página atual já é o Dashboard; não existe mais atalho "Início" redundante.
