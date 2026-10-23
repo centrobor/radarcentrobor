@@ -291,6 +291,27 @@
             0%, 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
             50% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
         }
+        /* Sininho e conquistas com o mesmo acabamento visual da página do Eduardo */
+        .notification-bell.has-unread i { transform-origin: 50% 10%; animation: dimasBellRing 2.8s ease-in-out infinite; }
+        .notification-bell i { display:inline-block; transition:transform .2s ease; }
+        .notification-bell:hover i { transform:scale(1.12); }
+        @keyframes dimasBellRing {
+            0%, 82%, 100% { transform:rotate(0deg); }
+            85% { transform:rotate(12deg); }
+            88% { transform:rotate(-10deg); }
+            91% { transform:rotate(7deg); }
+            94% { transform:rotate(-5deg); }
+            97% { transform:rotate(2deg); }
+        }
+        .achievement-banner-glow { animation: dimasGlow 6s ease-in-out infinite alternate; }
+        .achievement-banner-trophy { animation: dimasTrophyFloat 4s ease-in-out infinite; }
+        .achievement-banner .achievement-pill i { display:inline-block; animation:dimasIconSway 3s ease-in-out infinite; }
+        @keyframes dimasGlow { from { transform:translate3d(0,0,0) scale(.94); opacity:.55; } to { transform:translate3d(-16px,14px,0) scale(1.08); opacity:1; } }
+        @keyframes dimasTrophyFloat { 0%,100% { transform:translateY(0) rotate(-5deg); } 50% { transform:translateY(-7px) rotate(-2deg); } }
+        @keyframes dimasIconSway { 0%,100% { transform:rotate(0); } 50% { transform:rotate(8deg); } }
+        @media (prefers-reduced-motion:reduce) {
+            .notification-bell.has-unread i,.achievement-banner-glow,.achievement-banner-trophy,.achievement-banner .achievement-pill i { animation:none!important; }
+        }
 
         .month-filter {
             display: flex;
@@ -2464,6 +2485,18 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 const unicosConquista = new Map();
                 [...recentesBanner,...recentesPremios].forEach(b=>{const id=String(b.chave||b.id||b.nome||b.titulo||b.timestamp);if(!unicosConquista.has(id))unicosConquista.set(id,{...b,_dimasConquista:true});});
                 const bannersConquista = [...unicosConquista.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(b=>({...b,_dimasConquista:true}));
+                // Banners automáticos de meta: time Centrobor e meta individual do Dimas.
+                // A base consolidada usada pelo quadro de premiações é a fonte oficial dos valores.
+                try {
+                    const {rows=[], awards=[]} = dimasBuildAwards();
+                    const now = new Date(), currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+                    const row = rows.find(r => r.key === currentKey);
+                    if (row && row.meta > 0 && row.earned) {
+                        const base = { chave:`meta_${currentKey}`, nome:'Meta atingida!', titulo:'Meta atingida!', meta:row.meta, realizado:row.fat, perc:row.fat/row.meta*100, timestamp: new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(), tipo:'MENSAL', dataConquista:currentKey, _dimasConquista:true };
+                        bannersConquista.unshift({...base, chave:`centrobor_${currentKey}`, nome:'Meta Centrobor atingida!', _tipoMeta:'centrobor'});
+                        bannersConquista.splice(1,0,{...base, chave:`dimas_${currentKey}`, nome:'Meta individual do Dimas atingida!', _tipoMeta:'dimas'});
+                    }
+                } catch(e) { console.warn('Não foi possível preparar banners de metas:', e); }
                 const bannersExibicao = [...bannersConquista, ...(Array.isArray(BANNERS)?BANNERS:[])];
                 window._dimasCarouselSlides = bannersExibicao;
                 if (!bannersExibicao.length) {
@@ -2473,7 +2506,7 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 }
                 container.innerHTML = bannersExibicao.map((b, i) => b._dimasConquista ? `
                 <div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,#f6d2ae55,transparent 35%),radial-gradient(ellipse at 85% 90%,#c47b4388,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,#5b2f15);">
-                    <div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas fa-medal"></i> CONQUISTA DESBLOQUEADA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas fa-trophy"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">CENTROBOR · DIMAS</span><h2>${b.nome||b.titulo||'Meta Centrobor atingida!'}</h2><p>${b.perc?Number(b.perc).toFixed(1).replace('.',',')+'% da meta atingida':'META BATIDA'}</p><strong>${b.realizado?formatarMoeda(Number(b.realizado)):'Parabéns ao time Centrobor!'}</strong><small>Conquista recente · Clique para ver seus prêmios</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div>
+                    <div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas fa-medal"></i> CONQUISTA DESBLOQUEADA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas fa-trophy"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">${b._tipoMeta==='centrobor'?'RADAR CENTROBOR · META DO TIME':b._tipoMeta==='dimas'?'RADAR CENTROBOR · META INDIVIDUAL':'CENTROBOR · DIMAS'}</span><h2>${b.nome||b.titulo||'Meta Centrobor atingida!'}</h2><p>${b.perc?Number(b.perc).toFixed(1).replace('.',',')+'% da meta atingida':'META BATIDA'}</p><strong>${b.realizado!=null?formatarMoeda(Number(b.realizado)):'Parabéns ao time Centrobor!'}</strong><small>Conquista do mês · Clique para ver metas e prêmios</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div>
                 </div>` : `
                 <div class="carousel-slide" data-idx="${i}">
                     <img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='https://via.placeholder.com/1200x340?text=Imagem'">
@@ -2511,12 +2544,16 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             }
 
             function atualizarBadgeNotificacoes() {
-                const unread = notificacoes.filter(n => !readNotifications.includes(n.id)).length;
+                const unreadPosts = notificacoes.filter(n => !readNotifications.some(id => String(id) === String(n.id))).length;
+                const unreadPrizes = dimasReadArray(DIMAS_NOTIF_KEY).filter(n => !n.lida && Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL).length;
+                const unread = unreadPosts + unreadPrizes;
                 const badge = document.getElementById('notification-badge');
                 const bbDot = document.getElementById('bb-badge-dot');
                 const menuNotifCount = document.getElementById('menu-notif-count');
+                const bell = document.getElementById('notification-bell');
+                if (bell) bell.classList.toggle('has-unread', unread > 0);
                 if (badge) { badge.style.display = unread ? 'flex' : 'none';
-                    badge.textContent = unread; }
+                    badge.textContent = unread > 99 ? '99+' : unread; }
                 if (bbDot) { bbDot.style.display = unread ? 'block' : 'none'; }
                 if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none';
                     menuNotifCount.textContent = unread; }
@@ -2525,6 +2562,9 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             function marcarTodasComoLido() {
                 notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); });
                 localStorage.setItem('readNotifications_Dimas', JSON.stringify(readNotifications));
+                const premios = dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true}));
+                dimasWriteArray(DIMAS_NOTIF_KEY, premios);
+                atualizarBadgePremiosDimas();
                 atualizarBadgeNotificacoes();
                 abrirNotificacoes();
             }
