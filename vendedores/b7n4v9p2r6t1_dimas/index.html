@@ -291,27 +291,6 @@
             0%, 100% { box-shadow: 0 0 0 0 rgba(211, 47, 47, 0.4); }
             50% { box-shadow: 0 0 0 8px rgba(211, 47, 47, 0); }
         }
-        /* Sininho e conquistas com o mesmo acabamento visual da página do Eduardo */
-        .notification-bell.has-unread i { transform-origin: 50% 10%; animation: dimasBellRing 2.8s ease-in-out infinite; }
-        .notification-bell i { display:inline-block; transition:transform .2s ease; }
-        .notification-bell:hover i { transform:scale(1.12); }
-        @keyframes dimasBellRing {
-            0%, 82%, 100% { transform:rotate(0deg); }
-            85% { transform:rotate(12deg); }
-            88% { transform:rotate(-10deg); }
-            91% { transform:rotate(7deg); }
-            94% { transform:rotate(-5deg); }
-            97% { transform:rotate(2deg); }
-        }
-        .achievement-banner-glow { animation: dimasGlow 6s ease-in-out infinite alternate; }
-        .achievement-banner-trophy { animation: dimasTrophyFloat 4s ease-in-out infinite; }
-        .achievement-banner .achievement-pill i { display:inline-block; animation:dimasIconSway 3s ease-in-out infinite; }
-        @keyframes dimasGlow { from { transform:translate3d(0,0,0) scale(.94); opacity:.55; } to { transform:translate3d(-16px,14px,0) scale(1.08); opacity:1; } }
-        @keyframes dimasTrophyFloat { 0%,100% { transform:translateY(0) rotate(-5deg); } 50% { transform:translateY(-7px) rotate(-2deg); } }
-        @keyframes dimasIconSway { 0%,100% { transform:rotate(0); } 50% { transform:rotate(8deg); } }
-        @media (prefers-reduced-motion:reduce) {
-            .notification-bell.has-unread i,.achievement-banner-glow,.achievement-banner-trophy,.achievement-banner .achievement-pill i { animation:none!important; }
-        }
 
         .month-filter {
             display: flex;
@@ -1431,6 +1410,11 @@
         .achievement-banner-glow{position:absolute;width:240px;height:240px;border-radius:50%;border:1px solid rgba(255,255,255,.1);box-shadow:0 0 0 30px rgba(255,255,255,.025),0 0 0 60px rgba(255,255,255,.02);right:-60px;top:-90px}
         .achievement-confetti{position:absolute;inset:0;pointer-events:none;color:#ffd76b;font-size:1.4rem;letter-spacing:8px;opacity:.8;overflow:hidden;animation:achievementConfettiFloat 5s ease-in-out infinite}.achievement-banner-glow{animation:achievementGlow 5s ease-in-out infinite}.achievement-banner-trophy{animation:achievementTrophyFloat 3.6s ease-in-out infinite}.achievement-banner-copy h2{animation:achievementTitleIn .65s ease-out both}@keyframes achievementConfettiFloat{0%{transform:translateY(-8px);opacity:.22}50%{transform:translateY(8px);opacity:.68}100%{transform:translateY(-8px);opacity:.22}}@keyframes achievementGlow{0%,100%{transform:scale(.96);opacity:.55}50%{transform:scale(1.06);opacity:1}}@keyframes achievementTrophyFloat{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-5px) rotate(-2deg)}}@keyframes achievementTitleIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}@media(prefers-reduced-motion:reduce){.achievement-confetti,.achievement-banner-glow,.achievement-banner-trophy,.achievement-banner-copy h2{animation:none!important}}
         @media(max-width:640px){.achievement-banner{min-height:300px}.achievement-banner-content{padding:24px 22px;gap:15px;flex-direction:column;text-align:center}.achievement-banner-trophy{width:78px;height:78px;border-radius:22px;font-size:2.6rem}.achievement-banner-copy h2{font-size:2.35rem}.achievement-banner-copy p{font-size:.9rem}.achievement-banner-copy strong{font-size:.8rem}.achievement-banner-copy small{font-size:.65rem}}
+        .notification-bell.has-unread{position:relative;animation:dimasBellPulse 2.4s ease-in-out infinite;}
+        .notification-bell.has-unread .fa-bell{transform-origin:top center;animation:dimasBellRing 3.2s ease-in-out infinite;}
+        @keyframes dimasBellPulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0)}50%{box-shadow:0 0 0 5px rgba(220,38,38,.10)}}
+        @keyframes dimasBellRing{0%,86%,100%{transform:rotate(0)}88%{transform:rotate(12deg)}90%{transform:rotate(-10deg)}92%{transform:rotate(7deg)}94%{transform:rotate(-5deg)}96%{transform:rotate(0)}}
+        @media(prefers-reduced-motion:reduce){.notification-bell.has-unread,.notification-bell.has-unread .fa-bell{animation:none!important}}
         .achievement-banner-main{width:100%;position:relative;z-index:1}.achievement-banner-row{display:flex;align-items:center;justify-content:center;gap:clamp(18px,4vw,48px);margin-top:14px}.achievement-banner-row .achievement-banner-copy{flex:1;min-width:0}.achievement-detail-close:hover{background:#b91c1c!important;transform:scale(1.05)}
         @media(max-width:640px){.achievement-banner-row{flex-direction:column;gap:14px}.achievement-banner-content{padding:24px 18px}.achievement-banner-main{text-align:center}.achievement-banner-row .achievement-banner-copy{width:100%}}
 
@@ -2480,46 +2464,85 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             function renderCarrossel() {
                 const container = document.getElementById('carousel-container');
                 const indicators = document.getElementById('carousel-indicators');
-                const recentesBanner = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(dimasIsCurrentMonth);
-                const recentesPremios = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_AWARDS_KEY) : []).filter(dimasIsCurrentMonth).map(a=>({...a,tipo:'MENSAL',_dimasConquista:true}));
-                const unicosConquista = new Map();
-                [...recentesBanner,...recentesPremios].forEach(b=>{const id=String(b.chave||b.id||b.nome||b.titulo||b.timestamp);if(!unicosConquista.has(id))unicosConquista.set(id,{...b,_dimasConquista:true});});
-                const bannersConquista = [...unicosConquista.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(b=>({...b,_dimasConquista:true}));
-                // Banners automáticos de meta: time Centrobor e meta individual do Dimas.
-                // A base consolidada usada pelo quadro de premiações é a fonte oficial dos valores.
-                try {
-                    const {rows=[], awards=[]} = dimasBuildAwards();
-                    const now = new Date(), currentKey = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-                    const row = rows.find(r => r.key === currentKey);
-                    if (row && row.meta > 0 && row.earned) {
-                        const base = { chave:`meta_${currentKey}`, nome:'Meta atingida!', titulo:'Meta atingida!', meta:row.meta, realizado:row.fat, perc:row.fat/row.meta*100, timestamp: new Date(now.getFullYear(),now.getMonth(),now.getDate()).getTime(), tipo:'MENSAL', dataConquista:currentKey, _dimasConquista:true };
-                        bannersConquista.unshift({...base, chave:`centrobor_${currentKey}`, nome:'Meta Centrobor atingida!', _tipoMeta:'centrobor'});
-                        bannersConquista.splice(1,0,{...base, chave:`dimas_${currentKey}`, nome:'Meta individual do Dimas atingida!', _tipoMeta:'dimas'});
-                    }
-                } catch(e) { console.warn('Não foi possível preparar banners de metas:', e); }
-                const bannersExibicao = [...bannersConquista, ...(Array.isArray(BANNERS)?BANNERS:[])];
-                window._dimasCarouselSlides = bannersExibicao;
-                if (!bannersExibicao.length) {
-                    container.innerHTML =
-                        '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor"></div>';
+                if (!container || !indicators) return;
+                const now = new Date();
+                const year = now.getFullYear(), month = now.getMonth() + 1;
+                const currentKey = `${year}-${String(month).padStart(2,'0')}`;
+                const fourDaysAgo = new Date(now.getTime() - 4 * 86400000);
+                const parseSaleDate = value => {
+                    if (!value) return null;
+                    const raw = String(value).trim();
+                    let m = raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);
+                    if (m) return new Date(+m[3], +m[2]-1, +m[1], 0, 0, 0);
+                    m = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+                    if (m) return new Date(+m[1], +m[2]-1, +m[3], 0, 0, 0);
+                    const d = new Date(raw);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                };
+                const sales = (Array.isArray(faturadosRaw) ? faturadosRaw : []).map(f => {
+                    const date = parseSaleDate(f.Data || f.data || f['Data Faturamento'] || f['Data Emissão']);
+                    return { f, date, code: String(f['Cod. Vendedor'] || '').trim(), value: cleanNumber(f['Valor Mercadoria']) };
+                }).filter(x => x.date && x.date.getFullYear() === year && x.date.getMonth()+1 === month && x.date <= now);
+                const teamRealized = sales.filter(x => x.code && x.code !== '80').reduce((sum,x)=>sum+x.value,0);
+                const dimasSales = sales.filter(x => x.code === String(COD_DIMAS)).sort((a,b)=>b.date-a.date);
+                const teamLatest = sales.filter(x => x.code && x.code !== '80').sort((a,b)=>b.date-a.date)[0]?.date || null;
+                const dimasLatest = dimasSales[0]?.date || null;
+                const teamGoal = typeof getMetaEmpresaMes === 'function' ? getMetaEmpresaMes(year, month) : 0;
+                const dimasGoal = (typeof getMetasDimas === 'function' ? getMetasDimas(year, month).mensal : 0);
+                const goalSlides = [];
+                const addGoalSlide = (kind, title, goal, realized, latest) => {
+                    if (!(goal > 0 && realized >= goal && latest && latest >= fourDaysAgo && latest <= now)) return;
+                    const pct = realized / goal * 100;
+                    goalSlides.push({
+                        chave: `goal_${kind}_${currentKey}`, id: `goal_${kind}_${currentKey}`,
+                        nome: title, titulo: title, meta: goal, realizado: realized, perc: pct,
+                        timestamp: latest.getTime(), dataConquista: currentKey, tipo: 'MENSAL',
+                        _dimasConquista: true, _tipoMeta: kind
+                    });
+                };
+                // As metas e os realizados vêm de fontes diferentes: metas.json para o time,
+                // meta_faturamento.json e faturamento do código 10 para o Dimas.
+                addGoalSlide('centrobor', 'Meta Centrobor atingida!', teamGoal, teamRealized, teamLatest);
+                addGoalSlide('dimas', 'Meta individual do Dimas atingida!', dimasGoal, dimasSales.reduce((sum,x)=>sum+x.value,0), dimasLatest);
+
+                const recentesBanner = dimasReadArray(DIMAS_BANNER_KEY).filter(dimasIsCurrentMonth);
+                const recentesPremios = dimasReadArray(DIMAS_AWARDS_KEY).filter(dimasIsCurrentMonth).map(a=>({...a,tipo:a.tipo||'MENSAL',_dimasConquista:true}));
+                // Evita duplicar ou reaproveitar uma conquista mensal antiga com valores de outra fonte.
+                const existing = [...recentesBanner, ...recentesPremios].filter(b => !(String(b.tipo||'').toUpperCase()==='MENSAL' && String(b.dataConquista||'')===currentKey));
+                const unique = new Map();
+                [...goalSlides, ...existing.map(b=>({...b,_dimasConquista:true}))].forEach(b=>{
+                    const id = String(b.chave || b.id || b.nome || b.titulo || b.timestamp);
+                    if (!unique.has(id)) unique.set(id,b);
+                });
+                const achievements = [...unique.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0));
+                const slides = [...achievements, ...(Array.isArray(BANNERS)?BANNERS:[])];
+                window._dimasCarouselSlides = slides;
+                if (!slides.length) {
+                    container.innerHTML = '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor" alt="Centrobor"></div>';
+                    indicators.innerHTML = '';
+                    currentCarouselIndex = 0;
+                    container.style.transform = 'translateX(0)';
                     return;
                 }
-                container.innerHTML = bannersExibicao.map((b, i) => b._dimasConquista ? `
-                <div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,#f6d2ae55,transparent 35%),radial-gradient(ellipse at 85% 90%,#c47b4388,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,#5b2f15);">
-                    <div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas fa-medal"></i> CONQUISTA DESBLOQUEADA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas fa-trophy"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">${b._tipoMeta==='centrobor'?'RADAR CENTROBOR · META DO TIME':b._tipoMeta==='dimas'?'RADAR CENTROBOR · META INDIVIDUAL':'CENTROBOR · DIMAS'}</span><h2>${b.nome||b.titulo||'Meta Centrobor atingida!'}</h2><p>${b.perc?Number(b.perc).toFixed(1).replace('.',',')+'% da meta atingida':'META BATIDA'}</p><strong>${b.realizado!=null?formatarMoeda(Number(b.realizado)):'Parabéns ao time Centrobor!'}</strong><small>Conquista do mês · Clique para ver metas e prêmios</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div>
-                </div>` : `
-                <div class="carousel-slide" data-idx="${i}">
-                    <img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='https://via.placeholder.com/1200x340?text=Imagem'">
-                    <div class="carousel-caption"><span class="caption-title">${b.titulo}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data || '—'} &nbsp; <i class="fas fa-user"></i> ${b.autor || '—'}</span></div>
-                </div>`).join('');
-                indicators.innerHTML = bannersExibicao.map((_, i) =>
-                    `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
-                document.querySelectorAll('.indicator-dot').forEach(dot => dot.addEventListener('click', e => {
-                    currentCarouselIndex = parseInt(e.target.dataset.idx);
-                    updateCarrossel();
-                }));
-                document.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () =>
-                    (window._dimasCarouselSlides||BANNERS)[currentCarouselIndex]?._dimasConquista ? abrirMeusPremiosDimas() : abrirPostagem((window._dimasCarouselSlides||BANNERS)[currentCarouselIndex])));
+                container.innerHTML = slides.map((b,i) => b._dimasConquista ? `
+                    <div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,#f6d2ae55,transparent 35%),radial-gradient(ellipse at 85% 90%,#c47b4388,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,#5b2f15);">
+                      <div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main">
+                      <span class="achievement-pill"><i class="fas ${b._tipoMeta==='dimas'?'fa-user-tie':'fa-trophy'}"></i> META MENSAL ATINGIDA</span>
+                      <div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas ${b._tipoMeta==='dimas'?'fa-user-check':'fa-trophy'}"></i></div><div class="achievement-banner-copy">
+                      <span class="achievement-eyebrow">${b._tipoMeta==='centrobor'?'RADAR CENTROBOR · META DO TIME':b._tipoMeta==='dimas'?'RADAR CENTROBOR · META INDIVIDUAL':'CENTROBOR · DIMAS'}</span>
+                      <h2>${b.nome||b.titulo||'Meta atingida!'}</h2><p>${Number(b.perc||0).toFixed(1).replace('.',',')}% da meta atingida</p>
+                      <strong>${formatarMoeda(Number(b.realizado)||0)} / ${formatarMoeda(Number(b.meta)||0)}</strong>
+                      <small>Conquista do mês · Clique para ver metas e prêmios</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div>
+                    </div>` : `
+                    <div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.src='https://via.placeholder.com/1200x340?text=Imagem'"><div class="carousel-caption"><span class="caption-title">${b.titulo||''}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data||'—'} &nbsp; <i class="fas fa-user"></i> ${b.autor||'—'}</span></div></div>`).join('');
+                indicators.innerHTML = slides.map((_,i)=>`<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
+                indicators.querySelectorAll('.indicator-dot').forEach(dot=>dot.addEventListener('click',()=>{currentCarouselIndex=Number(dot.dataset.idx)||0;updateCarrossel();}));
+                container.querySelectorAll('.carousel-slide').forEach(slide=>{
+                    const open=()=>{const item=slides[Number(slide.dataset.idx)];if(!item)return;if(item._dimasConquista)abrirMeusPremiosDimas();else abrirPostagem(item);};
+                    slide.addEventListener('click',open);
+                    slide.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();open();}});
+                });
+                currentCarouselIndex = Math.min(currentCarouselIndex, slides.length-1);
                 updateCarrossel();
             }
 
@@ -2544,44 +2567,60 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             }
 
             function atualizarBadgeNotificacoes() {
-                const unreadPosts = notificacoes.filter(n => !readNotifications.some(id => String(id) === String(n.id))).length;
-                const unreadPrizes = dimasReadArray(DIMAS_NOTIF_KEY).filter(n => !n.lida && Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL).length;
-                const unread = unreadPosts + unreadPrizes;
+                const read = id => readNotifications.some(x => String(x) === String(id));
+                const normalUnread = (Array.isArray(notificacoes)?notificacoes:[]).filter(n => !read(n.id)).length;
+                const prizeUnread = dimasReadArray(DIMAS_NOTIF_KEY).filter(n => !n.lida && Date.now()-Number(n.timestamp||0) < DIMAS_AWARD_TTL).length;
+                const unread = normalUnread + prizeUnread;
                 const badge = document.getElementById('notification-badge');
                 const bbDot = document.getElementById('bb-badge-dot');
                 const menuNotifCount = document.getElementById('menu-notif-count');
                 const bell = document.getElementById('notification-bell');
+                if (badge) { badge.style.display = unread ? 'flex' : 'none'; badge.textContent = unread > 99 ? '99+' : String(unread); }
+                if (bbDot) bbDot.style.display = unread ? 'block' : 'none';
+                if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none'; menuNotifCount.textContent = unread > 99 ? '99+' : String(unread); }
                 if (bell) bell.classList.toggle('has-unread', unread > 0);
-                if (badge) { badge.style.display = unread ? 'flex' : 'none';
-                    badge.textContent = unread > 99 ? '99+' : unread; }
-                if (bbDot) { bbDot.style.display = unread ? 'block' : 'none'; }
-                if (menuNotifCount) { menuNotifCount.style.display = unread ? 'flex' : 'none';
-                    menuNotifCount.textContent = unread; }
+                atualizarBadgePremiosDimas();
             }
 
             function marcarTodasComoLido() {
-                notificacoes.forEach(n => { if (!readNotifications.includes(n.id)) readNotifications.push(n.id); });
+                notificacoes.forEach(n => { if (!readNotifications.some(x => String(x) === String(n.id))) readNotifications.push(n.id); });
                 localStorage.setItem('readNotifications_Dimas', JSON.stringify(readNotifications));
-                const premios = dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true}));
-                dimasWriteArray(DIMAS_NOTIF_KEY, premios);
-                atualizarBadgePremiosDimas();
+                dimasWriteArray(DIMAS_NOTIF_KEY, dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));
                 atualizarBadgeNotificacoes();
                 abrirNotificacoes();
             }
 
-            function abrirNotificacoes() {
+            function abrirNotificacoes(filtroLeitura='todas') {
                 const modal=document.getElementById('notif-modal'), body=document.getElementById('notif-modal-body');
-                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(dimasIsCurrentMonth).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
-                const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)})).sort((a,b)=>b.timestamp-a.timestamp).slice(0,12);
-                const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,15);
-                const unreadCount=items.filter(n=>n._premio?!n.lida:!readNotifications.includes(n.id)).length;
-                const header=`<button class="modal-close" aria-label="Fechar" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</button><div class="notif-modal-header"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas e notificações</h2><span style="font-size:.8rem;color:var(--muted)">${items.length} recentes</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px"><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button><button class="btn-mark-all-read" id="btn-go-feed"><i class="fas fa-rss"></i> Ir para o Feed e continuar</button></div>`;
-                const cards=items.map(n=>{const isRead=n._premio?!!n.lida:readNotifications.includes(n.id);const tipo=n.tipo||'informativo';const bg=tipo==='alerta'?'#fee2e2':tipo==='novidade'?'#e0f2fe':tipo==='conquista'?'#fff4cf':'#f3f4f6';const col=tipo==='alerta'?'#991b1b':tipo==='novidade'?'#0369a1':tipo==='conquista'?'#8a5b00':'#374151';const excerpt=(n.texto_html||n.resumo||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);return `<div class="notif-card" data-id="${String(n.id||'').replace(/"/g,'&quot;')}" data-premio="${n._premio?'1':'0'}" style="cursor:pointer;${isRead?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><div class="notif-conquista-icon ${n._premio||tipo==='conquista'?'silver':''}"><i class="fas ${n._premio?'fa-medal':(n.icone||'fa-bell')}"></i></div><div class="notif-body"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${n.titulo||'Notificação'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'Radar Centrobor'}</div><div class="notif-excerpt">${excerpt||'Toque para ver os detalhes.'}</div><span style="font-size:.75rem;color:${isRead?'var(--muted)':'var(--primary)'};font-weight:${isRead?'400':'700'}">${isRead?'✓ Lida':'● Não lida'}</span></div></div>`}).join('');
-                body.innerHTML=header+(cards||'<p style="text-align:center;color:var(--muted);padding:30px">Nenhum alerta recente.</p>');
-                document.getElementById('btn-mark-all-read')?.addEventListener('click',()=>{notificacoes.forEach(n=>{if(!readNotifications.includes(n.id))readNotifications.push(n.id)});localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgeNotificacoes();atualizarBadgePremiosDimas();abrirNotificacoes()});
-                document.getElementById('btn-go-feed')?.addEventListener('click',()=>{modal.classList.remove('active');const feed=document.getElementById('feed')||document.getElementById('feed-section')||document.querySelector('[data-section="feed"]');if(feed){feed.scrollIntoView({behavior:'smooth',block:'start'});}else{const link=[...document.querySelectorAll('a,button,.menu-item')].find(el=>/feed/i.test(el.textContent||''));if(link)link.click();else window.scrollTo({top:0,behavior:'smooth'});}});
-                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{const id=card.dataset.id;if(card.dataset.premio==='1'){dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgePremiosDimas();modal.classList.remove('active');abrirMeusPremiosDimas();return;}if(!readNotifications.includes(id)){readNotifications.push(id);localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();}const post=notificacoes.find(p=>String(p.id)===String(id));modal.classList.remove('active');if(post)abrirPostagem(post);}));
+                if (!modal || !body) return;
+                const isRead = n => n._premio ? !!n.lida : readNotifications.some(x=>String(x)===String(n.id));
+                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(n=>Date.now()-Number(n.timestamp||0)<DIMAS_AWARD_TTL).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
+                const posts=(Array.isArray(notificacoes)?notificacoes:[]).map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||n.createdAt||0)}));
+                const all=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp);
+                const filtered=all.filter(n=>filtroLeitura==='nao-lidas'?!isRead(n):filtroLeitura==='lidas'?isRead(n):true);
+                const items=filtered.slice(0,5);
+                const unread=all.filter(n=>!isRead(n)).length;
+                const filterBtn=(key,label)=>`<button class="farol-btn notif-filter-btn" data-filtro="${key}" style="${filtroLeitura===key?'background:var(--primary);color:#fff;':''}">${label}</button>`;
+                const header=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas e notificações</h2><button class="modal-close" id="fechar-notif-modal" style="position:relative;top:auto;right:auto;flex:0 0 40px" aria-label="Fechar">&times;</button></div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">${filterBtn('todas','Todas')}${filterBtn('nao-lidas','Não lidas')}${filterBtn('lidas','Lidas')}${unread?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button class="btn-mark-all-read" id="btn-go-feed"><i class="fas fa-rss"></i> Ir para o Feed</button></div>`;
+                const cards=items.map(n=>{const lida=isRead(n),tipo=n.tipo||'informativo',bg=tipo==='alerta'?'#fee2e2':tipo==='conquista'?'#fff4cf':'#e0f2fe',col=tipo==='alerta'?'#991b1b':tipo==='conquista'?'#8a5b00':'#0369a1',excerpt=String(n.texto_html||n.resumo||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);return `<div class="notif-card" data-id="${String(n.id||'').replace(/"/g,'&quot;')}" data-premio="${n._premio?'1':'0'}" style="display:flex;gap:12px;align-items:flex-start;padding:13px;border-radius:14px;margin:8px 0;cursor:pointer;${lida?'opacity:.78;background:#f8fafc;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><div class="notif-conquista-icon ${n._premio||tipo==='conquista'?'silver':''}"><i class="fas ${n._premio?'fa-medal':(n.icone||'fa-bell')}"></i></div><div style="min-width:0;flex:1"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${n.titulo||'Notificação'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'Radar Centrobor'}</div><div class="notif-excerpt">${excerpt||'Toque para ver os detalhes.'}</div><span style="font-size:.75rem;color:${lida?'var(--muted)':'var(--primary)'};font-weight:${lida?'400':'700'}">${lida?'✓ Lida':'● Não lida'}</span></div></div>`}).join('');
+                body.innerHTML=header+(cards||'<p style="text-align:center;color:var(--muted);padding:30px">Nenhuma notificação nesta categoria.</p>')+`<div style="font-size:.75rem;color:var(--muted);border-top:1px solid var(--line);margin-top:14px;padding-top:12px">Exibindo ${items.length} de ${filtered.length} alertas (máximo de 5).</div>`;
+                document.getElementById('fechar-notif-modal')?.addEventListener('click',()=>modal.classList.remove('active'));
+                document.getElementById('btn-mark-all-read')?.addEventListener('click',marcarTodasComoLido);
+                document.getElementById('btn-go-feed')?.addEventListener('click',()=>{modal.classList.remove('active');const feed=document.getElementById('feed')||document.getElementById('feed-section')||document.querySelector('[data-section="feed"]');if(feed)feed.scrollIntoView({behavior:'smooth',block:'start'});else{const link=[...document.querySelectorAll('a,button,.menu-item')].find(el=>/feed/i.test(el.textContent||''));if(link)link.click();}});
+                body.querySelectorAll('.notif-filter-btn').forEach(btn=>btn.addEventListener('click',()=>abrirNotificacoes(btn.dataset.filtro)));
+                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{
+                    const id=card.dataset.id;
+                    if(card.dataset.premio==='1'){
+                        dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>String(n.id||n.chave)===String(id)?({...n,lida:true}):n));
+                        atualizarBadgeNotificacoes(); modal.classList.remove('active'); abrirMeusPremiosDimas(); return;
+                    }
+                    if(!readNotifications.some(x=>String(x)===String(id))){readNotifications.push(id);localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();}
+                    const post=notificacoes.find(p=>String(p.id)===String(id));
+                    if(post){modal.classList.remove('active');abrirPostagem(post);}else abrirNotificacoes(filtroLeitura);
+                }));
                 modal.classList.add('active');
+                if(!modal.dataset.outsideListener){modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active');});modal.dataset.outsideListener='true';}
             }
 
             // ==================== CARREGAMENTO DE DADOS E RENDER ====================
