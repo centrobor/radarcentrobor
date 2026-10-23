@@ -2663,8 +2663,11 @@
             const dataReady = new Set();
             let syncPending = 0, syncErrors = 0, localReady = false, syncHideTimer = null;
             const cloudCardsPending = new Set();
+            let cloudIndicatorsActive = false;
             function initCloudCardIndicators(){
-                document.querySelectorAll('.chart-card, .donut-container, .progress-circle-container, .campaign-card, .kpi-card, .metric-card, .kpi-item, .dashboard-card, .goal-card, .progress-card').forEach((card,i)=>{
+                // Nunca iniciar animações fora de uma consulta real em andamento.
+                if(!cloudIndicatorsActive || syncPending <= 0) return;
+                document.querySelectorAll('.chart-card, .donut-container, .progress-circle-container, .campaign-card, .kpi-card, .metric-card, .kpi-item, .dashboard-card, .goal-card, .progress-card').forEach(card=>{
                     if(card.querySelector('.cloud-query-overlay')) return;
                     card.classList.add('cloud-query-card');
                     const overlay=document.createElement('div'); overlay.className='cloud-query-overlay';
@@ -2673,14 +2676,15 @@
                 });
             }
             function finishCloudCardIndicators(state='done'){
-                cloudCardsPending.forEach(overlay=>{
-                    if(!overlay.isConnected)return;
-                    overlay.classList.remove('done','error'); overlay.classList.add(state);
-                    const icon=overlay.querySelector('.cloud-orbit i'), label=overlay.querySelector('span');
-                    if(state==='done'){icon.className='fas fa-cloud-check';label.textContent='Dados sincronizados';}
-                    else {icon.className='fas fa-cloud-circle-exclamation';label.textContent='Falha na nuvem · dados disponíveis preservados';}
-                    setTimeout(()=>{overlay.style.opacity='0';setTimeout(()=>overlay.remove(),260);},state==='done'?900:2200);
-                });
+                cloudIndicatorsActive = false;
+                if(window.__radarCloudCardObserver){
+                    window.__radarCloudCardObserver.disconnect();
+                    window.__radarCloudCardObserver = null;
+                }
+                // A consulta terminou: remover imediatamente todas as nuvens, inclusive overlays
+                // criados durante a última renderização progressiva.
+                document.querySelectorAll('.cloud-query-overlay').forEach(overlay=>overlay.remove());
+                document.querySelectorAll('.cloud-query-card').forEach(card=>card.classList.remove('cloud-query-card'));
                 cloudCardsPending.clear();
             }
 
@@ -2768,6 +2772,7 @@
                   : 'Servidor local: nenhum JSON disponível. Consultando a nuvem para liberar o painel.',
                   'loading',localReady?'local':'cloud');
                 syncPending=CLOUD_KEYS.length; syncErrors=0;
+                cloudIndicatorsActive = syncPending > 0;
                 initCloudCardIndicators();
                 // Os cards são reconstruídos durante a renderização progressiva; observa novos cards para que também mostrem o estado da consulta.
                 if(!window.__radarCloudCardObserver){
@@ -3238,29 +3243,52 @@
                 if(!container||!indicators)return;
                 const slides=(BANNERS||[]).map((b,i)=>({kind:'banner',data:b,index:i}));
                 const normalizar=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-                // Campanhas especiais: um único banner coletivo por campanha, listando todos os vencedores.
+                const now=new Date(), ano=now.getFullYear(), mes=now.getMonth();
+                const inicioMes=new Date(ano,mes,1); inicioMes.setHours(0,0,0,0);
+                const fimMes=new Date(ano,mes+1,0); fimMes.setHours(23,59,59,999);
+                const parseCampaignDate=value=>{if(!value)return null;const raw=String(value).trim();let m=raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(m)return new Date(+m[3],+m[2]-1,+m[1],12,0,0);m=raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return new Date(+m[1],+m[2]-1,+m[3],12,0,0);const d=new Date(raw);return Number.isNaN(d.getTime())?null:d;};
+                const dataConquista=obj=>{
+                    const keys=['data_atingimento','data_conquista','data_atribuicao','data_venda','data_faturamento','data','updated_at','created_at'];
+                    for(const key of keys){const d=parseCampaignDate(obj?.[key]);if(d)return d;}
+                    return null;
+                };
+                const recente=d=>d && d>=new Date(now.getTime()-4*86400000) && d<=now;
+                // Campanhas: somente campanhas vigentes e do mês atual; banner fica por 4 dias
+                // após a última conquista registrada para qualquer vendedor da campanha.
                 const grupos={};
-                const parseCampaignDate=value=>{if(!value)return null;const raw=String(value).trim();let m=raw.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);if(m)return new Date(+m[3],+m[2]-1,+m[1],23,59,59);const d=new Date(raw);return Number.isNaN(d.getTime())?null:d;};
                 (campanhasData||[]).forEach(c=>{
-                    const inicio=parseCampaignDate(c.data_inicio),fim=parseCampaignDate(c.data_fim),hoje=new Date();hoje.setHours(12,0,0,0);
-                    if((inicio&&hoje<new Date(inicio.getFullYear(),inicio.getMonth(),inicio.getDate()))||(fim&&hoje>fim))return;
+                    const inicio=parseCampaignDate(c.data_inicio),fim=parseCampaignDate(c.data_fim);
+                    if((inicio&&inicio>now)||(fim&&fim<now))return;
+                    // A campanha precisa estar vigente agora e ter período que intersecte o mês atual.
+                    if((fim&&fim<inicioMes)||(inicio&&inicio>fimMes))return;
                     const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
                     if(!(meta>0&&realizado>=meta))return;
-                    const nomeCamp=String(c.campanha||'Campanha especial');
-                    const key=normalizar(nomeCamp);
-                    if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign'};
-                    grupos[key].vencedores.push({nome:c.vendedor_nome||VENDEDORES_MAP[String(c.vendedor_cod||'')]||'Vendedor',realizado,meta});
+                    const cod=String(c.vendedor_cod||'');
+                    let conquista=dataConquista(c);
+                    if(!conquista){
+                        const vendasVendedor=(allFaturados||[]).filter(f=>String(f['Cod. Vendedor']||'').trim()===cod)
+                            .map(f=>parseCampaignDate(f.Data||f.data||f['Data Faturamento']||f['Data Emissão']))
+                            .filter(d=>d&&d>=inicioMes&&d<=fimMes&&d<=now);
+                        conquista=vendasVendedor.sort((a,b)=>b-a)[0]||null;
+                    }
+                    if(!recente(conquista))return;
+                    const nomeCamp=String(c.campanha||'Campanha especial'),key=normalizar(nomeCamp);
+                    if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign',ultimaConquista:conquista};
+                    if(conquista>grupos[key].ultimaConquista)grupos[key].ultimaConquista=conquista;
+                    if(!grupos[key].vencedores.some(v=>String(v.cod)===cod))grupos[key].vencedores.push({cod,nome:c.vendedor_nome||VENDEDORES_MAP[cod]||'Vendedor',realizado,meta});
                 });
                 Object.values(grupos).forEach(g=>slides.push({kind:'achievement',data:g}));
-                // Conquistas de meta mensal coletadas do faturamento real do mês atual.
-                const now=new Date(), ano=now.getFullYear(), mes=now.getMonth()+1;
-                const monthRows=(allConsolidadoMetas||[]).filter(r=>{const d=parseDataBR(r.mes_ano);return d&&d.getFullYear()===ano&&d.getMonth()+1===mes;});
+                // Meta mensal: apenas o mês atual e conquistas cuja data mais recente ainda esteja na janela de 4 dias.
+                const monthRows=(allConsolidadoMetas||[]).filter(r=>{const d=parseDataBR(r.mes_ano);return d&&d.getFullYear()===ano&&d.getMonth()===mes;});
                 const monthWinners=[];
                 monthRows.forEach(r=>{
                     const nome=String(r.vendedor||'').trim(),id=String(r.id_vendedor||'');
                     const meta=cleanNumber(r.meta_mensal),fat=cleanNumber(r.faturado);
                     if(!nome||!meta||fat<meta||id==='1'||id==='80'||/^Fabiano/i.test(nome))return;
-                    if(!monthWinners.some(w=>w.id===id&&normalizar(w.nome)===normalizar(nome)))monthWinners.push({id,nome:VENDEDORES_MAP[id]||nome,realizado:fat,meta});
+                    const vendaDates=(allFaturados||[]).filter(f=>String(f['Cod. Vendedor']||'').trim()===id).map(f=>parseCampaignDate(f.Data||f.data||f['Data Faturamento']||f['Data Emissão'])).filter(d=>d&&d>=inicioMes&&d<=fimMes&&d<=now);
+                    const conquista=vendaDates.sort((a,b)=>b-a)[0];
+                    if(!recente(conquista))return;
+                    if(!monthWinners.some(w=>w.id===id&&normalizar(w.nome)===normalizar(nome)))monthWinners.push({id,nome:VENDEDORES_MAP[id]||nome,realizado:fat,meta,conquista});
                 });
                 if(monthWinners.length)slides.push({kind:'monthly-achievement',data:{vencedores:monthWinners,nome:'Meta mensal'}});
                 if(!slides.length){container.innerHTML='<div class="carousel-slide achievement-banner achievement-monthly" style="display:flex;align-items:center;justify-content:center;min-height:220px;background:linear-gradient(120deg,#f4f8ff,#eefbf5);"><div class="achievement-banner-content"><div class="achievement-banner-trophy">🎯</div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR</span><h2>Vamos juntos bater a meta!</h2><p>As conquistas do time aparecerão aqui automaticamente.</p></div></div></div>'; indicators.innerHTML=''; currentCarouselIndex=0; container.style.transform='translateX(0)'; return;}
