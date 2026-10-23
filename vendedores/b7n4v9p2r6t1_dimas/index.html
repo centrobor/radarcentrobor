@@ -2480,52 +2480,78 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
             }
 
             function renderCarrossel() {
-                const container = document.getElementById('carousel-container');
-                const indicators = document.getElementById('carousel-indicators');
-                const recentesBanner = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_BANNER_KEY) : []).filter(dimasIsCurrentMonth);
-                const recentesPremios = (typeof dimasReadArray === 'function' ? dimasReadArray(DIMAS_AWARDS_KEY) : []).filter(dimasIsCurrentMonth).map(a=>({...a,tipo:'MENSAL',_dimasConquista:true}));
-                const unicosConquista = new Map();
-                [...recentesBanner,...recentesPremios].forEach(b=>{const id=String(b.chave||b.id||b.nome||b.titulo||b.timestamp);if(!unicosConquista.has(id))unicosConquista.set(id,{...b,_dimasConquista:true});});
-                const bannersConquista = [...unicosConquista.values()].sort((a,b)=>Number(b.timestamp||0)-Number(a.timestamp||0)).map(b=>({...b,_dimasConquista:true}));
-                const bannersExibicao = [...bannersConquista, ...(Array.isArray(BANNERS)?BANNERS:[])];
-                window._dimasCarouselSlides = bannersExibicao;
-                if (!bannersExibicao.length) {
-                    container.innerHTML =
-                        '<div class="carousel-slide"><img src="https://via.placeholder.com/1200x340/1e3a5f/ffffff?text=Centrobor"></div>';
-                    return;
+                const container=document.getElementById('carousel-container');
+                const indicators=document.getElementById('carousel-indicators');
+                if(!container||!indicators)return;
+                const now=new Date(),ano=now.getFullYear(),mes=now.getMonth()+1;
+                const slides=[];
+                const money=v=>formatarMoeda(Number(v)||0);
+                const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+                const addAchievement=(key,tipo,nome,meta,realizado,extra='')=>{
+                    if(!(Number(meta)>0&&Number(realizado)>=Number(meta)))return;
+                    slides.push({kind:'achievement',key,tipo,nome,meta:Number(meta),realizado:Number(realizado),perc:Number(realizado)/Number(meta)*100,extra});
+                };
+                // Metas Centrobor e Dimas são calculadas a partir dos mesmos dados usados nos KPIs.
+                const metaEmpresa=getMetaEmpresaMes(ano,mes);
+                const realizadoEmpresa=getFaturamentoTotalMes(ano,mes);
+                addAchievement(`centrobor_${ano}_${mes}`,'centrobor',`Meta Centrobor · ${now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,metaEmpresa,realizadoEmpresa,'Meta mensal da empresa');
+                const metasDimas=getMetasDimas(ano,mes);
+                const realizadoDimas=(Array.isArray(faturadosRaw)?faturadosRaw:[]).reduce((sum,r)=>{
+                    const d=parseDataBR(r.Data||r.data||r['Data Faturamento']||r['Data Emissão']);
+                    const cod=String(r['Cod. Vendedor']??r.cod_vendedor??'').trim();
+                    return d&&d.getFullYear()===ano&&d.getMonth()+1===mes&&cod===String(COD_DIMAS)?sum+cleanNumber(r['Valor Mercadoria']):sum;
+                },0);
+                addAchievement(`dimas_${ano}_${mes}`,'individual',`Meta individual Dimas · ${now.toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,metasDimas.mensal,realizadoDimas,'Meta mensal individual');
+                // Campanhas especiais atingidas pelo Dimas.
+                (Array.isArray(campanhasRaw)?campanhasRaw:[]).forEach(c=>{
+                    const cod=String(extrairCodigo(c.vendedor_cod)||c.vendedor_cod||'').trim();
+                    if(cod!==String(COD_DIMAS))return;
+                    const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
+                    if(meta>0&&realizado>=meta)addAchievement(`campanha_${c.campanha||'especial'}_${c.data_inicio||''}`,'centrobor-campanha',`Campanha atingida · ${c.campanha||'Campanha especial'}`,meta,realizado,`${c.data_inicio||''}${c.data_fim?' – '+c.data_fim:''}`);
+                });
+                // Mantém também as conquistas recém-registradas no histórico local, sem duplicar as metas calculadas acima.
+                const keys=new Set(slides.map(x=>x.key));
+                const recentes=[...dimasReadArray(DIMAS_BANNER_KEY),...dimasReadArray(DIMAS_AWARDS_KEY)].filter(dimasIsCurrentMonth);
+                recentes.forEach(a=>{
+                    const key=String(a.chave||a.id||a.nome||a.titulo||a.timestamp);
+                    const currentKey=`${ano}-${String(mes).padStart(2,'0')}`;
+                    // A meta mensal individual já foi calculada acima; não repetir o mesmo banner do histórico.
+                    if((String(a.tipo||'').toUpperCase()==='MENSAL'&&String(a.dataConquista||'')===currentKey)||keys.has(key))return;
+                    const isCentrobor=/centrobor|empresa|time/i.test(`${a.tipo||''} ${a.nome||a.titulo||''}`);
+                    slides.push({kind:'achievement',key,tipo:isCentrobor?'centrobor':'individual',nome:a.nome||a.titulo||'Meta atingida!',meta:Number(a.meta)||0,realizado:Number(a.realizado)||0,perc:Number(a.perc)||100,extra:'Conquista registrada'});keys.add(key);
+                });
+                (Array.isArray(BANNERS)?BANNERS:[]).forEach((b,i)=>slides.push({kind:'banner',data:b,key:`banner_${b.id||b.titulo||i}`}));
+                window._dimasCarouselSlides=slides;
+                if(!slides.length){
+                    container.innerHTML='<div class="carousel-slide achievement-banner" style="display:flex;align-items:center;justify-content:center;min-height:324px;background:linear-gradient(120deg,#10182f,#172f5c 52%,#5b3b08)"><div class="achievement-banner-content"><div class="achievement-banner-trophy">🎯</div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR</span><h2>Vamos juntos bater a meta!</h2><p>As conquistas Centrobor e do Dimas aparecerão aqui automaticamente quando uma meta for atingida.</p></div></div></div>';
+                    indicators.innerHTML='';currentCarouselIndex=0;container.style.transform='translateX(0)';return;
                 }
-                container.innerHTML = bannersExibicao.map((b, i) => b._dimasConquista ? `
-                <div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0">
-                    <div class="achievement-banner-glow"></div>
-                    <div class="achievement-banner-content"><div class="achievement-banner-main">
-                      <span class="achievement-pill"><i class="fas ${(String(b.tipo||'').toLowerCase().includes('centrobor')||String(b.tipo||'').toLowerCase().includes('empresa')||String(b.nome||b.titulo||'').toLowerCase().includes('centrobor'))?'fa-bullseye':'fa-trophy'}"></i> META / CONQUISTA ATINGIDA</span>
-                      <div class="achievement-banner-row">
-                        <div class="achievement-banner-trophy"><i class="fas ${(String(b.tipo||'').toLowerCase().includes('centrobor')||String(b.tipo||'').toLowerCase().includes('empresa')||String(b.nome||b.titulo||'').toLowerCase().includes('centrobor'))?'fa-bullseye':'fa-trophy'}"></i></div>
-                        <div class="achievement-banner-copy">
-                          <span class="achievement-eyebrow">RADAR CENTROBOR · ${String(b.tipo||'').toLowerCase().includes('centrobor')||String(b.tipo||'').toLowerCase().includes('empresa')||String(b.nome||b.titulo||'').toLowerCase().includes('centrobor')?'META CENTROBOR':'META INDIVIDUAL · DIMAS'}</span>
-                          <h2>${b.nome||b.titulo||'Meta atingida!'}</h2>
-                          <p>${b.perc?Number(b.perc).toFixed(1).replace('.',',')+'% da meta atingida':'META BATIDA'}</p>
-                          <strong>${b.realizado?formatarMoeda(Number(b.realizado)):'Parabéns pela conquista!'}</strong>
-                          <small>Conquista recente · Clique para ver o quadro de prêmios</small>
-                        </div>
-                      </div>
-                    </div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div>
-                </div>` : `
-                <div class="carousel-slide" data-idx="${i}">
-                    <img src="${b.imagem}" alt="${b.titulo}" onerror="this.src='https://via.placeholder.com/1200x340?text=Imagem'">
-                    <div class="carousel-caption"><span class="caption-title">${b.titulo}</span><span class="carousel-meta"><i class="fas fa-calendar-alt"></i> ${b.data || '—'} &nbsp; <i class="fas fa-user"></i> ${b.autor || '—'}</span></div>
-                </div>`).join('');
-                indicators.innerHTML = bannersExibicao.map((_, i) =>
-                    `<div class="indicator-dot ${i===0?'active':''}" data-idx="${i}"></div>`).join('');
-                document.querySelectorAll('.indicator-dot').forEach(dot => dot.addEventListener('click', e => {
-                    currentCarouselIndex = parseInt(e.target.dataset.idx);
-                    updateCarrossel();
-                }));
-                document.querySelectorAll('.carousel-slide').forEach(slide => slide.addEventListener('click', () =>
-                    (window._dimasCarouselSlides||BANNERS)[currentCarouselIndex]?._dimasConquista ? abrirMeusPremiosDimas() : abrirPostagem((window._dimasCarouselSlides||BANNERS)[currentCarouselIndex])));
+                container.innerHTML=slides.map((item,i)=>{
+                    if(item.kind==='achievement'){
+                        const centrobor=item.tipo!=='individual';
+                        const icon=centrobor?'fa-bullseye':'fa-trophy';
+                        const eyebrow=centrobor?'META CENTROBOR':'META INDIVIDUAL · DIMAS';
+                        const title=item.nome||'Meta atingida!';
+                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" data-kind="achievement" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,#ffe7a055,transparent 35%),radial-gradient(ellipse at 85% 90%,#c47b4388,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,#5b2f15)"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${icon}"></i> META ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy"><i class="fas ${icon}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · ${eyebrow}</span><h2>${esc(title)}</h2><p>${esc(item.extra||'Parabéns pela conquista!')}</p><strong>${money(item.realizado)} / ${money(item.meta)}</strong><small>${Number(item.perc||100).toFixed(1).replace('.',',')}% da meta atingida · Clique para ver os detalhes</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
+                    }
+                    const b=item.data||{};
+                    return `<div class="carousel-slide" data-idx="${i}" data-kind="banner"><img src="${b.imagem||''}" alt="${esc(b.titulo||'Banner')}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${esc(b.titulo||'')}</span><small>${esc(b.data||'')} · ${esc(b.autor||'')}</small></div></div>`;
+                }).join('');
+                indicators.innerHTML=slides.map((_,i)=>`<button type="button" aria-label="Mostrar banner ${i+1}" class="indicator-dot ${i===currentCarouselIndex?'active':''}" data-idx="${i}"></button>`).join('');
+                indicators.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',()=>{currentCarouselIndex=Number(d.dataset.idx)||0;updateCarrossel();}));
+                container.querySelectorAll('.carousel-slide[data-idx]').forEach(el=>{
+                    const abrir=()=>{const item=slides[Number(el.dataset.idx)];if(!item)return;if(item.kind==='achievement')abrirDetalheConquistaDimas(item);else abrirPostagem(item.data||item);};
+                    el.addEventListener('click',abrir);el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();}});
+                });
                 updateCarrossel();
             }
-
+            function abrirDetalheConquistaDimas(item){
+                const modal=document.getElementById('post-modal'),body=document.getElementById('post-modal-body');
+                if(!modal||!body)return;
+                const centrobor=item.tipo!=='individual',icon=centrobor?'fa-bullseye':'fa-trophy';
+                body.innerHTML=`<button class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</button><div style="text-align:center;padding:16px 4px 22px"><div style="font-size:3.5rem;color:#d5a52b"><i class="fas ${icon}"></i></div><span class="achievement-eyebrow">RADAR CENTROBOR · ${centrobor?'META CENTROBOR':'META INDIVIDUAL · DIMAS'}</span><h2 style="margin:12px 0">${String(item.nome||'Meta atingida!').replace(/[<>]/g,'')}</h2><p>${String(item.extra||'Parabéns pela conquista!').replace(/[<>]/g,'')}</p><div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;text-align:left;margin-top:18px"><div class="detail-stat"><div class="stat-label">Meta</div><div class="stat-value">${formatarMoeda(item.meta)}</div></div><div class="detail-stat"><div class="stat-label">Realizado</div><div class="stat-value">${formatarMoeda(item.realizado)}</div></div></div><div style="margin-top:16px;font-weight:900;color:#176443;font-size:1.2rem">${Number(item.perc||100).toFixed(1).replace('.',',')}% atingido 🏆</div><button class="btn-mark-all-read" id="dimas-ver-premios-da-meta" style="margin-top:16px">Ver quadro de prêmios</button></div>`;
+                modal.classList.add('active');document.getElementById('dimas-ver-premios-da-meta')?.addEventListener('click',()=>{modal.classList.remove('active');abrirMeusPremiosDimas()});
+            }
             function updateCarrossel() {
                 const slides = window._dimasCarouselSlides || BANNERS;
                 if (slides.length && currentCarouselIndex >= slides.length) currentCarouselIndex = 0;
@@ -2565,19 +2591,25 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 abrirNotificacoes();
             }
 
-            function abrirNotificacoes() {
-                const modal=document.getElementById('notif-modal'), body=document.getElementById('notif-modal-body');
-                const premioList=dimasReadArray(DIMAS_NOTIF_KEY).filter(dimasIsCurrentMonth).map(n=>({...n,_premio:true,id:n.id||n.chave,timestamp:Number(n.timestamp||0),tipo:'conquista',titulo:n.titulo||n.nome||'Nova conquista',data:n.data||new Date(Number(n.timestamp||Date.now())).toLocaleDateString('pt-BR'),autor:'Dimas',texto_html:`<p>Conquista registrada em Meus Prêmios: ${n.titulo||n.nome||'Nova conquista'}.</p>`}));
-                const posts=notificacoes.map(n=>({...n,_premio:false,timestamp:Number(n.timestamp||0)})).sort((a,b)=>b.timestamp-a.timestamp).slice(0,12);
-                const items=[...premioList,...posts].sort((a,b)=>b.timestamp-a.timestamp).slice(0,15);
-                const unreadCount=items.filter(n=>n._premio?!n.lida:!readNotifications.includes(n.id)).length;
-                const header=`<button class="modal-close" aria-label="Fechar" onclick="document.getElementById('notif-modal').classList.remove('active')">&times;</button><div class="notif-modal-header"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas e notificações</h2><span style="font-size:.8rem;color:var(--muted)">${items.length} recentes</span></div><div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px"><button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button><button class="btn-mark-all-read" id="btn-go-feed"><i class="fas fa-rss"></i> Ir para o Feed e continuar</button></div>`;
-                const cards=items.map(n=>{const isRead=n._premio?!!n.lida:readNotifications.some(x=>String(x)===String(n.id));const tipo=n.tipo||'informativo';const bg=tipo==='alerta'?'#fee2e2':tipo==='novidade'?'#e0f2fe':tipo==='conquista'?'#fff4cf':'#f3f4f6';const col=tipo==='alerta'?'#991b1b':tipo==='novidade'?'#0369a1':tipo==='conquista'?'#8a5b00':'#374151';const excerpt=(n.texto_html||n.resumo||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,140);return `<div class="notif-card" data-id="${String(n.id||'').replace(/"/g,'&quot;')}" data-premio="${n._premio?'1':'0'}" style="cursor:pointer;${isRead?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><div class="notif-conquista-icon ${n._premio||tipo==='conquista'?'silver':''}"><i class="fas ${n._premio?'fa-medal':(n.icone||'fa-bell')}"></i></div><div class="notif-body"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${n.titulo||'Notificação'}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'Radar Centrobor'}</div><div class="notif-excerpt">${excerpt||'Toque para ver os detalhes.'}</div><span style="font-size:.75rem;color:${isRead?'var(--muted)':'var(--primary)'};font-weight:${isRead?'400':'700'}">${isRead?'✓ Lida':'● Não lida'}</span></div></div>`}).join('');
-                body.innerHTML=header+(cards||'<p style="text-align:center;color:var(--muted);padding:30px">Nenhum alerta recente.</p>');
-                document.getElementById('btn-mark-all-read')?.addEventListener('click',()=>{notificacoes.forEach(n=>{if(!readNotifications.some(x=>String(x)===String(n.id)))readNotifications.push(n.id)});localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgeNotificacoes();atualizarBadgePremiosDimas();abrirNotificacoes()});
-                document.getElementById('btn-go-feed')?.addEventListener('click',()=>{modal.classList.remove('active');const feed=document.getElementById('feed')||document.getElementById('feed-section')||document.querySelector('[data-section="feed"]');if(feed){feed.scrollIntoView({behavior:'smooth',block:'start'});}else{const link=[...document.querySelectorAll('a,button,.menu-item')].find(el=>/feed/i.test(el.textContent||''));if(link)link.click();else window.scrollTo({top:0,behavior:'smooth'});}});
-                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{const id=card.dataset.id;if(card.dataset.premio==='1'){dimasWriteArray(DIMAS_NOTIF_KEY,dimasReadArray(DIMAS_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgePremiosDimas();modal.classList.remove('active');abrirMeusPremiosDimas();return;}if(!readNotifications.some(x=>String(x)===String(id))){readNotifications.push(id);localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();}const post=notificacoes.find(p=>String(p.id)===String(id));modal.classList.remove('active');if(post)abrirPostagem(post);}));
-                modal.classList.add('active');
+            function abrirNotificacoes(filtroLeitura='todas') {
+                const modal=document.getElementById('notif-modal'),body=document.getElementById('notif-modal-body');
+                const unread=notificacoes.filter(n=>!readNotifications.some(x=>String(x)===String(n.id))).length;
+                const ordenarData=valor=>{if(!valor)return 0;const br=String(valor).trim().match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})/);if(br)return new Date(Number(br[3]),Number(br[2])-1,Number(br[1])).getTime()||0;const d=new Date(valor);return Number.isNaN(d.getTime())?0:d.getTime();};
+                const ordenadas=[...notificacoes].sort((a,b)=>{const la=readNotifications.some(x=>String(x)===String(a.id)),lb=readNotifications.some(x=>String(x)===String(b.id));return la!==lb?(la?1:-1):ordenarData(b.data)-ordenarData(a.data)});
+                const filtradas=ordenadas.filter(n=>{const lida=readNotifications.some(x=>String(x)===String(n.id));return filtroLeitura==='nao-lidas'?!lida:filtroLeitura==='lidas'?lida:true});
+                const exibidas=filtradas.slice(0,5);
+                let html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px"><h2 style="margin:0"><i class="fas fa-bell"></i> Alertas</h2><div style="display:flex;gap:8px;align-items:center">${unread?'<button class="btn-mark-all-read" id="btn-mark-all-read"><i class="fas fa-check-double"></i> Marcar tudo como lido</button>':''}<button class="modal-close" id="fechar-notif-modal" style="position:relative;top:auto;right:auto;flex:0 0 40px" aria-label="Fechar">&times;</button></div></div>`;
+                html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"><button class="farol-btn notif-filter-btn" data-filtro="todas" style="${filtroLeitura==='todas'?'background:var(--primary);color:white;':''}">Todas</button><button class="farol-btn notif-filter-btn" data-filtro="nao-lidas" style="${filtroLeitura==='nao-lidas'?'background:var(--primary);color:white;':''}">Não lidas</button><button class="farol-btn notif-filter-btn" data-filtro="lidas" style="${filtroLeitura==='lidas'?'background:var(--primary);color:white;':''}">Lidas</button></div>`;
+                if(!notificacoes.length)html+='<p style="text-align:center;padding:28px;color:var(--muted)">Nenhum alerta recente.</p>';
+                else if(!exibidas.length)html+='<p style="text-align:center;padding:28px;color:var(--muted)">Nenhum alerta nesta categoria.</p>';
+                else exibidas.forEach(n=>{const lida=readNotifications.some(x=>String(x)===String(n.id));const tipo=n.tipo||'informativo',bg=tipo==='alerta'?'#fee2e2':'#e0f2fe',col=tipo==='alerta'?'#991b1b':'#0369a1';const titulo=String(n.titulo||'Sem título').replace(/</g,'&lt;').replace(/>/g,'&gt;');const resumo=String(n.texto_html||'').replace(/<[^>]*>/g,'').slice(0,120);html+=`<div class="notif-card" data-id="${String(n.id).replace(/"/g,'&quot;')}" style="${lida?'opacity:.78;':'background:#f0f7ff;border:1px solid #dbeafe;'}"><img src="${n.imagem||'https://via.placeholder.com/80x60'}" class="notif-thumb" onerror="this.style.display='none'"><div style="min-width:0;flex:1"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><div class="notif-title">${titulo}</div><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${n.data||'—'} &nbsp; <i class="fas fa-user"></i> ${n.autor||'—'}</div><div class="notif-excerpt">${resumo}${resumo?'…':''}</div><span style="font-size:.75rem;color:${lida?'var(--muted)':'var(--primary)'};font-weight:${lida?'400':'700'}">${lida?'✓ Lida':'● Não lida'}</span></div></div>`});
+                html+=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);margin-top:14px;padding-top:14px"><span style="font-size:.75rem;color:var(--muted)">Exibindo ${exibidas.length} de ${filtradas.length} alertas (máximo de 5).</span><a href="https://centrobor.github.io/radarcentrobor/hpvx5_postagens/postagens.html" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:8px;padding:10px 16px;border-radius:24px;background:var(--primary);color:white;text-decoration:none;font-weight:700;font-size:.8rem"><i class="fas fa-newspaper"></i> Abrir Feed completo <i class="fas fa-external-link-alt"></i></a></div>`;
+                body.innerHTML=html;
+                document.getElementById('fechar-notif-modal')?.addEventListener('click',()=>modal.classList.remove('active'));
+                document.getElementById('btn-mark-all-read')?.addEventListener('click',()=>{notificacoes.forEach(n=>{if(!readNotifications.some(x=>String(x)===String(n.id)))readNotifications.push(n.id)});localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes();abrirNotificacoes(filtroLeitura)});
+                body.querySelectorAll('.notif-filter-btn').forEach(btn=>btn.addEventListener('click',()=>abrirNotificacoes(btn.dataset.filtro)));
+                body.querySelectorAll('.notif-card').forEach(card=>card.addEventListener('click',()=>{const id=card.dataset.id;if(!readNotifications.some(x=>String(x)===String(id))){readNotifications.push(id);localStorage.setItem('readNotifications_Dimas',JSON.stringify(readNotifications));atualizarBadgeNotificacoes()}const post=notificacoes.find(p=>String(p.id)===String(id));if(!post)return;const tipo=post.tipo||'informativo',bg=tipo==='alerta'?'#fee2e2':'#e0f2fe',col=tipo==='alerta'?'#991b1b':'#0369a1',titulo=String(post.titulo||'Sem título').replace(/</g,'&lt;').replace(/>/g,'&gt;');body.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:16px"><button id="voltar-alertas-btn" style="background:none;border:none;color:var(--primary);font-weight:700;cursor:pointer"><i class="fas fa-arrow-left"></i> Voltar</button><button id="fechar-detalhe-alerta-btn" class="modal-close" style="position:relative;top:auto;right:auto;flex:0 0 40px" aria-label="Fechar">&times;</button></div><div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px">${post.imagem?`<img src="${post.imagem}" style="max-width:260px;max-height:190px;object-fit:cover;border-radius:14px" onerror="this.style.display='none'">`:''}<div style="flex:1;min-width:180px"><span class="notif-type" style="background:${bg};color:${col}">${String(tipo).toUpperCase()}</span><h2 style="margin:8px 0">${titulo}</h2><div class="notif-meta"><i class="fas fa-calendar-alt"></i> ${post.data||'—'} · <i class="fas fa-user"></i> ${post.autor||'—'}</div></div></div><div>${post.texto_html||''}</div>`;modal.classList.add('active');document.getElementById('voltar-alertas-btn')?.addEventListener('click',()=>abrirNotificacoes(filtroLeitura));document.getElementById('fechar-detalhe-alerta-btn')?.addEventListener('click',()=>modal.classList.remove('active'))}));
+                modal.classList.add('active');if(!modal.dataset.outsideListener){modal.addEventListener('click',e=>{if(e.target===modal)modal.classList.remove('active')});modal.dataset.outsideListener='true'}
             }
 
             // ==================== CARREGAMENTO DE DADOS E RENDER ====================
@@ -2655,15 +2687,9 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                     window.location.href = '../../index.html?reason=logged_out';
                 });
                 document.getElementById('notification-bell').addEventListener('click', abrirNotificacoes);
-                document.getElementById('prev-btn').addEventListener('click', () => { if (BANNERS.length) {
-                        currentCarouselIndex = (currentCarouselIndex - 1 + BANNERS.length) % BANNERS.length;
-                        updateCarrossel(); } });
-                document.getElementById('next-btn').addEventListener('click', () => { if (BANNERS.length) {
-                        currentCarouselIndex = (currentCarouselIndex + 1) % BANNERS.length;
-                        updateCarrossel(); } });
-                setInterval(() => { if (BANNERS.length) { currentCarouselIndex = (currentCarouselIndex + 1) %
-                        BANNERS.length;
-                        updateCarrossel(); } }, 6000);
+                document.getElementById('prev-btn').addEventListener('click', () => { const n=(window._dimasCarouselSlides||[]).length; if(n){currentCarouselIndex=(currentCarouselIndex-1+n)%n;updateCarrossel();} });
+                document.getElementById('next-btn').addEventListener('click', () => { const n=(window._dimasCarouselSlides||[]).length; if(n){currentCarouselIndex=(currentCarouselIndex+1)%n;updateCarrossel();} });
+                setInterval(() => { const n=(window._dimasCarouselSlides||[]).length; if(n>1){currentCarouselIndex=(currentCarouselIndex+1)%n;updateCarrossel();} }, 6000);
                 document.getElementById('footer-year').textContent = new Date().getFullYear();
 
                 document.getElementById('hamburger-btn').addEventListener('click', openHamburger);
