@@ -2362,10 +2362,8 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
 
             // ==================== TABELAS COM TOTALIZADOR DINÂMICO ====================
             function renderTables(ano, mes) {
-                const filterByMonth = (lista, campoData) => lista.filter(item => {
-                    const d = parseDataBR(item[campoData]);
-                    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
-                });
+                // Exibe o histórico completo nas tabelas; a seleção de mês não deve ocultar pedidos antigos.
+                const filterByMonth = (lista, campoData) => (Array.isArray(lista) ? lista : []).filter(item => !!parseDataBR(item[campoData]));
                 const aprov = filterByMonth(aprovadosRaw, 'Data').sort((a, b) => (parseDataBR(b.Data) || 0) - (parseDataBR(
                     a.Data) || 0));
                 const fat = filterByMonth(faturadosRaw.filter(f => { const cod = f['Cod. Vendedor']?.trim(); return cod &&
@@ -2393,9 +2391,10 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                             <thead><tr>${colunas.map(c => `<th>${c}</th>`).join('')}</tr></thead>
                             <tbody>
                     `;
-                    dados.slice(0, 400).forEach((r, idx) => {
+                    dados.forEach((r, idx) => {
                         const colCliente = colunas.find(c => ['Cliente', 'Nome Chave', 'Razão Social'].includes(c));
-                        html += `<tr data-idx="${idx}" data-tipo="${tipo}">` + colunas.map(c => {
+                        const dataReferencia = r['Data'] || r['Data Criação'] || r['Data de Criação'] || r['Competência'] || '';
+                        html += `<tr data-idx="${idx}" data-tipo="${tipo}" data-date="${String(dataReferencia).replace(/"/g,'&quot;')}">` + colunas.map(c => {
                             const isCliente = c === colCliente;
                             const valor = r[c] || '';
                             return `<td${isCliente ? ' class="cliente-nome"' : ''} data-cliente="${isCliente ? valor : ''}">${valor}</td>`;
@@ -2419,7 +2418,7 @@ document.getElementById('tool-meus-premios-dimas')?.addEventListener('click',e=>
                 ], 'cot', 'Valor Total');
 
                 // Faixas de idade aplicadas a todas as tabelas: verde até 30 dias, amarelo de 31 a 90, vermelho acima de 90.
-                document.querySelectorAll('.table-wrapper table').forEach(table=>{const heads=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim().toLowerCase());let ix=heads.findIndex(h=>['data','data criação','data de criação','competência'].includes(h));if(ix<0)return;table.querySelectorAll('tbody tr').forEach(tr=>{const raw=tr.children[ix]?.textContent?.trim()||'';let d=parseDataBR(raw);if(!d){const m=raw.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);if(m)d=new Date(+m[1],+m[2]-1,+(m[3]||1));}if(!d||isNaN(d))return;const hoje=new Date();hoje.setHours(0,0,0,0);d.setHours(0,0,0,0);const days=Math.max(0,Math.floor((hoje-d)/86400000));tr.classList.remove('dimas-age-green','dimas-age-yellow','dimas-age-red');tr.classList.add(days<=30?'dimas-age-green':days<=90?'dimas-age-yellow':'dimas-age-red');});});
+                document.querySelectorAll('.table-wrapper table').forEach(table=>{const heads=[...table.querySelectorAll('thead th')].map(th=>th.textContent.trim().toLowerCase());const ix=heads.findIndex(h=>['data','data criação','data de criação','competência'].includes(h));table.querySelectorAll('tbody tr').forEach(tr=>{const raw=tr.dataset.date||((ix>=0&&tr.children[ix])?tr.children[ix].textContent.trim():'');let d=parseDataBR(raw);if(!d){const m=raw.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?/);if(m)d=new Date(+m[1],+m[2]-1,+(m[3]||1));}if(!d||isNaN(d))return;const hoje=new Date();hoje.setHours(0,0,0,0);d.setHours(0,0,0,0);const days=Math.max(0,Math.floor((hoje-d)/86400000));tr.classList.remove('dimas-age-green','dimas-age-yellow','dimas-age-red');tr.classList.add(days<=30?'dimas-age-green':days<=90?'dimas-age-yellow':'dimas-age-red');});});
 
                 // Aplicar eventos de busca dinâmica com atualização do totalizador
                 document.querySelectorAll('.table-wrapper').forEach(wrapper => {
