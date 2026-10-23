@@ -3498,32 +3498,23 @@
                     return null;
                 };
                 const recente=d=>d && d>=new Date(now.getTime()-4*86400000) && d<=now;
-                // Campanhas: somente campanhas vigentes e do mês atual; banner fica por 4 dias
-                // após a última conquista registrada para qualquer vendedor da campanha.
+                // Campanhas no carrossel seguem a mesma regra da barra amarela: campanhas ativas,
+                // com todos os participantes agregados por colaborador (atingidos e em andamento).
                 const grupos={};
-                (campanhasData||[]).forEach(c=>{
-                    const inicio=parseCampaignDate(c.data_inicio),fim=parseCampaignDate(c.data_fim);
-                    if((inicio&&inicio>now)||(fim&&fim<now))return;
-                    // A campanha precisa estar vigente agora e ter período que intersecte o mês atual.
-                    if((fim&&fim<inicioMes)||(inicio&&inicio>fimMes))return;
-                    const meta=cleanNumber(c.meta_valor),realizado=cleanNumber(c.realizado_valor);
-                    if(!(meta>0&&realizado>=meta))return;
-                    const cod=String(c.vendedor_cod||'');
-                    let conquista=dataConquista(c);
-                    if(!conquista){
-                        const vendasVendedor=(allFaturados||[]).filter(f=>String(f['Cod. Vendedor']||'').trim()===cod)
-                            .map(f=>parseCampaignDate(f.Data||f.data||f['Data Faturamento']||f['Data Emissão']))
-                            .filter(d=>d&&d>=inicioMes&&d<=fimMes&&d<=now);
-                        conquista=vendasVendedor.sort((a,b)=>b-a)[0]||null;
-                    }
-                    const nomeCamp=String(c.campanha||'Campanha especial'),key=normalizar(nomeCamp);
-                    if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign',ultimaConquista:null,temConquistaRecente:false};
-                    // O banner só precisa de uma conquista recente para continuar ativo, mas a lista deve incluir TODOS os colaboradores que atingiram a meta da campanha vigente.
-                    if(recente(conquista))grupos[key].temConquistaRecente=true;
-                    if(conquista&&(!grupos[key].ultimaConquista||conquista>grupos[key].ultimaConquista))grupos[key].ultimaConquista=conquista;
-                    if(!grupos[key].vencedores.some(v=>String(v.cod)===cod))grupos[key].vencedores.push({cod,nome:c.vendedor_nome||VENDEDORES_MAP[cod]||'Vendedor',realizado,meta});
+                (campanhasData||[]).filter(isCampaignActive).forEach(c=>{
+                    const cod=String(c.vendedor_cod||'').trim();
+                    if(!cod)return;
+                    const nomeCamp=String(c.campanha||'Campanha especial');
+                    const key=normalizar(nomeCamp);
+                    const meta=cleanNumber(c.meta_valor), realizado=cleanNumber(c.realizado_valor);
+                    if(!grupos[key])grupos[key]={nome:nomeCamp,vencedores:[],tipo:/dardo/i.test(nomeCamp)?'darts':'campaign'};
+                    let v=grupos[key].vencedores.find(x=>String(x.cod)===cod);
+                    if(!v){v={cod,nome:c.vendedor_nome||VENDEDORES_MAP[cod]||'Colaborador',meta:0,realizado:0};grupos[key].vencedores.push(v);}
+                    v.meta+=meta; v.realizado+=realizado;
                 });
-                Object.values(grupos).filter(g=>g.temConquistaRecente&&g.vencedores.length).forEach(g=>slides.push({kind:'achievement',data:g}));
+                // O banner usa a campanha ativa como fonte; o clique abre o quadro completo,
+                // igual ao botão de detalhes da barra amarela, incluindo todos os participantes.
+                Object.values(grupos).filter(g=>g.vencedores.length).forEach(g=>slides.push({kind:'achievement',data:g}));
                 // Meta mensal: apenas o mês atual e conquistas cuja data mais recente ainda esteja na janela de 4 dias.
                 const monthRows=(allConsolidadoMetas||[]).filter(r=>{const d=parseDataBR(r.mes_ano);return d&&d.getFullYear()===ano&&d.getMonth()===mes;});
                 const monthWinners=[];
@@ -3548,7 +3539,7 @@
                         const icon=mensal?'🏆':dardos?'🎯':'🏆';
                         const title=mensal?'Meta mensal atingida!':dardos?'Campanha dos Dardos conquistada!':'Campanha concluída!';
                         const tema=dardos?{cor:'#f2b632',clara:'#ffe7a0',ink:'#5b3b08',icone:'fa-bullseye'}:{cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-trophy'};
-                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.length} ${d.vencedores.length===1?'colaborador atingiu a conquista':'colaboradores atingiram a conquista'} · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
+                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.filter(v=>Number(v.meta)>0&&Number(v.realizado)>=Number(v.meta)).length} atingiram a meta · ${d.vencedores.length} participantes · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
                     }
                     const b=item.data;
                     return `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${b.titulo||''}</span><small>${b.data||''}</small></div></div>`;
