@@ -1702,11 +1702,6 @@
                 </article>
             </div>
         </div>
-        <div class="insight-card">
-            <div class="insight-title"><i class="fas fa-chart-line"></i> Meta geral & Performance - Fabiano</div>
-            <div id="metas-fabiano-container"></div>
-        </div>
-
         <!-- CAMPANHAS ESPECIAIS -->
         <div class="insight-card">
             <div class="insight-title"><i class="fas fa-trophy"></i> Campanhas Especiais</div>
@@ -2018,22 +2013,47 @@
             function fabianoReadArray(key){try{const x=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(x)?x:[]}catch(_){return[]}}
             function fabianoWriteArray(key,x){try{localStorage.setItem(key,JSON.stringify(x))}catch(e){console.warn('Não foi possível salvar conquistas locais',e)}}
             function fabianoBuildAwards(){
+                // A conquista mensal exige que AS DUAS metas especiais do Fabiano sejam batidas
+                // no mesmo mês: Sinc/Polias/Esp. e Lavanderia. Fonte: JSON consolidado.
                 const consolidated=Array.isArray(metasVendRaw)?metasVendRaw:[];
+                const norm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
                 const byMonth=new Map();
-                consolidated.filter(r=>String(r.id_vendedor||'').trim()==='24'&&String(r.vendedor||'').toLowerCase().includes('fabiano')).forEach(r=>{
-                    const key=fabianoMonthKey(r);if(!key)return;const meta=cleanNumber(r.meta_mensal),fat=String(r.faturado||'').trim()?cleanNumber(r.faturado):null;
-                    const prev=byMonth.get(key)||{key,meta:0,fat:0,year:Number(key.slice(0,4)),month:Number(key.slice(5,7)),hasFat:false};
-                    prev.meta=meta;if(fat!==null){prev.fat=fat;prev.hasFat=true}byMonth.set(key,prev);
+                consolidated.forEach(r=>{
+                    const code=String(r.id_vendedor||r.codigo||'').trim();
+                    const vendor=norm(r.vendedor||r.nome_vendedor||'');
+                    if(code!=='24'||!vendor.includes('fabiano'))return;
+                    const key=fabianoMonthKey(r);if(!key)return;
+                    const isSinc=/sinc|polias|esp\./.test(vendor),isLav=/lavand/.test(vendor);
+                    if(!isSinc&&!isLav)return;
+                    const meta=cleanNumber(r.meta_mensal)||(isSinc?207000:151000);
+                    const fatRaw=String(r.faturado??'').trim();
+                    const fat=fatRaw?cleanNumber(r.faturado):null;
+                    const row=byMonth.get(key)||{key,year:Number(key.slice(0,4)),month:Number(key.slice(5,7)),sincMeta:207000,sincFat:null,lavMeta:151000,lavFat:null};
+                    if(isSinc){row.sincMeta=meta;if(fat!==null)row.sincFat=fat;}
+                    if(isLav){row.lavMeta=meta;if(fat!==null)row.lavFat=fat;}
+                    byMonth.set(key,row);
                 });
-                // JSON de faturados é a fonte de conferência quando o consolidado não tem faturado (ex.: meses futuros).
-                (Array.isArray(faturadosRaw)?faturadosRaw:[]).forEach(r=>{const d=parseDataBR(r.Data);if(!d)return;const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;const row=byMonth.get(key);if(row&&!row.hasFat){row.fat=(row.fat||0)+cleanNumber(r['Valor Mercadoria']);row.hasFat=true}});
-                const rows=[...byMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).map(r=>({...r,earned:r.meta>0&&r.fat>=r.meta}));
+                const rows=[...byMonth.values()].sort((a,b)=>a.key.localeCompare(b.key)).map(r=>({...r,
+                    meta:r.sincMeta+r.lavMeta,
+                    fat:(r.sincFat||0)+(r.lavFat||0),
+                    hasBoth:r.sincFat!==null&&r.lavFat!==null,
+                    earned:r.sincFat!==null&&r.lavFat!==null&&r.sincFat>=r.sincMeta&&r.lavFat>=r.lavMeta
+                }));
                 const awards=[];const years=[...new Set(rows.map(r=>r.year))];
-                years.forEach(y=>{const yr=rows.filter(r=>r.year===y).sort((a,b)=>a.month-b.month);let streak=[];yr.forEach(r=>{if(r.earned){if(streak.length&&r.month!==streak[streak.length-1].month+1)streak=[];streak.push(r);awards.push({chave:`mensal_${r.key}`,nome:`Meta mensal · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tipo:'MENSAL',year:r.year,month:r.month,meta:r.meta,realizado:r.fat,perc:r.meta?r.fat/r.meta*100:100,dataConquista:r.key});if(streak.length%3===0){const q=streak.slice(-3);awards.push({chave:`trinca_${y}_${r.month}`,nome:`Trinca de metas · ${r.year}`,tipo:'TRINCA',year:y,month:r.month,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:r.key})}if(streak.length%6===0){const q=streak.slice(-6);awards.push({chave:`seis_meses_${y}_${r.month}`,nome:`6 meses consecutivos · ${r.year}`,tipo:'SEIS MESES',year:y,month:r.month,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:r.key})}}else streak=[]});
-                    for(const [start,end,label] of [[1,6,'1º semestre'],[7,12,'2º semestre']]){const q=yr.filter(r=>r.month>=start&&r.month<=end);if(q.length===6&&q.every(r=>r.earned))awards.push({chave:`semestre_${y}_${start}`,nome:`Semestre perfeito · ${label} ${y}`,tipo:'SEMESTRAL',year:y,month:end,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:`${y}-${String(end).padStart(2,'0')}`})}
-                    const meta=yr.reduce((a,x)=>a+x.meta,0),fat=yr.reduce((a,x)=>a+x.fat,0);if(meta>0&&fat>=meta&&yr.length===12)awards.push({chave:`anual_${y}`,nome:`Meta anual Centrobor · ${y}`,tipo:'ANUAL',year:y,month:12,meta,realizado:fat,perc:fat/meta*100,dataConquista:String(y)});
+                years.forEach(y=>{
+                    const yr=rows.filter(r=>r.year===y).sort((a,b)=>a.month-b.month);let streak=[];
+                    yr.forEach(r=>{
+                        if(r.earned){
+                            if(streak.length&&r.month!==streak[streak.length-1].month+1)streak=[];
+                            streak.push(r);
+                            awards.push({chave:`mensal_${r.key}`,nome:`Duas metas especiais atingidas · ${new Date(r.year,r.month-1,1).toLocaleDateString('pt-BR',{month:'long',year:'numeric'})}`,tipo:'MENSAL',year:r.year,month:r.month,meta:r.meta,realizado:r.fat,perc:r.meta?r.fat/r.meta*100:100,dataConquista:r.key});
+                            if(streak.length%3===0){const q=streak.slice(-3);awards.push({chave:`trinca_${y}_${r.month}`,nome:`Trinca de meses com as duas metas · ${y}`,tipo:'TRINCA',year:y,month:r.month,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:r.key});}
+                            if(streak.length%6===0){const q=streak.slice(-6);awards.push({chave:`seis_meses_${y}_${r.month}`,nome:`6 meses consecutivos com as duas metas · ${y}`,tipo:'SEIS MESES',year:y,month:r.month,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:r.key});}
+                        }else streak=[];
+                    });
+                    for(const [startMonth,end,label] of [[1,6,'1º semestre'],[7,12,'2º semestre']]){const q=yr.filter(r=>r.month>=startMonth&&r.month<=end);if(q.length===6&&q.every(r=>r.earned))awards.push({chave:`semestre_${y}_${startMonth}`,nome:`Semestre perfeito · ${label} ${y}`,tipo:'SEMESTRAL',year:y,month:end,meta:q.reduce((a,x)=>a+x.meta,0),realizado:q.reduce((a,x)=>a+x.fat,0),perc:100,dataConquista:`${y}-${String(end).padStart(2,'0')}`});}
+                    const meta=yr.reduce((a,x)=>a+x.meta,0),fat=yr.reduce((a,x)=>a+x.fat,0);if(meta>0&&yr.length===12&&yr.every(r=>r.earned))awards.push({chave:`anual_${y}`,nome:`Ano perfeito · as duas metas especiais · ${y}`,tipo:'ANUAL',year:y,month:12,meta,realizado:fat,perc:fat/meta*100,dataConquista:String(y)});
                 });
-                // O calendário é calculado com as metas mensais consolidadas do Fabiano, que representam o alvo do time Centrobor.
                 return {rows,awards};
             }
             function atualizarBadgePremiosFabiano(){const items=fabianoReadArray(FABIANO_NOTIF_KEY).filter(n=>Date.now()-Number(n.timestamp||0)<FABIANO_AWARD_TTL);const count=items.filter(n=>!n.lida).length;const b=document.getElementById('fabiano-prizes-count');if(b){b.textContent=count;b.style.display=count?'inline-flex':'none'}}
@@ -2054,7 +2074,7 @@
               body.innerHTML=`<div class="fabiano-section-title"><i class="fas fa-medal"></i> Pódio de medalhas <small style="font-weight:650;color:#65758a">· conquistas acumuladas</small></div>
               <div class="fabiano-podium-stage"><div class="fabiano-podium-place silver"><div class="fabiano-podium-medal"><i class="fas fa-medal"></i></div><strong>PRATA</strong><span>${silver} conquista${silver===1?'':'s'}</span><div class="fabiano-podium-block second">2</div></div><div class="fabiano-podium-place gold"><div class="fabiano-podium-medal"><i class="fas fa-trophy"></i></div><strong>OURO</strong><span>${gold} conquista${gold===1?'':'s'}</span><div class="fabiano-podium-block first">1</div></div><div class="fabiano-podium-place bronze"><div class="fabiano-podium-medal"><i class="fas fa-medal"></i></div><strong>BRONZE</strong><span>${bronze} conquista${bronze===1?'':'s'}</span><div class="fabiano-podium-block third">3</div></div></div>
               <div class="fabiano-section-title"><i class="fas fa-calendar-days"></i> Calendário de metas · ${year}</div><div style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:9px">${cal}</div>
-              <div class="fabiano-section-title"><i class="fas fa-trophy"></i> Coleção de medalhas e troféus</div>${cards?`<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">${cards}</div>`:'<div style="padding:26px;text-align:center;border:1px dashed #cbd7e5;border-radius:16px;background:#fff;color:#52657c;line-height:1.7"><i class="fas fa-medal" style="font-size:1.8rem;display:block;margin-bottom:9px;color:#c28d14"></i>As conquistas aparecerão aqui conforme as metas consolidadas forem atingidas.</div>'}<p style="font-size:.75rem;color:#65758a;line-height:1.6;margin-top:18px">As metas mensais são lidas do consolidado da Centrobor para o código 10 (Fabiano). O histórico de conquistas e os alertas ficam registrados localmente neste navegador.</p>`;
+              <div class="fabiano-section-title"><i class="fas fa-trophy"></i> Coleção de medalhas e troféus</div>${cards?`<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px">${cards}</div>`:'<div style="padding:26px;text-align:center;border:1px dashed #cbd7e5;border-radius:16px;background:#fff;color:#52657c;line-height:1.7"><i class="fas fa-medal" style="font-size:1.8rem;display:block;margin-bottom:9px;color:#c28d14"></i>As conquistas aparecerão aqui conforme as metas consolidadas forem atingidas.</div>'}<p style="font-size:.75rem;color:#65758a;line-height:1.6;margin-top:18px">A conquista mensal só é liberada quando as duas metas do Fabiano — Sinc/Polias/Esp. e Lavanderia — são atingidas no mesmo mês, conforme o JSON consolidado (código 24). O histórico de conquistas e os alertas ficam registrados localmente neste navegador.</p>`;
               fabianoWriteArray(FABIANO_NOTIF_KEY,fabianoReadArray(FABIANO_NOTIF_KEY).map(n=>({...n,lida:true})));atualizarBadgePremiosFabiano();
             }
             // Selo NOVO temporário: cinco dias a partir de 22/10/2026.
