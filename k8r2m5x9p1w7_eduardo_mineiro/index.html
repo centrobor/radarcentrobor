@@ -2148,6 +2148,50 @@
 /* Usa o retrato do Kratos na barra superior desktop, igual ao perfil móvel/menu. */
 #desktop-header .user-section .user-avatar { content:url("img/perfil_kratos.jpg"); }
 
+
+.team-calendar-legend{display:flex;flex-wrap:wrap;gap:8px 16px;margin:0 0 12px;font-size:.68rem;color:#526170}.team-calendar-legend span{display:inline-flex;align-items:center;gap:5px}.team-calendar-legend i{font-size:.9rem}.team-calendar-legend .bronze{color:#b8753c}.team-calendar-legend .silver{color:#8290a0}.team-calendar-legend .gold{color:#c58a16}
+/* Ajuste final: animação visível nos banners de metas/campanhas e hierarquia bronze/prata/ouro. */
+#carousel-container .carousel-slide.achievement-banner {
+  position: relative !important;
+  isolation: isolate;
+  overflow: hidden !important;
+  background-size: 220% 220% !important;
+  animation: achievementGradientFlow 10s ease-in-out infinite !important;
+  will-change: background-position;
+}
+#carousel-container .carousel-slide.achievement-banner::before {
+  content: "" !important;
+  display: block !important;
+  position: absolute !important;
+  inset: -40% !important;
+  z-index: 1 !important;
+  pointer-events: none !important;
+  background: linear-gradient(115deg, transparent 34%, rgba(255,255,255,.20) 47%, rgba(255,255,255,.035) 55%, transparent 69%) !important;
+  animation: achievementSheen 6.5s ease-in-out infinite !important;
+}
+#carousel-container .carousel-slide.achievement-banner .achievement-banner-content { position:relative; z-index:2; animation:achievementContentRise .75s ease-out both; }
+#carousel-container .carousel-slide.achievement-banner .achievement-banner-trophy {
+  transform-origin:50% 65%;
+  animation:achievementTrophyFloat 3.8s ease-in-out infinite, achievementTrophyShine 4.5s ease-in-out infinite !important;
+  will-change:transform,filter;
+}
+#carousel-container .carousel-slide.achievement-banner .achievement-banner-glow { z-index:0; animation:achievementGlowDrift 7s ease-in-out infinite !important; }
+#carousel-container .carousel-slide.achievement-banner .achievement-confetti { z-index:3; animation:achievementConfettiFloat 4.5s ease-in-out infinite !important; }
+#carousel-container .carousel-slide.achievement-banner .achievement-pill { animation:achievementPillGlow 2.8s ease-in-out infinite !important; }
+/* Cada meta mensal é bronze; os marcos de sequência são medalhas adicionais prata/ouro. */
+.team-calendar-medal { background:linear-gradient(145deg,#f7dfc6,#c8874d) !important; border-color:#b8753c !important; color:#713f1d !important; box-shadow:inset 0 1px 1px rgba(255,255,255,.7),0 2px 4px rgba(113,63,29,.12); }
+.team-calendar-milestone.silver { background:linear-gradient(145deg,#f8fafc,#c4ccd6) !important; color:#526170 !important; border-color:#aab5c2 !important; }
+.team-calendar-milestone.gold { background:linear-gradient(145deg,#fff2a8,#d4a323) !important; color:#76500a !important; border-color:#d4a323 !important; }
+@media (prefers-reduced-motion: reduce) {
+  #carousel-container .carousel-slide.achievement-banner,
+  #carousel-container .carousel-slide.achievement-banner::before,
+  #carousel-container .carousel-slide.achievement-banner .achievement-banner-content,
+  #carousel-container .carousel-slide.achievement-banner .achievement-banner-trophy,
+  #carousel-container .carousel-slide.achievement-banner .achievement-banner-glow,
+  #carousel-container .carousel-slide.achievement-banner .achievement-confetti,
+  #carousel-container .carousel-slide.achievement-banner .achievement-pill { animation:none !important; }
+}
+
 </style>
 </head>
 <body>
@@ -2766,7 +2810,7 @@
 
                 titleEl.textContent = `🏅 ${nomeCampanha}`;
                 statsEl.innerHTML = `
-                    <strong>${atingidos}</strong> vendedor${atingidos !== 1 ? 'es' : ''} atingiram a meta
+                    <strong>${atingidos}</strong> colaborador${atingidos !== 1 ? 'es' : ''} atingiram a meta
                     ${proximos > 0 ? ` • <strong>${proximos}</strong> estão próximos (≥70%)` : ''}
                 `;
                 bar.style.display = 'block';
@@ -2790,7 +2834,7 @@
                         <table class="campaign-detail-table">
                             <thead>
                                 <tr>
-                                    <th>Vendedor</th>
+                                    <th>Colaborador</th>
                                     <th style="text-align:right;">Meta (R$)</th>
                                     <th style="text-align:right;">Realizado (R$)</th>
                                     <th style="text-align:right;">%</th>
@@ -3491,7 +3535,7 @@
                         const icon=mensal?'🏆':dardos?'🎯':'🏆';
                         const title=mensal?'Meta mensal atingida!':dardos?'Campanha dos Dardos conquistada!':'Campanha concluída!';
                         const tema=dardos?{cor:'#f2b632',clara:'#ffe7a0',ink:'#5b3b08',icone:'fa-bullseye'}:{cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-trophy'};
-                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.length} ${d.vencedores.length===1?'vendedor atingiu a conquista':'vendedores atingiram a conquista'} · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
+                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.length} ${d.vencedores.length===1?'colaborador atingiu a conquista':'colaboradores atingiram a conquista'} · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
                     }
                     const b=item.data;
                     return `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${b.titulo||''}</span><small>${b.data||''}</small></div></div>`;
@@ -3500,7 +3544,7 @@
                 currentCarouselIndex=((currentCarouselIndex%slides.length)+slides.length)%slides.length;
                 indicators.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',()=>{currentCarouselIndex=Number(d.dataset.idx)||0;updateCarrossel();}));
                 container.querySelectorAll('.carousel-slide').forEach(el=>{
-                    const abrir=()=>{const item=slides[Number(el.dataset.idx)];if(!item)return;if(item.kind==='banner')abrirModalPostagem(item.data);};
+                    const abrir=()=>{const item=slides[Number(el.dataset.idx)];if(!item)return;if(item.kind==='banner'){abrirModalPostagem(item.data);return;}const d=item.data;const detalhes=(d.vencedores||[]).map(v=>({nome:v.nome||'Colaborador',metaTotal:Number(v.meta)||0,realizadoTotal:Number(v.realizado)||0,perc:Number(v.meta)>0?Math.min(999,(Number(v.realizado)||0)/(Number(v.meta)||1)*100):100}));abrirModalDetalhesCampanha(detalhes,d.nome||(item.kind==='monthly-achievement'?'Meta mensal':'Campanha'));};
                     el.addEventListener('click',abrir);
                     el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();}});
                 });
@@ -3695,7 +3739,7 @@
                     const bySeller=new Map();
                     (Array.isArray(consolidado)?consolidado:[]).forEach(r=>{
                       const cod=String(r.id_vendedor||'').trim(),name=String(r.vendedor||'').trim(),ym=parseMonth(r.mes_ano);
-                      if(!cod||cod==='80'||!name||!ym)return;
+                      if(!name||!ym)return;
                       const [yy,mm]=ym.split('-').map(Number);if(yy!==year||mm>maxMonth)return;
                       let key=cod+'::'+norm(name),display=name;
                       if(['10','12'].includes(cod)||norm(name).includes('dimas')||norm(name).includes('eduardo')){key='10::eduardo-dimas';display='Eduardo / Dimas';}
@@ -3721,7 +3765,7 @@
                     const monthNames=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
                     const calendarRows=rows.map(r=>`<tr><th scope="row"><span class="team-calendar-name">${r.nome}</span><small>${r.totalSeals} selos</small></th>${monthNames.map((mn,idx)=>{const m=r.monthly.find(x=>x.m===idx+1);const future=idx+1>maxMonth;return `<td class="${m&&m.earned?'earned':''} ${future?'future':''}">${m&&m.earned?`<span class="team-calendar-medal" title="${mn}: selo mensal bronze${m.milestone==='silver'?' · trinca conquistada (prata)':m.milestone==='gold'?' · prêmio de 6 meses conquistado (ouro)':''}"><i class="fas fa-medal"></i></span>${m.milestone?`<span class="team-calendar-milestone ${m.milestone}" title="${m.milestone==='gold'?'6 meses — ouro':'Trinca — prata'}"><i class="fas ${m.milestone==='gold'?'fa-trophy':'fa-medal'}"></i></span>`:''}`:future?'<span class="team-calendar-dash">·</span>':'<span class="team-calendar-dash">—</span>'}</td>`}).join('')}</tr>`).join('');
                     const calendarHtml=`<div class="team-awards-calendar-wrap"><table class="team-awards-calendar"><thead><tr><th>Colaborador</th>${monthNames.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody>${calendarRows}</tbody></table></div>`;
-                    root.innerHTML=`<div class="team-awards-hero"><div class="team-awards-hero-icon"><i class="fas fa-trophy"></i></div><div><span class="team-awards-eyebrow">CENTROBOR • RECONHECIMENTO</span><h2>Premiações do Time</h2><p>Quadro coletivo de medalhas · ${year} · atualizado em ${new Date().toLocaleString('pt-BR')}</p></div></div><div class="team-awards-kpis"><div class="team-awards-kpi"><i class="fas fa-users"></i><small>Colaboradores</small><strong>${rows.length}</strong></div><div class="team-awards-kpi"><i class="fas fa-certificate"></i><small>Selos conquistados</small><strong>${totalSeals}</strong></div><div class="team-awards-kpi"><i class="fas fa-layer-group"></i><small>Trincas</small><strong>${totalTrincas}</strong></div><div class="team-awards-kpi"><i class="fas fa-trophy"></i><small>Prêmios de 6 meses</small><strong>${totalSemestres}</strong></div></div><div class="team-awards-section-title"><i class="fas fa-crown" style="color:#c58a25"></i> Pódio de conquistas</div><div class="team-awards-podium">${podiumHtml}</div><div class="team-awards-controls"><div><strong>Quadro de medalhas</strong><div style="font-size:.72rem;color:#718096;margin-top:3px">Ranking por selos conquistados e sequência atual</div></div><input id="team-awards-search" class="team-awards-search" type="search" placeholder="Buscar colaborador…" aria-label="Buscar colaborador"></div><div id="team-awards-list" class="team-awards-list">${peopleHtml||'<div class="team-awards-empty">Nenhum colaborador encontrado.</div>'}</div><div class="team-awards-section-title"><i class="fas fa-calendar-days" style="color:#2b4c7a"></i> Calendário mensal de conquistas</div><p class="team-calendar-subtitle">Cada linha representa um colaborador; as medalhas indicam os meses em que a meta foi atingida.</p>${calendarHtml}<p class="team-awards-footnote"><i class="fas fa-circle-info"></i> Consulta ao consolidado oficial da página Metas Comercial. Selos mensais representam metas atingidas; os níveis e totais exibidos são calculados a partir dos registros disponíveis no ano corrente.</p>`;
+                    root.innerHTML=`<div class="team-awards-hero"><div class="team-awards-hero-icon"><i class="fas fa-trophy"></i></div><div><span class="team-awards-eyebrow">CENTROBOR • RECONHECIMENTO</span><h2>Premiações do Time</h2><p>Quadro coletivo de medalhas · ${year} · atualizado em ${new Date().toLocaleString('pt-BR')}</p></div></div><div class="team-awards-kpis"><div class="team-awards-kpi"><i class="fas fa-users"></i><small>Colaboradores</small><strong>${rows.length}</strong></div><div class="team-awards-kpi"><i class="fas fa-certificate"></i><small>Selos conquistados</small><strong>${totalSeals}</strong></div><div class="team-awards-kpi"><i class="fas fa-layer-group"></i><small>Trincas</small><strong>${totalTrincas}</strong></div><div class="team-awards-kpi"><i class="fas fa-trophy"></i><small>Prêmios de 6 meses</small><strong>${totalSemestres}</strong></div></div><div class="team-awards-section-title"><i class="fas fa-crown" style="color:#c58a25"></i> Pódio de conquistas</div><div class="team-awards-podium">${podiumHtml}</div><div class="team-awards-controls"><div><strong>Quadro de medalhas</strong><div style="font-size:.72rem;color:#718096;margin-top:3px">Ranking por selos conquistados e sequência atual</div></div><input id="team-awards-search" class="team-awards-search" type="search" placeholder="Buscar colaborador…" aria-label="Buscar colaborador"></div><div id="team-awards-list" class="team-awards-list">${peopleHtml||'<div class="team-awards-empty">Nenhum colaborador encontrado.</div>'}</div><div class="team-awards-section-title"><i class="fas fa-calendar-days" style="color:#2b4c7a"></i> Calendário mensal de conquistas</div><p class="team-calendar-subtitle">Cada linha representa um colaborador; as medalhas indicam os meses em que a meta foi atingida.</p><div class="team-calendar-legend"><span><i class="fas fa-medal bronze"></i> Bronze: meta mensal atingida</span><span><i class="fas fa-medal silver"></i> Prata: trinca de 3 meses consecutivos</span><span><i class="fas fa-trophy gold"></i> Ouro: 6 meses consecutivos</span></div>${calendarHtml}<p class="team-awards-footnote"><i class="fas fa-circle-info"></i> Consulta ao consolidado oficial da página Metas Comercial. Selos mensais representam metas atingidas; os níveis e totais exibidos são calculados a partir dos registros disponíveis no ano corrente.</p>`;
                     document.getElementById('team-awards-search').addEventListener('input',function(){const q=norm(this.value);document.querySelectorAll('#team-awards-list .team-awards-person').forEach(el=>el.style.display=norm(el.textContent).includes(q)?'flex':'none')});
                     teamAwardsLoaded=true;
                 } catch(err) {

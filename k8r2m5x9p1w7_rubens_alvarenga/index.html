@@ -2810,7 +2810,7 @@
 
                 titleEl.textContent = `🏅 ${nomeCampanha}`;
                 statsEl.innerHTML = `
-                    <strong>${atingidos}</strong> vendedor${atingidos !== 1 ? 'es' : ''} atingiram a meta
+                    <strong>${atingidos}</strong> colaborador${atingidos !== 1 ? 'es' : ''} atingiram a meta
                     ${proximos > 0 ? ` • <strong>${proximos}</strong> estão próximos (≥70%)` : ''}
                 `;
                 bar.style.display = 'block';
@@ -2834,7 +2834,7 @@
                         <table class="campaign-detail-table">
                             <thead>
                                 <tr>
-                                    <th>Vendedor</th>
+                                    <th>Colaborador</th>
                                     <th style="text-align:right;">Meta (R$)</th>
                                     <th style="text-align:right;">Realizado (R$)</th>
                                     <th style="text-align:right;">%</th>
@@ -3535,7 +3535,7 @@
                         const icon=mensal?'🏆':dardos?'🎯':'🏆';
                         const title=mensal?'Meta mensal atingida!':dardos?'Campanha dos Dardos conquistada!':'Campanha concluída!';
                         const tema=dardos?{cor:'#f2b632',clara:'#ffe7a0',ink:'#5b3b08',icone:'fa-bullseye'}:{cor:'#c47b43',clara:'#f6d2ae',ink:'#5b2f15',icone:'fa-trophy'};
-                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.length} ${d.vencedores.length===1?'vendedor atingiu a conquista':'vendedores atingiram a conquista'} · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
+                        return `<div class="carousel-slide achievement-banner" data-idx="${i}" role="button" tabindex="0" style="background:radial-gradient(ellipse at 15% 15%,${tema.clara}55,transparent 35%),radial-gradient(ellipse at 85% 90%,${tema.cor}88,transparent 38%),linear-gradient(120deg,#10182f,#172f5c 52%,${tema.ink});"><div class="achievement-banner-glow"></div><div class="achievement-banner-content"><div class="achievement-banner-main"><span class="achievement-pill"><i class="fas ${tema.icone}"></i> ${mensal?'META MENSAL':'CAMPANHA'} ATINGIDA</span><div class="achievement-banner-row"><div class="achievement-banner-trophy" style="background:linear-gradient(145deg,${tema.clara},${tema.cor});color:${tema.ink}"><i class="fas ${tema.icone}"></i></div><div class="achievement-banner-copy"><span class="achievement-eyebrow">RADAR CENTROBOR · CONQUISTA DO TIME</span><h2>${title}</h2><p>${d.nome||'Meta mensal'}${melhor&&melhor.realizado!=null?` · R$ ${formatCurrency(Number(melhor.realizado)||0)}`:''}</p><strong>${nomes}</strong><small>${d.vencedores.length} ${d.vencedores.length===1?'colaborador atingiu a conquista':'colaboradores atingiram a conquista'} · Clique para ver</small></div></div></div></div><div class="achievement-confetti">✦　✧　✦　✧　✦</div></div>`;
                     }
                     const b=item.data;
                     return `<div class="carousel-slide" data-idx="${i}"><img src="${b.imagem||''}" alt="${b.titulo||'Banner'}" onerror="this.style.display='none'"><div class="carousel-caption"><span>${b.titulo||''}</span><small>${b.data||''}</small></div></div>`;
@@ -3544,7 +3544,7 @@
                 currentCarouselIndex=((currentCarouselIndex%slides.length)+slides.length)%slides.length;
                 indicators.querySelectorAll('.indicator-dot').forEach(d=>d.addEventListener('click',()=>{currentCarouselIndex=Number(d.dataset.idx)||0;updateCarrossel();}));
                 container.querySelectorAll('.carousel-slide').forEach(el=>{
-                    const abrir=()=>{const item=slides[Number(el.dataset.idx)];if(!item)return;if(item.kind==='banner')abrirModalPostagem(item.data);};
+                    const abrir=()=>{const item=slides[Number(el.dataset.idx)];if(!item)return;if(item.kind==='banner'){abrirModalPostagem(item.data);return;}const d=item.data;const detalhes=(d.vencedores||[]).map(v=>({nome:v.nome||'Colaborador',metaTotal:Number(v.meta)||0,realizadoTotal:Number(v.realizado)||0,perc:Number(v.meta)>0?Math.min(999,(Number(v.realizado)||0)/(Number(v.meta)||1)*100):100}));abrirModalDetalhesCampanha(detalhes,d.nome||(item.kind==='monthly-achievement'?'Meta mensal':'Campanha'));};
                     el.addEventListener('click',abrir);
                     el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();abrir();}});
                 });
@@ -3739,7 +3739,7 @@
                     const bySeller=new Map();
                     (Array.isArray(consolidado)?consolidado:[]).forEach(r=>{
                       const cod=String(r.id_vendedor||'').trim(),name=String(r.vendedor||'').trim(),ym=parseMonth(r.mes_ano);
-                      if(!cod||cod==='80'||!name||!ym)return;
+                      if(!name||!ym)return;
                       const [yy,mm]=ym.split('-').map(Number);if(yy!==year||mm>maxMonth)return;
                       let key=cod+'::'+norm(name),display=name;
                       if(['10','12'].includes(cod)||norm(name).includes('dimas')||norm(name).includes('eduardo')){key='10::eduardo-dimas';display='Eduardo / Dimas';}
