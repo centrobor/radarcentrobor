@@ -2402,60 +2402,12 @@ document.getElementById('tool-meus-premios-fabiano')?.addEventListener('click',e
             }
 
             // ==================== METAS FABIANO ====================
+            // A seção "Meta geral & Performance" foi removida da interface.
+            // Mantemos a atualização das duas metas por categoria e não acessamos
+            // mais o container antigo, que não existe no DOM.
             function renderMetasFabiano(ano, mes) {
                 renderMetasCategoriaFabiano(ano, mes);
-                const metas = getMetasFabiano(ano, mes);
-                const fatMes = getFaturamentoTotalMes(ano, mes);
-                const acumuladoAno = getAcumuladoRealEmpresa(ano, mes);
-                const acumuladoSem = getAcumuladoRealSemestre(ano, mes);
-                const percMensal = metas.mensal ? (fatMes / metas.mensal) * 100 : 0;
-                const percSem = metas.semestral ? (acumuladoSem / metas.semestral) * 100 : 0;
-                const percAnual = metas.anual ? (acumuladoAno / metas.anual) * 100 : 0;
-                const faltaMensal = Math.max(0, metas.mensal - fatMes);
-                const faltaSem = Math.max(0, metas.semestral - acumuladoSem);
-                const faltaAnual = Math.max(0, metas.anual - acumuladoAno);
-                const semestreLabel = mes <= 6 ? '1º Semestre' : '2º Semestre';
-                const container = document.getElementById('metas-fabiano-container');
-
-                const conquistas = [];
-                if (percMensal >= 100) conquistas.push({ nome: 'Meta Mensal Fabiano', meta: metas.mensal, realizado: fatMes,
-                    perc: percMensal, chave: `fabiano_mensal_${ano}_${mes}` });
-                if (percSem >= 100) conquistas.push({ nome: `Meta ${semestreLabel} Fabiano`, meta: metas.semestral,
-                    realizado: acumuladoSem, perc: percSem, chave: `fabiano_sem_${ano}_${mes<=6?'1':'2'}` });
-                if (percAnual >= 100) conquistas.push({ nome: 'Meta Anual Fabiano', meta: metas.anual, realizado: acumuladoAno,
-                    perc: percAnual, chave: `fabiano_anual_${ano}` });
-
-                const html = `
-                <div class="meta-card-full">
-                    <div class="meta-card-header"><div class="meta-card-title"><i class="fas fa-calendar-day"></i> Meta Mensal</div><span class="meta-card-badge ${percMensal>=80?'badge-on-track':'badge-behind'}">${percMensal>=100?'Atingido':(percMensal>=60?'No Ritmo':'Atenção')}</span></div>
-                    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                        <div style="position:relative; width:90px; height:90px;"><canvas id="donutMetaMensal" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${percMensal.toFixed(1)}%</div></div>
-                        <div><strong>${formatarMoeda(fatMes)}</strong> / ${formatarMoeda(metas.mensal)}<br><span class="detail-text">Faltam ${formatarMoeda(faltaMensal)}</span></div>
-                    </div>
-                </div>
-                <div class="meta-card-full">
-                    <div class="meta-card-header"><div class="meta-card-title"><i class="fas fa-calendar-week"></i> Meta ${semestreLabel} (acum.)</div><span class="meta-card-badge ${percSem>=80?'badge-on-track':'badge-behind'}">${percSem>=100?'Atingido':(percSem>=60?'No Ritmo':'Atenção')}</span></div>
-                    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                        <div style="position:relative; width:90px; height:90px;"><canvas id="donutMetaSem" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${percSem.toFixed(1)}%</div></div>
-                        <div><strong>${formatarMoeda(acumuladoSem)}</strong> / ${formatarMoeda(metas.semestral)}<br><span class="detail-text">Faltam ${formatarMoeda(faltaSem)}</span></div>
-                    </div>
-                </div>
-                <div class="meta-card-full">
-                    <div class="meta-card-header"><div class="meta-card-title"><i class="fas fa-calendar-alt"></i> Meta Anual (acum.)</div><span class="meta-card-badge ${percAnual>=80?'badge-on-track':'badge-behind'}">${percAnual>=100?'Atingido':(percAnual>=60?'No Ritmo':'Atenção')}</span></div>
-                    <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
-                        <div style="position:relative; width:90px; height:90px;"><canvas id="donutMetaAnual" width="90" height="90"></canvas><div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-weight:700;">${percAnual.toFixed(1)}%</div></div>
-                        <div><strong>${formatarMoeda(acumuladoAno)}</strong> / ${formatarMoeda(metas.anual)}<br><span class="detail-text">Faltam ${formatarMoeda(faltaAnual)}</span></div>
-                    </div>
-                </div>
-            `;
-                container.innerHTML = html;
-                setTimeout(() => {
-                    criarDonut('donutMetaMensal', Math.min(percMensal, 100), '#2e7d32');
-                    criarDonut('donutMetaSem', Math.min(percSem, 100), '#f59e0b');
-                    criarDonut('donutMetaAnual', Math.min(percAnual, 100), '#1e3a5f');
-                }, 50);
-
-                return conquistas;
+                return [];
             }
 
             // ==================== CAMPANHAS ESPECIAIS ====================
