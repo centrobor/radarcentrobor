@@ -1742,7 +1742,14 @@
                 let diasRestantes = null;
                 if (dataFim) diasRestantes = Math.max(0, Math.ceil((dataFim-hoje)/(1000*60*60*24)));
                 html += `<div class="campaign-card"><div class="campaign-header">${camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>'} ${camp.campanha}</div><div style="font-size:0.8rem;color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex;justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%;background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
-                if (perc >= 100) conquistas.push({ nome: camp.campanha, meta, realizado, perc, chave: `campanha_${camp.campanha.replace(/\s+/g,'_')}_${camp.data_inicio}_${camp.data_fim}` });
+                if (perc >= 100) {
+                    const chaveCampanha = `campanha_${String(camp.campanha||'campanha').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_')}_${camp.data_inicio}_${camp.data_fim}`;
+                    const conquistaCampanha = { nome: camp.campanha, titulo: camp.campanha, meta, realizado, perc, chave: chaveCampanha, categoria: 'CAMPANHA CONQUISTADA', tipo: 'CAMPANHA', autor: nomeVendedor || 'Juliana Cecchy', icone: 'fa-trophy', cor: '#9570df', clara: '#e9ddff', ink: '#43217e' };
+                    conquistas.push(conquistaCampanha);
+                    // Garante que a campanha concluída entre no carrossel mesmo se a celebração
+                    // já tiver sido exibida anteriormente ou o modal estiver fechado.
+                    registrarBannerConquistaJu(conquistaCampanha);
+                }
             });
             document.getElementById('campanhas-especiais-container').innerHTML = html;
             return conquistas;
@@ -1769,7 +1776,7 @@
         const novas = conquistas.filter(c => !celebradas.includes(c.chave));
         if (!novas.length) return;
         novas.forEach(c => {
-          registrarBannerConquistaJu({...c, titulo:c.nome, nome:c.nome, autor:nomeVendedor||'Juliana Cecchy', categoria:'META MENSAL', icone:'fa-medal', cor:'#c47b43', clara:'#f6d2ae', ink:'#5b2f15'});
+          registrarBannerConquistaJu({...c, titulo:c.nome, nome:c.nome, autor:nomeVendedor||'Juliana Cecchy', categoria:c.categoria || 'META MENSAL', icone:c.icone || 'fa-medal', cor:c.cor || '#c47b43', clara:c.clara || '#f6d2ae', ink:c.ink || '#5b2f15'});
           adicionarMetaCelebrada(c.chave);
         });
         const body = document.getElementById('celebracao-body');
