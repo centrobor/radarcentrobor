@@ -1741,6 +1741,22 @@
         container.style.transform = `translateX(-${currentCarouselIndex*100}%)`;
         document.querySelectorAll('.indicator-dot').forEach((d,i) => d.classList.toggle('active', i===currentCarouselIndex));
     }
+    // Abre o popup de detalhes da conquista ao clicar no banner do carrossel.
+    function abrirDetalheBannerConquista(b) {
+        const modal = document.getElementById('post-modal');
+        const body = document.getElementById('post-modal-body');
+        if (!modal || !body || !b) return;
+        const alertasModal = document.getElementById('notif-modal');
+        if (alertasModal) alertasModal.classList.remove('active');
+        const tema = {cor:b.cor||'#c47b43', clara:b.clara||'#f6d2ae', ink:b.ink||'#5b2f15', icone:b.icone||'fa-medal'};
+        body.innerHTML = `<div style="position:relative;overflow:hidden;border-radius:22px;padding:clamp(22px,5vw,44px);color:white;background:radial-gradient(circle at 12% 10%,${tema.clara}55,transparent 36%),linear-gradient(135deg,#10182f,#172f5c 58%,${tema.ink});">
+          <button class="modal-close achievement-detail-close" aria-label="Fechar popup" title="Fechar" onclick="document.getElementById('post-modal').classList.remove('active')" style="position:absolute;top:14px;right:14px;left:auto;z-index:20;width:42px;height:42px;display:grid;place-items:center;border:2px solid #fff;background:#dc2626;color:#fff;border-radius:50%;font-size:1.65rem;font-weight:900;line-height:1;box-shadow:0 5px 16px rgba(0,0,0,.35);cursor:pointer">&times;</button>
+          <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap"><div style="width:100px;height:100px;border-radius:28px;display:grid;place-items:center;font-size:3.2rem;color:${tema.ink};background:linear-gradient(145deg,${tema.clara},${tema.cor});box-shadow:0 14px 34px ${tema.cor}55"><i class="fas ${tema.icone}"></i></div>
+          <div style="flex:1;min-width:180px"><span style="font-size:.72rem;letter-spacing:.16em;font-weight:900;color:${tema.clara}">${b.categoria||'CONQUISTA'} DESBLOQUEADA</span><h2 style="font-size:clamp(1.5rem,4vw,2.4rem);line-height:1.1;margin:10px 0;color:#fff">${b.nome||b.titulo||'Conquista desbloqueada'}</h2><p style="color:#e4eaf5;margin:0">Parabéns, ${b.autor||nomeVendedor||'Juliana Cecchy'}! Esta conquista foi registrada na sua coleção.</p></div></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:28px 0 18px"><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Faturamento realizado</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${(b.realizado!=null && b.realizado!=='' ? formatarMoeda(b.realizado) : 'Consulte o quadro de metas')}</strong></div><div style="padding:16px;border-radius:14px;background:#ffffff12;border:1px solid #ffffff20"><small style="color:#cbd5e1">Meta de referência</small><strong style="display:block;font-size:1.2rem;color:#fff;margin-top:6px">${Number(b.meta)>0?formatarMoeda(b.meta):'Reconhecimento especial'}</strong></div></div><div style="font-size:.78rem;color:#cbd5e1">Este banner fica disponível somente neste acesso por até 3 dias.</div></div>`;
+        modal.classList.add('active');
+    }
+
     function abrirModalPostagem(post) {
         document.getElementById('post-modal-body').innerHTML = `<span class="modal-close" onclick="document.getElementById('post-modal').classList.remove('active')">&times;</span><img src="${post.imagem}" style="width:100%;max-height:400px;object-fit:cover;border-radius:16px;margin-bottom:16px;" onerror="this.style.display='none'"><h2>${post.titulo}</h2><div style="display:flex;gap:16px;color:var(--muted);margin-bottom:16px;"><span><i class="fas fa-calendar"></i> ${post.data}</span><span><i class="fas fa-user"></i> ${post.autor}</span></div><div>${post.texto_html||''}</div>`;
         document.getElementById('post-modal').classList.add('active');
