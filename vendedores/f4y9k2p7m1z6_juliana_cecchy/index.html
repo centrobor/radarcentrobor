@@ -1693,7 +1693,25 @@
         const container = document.getElementById('carousel-container');
         const indicators = document.getElementById('carousel-indicators');
         if (!container || !indicators) return;
-        const bannersConquista = lerBannersConquistaJu().map(b => ({...b, tipo:'conquista', titulo:b.nome || b.titulo || 'Conquista desbloqueada', data:'Conquista recente', autor:b.autor || nomeVendedor || 'Juliana Cecchy'}));
+        const bannersConquista = lerBannersConquistaJu().map(b => {
+            // Mesmo padrão do Fábio: a cor do banner acompanha a medalha da conquista.
+            // Campanha especial = ouro; meta mensal = bronze; prata/trinca = prata;
+            // roxo fica reservado exclusivamente às conquistas coletivas do time.
+            const tipo = String(b.tipo || b.tipoBanner || '').toUpperCase();
+            const categoria = String(b.categoria || '').toUpperCase();
+            const nome = String(b.nome || b.titulo || '').toLowerCase();
+            let tema = null;
+            if (tipo === 'TIME' || categoria.includes('TIME') || categoria.includes('COLETIVA')) {
+                tema = {cor:'#9570df', clara:'#e9ddff', ink:'#43217e', icone:'fa-trophy'};
+            } else if (tipo === 'CAMPANHA' || categoria.includes('CAMPANHA') || nome.includes('campanha')) {
+                tema = {cor:'#d4a72c', clara:'#fff2a8', ink:'#6b4b00', icone:'fa-trophy'};
+            } else if (nome.includes('trinca') || categoria.includes('TRINCA') || categoria.includes('PRATA')) {
+                tema = {cor:'#bfc5cd', clara:'#f3f4f6', ink:'#3f4650', icone:'fa-medal'};
+            } else {
+                tema = {cor:'#c47b43', clara:'#f6d2ae', ink:'#5b2f15', icone:'fa-medal'};
+            }
+            return {...b, ...tema, tipo:'conquista', titulo:b.nome || b.titulo || 'Conquista desbloqueada', data:'Conquista recente', autor:b.autor || nomeVendedor || 'Juliana Cecchy'};
+        });
         const bannersBase = Array.isArray(BANNERS) ? BANNERS : [];
         const bannersExibidos = [...bannersConquista, ...bannersBase];
         window.__radarBannersExibidos = bannersExibidos;
@@ -1744,7 +1762,7 @@
                 html += `<div class="campaign-card"><div class="campaign-header">${camp.tipo==='dias_uteis'?'<i class="fas fa-clock"></i>':'<i class="fas fa-calendar-check"></i>'} ${camp.campanha}</div><div style="font-size:0.8rem;color:var(--muted);">${camp.data_inicio} → ${camp.data_fim}</div><div style="display:flex;justify-content:space-between;"><span>${formatarMoeda(realizado)} / ${formatarMoeda(meta)}</span><span><strong>${perc.toFixed(1)}%</strong></span></div><div class="meta-progress-bar"><div class="meta-progress-fill" style="width:${Math.min(perc,100)}%;background:var(--warning);"></div></div><div class="meta-grid-stats" style="margin-top:10px;"><span><strong>${formatarMoeda(faltante)}</strong><br>Faltante</span>${diasRestantes!==null?`<span><strong>${diasRestantes}</strong><br>Dias restantes</span>`:''}</div></div>`;
                 if (perc >= 100) {
                     const chaveCampanha = `campanha_${String(camp.campanha||'campanha').normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_')}_${camp.data_inicio}_${camp.data_fim}`;
-                    const conquistaCampanha = { nome: camp.campanha, titulo: camp.campanha, meta, realizado, perc, chave: chaveCampanha, categoria: 'CAMPANHA CONQUISTADA', tipo: 'CAMPANHA', autor: nomeVendedor || 'Juliana Cecchy', icone: 'fa-trophy', cor: '#9570df', clara: '#e9ddff', ink: '#43217e' };
+                    const conquistaCampanha = { nome: camp.campanha, titulo: camp.campanha, meta, realizado, perc, chave: chaveCampanha, categoria: 'CAMPANHA CONQUISTADA', tipo: 'CAMPANHA', autor: nomeVendedor || 'Juliana Cecchy', icone: 'fa-trophy', cor: '#d4a72c', clara: '#fff2a8', ink: '#6b4b00' };
                     conquistas.push(conquistaCampanha);
                     // Garante que a campanha concluída entre no carrossel mesmo se a celebração
                     // já tiver sido exibida anteriormente ou o modal estiver fechado.
@@ -1797,10 +1815,11 @@
     function registrarBannerConquistaJu(item) {
       if (!item || !item.chave || !(Number(item.meta)>0) || Number(item.realizado)<Number(item.meta)) return;
       const lista=lerBannersConquistaJu();
-      if(lista.some(x=>String(x.chave)===String(item.chave))) return;
+      const existente = lista.findIndex(x=>String(x.chave)===String(item.chave));
       const tema = {categoria:item.categoria||'META MENSAL', icone:item.icone||'fa-medal', cor:item.cor||'#c47b43', clara:item.clara||'#f6d2ae', ink:item.ink||'#5b2f15'};
       const banner={...item, ...tema, tipoBanner:'conquista', tipo:'conquista', titulo:item.titulo||item.nome||'Meta mensal atingida', nome:item.nome||item.titulo||'Meta mensal atingida', autor:item.autor||'Juliana Cecchy', timestamp:Date.now()};
-      lista.unshift(banner);
+      if (existente >= 0) { lista[existente] = {...lista[existente], ...banner, timestamp: lista[existente].timestamp || Date.now()}; }
+      else lista.unshift(banner);
       try { localStorage.setItem(CHAVE_BANNERS_CONQUISTA_JU,JSON.stringify(lista.slice(0,40))); } catch(e) { console.warn('Não foi possível guardar o banner de conquista:',e); }
       if (typeof renderCarrossel==='function') { renderCarrossel(); currentCarouselIndex=0; if(typeof updateCarrossel==='function') updateCarrossel(); }
     }
