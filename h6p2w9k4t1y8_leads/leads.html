@@ -511,7 +511,7 @@
         (function() {
             "use strict";
 
-            var SHEET_LEADS = "https://opensheet.elk.sh/1eDF6XnXH2ewU-Zvh73H9XPllPU8LehS1LSJJLlnwPy0/LEADS%20FORMUL%C3%81RIO";
+            var SHEET_LEADS = "https://opensheet.elk.sh/1Wovs1Z2W-Z9JWF1IxGMZdVxooOzw7kdWGu2-9xvXvms/LEADS";
             var SHEET_CARTEIRA = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/carteiraclientes";
             var SHEET_VENDEDORES = "https://opensheet.elk.sh/1S9Crqa7EBgybANgqoRe2a0YKG8FGeHAqIRJswdI69bI/cadastro";
             var SHEET_FINAL = "https://opensheet.elk.sh/1eI87ScC4wFcDeFPz8K-IbpTWTM2Ui2WXjRbQIr3SsdA/leads";
@@ -959,6 +959,26 @@
             //   Override "automático" (sem edited) só PREENCHE o que a
             //   planilha não tem.
             // ============================================================
+            // Adapta o novo formato da planilha de Leads ao modelo interno do CRM.
+            // O endpoint novo usa "Qualificação" no lugar da coluna antiga de status.
+            function normalizeLeadSource(lead) {
+                var item = Object.assign({}, lead || {});
+                var qualificacao = String(item["Qualificação"] || item["Qualificacao"] || "").trim().toLowerCase();
+                if (qualificacao) {
+                    if (qualificacao === "fechou a venda") item["  "] = "Gerou Venda";
+                    else if (qualificacao === "lead qualificado") item["  "] = "Lead Qualificado";
+                    else if (qualificacao === "lead desqualificado") item["  "] = "Não Fechou";
+                    else item["  "] = qualificacao;
+                }
+                // Garante strings para campos usados diretamente pelo CRM.
+                ["Nome Completo", "WhatsApp", "E-mail", "Nome da empresa", "CNPJ", "Mensagem",
+                 "UTM SOURCE", "UTM MEDIUM", "UTM CAMPAIGN", "UTM TERM", "UTM CONTENT"].forEach(function(campo) {
+                    if (item[campo] === undefined || item[campo] === null) item[campo] = "";
+                    else item[campo] = String(item[campo]);
+                });
+                return item;
+            }
+
             function processLeads() {
                 cleanExpiredTempOverrides();
                 limparDuplicatasExistentes();
@@ -2688,7 +2708,7 @@
                     var [leadsRes, carteiraRes, vendRes, finalRes] = await Promise.all([
                         fetch(SHEET_LEADS), fetch(SHEET_CARTEIRA), fetch(SHEET_VENDEDORES), fetch(SHEET_FINAL)
                     ]);
-                    if (leadsRes.ok) rawLeads = await leadsRes.json();
+                    if (leadsRes.ok) {\n                        var leadsJson = await leadsRes.json();\n                        rawLeads = Array.isArray(leadsJson) ? leadsJson.map(normalizeLeadSource) : [];\n                    }
                     if (carteiraRes.ok) carteiraClientes = await carteiraRes.json();
                     if (vendRes.ok) vendedoresCadastro = await vendRes.json();
                     if (finalRes.ok) leadsFinal = await finalRes.json();
