@@ -3318,9 +3318,18 @@
             function renderVendorGoals(monthKey) {
                 const [ano, mes] = monthKey.split('-').map(Number);
                 const vendorEntries = [];
+                const parseMesConsolidado = value => {
+                    const raw = String(value || '').trim();
+                    let m = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+                    if (m) return { ano: Number(m[3]), mes: Number(m[2]) };
+                    m = raw.match(/^(\d{4})[-/](\d{1,2})(?:[-/](\d{1,2}))?/);
+                    if (m) return { ano: Number(m[1]), mes: Number(m[2]) };
+                    const d = parseDataBR(raw);
+                    return d && !isNaN(d) ? { ano: d.getFullYear(), mes: d.getMonth() + 1 } : null;
+                };
                 const rows = (allConsolidadoMetas || []).filter(r => {
-                    const d = parseDataBR(r.mes_ano);
-                    return d && d.getFullYear() === ano && d.getMonth() + 1 === mes;
+                    const d = parseMesConsolidado(r.mes_ano);
+                    return d && d.ano === ano && d.mes === mes;
                 });
                 const rowsUsed = new Set();
 
@@ -3338,7 +3347,7 @@
                             categoria: nome.replace(/^Fabiano\s*-\s*/i, ''),
                             metaMensal: metaM, faturado: fat, idVendedor: id,
                             isFabiano: true,
-                            fabianoTipo: nome.includes('Sinc/Polias') ? 'sincpolias' : 'lavanderia'
+                            fabianoTipo: /sinc|polias|esp\.?/i.test(nome) ? 'sincpolias' : 'lavanderia'
                         });
                         return;
                     }
@@ -3740,36 +3749,52 @@
                     const num=v=>typeof v==='number'?v:parseFloat(String(v??'').replace(/[R$\s]/g,'').replace(/\./g,'').replace(',','.'))||0;
                     const parseMonth=v=>{let x=String(v||'').trim(),m=x.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);if(m)return `${m[3]}-${m[2].padStart(2,'0')}`;m=x.match(/^(\d{4})-(\d{1,2})/);if(m)return `${m[1]}-${m[2].padStart(2,'0')}`;return null};
                     const now=new Date(),year=now.getFullYear(),maxMonth=now.getMonth()+1;
-                    const bySeller=new Map();
+                    const bySeller=new Map(), fabianoByMonth=new Map();
                     (Array.isArray(consolidado)?consolidado:[]).forEach(r=>{
-                      const cod=String(r.id_vendedor||'').trim(),name=String(r.vendedor||'').trim(),ym=parseMonth(r.mes_ano);
+                      const cod=String(r.id_vendedor||r.codigo||'').trim(),name=String(r.vendedor||r.nome_vendedor||'').trim(),ym=parseMonth(r.mes_ano);
                       if(!name||!ym)return;
                       const [yy,mm]=ym.split('-').map(Number);if(yy!==year||mm>maxMonth)return;
+                      const normalized=norm(name);
+                      // Fabiano só conquista selo quando as duas metas especiais são atingidas no mesmo mês.
+                      if((cod==='24'||normalized.includes('fabiano'))&&normalized.includes('fabiano')){
+                        const isSinc=/sinc|polias|esp\.?/.test(normalized),isLav=/lavand/.test(normalized);
+                        if(!isSinc&&!isLav)return;
+                        const key=`${yy}-${String(mm).padStart(2,'0')}`;
+                        const entry=fabianoByMonth.get(key)||{m:mm,sincMeta:207000,sincFat:null,lavMeta:151000,lavFat:null};
+                        const meta=num(r.meta_mensal),fatRaw=String(r.faturado??'').trim(),fat=fatRaw!==''?num(r.faturado):null;
+                        if(isSinc){if(meta>0)entry.sincMeta=meta;if(fat!==null)entry.sincFat=fat;}
+                        if(isLav){if(meta>0)entry.lavMeta=meta;if(fat!==null)entry.lavFat=fat;}
+                        fabianoByMonth.set(key,entry);
+                        return;
+                      }
                       let key=cod+'::'+norm(name),display=name;
-                      if(['10','12'].includes(cod)||norm(name).includes('dimas')||norm(name).includes('eduardo')){key='10::eduardo-dimas';display='Eduardo / Dimas';}
+                      if(['10','12'].includes(cod)||normalized.includes('dimas')||normalized.includes('eduardo')){key='10::eduardo-dimas';display='Eduardo / Dimas';}
                       if(!bySeller.has(key))bySeller.set(key,{cod,nome:display,months:new Map()});
                       const seller=bySeller.get(key),entry=seller.months.get(mm)||{meta:0,fat:0,metaSet:false,fatSet:false};
                       if(String(r.meta_mensal??'').trim()!==''){entry.meta=num(r.meta_mensal);entry.metaSet=true;}
                       if(String(r.faturado??'').trim()!==''){entry.fat=num(r.faturado);entry.fatSet=true;}
                       seller.months.set(mm,entry);
                     });
-                    // Fallbacks só para campos ausentes no consolidado, mantendo a fonte oficial da página de Metas Comercial.
+                    const fabianoMonths=new Map();
+                    fabianoByMonth.forEach((r,key)=>fabianoMonths.set(r.m,{meta:r.sincMeta+r.lavMeta,fat:(r.sincFat||0)+(r.lavFat||0),earned:r.sincFat!==null&&r.lavFat!==null&&r.sincFat>=r.sincMeta&&r.lavFat>=r.lavMeta}));
                     bySeller.forEach(seller=>seller.months.forEach((d,m)=>{if(!d.metaSet){const b=metasBase.find(x=>String(x.id_vendedor||'').trim()===seller.cod);d.meta=b?num(b.meta_mensal):0;} if(!d.fatSet)d.fat=0;}));
-                    const rows=[...bySeller.values()].map(v=>{
+                    const rows=[...bySeller.values()];
+                    if(fabianoMonths.size) rows.push({cod:'24',nome:'Fabiano',months:fabianoMonths,isFabianoSpecial:true});
+                    const rowsProcessed=rows.map(v=>{
                       let streak=0,seals=0,trincas=0,semestres=0,current=0,monthly=[];
-                      for(let m=1;m<=maxMonth;m++){const d=v.months.get(m)||{meta:0,fat:0};const earned=d.meta>0&&d.fat>=d.meta;streak=earned?streak+1:0;current=earned?current+1:0;let milestone='';if(earned){seals++;if(current%6===0){semestres++;trincas++;milestone='gold';}else if(current%3===0){trincas++;milestone='silver';}}monthly.push({m,earned,level:earned?'bronze':'',milestone,streak:current,meta:d.meta,fat:d.fat});}
+                      for(let m=1;m<=maxMonth;m++){const d=v.months.get(m)||{meta:0,fat:0,earned:false};const earned=v.isFabianoSpecial?!!d.earned:(d.meta>0&&d.fat>=d.meta);streak=earned?streak+1:0;current=earned?current+1:0;let milestone='';if(earned){seals++;if(current%6===0){semestres++;trincas++;milestone='gold';}else if(current%3===0){trincas++;milestone='silver';}}monthly.push({m,earned,level:earned?'bronze':'',milestone,streak:current,meta:d.meta,fat:d.fat});}
                       // Contagem de sequência atual é recalculada do fim para evitar depender do contador do loop.
                       let currentStreak=0;for(let i=monthly.length-1;i>=0&&monthly[i].earned;i--)currentStreak++;
                       return {...v,totalSeals:seals,trincas,semestres,currentStreak,monthly};
                     }).sort((a,b)=>b.totalSeals-a.totalSeals||b.currentStreak-a.currentStreak||a.nome.localeCompare(b.nome,'pt-BR'));
-                    const totalSeals=rows.reduce((n,r)=>n+r.totalSeals,0), totalTrincas=rows.reduce((n,r)=>n+r.trincas,0),totalSemestres=rows.reduce((n,r)=>n+r.semestres,0);
-                    const podium=rows.slice(0,3);
+                    const totalSeals=rowsProcessed.reduce((n,r)=>n+r.totalSeals,0), totalTrincas=rowsProcessed.reduce((n,r)=>n+r.trincas,0),totalSemestres=rowsProcessed.reduce((n,r)=>n+r.semestres,0);
+                    const podium=rowsProcessed.slice(0,3);
                     const podiumHtml=podium.length?podium.map((r,i)=>{const rankClass=['first','second','third'][i]||'';const rankLabel=['1º LUGAR','2º LUGAR','3º LUGAR'][i]||`${i+1}º LUGAR`;const icon=['fa-trophy','fa-medal','fa-medal'][i]||'fa-medal';return `<div class="team-awards-podium-card ${rankClass}"><div class="team-awards-rank">${rankLabel}</div><div class="team-awards-medal"><i class="fas ${icon}"></i></div><strong>${r.nome}</strong><small>${r.currentStreak} mês(es) consecutivo(s)</small><span class="podium-total">${r.totalSeals} ${r.totalSeals===1?'selo':'selos'}</span></div>`}).join(''):'<div class="team-awards-empty">Nenhum registro de premiação disponível.</div>';
-                    const peopleHtml=rows.map((r,i)=>{const medals=r.monthly.filter(m=>m.earned).slice(-6).map(m=>`<span class="team-awards-seal" title="${new Date(year,m.m-1,1).toLocaleDateString('pt-BR',{month:'long'})}: selo mensal bronze"><i class="fas fa-medal"></i></span>`).join('');const trophies=[...Array(r.trincas).fill('<span class="team-awards-trophy silver" title="Trinca de 3 meses consecutivos"><i class="fas fa-medal"></i> Trinca prata</span>'),...Array(r.semestres).fill('<span class="team-awards-trophy gold" title="6 meses consecutivos"><i class="fas fa-trophy"></i> 6 meses ouro</span>')].join('');return `<div class="team-awards-person"><div class="team-awards-person-rank">${i+1}</div><div class="team-awards-person-main"><strong>${r.nome}</strong><small>${r.totalSeals} selos · ${r.trincas} trincas · ${r.semestres} prêmio(s) de 6 meses · sequência atual: ${r.currentStreak}</small><div class="team-awards-trophies">${trophies}</div></div><div class="team-awards-seals">${medals||'<span style="font-size:.68rem;color:#94a3b8">Sem selos ainda</span>'}</div></div>`}).join('');
+                    const peopleHtml=rowsProcessed.map((r,i)=>{const medals=r.monthly.filter(m=>m.earned).slice(-6).map(m=>`<span class="team-awards-seal" title="${new Date(year,m.m-1,1).toLocaleDateString('pt-BR',{month:'long'})}: selo mensal bronze"><i class="fas fa-medal"></i></span>`).join('');const trophies=[...Array(r.trincas).fill('<span class="team-awards-trophy silver" title="Trinca de 3 meses consecutivos"><i class="fas fa-medal"></i> Trinca prata</span>'),...Array(r.semestres).fill('<span class="team-awards-trophy gold" title="6 meses consecutivos"><i class="fas fa-trophy"></i> 6 meses ouro</span>')].join('');return `<div class="team-awards-person"><div class="team-awards-person-rank">${i+1}</div><div class="team-awards-person-main"><strong>${r.nome}</strong><small>${r.totalSeals} selos · ${r.trincas} trincas · ${r.semestres} prêmio(s) de 6 meses · sequência atual: ${r.currentStreak}</small><div class="team-awards-trophies">${trophies}</div></div><div class="team-awards-seals">${medals||'<span style="font-size:.68rem;color:#94a3b8">Sem selos ainda</span>'}</div></div>`}).join('');
                     const monthNames=['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
-                    const calendarRows=rows.map(r=>`<tr><th scope="row"><span class="team-calendar-name">${r.nome}</span><small>${r.totalSeals} selos</small></th>${monthNames.map((mn,idx)=>{const m=r.monthly.find(x=>x.m===idx+1);const future=idx+1>maxMonth;return `<td class="${m&&m.earned?'earned':''} ${future?'future':''}">${m&&m.earned?`<span class="team-calendar-medal" title="${mn}: selo mensal bronze${m.milestone==='silver'?' · trinca conquistada (prata)':m.milestone==='gold'?' · prêmio de 6 meses conquistado (ouro)':''}"><i class="fas fa-medal"></i></span>${m.milestone?`<span class="team-calendar-milestone ${m.milestone}" title="${m.milestone==='gold'?'6 meses — ouro':'Trinca — prata'}"><i class="fas ${m.milestone==='gold'?'fa-trophy':'fa-medal'}"></i></span>`:''}`:future?'<span class="team-calendar-dash">·</span>':'<span class="team-calendar-dash">—</span>'}</td>`}).join('')}</tr>`).join('');
+                    const calendarRows=rowsProcessed.map(r=>`<tr><th scope="row"><span class="team-calendar-name">${r.nome}</span><small>${r.totalSeals} selos</small></th>${monthNames.map((mn,idx)=>{const m=r.monthly.find(x=>x.m===idx+1);const future=idx+1>maxMonth;return `<td class="${m&&m.earned?'earned':''} ${future?'future':''}">${m&&m.earned?`<span class="team-calendar-medal" title="${mn}: selo mensal bronze${m.milestone==='silver'?' · trinca conquistada (prata)':m.milestone==='gold'?' · prêmio de 6 meses conquistado (ouro)':''}"><i class="fas fa-medal"></i></span>${m.milestone?`<span class="team-calendar-milestone ${m.milestone}" title="${m.milestone==='gold'?'6 meses — ouro':'Trinca — prata'}"><i class="fas ${m.milestone==='gold'?'fa-trophy':'fa-medal'}"></i></span>`:''}`:future?'<span class="team-calendar-dash">·</span>':'<span class="team-calendar-dash">—</span>'}</td>`}).join('')}</tr>`).join('');
                     const calendarHtml=`<div class="team-awards-calendar-wrap"><table class="team-awards-calendar"><thead><tr><th>Colaborador</th>${monthNames.map(m=>`<th>${m}</th>`).join('')}</tr></thead><tbody>${calendarRows}</tbody></table></div>`;
-                    root.innerHTML=`<div class="team-awards-hero"><div class="team-awards-hero-icon"><i class="fas fa-trophy"></i></div><div><span class="team-awards-eyebrow">CENTROBOR • RECONHECIMENTO</span><h2>Premiações do Time</h2><p>Quadro coletivo de medalhas · ${year} · atualizado em ${new Date().toLocaleString('pt-BR')}</p></div></div><div class="team-awards-kpis"><div class="team-awards-kpi"><i class="fas fa-users"></i><small>Colaboradores</small><strong>${rows.length}</strong></div><div class="team-awards-kpi"><i class="fas fa-certificate"></i><small>Selos conquistados</small><strong>${totalSeals}</strong></div><div class="team-awards-kpi"><i class="fas fa-layer-group"></i><small>Trincas</small><strong>${totalTrincas}</strong></div><div class="team-awards-kpi"><i class="fas fa-trophy"></i><small>Prêmios de 6 meses</small><strong>${totalSemestres}</strong></div></div><div class="team-awards-section-title"><i class="fas fa-crown" style="color:#c58a25"></i> Pódio de conquistas</div><div class="team-awards-podium">${podiumHtml}</div><div class="team-awards-controls"><div><strong>Quadro de medalhas</strong><div style="font-size:.72rem;color:#718096;margin-top:3px">Ranking por selos conquistados e sequência atual</div></div><input id="team-awards-search" class="team-awards-search" type="search" placeholder="Buscar colaborador…" aria-label="Buscar colaborador"></div><div id="team-awards-list" class="team-awards-list">${peopleHtml||'<div class="team-awards-empty">Nenhum colaborador encontrado.</div>'}</div><div class="team-awards-section-title"><i class="fas fa-calendar-days" style="color:#2b4c7a"></i> Calendário mensal de conquistas</div><p class="team-calendar-subtitle">Cada linha representa um colaborador; as medalhas indicam os meses em que a meta foi atingida.</p><div class="team-calendar-legend"><span><i class="fas fa-medal bronze"></i> Bronze: meta mensal atingida</span><span><i class="fas fa-medal silver"></i> Prata: trinca de 3 meses consecutivos</span><span><i class="fas fa-trophy gold"></i> Ouro: 6 meses consecutivos</span></div>${calendarHtml}<p class="team-awards-footnote"><i class="fas fa-circle-info"></i> Consulta ao consolidado oficial da página Metas Comercial. Selos mensais representam metas atingidas; os níveis e totais exibidos são calculados a partir dos registros disponíveis no ano corrente.</p>`;
+                    root.innerHTML=`<div class="team-awards-hero"><div class="team-awards-hero-icon"><i class="fas fa-trophy"></i></div><div><span class="team-awards-eyebrow">CENTROBOR • RECONHECIMENTO</span><h2>Premiações do Time</h2><p>Quadro coletivo de medalhas · ${year} · atualizado em ${new Date().toLocaleString('pt-BR')}</p></div></div><div class="team-awards-kpis"><div class="team-awards-kpi"><i class="fas fa-users"></i><small>Colaboradores</small><strong>${rowsProcessed.length}</strong></div><div class="team-awards-kpi"><i class="fas fa-certificate"></i><small>Selos conquistados</small><strong>${totalSeals}</strong></div><div class="team-awards-kpi"><i class="fas fa-layer-group"></i><small>Trincas</small><strong>${totalTrincas}</strong></div><div class="team-awards-kpi"><i class="fas fa-trophy"></i><small>Prêmios de 6 meses</small><strong>${totalSemestres}</strong></div></div><div class="team-awards-section-title"><i class="fas fa-crown" style="color:#c58a25"></i> Pódio de conquistas</div><div class="team-awards-podium">${podiumHtml}</div><div class="team-awards-controls"><div><strong>Quadro de medalhas</strong><div style="font-size:.72rem;color:#718096;margin-top:3px">Ranking por selos conquistados e sequência atual</div></div><input id="team-awards-search" class="team-awards-search" type="search" placeholder="Buscar colaborador…" aria-label="Buscar colaborador"></div><div id="team-awards-list" class="team-awards-list">${peopleHtml||'<div class="team-awards-empty">Nenhum colaborador encontrado.</div>'}</div><div class="team-awards-section-title"><i class="fas fa-calendar-days" style="color:#2b4c7a"></i> Calendário mensal de conquistas</div><p class="team-calendar-subtitle">Cada linha representa um colaborador; as medalhas indicam os meses em que a meta foi atingida.</p><div class="team-calendar-legend"><span><i class="fas fa-medal bronze"></i> Bronze: meta mensal atingida</span><span><i class="fas fa-medal silver"></i> Prata: trinca de 3 meses consecutivos</span><span><i class="fas fa-trophy gold"></i> Ouro: 6 meses consecutivos</span></div>${calendarHtml}<p class="team-awards-footnote"><i class="fas fa-circle-info"></i> Consulta ao consolidado oficial da página Metas Comercial. Selos mensais representam metas atingidas; os níveis e totais exibidos são calculados a partir dos registros disponíveis no ano corrente.</p>`;
                     document.getElementById('team-awards-search').addEventListener('input',function(){const q=norm(this.value);document.querySelectorAll('#team-awards-list .team-awards-person').forEach(el=>el.style.display=norm(el.textContent).includes(q)?'flex':'none')});
                     teamAwardsLoaded=true;
                 } catch(err) {
