@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, viewport-fit=cover" />
     <meta name="robots" content="noindex" />
-    <title>Radar Centrobor – Gestão à Vista</title>
+    <title>Radar Centrobor · Gestão à Vista</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -646,7 +646,94 @@
             #video-title-bar { font-size: 1.1rem; padding: 10px 18px; gap: 10px; }
             #video-title-bar i { font-size: 1.4rem; }
         }
-    </style>
+    
+    /* =========================================================
+       RADAR CENTROBOR — camada visual refinada
+       Mantém a tela de exibição independente do controle.
+       ========================================================= */
+    :root {
+        --radar-accent: #38bdf8;
+        --radar-green: #35d399;
+        --radar-glass: rgba(7, 20, 36, .72);
+        --radar-outline: rgba(148, 210, 235, .16);
+        --radar-glow: 0 18px 60px rgba(0, 0, 0, .30);
+    }
+    body { background: #071525; }
+    .animated-bg {
+        background:
+            radial-gradient(ellipse at 12% 12%, rgba(22, 163, 125, .25), transparent 36%),
+            radial-gradient(ellipse at 88% 82%, rgba(14, 116, 190, .30), transparent 42%),
+            linear-gradient(135deg, #071525 0%, #0a2740 48%, #092e32 100%);
+        background-size: 150% 150%;
+        animation: radarAmbient 24s ease-in-out infinite alternate;
+    }
+    @keyframes radarAmbient {
+        0% { background-position: 0% 0%; }
+        100% { background-position: 100% 100%; }
+    }
+    .slides-zone {
+        border: 1px solid var(--radar-outline);
+        box-shadow: var(--radar-glow);
+        background: rgba(4, 15, 28, .20);
+        backdrop-filter: blur(8px);
+    }
+    .slide { border-radius: 24px; }
+    .slide::before {
+        background:
+            linear-gradient(135deg, rgba(5, 35, 52, .18), rgba(5, 52, 42, .14)),
+            radial-gradient(ellipse at 50% 0%, rgba(56, 189, 248, .08), transparent 58%);
+    }
+    .sidebar-right > *, .video-box, .second-slide-pane, .radio-embed {
+        border-color: var(--radar-outline);
+        box-shadow: 0 12px 36px rgba(0,0,0,.18);
+    }
+    .bottombar {
+        background: linear-gradient(90deg, rgba(5, 20, 35, .94), rgba(8, 37, 48, .92));
+        border-top: 1px solid rgba(56, 189, 248, .14);
+        backdrop-filter: blur(18px);
+    }
+    .clock-center .hora-grande, .relogio-slide .hora-grande {
+        font-variant-numeric: tabular-nums;
+        letter-spacing: .025em;
+        text-shadow: 0 8px 34px rgba(0,0,0,.32);
+    }
+    .clock-center .data-grande, .relogio-slide .data-grande {
+        letter-spacing: .035em;
+    }
+    .dolar-cotacao {
+        background: linear-gradient(135deg, rgba(12, 45, 53, .88), rgba(7, 27, 46, .88));
+        border-color: rgba(53, 211, 153, .25);
+        box-shadow: 0 8px 26px rgba(0,0,0,.18);
+    }
+    .sidebar-top-toggle, #canvaMenuBtn, #radioFloatingBtn, #radioSelector {
+        border-color: var(--radar-outline);
+        box-shadow: 0 8px 28px rgba(0,0,0,.24);
+        backdrop-filter: blur(16px);
+    }
+    .slide-controls button, .slide-indicators .dot-indicator {
+        transition: transform .2s ease, background .2s ease, opacity .2s ease;
+    }
+    .slide-controls button:hover { transform: translateY(-2px); }
+    .slide-refresh-btn { backdrop-filter: blur(12px); }
+    .watermark { letter-spacing: .02em; }
+    body[data-radar-theme="light"] .animated-bg {
+        background:
+            radial-gradient(ellipse at 10% 10%, rgba(16, 185, 129, .12), transparent 38%),
+            radial-gradient(ellipse at 90% 85%, rgba(14, 165, 233, .14), transparent 42%),
+            linear-gradient(135deg, #eaf4f8, #f5fbfc 55%, #e8f5ef);
+    }
+    @media (max-width: 900px) {
+        .main-grid { gap: 10px; padding: 10px; }
+        .slides-zone { border-radius: 18px; }
+        .bottombar { padding-inline: 12px; }
+        .clock-center .data-grande { font-size: clamp(.85rem, 2vw, 1.3rem); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+        .animated-bg { animation: none !important; }
+        *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
+
+</style>
 </head>
 <body>
     <div class="animated-bg"></div>
@@ -745,7 +832,7 @@
 
             const DEFAULT_DURATIONS = {
                 relogio: 15, logo: 15, previsao_tempo: 15, noticias_rss: 120,
-                dolar: 15, aniversariantes: 15, video: 25, canva: 20,
+                dolar: 15, video: 25, canva: 20,
                 campanha_reta_final: 16
             };
 
@@ -1105,22 +1192,9 @@
                 img.src = base + '?_rt=' + Date.now();
             }
 
-            function rebuildBirthdaySlides() {
-                const novos = obterAniversariantesDaSemana();
-                for (let i = allSlides.length - 1; i >= 0; i--) {
-                    const t = allSlides[i].type;
-                    if (t.indexOf('aniversariante') === 0 || t === 'aniversariantes_semana') {
-                        allSlides.splice(i, 1);
-                    }
-                }
-                if (novos.length) {
-                    novos.filter(a => a.diff < 0).forEach(a => allSlides.push({ type: 'aniversariante_individual', html: buildBirthdayHeroSlide(a, false, a.diff), customLabel: 'Aniversário – ' + a.nome }));
-                    novos.filter(a => a.diff > 0).forEach(a => allSlides.push({ type: 'aniversariante_futuro', html: buildBirthdayHeroSlide(a, true, a.diff), customLabel: 'Próximo – ' + a.nome }));
-                    novos.filter(a => a.diff === 0).forEach(a => allSlides.push({ type: 'aniversariante_dia', html: buildBirthdayHeroSlide(a, false, 0), customLabel: 'Hoje – ' + a.nome }));
-                    allSlides.push({ type: 'aniversariantes_semana', html: buildBirthdayWeekSlide(novos), customLabel: 'Aniversariantes da Semana' });
-                }
-                rebuildSlides();
-            }
+            function rebuildBirthdaySlides() { /* Conteúdo de aniversários desativado por decisão editorial. */ }
+
+            
 
             function rebuildCampanhaSlide() {
                 for (let i = allSlides.length - 1; i >= 0; i--) {
@@ -1155,12 +1229,6 @@
                         });
                         break;
                     case 'dolar': carregarSlideDolar(); break;
-                    case 'aniversariante_individual':
-                    case 'aniversariante_futuro':
-                    case 'aniversariante_dia':
-                    case 'aniversariantes_semana':
-                        rebuildBirthdaySlides();
-                        break;
                     case 'campanha_reta_final': rebuildCampanhaSlide(); break;
                     case 'relogio': atualizarTodosRelogios(); break;
                     case 'video': break;
@@ -1168,7 +1236,7 @@
             }
 
             function refreshAllSlides() {
-                ['canva', 'logo', 'previsao_tempo', 'noticias_rss', 'dolar', 'aniversariantes_semana', 'campanha_reta_final'].forEach(t => refreshSlide(t));
+                ['canva', 'logo', 'previsao_tempo', 'noticias_rss', 'dolar', 'campanha_reta_final'].forEach(t => refreshSlide(t));
             }
 
             function applyRadarSettings() {
@@ -2230,14 +2298,7 @@
 
                 allSlides.push({ type: 'noticias_rss', html: buildNoticiasRssSlide(), customLabel: 'Notícias (G1 + TecMundo)' });
                 allSlides.push({ type: 'dolar', html: buildDolarSlide(), customLabel: 'Dólar (Economia)' });
-
-                const aniv = obterAniversariantesDaSemana();
-                if (aniv.length) {
-                    aniv.filter(a => a.diff < 0).forEach(a => allSlides.push({ type: 'aniversariante_individual', html: buildBirthdayHeroSlide(a, false, a.diff), customLabel: 'Aniversário – ' + a.nome }));
-                    aniv.filter(a => a.diff > 0).forEach(a => allSlides.push({ type: 'aniversariante_futuro', html: buildBirthdayHeroSlide(a, true, a.diff), customLabel: 'Próximo – ' + a.nome }));
-                    aniv.filter(a => a.diff === 0).forEach(a => allSlides.push({ type: 'aniversariante_dia', html: buildBirthdayHeroSlide(a, false, 0), customLabel: 'Hoje – ' + a.nome }));
-                    allSlides.push({ type: 'aniversariantes_semana', html: buildBirthdayWeekSlide(aniv), customLabel: 'Aniversariantes da Semana' });
-                }
+                // Slides comemorativos de aniversário removidos da programação do Radar.
 
                 allSlides.push({ type: 'video', html: `<div style="width:100%;height:100%;background:transparent;"></div>`, customLabel: 'Centrobor Esportes' });
                 allSlides.push({ type: 'canva', html: `<iframe src="${CANVA_BASE_URL}" style="width:100%; height:100%; border:none;" allow="fullscreen"></iframe><button class="slide-refresh-btn" data-refresh-slide="canva" title="Forçar atualização do RADAR"><i class="fas fa-sync-alt"></i></button>`, customLabel: 'RADAR CENTROBOR' });
@@ -2466,7 +2527,6 @@
                 if (s && s.type === 'relogio') bottombar.classList.add('relogio-active');
                 else bottombar.classList.remove('relogio-active');
 
-                if (s?.type === 'aniversariante_dia' && radarConfetti) dispararConfetes();
                 if (s?.type === 'relogio') atualizarTodosRelogios();
 
                 if (s?.type === 'previsao_tempo') setTimeout(() => aplicarCorPredominante('previsao_tempo'), 200);
@@ -2727,7 +2787,6 @@
                     case 'refreshWeather': refreshSlide('previsao_tempo'); break;
                     case 'refreshCanva': refreshSlide('canva'); break;
                     case 'refreshLogo': refreshSlide('logo'); break;
-                    case 'refreshBirthdays': refreshSlide('aniversariantes_semana'); break;
                     case 'refreshCampanha': refreshSlide('campanha_reta_final'); break;
                     case 'refreshAll': refreshAllSlides(); break;
                     case 'refreshSlide':
